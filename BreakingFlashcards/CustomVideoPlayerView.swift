@@ -15,22 +15,25 @@ struct CustomVideoPlayerView: View {
     let move: Move?
     let combo: Combo?
     let url: URL?
-    @State private var player: AVPlayer? = nil
+    let player: AVPlayer?
+
+    @State private var internalPlayer: AVPlayer? = nil
     @State private var isPlaying = false
     @State private var showControls = true
     @State private var videoError: String? = nil
     @State private var isMuted = false
     @State private var isFullscreen = false
 
-    init(move: Move? = nil, combo: Combo? = nil, url: URL? = nil) {
+    init(move: Move? = nil, combo: Combo? = nil, url: URL? = nil, player: AVPlayer? = nil) {
         self.move = move
         self.combo = combo
         self.url = url
+        self.player = player
     }
 
     var body: some View {
         ZStack {
-            if let player = player {
+            if let player = internalPlayer {
                 VideoPlayer(player: player)
                     .onAppear {
                         // Auto-play when view appears
@@ -42,7 +45,7 @@ struct CustomVideoPlayerView: View {
                         player.pause()
                         isPlaying = false
                     }
-                    .onChange(of: isMuted) { oldValue, newValue in
+                    .onChange(of: isMuted) { _, newValue in
                         player.isMuted = newValue
                     }
                     .overlay(alignment: .topTrailing) {
@@ -110,7 +113,7 @@ struct CustomVideoPlayerView: View {
             }
         }
         .fullScreenCover(isPresented: $isFullscreen) {
-            if let player = player {
+            if let player = internalPlayer {
                 ZStack {
                     VideoPlayer(player: player)
                         .edgesIgnoringSafeArea(.all)
@@ -139,13 +142,16 @@ struct CustomVideoPlayerView: View {
         .onAppear {
             setupPlayer()
         }
-        .onChange(of: move) { oldMove, newMove in
+        .onChange(of: move) {
             setupPlayer()
         }
-        .onChange(of: combo) { oldCombo, newCombo in
+        .onChange(of: combo) {
             setupPlayer()
         }
-        .onChange(of: url) { oldURL, newURL in
+        .onChange(of: url) {
+            setupPlayer()
+        }
+        .onChange(of: player) {
             setupPlayer()
         }
     }
@@ -153,16 +159,21 @@ struct CustomVideoPlayerView: View {
     private func setupPlayer() {
         videoError = nil
 
+        if let player = player {
+            self.internalPlayer = player
+            return
+        }
+        
         if let url = url {
             // Direct URL provided
             if FileManager.default.fileExists(atPath: url.path) {
-                player = AVPlayer(url: url)
+                self.internalPlayer = AVPlayer(url: url)
             } else {
                 videoError = "Video file not found"
             }
         } else if let move = move {
             if let videoURL = getVideoURL(for: move) {
-                player = AVPlayer(url: videoURL)
+                self.internalPlayer = AVPlayer(url: videoURL)
             } else {
                 videoError = "No video file found for this move"
             }
@@ -170,7 +181,7 @@ struct CustomVideoPlayerView: View {
             // For combos, we'll play the first move's video
             if let firstMove = getFirstMoveFromCombo(combo) {
                 if let videoURL = getVideoURL(for: firstMove) {
-                    player = AVPlayer(url: videoURL)
+                    self.internalPlayer = AVPlayer(url: videoURL)
                 } else {
                     videoError = "No video file found for this combo"
                 }
@@ -188,7 +199,7 @@ struct CustomVideoPlayerView: View {
             return nil
         }
 
-        let url = URL(filePath: path)
+        let url = URL(fileURLWithPath: path)
         return FileManager.default.fileExists(atPath: path) ? url : nil
     }
 
