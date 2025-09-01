@@ -50,13 +50,9 @@ struct CreateComboView: View {
                 Button("Save Combo") {
                     isNamingAlertPresented = true
                 }
-                .font(.ibmPlexMono(size: 18, weight: .regular))
-                .buttonStyle(.borderedProminent)
-                .tint(.accent)
-                // .controlSize(.large)
+                .font(.appFont(.regular, size: 18)) // IBM Plex Mono font
+                .buttonStyle(.appAccent(size: .medium))
                 .disabled(comboMoves.isEmpty)
-                // .padding(.horizontal, 40)
-                // .padding(.top, 20)
                 
                 Spacer(minLength: 20)
             }

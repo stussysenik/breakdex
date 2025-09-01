@@ -29,14 +29,14 @@ struct AddMoveErrorView: View {
                 Button("Try Again") { // Changed button text
                     viewModel.reset() // Reset to allow retrying the flow
                 }
-                .buttonStyle(VideoTrimmerButtonStyle(level: .primary))
+                .buttonStyle(.appPrimary(size: .small))
                 .accessibilityIdentifier("Try Again Button")
 
                 Button("Cancel") { // Changed button text
                     selectedTab = .arsenal // Switch to Arsenal tab
                     viewModel.reset() // Reset the AddMoveViewModel state
                 }
-                .buttonStyle(VideoTrimmerButtonStyle(level: .secondary))
+                .buttonStyle(.appSecondary(size: .small))
                 .accessibilityIdentifier("Cancel Button")
             }
         }

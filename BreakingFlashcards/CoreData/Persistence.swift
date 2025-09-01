@@ -10,6 +10,13 @@ import CoreData
 struct PersistenceController {
     static let shared = PersistenceController()
 
+    static var preview: PersistenceController = {
+        let result = PersistenceController(inMemory: true)
+        let viewContext = result.container.viewContext
+        // Add sample data for previews here if needed
+        return result
+    }()
+
     let container: NSPersistentContainer
 
     init(inMemory: Bool = false) {

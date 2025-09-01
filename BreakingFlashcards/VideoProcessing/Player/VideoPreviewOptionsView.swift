@@ -29,31 +29,35 @@ struct VideoPreviewOptionsView: View {
                 .padding()
                 .accessibilityIdentifier("CustomVideoPlayerView") // Added accessibility identifier
 
-            Spacer()
+            Spacer() // Pushes buttons to the bottom
 
             VStack(spacing: 20) {
                 HStack(spacing: 20) {
-                    Button("Change Video") {
+                    Button {
                         showPhotosPicker = true // Show PhotosPicker
+                    } label: {
+                        Text("Change Video")
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(VideoTrimmerButtonStyle(level: .secondary))
+                    .buttonStyle(.appSecondary(size: .small))
                     .accessibilityIdentifier("Change Video Button") // Added accessibility identifier
 
                     Button("Trim Video") {
                         viewModel.state = .trimming(asset: asset, photosIdentifier: photosIdentifier)
                     }
-                    .buttonStyle(VideoTrimmerButtonStyle(level: .secondary))
+                    .buttonStyle(.appSecondary(size: .small))
                     .accessibilityIdentifier("Trim Video Button") // Added accessibility identifier
 
                     Button("Use Original") {
                         viewModel.state = .naming(photosIdentifier: photosIdentifier ?? "", originalAsset: asset, trimStartTime: nil, trimEndTime: nil)
                     }
-                    .buttonStyle(VideoTrimmerButtonStyle(level: .primary))
+                    .buttonStyle(.appPrimary(size: .small))
                     .accessibilityIdentifier("Use Original Button") // Added accessibility identifier
                 }
-                .padding(.horizontal, 30)
             }
-            .padding(.bottom)
+            .padding()
+            .padding(.bottom, 44)
         }
         .photosPicker(isPresented: $showPhotosPicker, selection: $selectedPhotosPickerItem, matching: .videos) // PhotosPicker modifier
         .onChange(of: selectedPhotosPickerItem) { oldItem, newItem in // Handle new selection

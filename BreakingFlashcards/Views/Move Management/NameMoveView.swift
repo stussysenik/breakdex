@@ -11,39 +11,51 @@ struct NameMoveView: View {
                 CustomVideoPlayerView(photosIdentifier: photosIdentifier)
                     .cornerRadius(12)
                     .padding()
-                    .accessibilityIdentifier("NameMoveVideoPlayer") // Added accessibility identifier
+                    .accessibilityIdentifier("NameMoveVideoPlayer")
 
-                TextField("Enter move name", text: $viewModel.moveName)
-                    .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal)
-                    .accessibilityIdentifier("Enter move name") // Added accessibility identifier
+                Spacer()
 
-                HStack(spacing: 12) {
+                VStack {
+                    Text("Name Your Move")
+                        .font(.titleMedium)
+                        .foregroundColor(.white)
+                    
+                    TextField("Enter move name", text: $viewModel.moveName)
+                        .font(.titleLarge)
+                        .multilineTextAlignment(.center)
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(10)
+                        .accessibilityIdentifier("Enter move name")
+                }
+                .padding()
+
+                Spacer()
+                Spacer()
+
+                HStack(spacing: 15) {
                     Button("Back") {
-                        // Determine the previous state to go back to
-                        // For now, let's go back to previewing
                         if let asset = originalAsset {
                             viewModel.state = .previewing(asset: asset, photosIdentifier: photosIdentifier)
                         } else {
-                            // If originalAsset is nil, it means we came from trimming
-                            // We need to get the asset from the trimming state or pass it along
-                            // For now, reset to ready if we can't go back to previewing
                             viewModel.reset()
                         }
                     }
-                    .buttonStyle(VideoTrimmerButtonStyle(level: .secondary))
-                    .accessibilityIdentifier("Back Button") // Added accessibility identifier
+                    .buttonStyle(.appSecondary(size: .medium))
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("Back Button")
 
                     Button("Save") {
                         viewModel.saveMove()
                     }
                     .disabled(viewModel.moveName.isEmpty)
-                    .buttonStyle(VideoTrimmerButtonStyle(level: .primary))
-                    .accessibilityIdentifier("Save Button") // Added accessibility identifier
+                    .buttonStyle(.appPrimary(size: .medium))
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("Save Button")
                 }
                 .padding(.horizontal)
+                .padding(.bottom, 44)
             }
-            Spacer()
         }
     }
 }

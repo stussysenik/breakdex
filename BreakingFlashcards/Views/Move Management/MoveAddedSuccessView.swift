@@ -19,14 +19,14 @@ struct MoveAddedSuccessView: View {
                 Button("Add Another Move") { // Changed button text
                     viewModel.reset()
                 }
-                .buttonStyle(VideoTrimmerButtonStyle(level: .primary))
+                .buttonStyle(.appPrimary(size: .small))
                 .accessibilityIdentifier("Add Another Button")
 
                 Button("Done") { // Added Done button
                     selectedTab = .arsenal // Switch to Arsenal tab
                     viewModel.reset() // Reset the AddMoveViewModel state
                 }
-                .buttonStyle(VideoTrimmerButtonStyle(level: .secondary))
+                .buttonStyle(.appSecondary(size: .small))
                 .accessibilityIdentifier("Done Button")
             }
         }

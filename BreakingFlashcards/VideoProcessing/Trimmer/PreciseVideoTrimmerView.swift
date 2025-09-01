@@ -22,25 +22,22 @@ struct PreciseVideoTrimmerView: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Top 40%: Video preview
                 CustomVideoPlayerView(trimmerViewModel.player)
-                    .frame(height: UIScreen.main.bounds.height * 0.4)
+                    .padding()
                     .accessibilityIdentifier("TrimmerVideoPlayer")
 
-                // Bottom 60%: Controls
+                Spacer()
+
                 TrimControlPanelView(viewModel: trimmerViewModel, onCancel: {
-                    addMoveViewModel.cancelTrimming() // Direct call to AddMoveViewModel
-                }, onExport: { // This is the "Save Trim" action
-                    // Validate trim ranges before proceeding
+                    addMoveViewModel.cancelTrimming()
+                }, onExport: { 
                     guard trimmerViewModel.validateTrimRanges() else {
                         addMoveViewModel.state = .error(message: "Invalid trim ranges. Please ensure start time is before end time.", underlyingError: nil)
                         return
                     }
 
-                    // Get trim ranges from the trimmer view model
                     let (startTime, endTime) = trimmerViewModel.getTrimRanges()
 
-                    // Transition to .naming state in AddMoveViewModel
                     addMoveViewModel.state = .naming(photosIdentifier: photosIdentifier ?? "", originalAsset: asset, trimStartTime: startTime, trimEndTime: endTime)
                 })
             }
@@ -191,20 +188,20 @@ private struct TrimControlPanelView: View {
 
             Spacer()
 
-            // Action buttons
             HStack(spacing: 15) {
-                Button("Back", action: onCancel) // Renamed "Cancel" to "Back"
-                    .buttonStyle(SecondaryActionStyle())
-                    // .disabled(viewModel.isExporting) // Remove this
-                    .accessibilityIdentifier("TrimmerBackButton") // Added accessibility identifier
-                Button("Save Trim", action: onExport) // Renamed "Create Clip" to "Save Trim"
-                    .buttonStyle(PrimaryActionStyle())
-                    // .disabled(viewModel.isExporting) // Remove this
-                    .accessibilityIdentifier("TrimmerSaveTrimButton") // Added accessibility identifier
+                Button("Back", action: onCancel)
+                    .buttonStyle(.appSecondary(size: .medium))
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("TrimmerBackButton")
+                Button("Save Trim", action: onExport)
+                    .buttonStyle(.appPrimary(size: .medium))
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("TrimmerSaveTrimButton")
             }
-            .padding(.bottom, 40)
+            .padding(.horizontal)
+            .padding(.bottom, 44)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top)
         .background(Color.black.opacity(0.8))
         .clipShape(RoundedCorner(radius: 24, corners: [.topLeft, .topRight]))
     }
@@ -216,3 +213,23 @@ private struct TrimControlPanelView: View {
         return String(format: "%02d:%02d.%02d", minutes, seconds, milliseconds)
     }
 }
+
+// MARK: - Preview
+#if DEBUG
+struct PreciseVideoTrimmerView_Previews: PreviewProvider {
+    static var previews: some View {
+        // Create a dummy AddMoveViewModel
+        let addMoveViewModel = AddMoveViewModel(viewContext: PersistenceController.preview.container.viewContext)
+
+        // Create a dummy asset
+        let dummyAsset = AVAsset()
+
+        // Create a dummy TrimmerViewModel
+        let trimmerViewModel = TrimmerViewModel(asset: dummyAsset)
+
+        // Return the view
+        PreciseVideoTrimmerView(addMoveViewModel: addMoveViewModel, trimmerViewModel: trimmerViewModel, asset: dummyAsset, photosIdentifier: "dummyIdentifier")
+            .preferredColorScheme(.dark)
+    }
+}
+#endif
