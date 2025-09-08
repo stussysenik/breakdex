@@ -1,0 +1,548 @@
+//
+//  TrimmerView.swift
+//  BreakingFlashcards
+//
+//  Created by AI Assistant on 8/30/25.
+//
+
+import SwiftUI
+import AVKit
+import AVFoundation
+import UIKit
+import Combine
+
+// main wrapper view for the video trimmer
+struct TrimmerView: View {
+    @ObservedObject var addMoveViewModel: AddMoveViewModel
+    @ObservedObject var trimmerViewModel: TrimmerViewModel
+    @State var rotationQuarterTurns: Int
+
+    @State private var showMinDurationWarning = false
+    @State private var warningDismissTimer: Timer?
+    
+    private var isModified: Bool {
+        trimmerViewModel.startTime.seconds > 0 || trimmerViewModel.endTime < trimmerViewModel.videoDuration
+    }
+
+    private var isExportInProgress: Bool {
+        trimmerViewModel.isExporting
+    }
+    
+    init(addMoveViewModel: AddMoveViewModel, trimmerViewModel: TrimmerViewModel, rotationQuarterTurns: Int) {
+        self.addMoveViewModel = addMoveViewModel
+        self.trimmerViewModel = trimmerViewModel
+        _rotationQuarterTurns = State(initialValue: rotationQuarterTurns)
+
+        // Sync rotation state with the view model
+        trimmerViewModel.rotationQuarterTurns = rotationQuarterTurns
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                TrimmerVideoPlayerView(player: trimmerViewModel.player) // video player with composition-based rotation
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .accessibilityIdentifier("TrimmerVideoPlayer")
+            }
+            .assertNoTransforms() // Runtime assertion: video surface must not have transforms
+
+            // UIKit-based precise trimmer with time display
+            VStack(spacing: 0) {
+                UIKitPreciseTrimmerView(viewModel: trimmerViewModel, onMinimumDurationWarning: showMinimumDurationWarning)
+                    .frame(height: 60)
+                    .padding(EdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0))
+
+                timeDisplayView
+                    .padding(.top, 8)
+            }
+            Spacer()
+
+            ActionBottomBar(
+                onCancel: { addMoveViewModel.cancelTrimming() },
+                onExport: {
+                    Task {
+                        trimmerViewModel.isExporting = true
+                        defer { trimmerViewModel.isExporting = false }
+
+                        guard trimmerViewModel.validateTrimRanges() else {
+                            addMoveViewModel.state = .error(message: "Invalid trim ranges. Please ensure start time is before end time.", underlyingError: nil)
+                            return
+                        }
+
+                        do {
+                            let exportedURL = try await trimmerViewModel.exportVideo()
+                            let trimmedAsset = AVURLAsset(url: exportedURL)
+                            print("✅ EXPORT SUCCESS: URL=\(exportedURL), Asset created=\(trimmedAsset != nil)")
+                            print("🎬 EXPORT COMPLETE: Transitioning to naming state with rotationQuarterTurns: \(trimmerViewModel.rotationQuarterTurns)")
+                            addMoveViewModel.state = .naming(photosIdentifier: trimmerViewModel.photosIdentifier ?? "", originalAsset: trimmerViewModel.asset, trimmedAsset: trimmedAsset, trimStartTime: trimmerViewModel.startTime.seconds, trimEndTime: trimmerViewModel.endTime.seconds, rotationQuarterTurns: trimmerViewModel.rotationQuarterTurns)
+                            MotionCatalog.Accessibility.successHaptic() // Success haptic
+                        } catch {
+                            print("❌ EXPORT FAILED: \(error.localizedDescription)")
+                            addMoveViewModel.state = .error(message: "Failed to export video.", underlyingError: error.localizedDescription)
+                        }
+                    }
+                },
+                onRotate: rotateVideo,
+                isModified: isModified,
+                isExporting: isExportInProgress
+            )
+        }
+        .background(Color.black.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 12)
+        }
+        .overlay(alignment: .bottom) {
+            if showMinDurationWarning {
+                MinimumDurationWarningView()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .onChange(of: trimmerViewModel.startTime) { _, newStart in
+            trimmerViewModel.requestSeek(to: newStart)
+        }
+        .onChange(of: trimmerViewModel.endTime) { _, newEnd in
+            trimmerViewModel.requestSeek(to: newEnd)
+        }
+        .onChange(of: rotationQuarterTurns) { _, newRotation in
+            // Sync the view model's rotation state with the view's parameter
+            trimmerViewModel.rotationQuarterTurns = newRotation
+            Task {
+                await trimmerViewModel.updatePreview()
+            }
+        }
+        .onChange(of: addMoveViewModel.state) { _, newState in
+            // Sync local rotation state with AddMoveViewModel state changes
+            if case .trimming(_, _, let stateRotation) = newState {
+                rotationQuarterTurns = stateRotation
+                trimmerViewModel.rotationQuarterTurns = stateRotation
+            }
+        }
+        .task {
+            do {
+                try await trimmerViewModel.setupAsync()
+                await trimmerViewModel.updatePreview()
+            } catch {
+                addMoveViewModel.state = .error(message: "Failed to load video for trimming.", underlyingError: error.localizedDescription)
+            }
+        }
+    }
+
+    private func rotateVideo() {
+        let newRotationQuarterTurns = (rotationQuarterTurns + 1) % 4
+        addMoveViewModel.updateTrimmingRotation(rotationQuarterTurns: newRotationQuarterTurns)
+        // Update local state to match
+        rotationQuarterTurns = newRotationQuarterTurns
+        UIAccessibility.post(notification: .announcement, argument: "Rotated ninety degrees")
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    private func showMinimumDurationWarning() {
+        // Cancel existing timer if any
+        warningDismissTimer?.invalidate()
+
+        // Show warning
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showMinDurationWarning = true
+        }
+
+        // Auto-dismiss after 1.5 seconds
+        warningDismissTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { _ in
+            Task { @MainActor in
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    showMinDurationWarning = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Time Display View
+    private var timeDisplayView: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text("Start").font(.caption).foregroundColor(.secondary)
+                Text(formatTime(trimmerViewModel.startTime)).font(.system(size: 16, weight: .bold, design: .monospaced))
+            }
+            Spacer()
+            VStack {
+                Text("Duration").font(.caption).foregroundColor(.secondary)
+                Text(formatTime(trimmerViewModel.endTime - trimmerViewModel.startTime)).font(.system(size: 14, design: .monospaced)).foregroundColor(.secondary)
+            }
+            Spacer()
+            VStack(alignment: .trailing) {
+                Text("End").font(.caption).foregroundColor(.secondary)
+                Text(formatTime(trimmerViewModel.endTime)).font(.system(size: 16, weight: .bold, design: .monospaced))
+            }
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func formatTime(_ time: CMTime) -> String {
+        let seconds = CMTimeGetSeconds(time)
+        guard seconds.isFinite && !seconds.isNaN else { return "00:00.00" }
+        let totalSeconds = max(0, seconds)
+        let minutes = Int(totalSeconds) / 60
+        let remainingSeconds = Int(totalSeconds) % 60
+        let milliseconds = Int((totalSeconds.truncatingRemainder(dividingBy: 1)) * 100)
+        return String(format: "%02d:%02d.%02d", minutes, remainingSeconds, milliseconds)
+    }
+
+    // MARK: - Minimum Duration Warning View
+    private struct MinimumDurationWarningView: View {
+        var body: some View {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.buttonHard)
+                Text("Minimum duration: 1 second")
+                    .font(.caption)
+                    .foregroundColor(.textPrimary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.secondary.opacity(0.9))
+            )
+            .padding(.bottom, 20)
+        }
+    }
+
+struct ActionBottomBar: View {
+    let onCancel: () -> Void
+    let onExport: () -> Void
+    let onRotate: () -> Void
+    let isModified: Bool
+    let isExporting: Bool
+    
+    var body: some View {
+        HStack(spacing: 24) {
+            Button("Back", action: onCancel)
+                .buttonStyle(.borderless)
+                .tint(.white)
+                .frame(maxWidth: .infinity)
+            
+            Button(action: onRotate) {
+                Image(systemName: "rotate.right").font(.title2)
+            }
+            .buttonStyle(.borderless)
+            .tint(.white)
+            .frame(width: 44, height: 44)
+            
+            if isExporting {
+                ProgressView().frame(maxWidth: .infinity)
+            } else {
+                Button("Save Trim", action: onExport)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.accentColor)
+                    .frame(maxWidth: .infinity)
+                    .disabled(!isModified)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 40)
+    }
+}
+
+struct AsyncTrimmerView: View {
+    @ObservedObject var addMoveViewModel: AddMoveViewModel
+    let asset: AVAsset
+    let photosIdentifier: String?
+    let rotationQuarterTurns: Int
+
+    var body: some View {
+        let trimmerViewModel = TrimmerViewModel(asset: asset, photosIdentifier: photosIdentifier)
+        trimmerViewModel.rotationQuarterTurns = rotationQuarterTurns
+        return TrimmerView(addMoveViewModel: addMoveViewModel, trimmerViewModel: trimmerViewModel, rotationQuarterTurns: rotationQuarterTurns)
+    }
+}
+
+
+
+
+// MARK: - UIKitPreciseTrimmerView (UIViewRepresentable)
+struct UIKitPreciseTrimmerView: UIViewRepresentable {
+    @ObservedObject var viewModel: TrimmerViewModel
+    let onMinimumDurationWarning: (() -> Void)?
+
+    func makeUIView(context: Context) -> PreciseTrimmerContainerView {
+        let containerView = PreciseTrimmerContainerView(viewModel: viewModel, onMinimumDurationWarning: onMinimumDurationWarning)
+        return containerView
+    }
+
+    func updateUIView(_ uiView: PreciseTrimmerContainerView, context: Context) {
+        uiView.updateLayout()
+    }
+}
+
+// MARK: - PreciseTrimmerContainerView
+class PreciseTrimmerContainerView: UIView {
+    private let viewModel: TrimmerViewModel
+    private let onMinimumDurationWarning: (() -> Void)?
+
+    // Core UI Elements
+    private let backgroundTrack = UIView()
+    private let activeRangeBar = UIView()
+    private let startHandle = TrimHandleView()
+    private let endHandle = TrimHandleView()
+
+    // Gesture Management
+    private var startGestureRecognizer: UIPanGestureRecognizer?
+    private var endGestureRecognizer: UIPanGestureRecognizer?
+
+    // Layout Constants
+    private let handleWidth: CGFloat = 44
+    private let trackHeight: CGFloat = 8
+    private let activeRangeHeight: CGFloat = 12
+    private let totalHeight: CGFloat = 60
+
+    // State
+    private var currentWidth: CGFloat = 0
+    private var cancellables = Set<AnyCancellable>()
+
+    init(viewModel: TrimmerViewModel, onMinimumDurationWarning: (() -> Void)? = nil) {
+        self.viewModel = viewModel
+        self.onMinimumDurationWarning = onMinimumDurationWarning
+        super.init(frame: .zero)
+
+        setupViews()
+        setupGestures()
+        setupBindings()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupViews() {
+        // Background track
+        backgroundTrack.backgroundColor = UIColor.secondarySystemFill.withAlphaComponent(0.3)
+        backgroundTrack.layer.cornerRadius = 4
+        backgroundTrack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(backgroundTrack)
+
+        // Active range bar
+        activeRangeBar.backgroundColor = UIColor.systemBlue
+        activeRangeBar.layer.cornerRadius = 6
+        activeRangeBar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(activeRangeBar)
+
+        // Add handles
+        addSubview(startHandle)
+        addSubview(endHandle)
+
+        // Disable hit testing on non-interactive elements
+        backgroundTrack.isUserInteractionEnabled = false
+        activeRangeBar.isUserInteractionEnabled = false
+    }
+
+    private func setupGestures() {
+        // Start handle gesture
+        let startGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        startHandle.addGestureRecognizer(startGesture)
+        startGestureRecognizer = startGesture
+
+        // End handle gesture
+        let endGesture = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        endHandle.addGestureRecognizer(endGesture)
+        endGestureRecognizer = endGesture
+    }
+
+    private func setupBindings() {
+        // Bind to view model changes
+        viewModel.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateLayout()
+            }
+            .store(in: &cancellables)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        currentWidth = bounds.width
+        updateLayout()
+    }
+
+    func updateLayout() {
+        guard currentWidth > 0, viewModel.videoDuration.seconds > 0 else { return }
+
+        let effectiveWidth = currentWidth - handleWidth
+
+        // Update background track
+        backgroundTrack.frame = CGRect(
+            x: handleWidth / 2,
+            y: (totalHeight - trackHeight) / 2,
+            width: effectiveWidth,
+            height: trackHeight
+        )
+
+        // Update active range bar
+        let startPosition = timeToPosition(viewModel.startTime, totalWidth: effectiveWidth)
+        let endPosition = timeToPosition(viewModel.endTime, totalWidth: effectiveWidth)
+        let rangeWidth = max(endPosition - startPosition, 0)
+
+        activeRangeBar.frame = CGRect(
+            x: handleWidth / 2 + startPosition,
+            y: (totalHeight - activeRangeHeight) / 2,
+            width: rangeWidth,
+            height: activeRangeHeight
+        )
+
+        // Update handle positions
+        startHandle.frame = CGRect(
+            x: startPosition,
+            y: 0,
+            width: handleWidth,
+            height: totalHeight
+        )
+
+        endHandle.frame = CGRect(
+            x: endPosition,
+            y: 0,
+            width: handleWidth,
+            height: totalHeight
+        )
+    }
+
+    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+        let isStartHandle = gesture == startGestureRecognizer
+
+        switch gesture.state {
+        case .began:
+            // Handle drag began
+            if isStartHandle {
+                viewModel.isDraggingStartHandle = true
+            } else {
+                viewModel.isDraggingEndHandle = true
+            }
+            // Haptic feedback for drag start
+            viewModel.triggerHapticFeedback(for: .dragStart)
+        case .changed:
+            let translation = gesture.translation(in: self)
+            let translationX = translation.x
+
+            // Calculate new position
+            let currentPosition = isStartHandle ?
+                timeToPosition(viewModel.startTime, totalWidth: currentWidth - handleWidth) :
+                timeToPosition(viewModel.endTime, totalWidth: currentWidth - handleWidth)
+
+            let newPosition = currentPosition + translationX
+            let proposedTime = positionToTime(newPosition, totalWidth: currentWidth - handleWidth)
+
+            // Clamp time with frame precision and minimum 1-second range
+            let minTime = isStartHandle ? CMTime.zero : viewModel.startTime + CMTime(seconds: 1.0, preferredTimescale: viewModel.videoDuration.timescale)
+            let maxTime = isStartHandle ? viewModel.endTime - CMTime(seconds: 1.0, preferredTimescale: viewModel.videoDuration.timescale) : viewModel.videoDuration
+
+            var clampedTime = max(minTime, min(proposedTime, maxTime))
+
+            // Check if user is trying to make the clip 1 second or less
+            let currentStartTime = isStartHandle ? proposedTime : viewModel.startTime
+            let currentEndTime = isStartHandle ? viewModel.endTime : proposedTime
+            let resultingDuration = currentEndTime.seconds - currentStartTime.seconds
+
+            if resultingDuration <= 1.0 {
+                onMinimumDurationWarning?()
+            }
+
+            // Additional frame snapping for precision
+            if viewModel.oneFrameDuration.seconds > 0 {
+                let frameNumber = round(clampedTime.seconds / viewModel.oneFrameDuration.seconds)
+                clampedTime = CMTime(seconds: frameNumber * viewModel.oneFrameDuration.seconds,
+                                   preferredTimescale: clampedTime.timescale)
+                clampedTime = max(minTime, min(clampedTime, maxTime))
+            }
+
+            // Haptic feedback for frame changes (millisecond precision)
+            let oldTime = isStartHandle ? viewModel.startTime : viewModel.endTime
+            if didFrameChange(from: oldTime, to: clampedTime) {
+                let feedback = UISelectionFeedbackGenerator()
+                feedback.selectionChanged()
+            }
+
+            // Update view model
+            if isStartHandle {
+                viewModel.startTime = clampedTime
+            } else {
+                viewModel.endTime = clampedTime
+            }
+
+            // Reset translation
+            gesture.setTranslation(.zero, in: self)
+        case .ended, .cancelled:
+            // Handle drag ended
+            if isStartHandle {
+                viewModel.isDraggingStartHandle = false
+            } else {
+                viewModel.isDraggingEndHandle = false
+            }
+            // Haptic feedback for drag end
+            viewModel.triggerHapticFeedback(for: .dragEnd)
+        default:
+            break
+        }
+    }
+
+    private func timeToPosition(_ time: CMTime, totalWidth: CGFloat) -> CGFloat {
+        guard viewModel.videoDuration.seconds > 0 else { return 0 }
+        let percentage = time.seconds / viewModel.videoDuration.seconds
+        return CGFloat(percentage) * totalWidth
+    }
+
+    private func positionToTime(_ position: CGFloat, totalWidth: CGFloat) -> CMTime {
+        guard totalWidth > 0 else { return .zero }
+        let percentage = position / totalWidth
+        let seconds = Double(percentage) * viewModel.videoDuration.seconds
+        return CMTime(seconds: seconds, preferredTimescale: viewModel.videoDuration.timescale)
+    }
+
+    private func didFrameChange(from oldTime: CMTime, to newTime: CMTime) -> Bool {
+        guard viewModel.oneFrameDuration.seconds > 0 else { return false }
+        let oldFrame = round(oldTime.seconds / viewModel.oneFrameDuration.seconds)
+        let newFrame = round(newTime.seconds / viewModel.oneFrameDuration.seconds)
+        return oldFrame != newFrame
+    }
+}
+
+// MARK: - TrimHandleView (Basic Handle)
+class TrimHandleView: UIView {
+    private let visualHandle = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setupView()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setupView() {
+        // Visual handle (capsule shape)
+        visualHandle.backgroundColor = .white
+        visualHandle.layer.cornerRadius = 4
+        visualHandle.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(visualHandle)
+
+        NSLayoutConstraint.activate([
+            visualHandle.centerXAnchor.constraint(equalTo: centerXAnchor),
+            visualHandle.centerYAnchor.constraint(equalTo: centerYAnchor),
+            visualHandle.widthAnchor.constraint(equalToConstant: 8),
+            visualHandle.heightAnchor.constraint(equalToConstant: 44)
+        ])
+
+        // Add shadow
+        visualHandle.layer.shadowColor = UIColor.black.cgColor
+        visualHandle.layer.shadowOpacity = 0.3
+        visualHandle.layer.shadowRadius = 2
+        visualHandle.layer.shadowOffset = CGSize(width: 0, height: 1)
+    }
+}
+
+#Preview {
+    let addMoveViewModel = AddMoveViewModel(viewContext: PersistenceController.preview.container.viewContext)
+    let dummyAsset = AVAsset(url: URL(fileURLWithPath: "/dev/null"))
+    let trimmerViewModel = TrimmerViewModel(asset: dummyAsset, photosIdentifier: "dummyIdentifier")
+
+    TrimmerView(addMoveViewModel: addMoveViewModel, trimmerViewModel: trimmerViewModel, rotationQuarterTurns: 0)
+        .preferredColorScheme(.dark)
+}

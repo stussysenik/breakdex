@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24D70" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="BreakDex_1.0">
+    <entity name="Combo" representedClassName="Combo" syncable="YES" codeGenerationType="class">
+        <attribute name="activeMoveVideoReference" optional="YES" attributeType="Binary"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="comboMoves" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ComboMove" inverseName="combo" inverseEntity="ComboMove"/>
+    </entity>
+    <entity name="ComboMove" representedClassName="ComboMove" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sequenceIndex" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="combo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Combo" inverseName="comboMoves" inverseEntity="Combo"/>
+        <relationship name="move" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Move" inverseName="combos" inverseEntity="Move"/>
+    </entity>
+    <entity name="Move" representedClassName="Move" syncable="YES" codeGenerationType="class">
+        <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="learningState" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="photosIdentifier" optional="YES" attributeType="String"/>
+        <attribute name="rotationQuarterTurns" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="trimEndTime" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="trimStartTime" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="videoReference" optional="YES" attributeType="Binary"/>
+        <relationship name="combos" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ComboMove" inverseName="move" inverseEntity="ComboMove"/>
+        <relationship name="reviews" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Review" inverseName="move" inverseEntity="Review"/>
+    </entity>
+    <entity name="Review" representedClassName="Review" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="rating" optional="YES" attributeType="String"/>
+        <attribute name="reviewedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="move" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Move" inverseName="reviews" inverseEntity="Move"/>
+    </entity>
+</model>
