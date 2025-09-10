@@ -1,266 +1,178 @@
-//
-//  HybridPreciseTrimmerView.swift
-//  BreakingFlashcards
-//
-//  Created by AI Assistant
-//  Hybrid component combining UIKit precision with SwiftUI visual flexibility
-//
-
 import SwiftUI
 import AVFoundation
 
 struct HybridPreciseTrimmerView: View {
     @ObservedObject var viewModel: TrimmerViewModel
 
-    // MARK: - Handle Content Configuration
-    let startHandleContent: AnyView
-    let endHandleContent: AnyView
+    // Custom handle views
+    var startHandleView: AnyView?
+    var endHandleView: AnyView?
 
-    // Default emoji handles for easy use
-    init(viewModel: TrimmerViewModel,
-         startHandleContent: AnyView = AnyView(Text("👟")),
-         endHandleContent: AnyView = AnyView(Text("🔥"))) {
-        self.viewModel = viewModel
-        self.startHandleContent = startHandleContent
-        self.endHandleContent = endHandleContent
-    }
-
-    // MARK: - Layout Constants
     private let handleWidth: CGFloat = 44
-    private let trackHeight: CGFloat = 8
-    private let activeRangeHeight: CGFloat = 12
-    private let totalHeight: CGFloat = 60
 
-    // MARK: - State
-    @State private var initialStartTime: CMTime = .zero
-    @State private var initialEndTime: CMTime = .zero
-    @State private var startHandleInitialPosition: CGFloat = 0
-    @State private var endHandleInitialPosition: CGFloat = 0
+    // Haptic Feedback Generators
+    private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
+    private let selectionGenerator = UISelectionFeedbackGenerator()
 
     var body: some View {
         GeometryReader { geometry in
+            let trackWidth = geometry.size.width - handleWidth
+            let startX = timeToXLeft(viewModel.startTime, trackWidth: trackWidth)
+            let endX = timeToXLeft(viewModel.endTime, trackWidth: trackWidth)
+
+            let startDragGesture = drag(handle: .start, in: geometry)
+            let endDragGesture = drag(handle: .end, in: geometry)
+
             ZStack(alignment: .leading) {
-                // Background track (UIKit styling)
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(height: trackHeight)
-                    .cornerRadius(4)
-                    .padding(.horizontal, handleWidth / 2)
-                    .allowsHitTesting(false)
+                // Background track
+                Capsule()
+                    .fill(Color.secondary.opacity(0.25))
+                    .frame(width: trackWidth, height: 6)
+                    .offset(x: handleWidth/2)
 
-                // Active range bar (UIKit styling)
-                Rectangle()
-                    .fill(Color.blue)
-                    .frame(width: activeRangeWidth(in: geometry.size.width))
-                    .frame(height: activeRangeHeight)
-                    .cornerRadius(6)
-                    .offset(x: activeRangeOffset(in: geometry.size.width))
-                    .allowsHitTesting(false)
+                // Active range
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(width: endX - startX, height: 6)
+                    .offset(x: startX + handleWidth/2)
 
-                // Start Handle
-                SwiftUIHandleBridge(
-                    content: HandleView { startHandleContent },
-                    onChanged: { gesture in
-                        handlePan(gesture, isStartHandle: true, totalWidth: geometry.size.width)
-                    },
-                    onEnded: { gesture in
-                        handlePanEnded(gesture, isStartHandle: true)
-                    },
-                    isStartHandle: true
-                )
-                .frame(width: handleWidth, height: totalHeight)
-                .offset(x: startHandlePosition(in: geometry.size.width) - handleWidth / 2)
-                .zIndex(viewModel.isDraggingStartHandle ? 2 : 1)
+                // Start handle
+                if let startView = startHandleView {
+                    handle(content: startView)
+                        .offset(x: startX)
+                        .gesture(startDragGesture)
+                } else {
+                    handle(content: Text("👟").font(.largeTitle))
+                        .offset(x: startX)
+                        .gesture(startDragGesture)
+                }
 
-                // End Handle
-                SwiftUIHandleBridge(
-                    content: HandleView { endHandleContent },
-                    onChanged: { gesture in
-                        handlePan(gesture, isStartHandle: false, totalWidth: geometry.size.width)
-                    },
-                    onEnded: { gesture in
-                        handlePanEnded(gesture, isStartHandle: false)
-                    },
-                    isStartHandle: false
-                )
-                .frame(width: handleWidth, height: totalHeight)
-                .offset(x: endHandlePosition(in: geometry.size.width) - handleWidth / 2)
-                .zIndex(viewModel.isDraggingEndHandle ? 2 : 1)
+                // End handle
+                if let endView = endHandleView {
+                    handle(content: endView)
+                        .offset(x: endX)
+                        .gesture(endDragGesture)
+                } else {
+                    handle(content: Text("🔥").font(.largeTitle))
+                        .offset(x: endX)
+                        .gesture(endDragGesture)
+                }
             }
         }
-        .frame(height: totalHeight)
+        .coordinateSpace(name: "track")
+        .frame(height: 60)
+        .onAppear {
+            viewModel.startCoalescing()
+        }
+        .onDisappear(perform: viewModel.stopCoalescing)
     }
 
-    // MARK: - Position Calculations
-    private func startHandlePosition(in totalWidth: CGFloat) -> CGFloat {
-        let effectiveWidth = totalWidth - handleWidth
-        return timeToPosition(viewModel.startTime, totalWidth: effectiveWidth) + handleWidth / 2
+    private func handle(content: some View) -> some View {
+        content
     }
 
-    private func endHandlePosition(in totalWidth: CGFloat) -> CGFloat {
-        let effectiveWidth = totalWidth - handleWidth
-        return timeToPosition(viewModel.endTime, totalWidth: effectiveWidth) + handleWidth / 2
-    }
+    // MARK: - Coordinate System
 
-    private func activeRangeOffset(in totalWidth: CGFloat) -> CGFloat {
-        startHandlePosition(in: totalWidth)
-    }
-
-    private func activeRangeWidth(in totalWidth: CGFloat) -> CGFloat {
-        endHandlePosition(in: totalWidth) - startHandlePosition(in: totalWidth)
-    }
-
-    private func timeToPosition(_ time: CMTime, totalWidth: CGFloat) -> CGFloat {
+    private func timeToXLeft(_ t: CMTime, trackWidth: CGFloat) -> CGFloat {
         guard viewModel.videoDuration.seconds > 0 else { return 0 }
-        let percentage = time.seconds / viewModel.videoDuration.seconds
-        return CGFloat(percentage) * totalWidth
+        let p = t.seconds / viewModel.videoDuration.seconds
+        return CGFloat(p) * trackWidth
     }
 
-    private func positionToTime(_ position: CGFloat, totalWidth: CGFloat) -> CMTime {
-        guard totalWidth > 0 else { return .zero }
-        let percentage = position / totalWidth
-        let seconds = Double(percentage) * viewModel.videoDuration.seconds
+    private func xLeftToTime(_ x: CGFloat, trackWidth: CGFloat) -> CMTime {
+        let clamped = max(0, min(x, trackWidth))
+        let seconds = Double(clamped / trackWidth) * viewModel.videoDuration.seconds
         return CMTime(seconds: seconds, preferredTimescale: viewModel.videoDuration.timescale)
     }
 
-    // MARK: - Gesture Handling (UIKit Precision Algorithms)
-    private func handlePan(_ gesture: UIPanGestureRecognizer, isStartHandle: Bool, totalWidth: CGFloat) {
-        let effectiveWidth = totalWidth - handleWidth
-
-        switch gesture.state {
-        case .began:
-            handlePanBegan(isStartHandle: isStartHandle, effectiveWidth: effectiveWidth)
-        case .changed:
-            handlePanChanged(gesture: gesture, isStartHandle: isStartHandle, effectiveWidth: effectiveWidth)
-        case .ended, .cancelled:
-            handlePanEnded(gesture, isStartHandle: isStartHandle)
-        default:
-            break
-        }
+    private func minDistancePx(_ g: GeometryProxy) -> CGFloat {
+        let trackWidth = g.size.width - handleWidth
+        let pps = trackWidth / viewModel.videoDuration.seconds
+        return pps * viewModel.minimumDuration.seconds
     }
 
-    private func handlePanBegan(isStartHandle: Bool, effectiveWidth: CGFloat) {
-        if isStartHandle {
-            initialStartTime = viewModel.startTime
-            startHandleInitialPosition = timeToPosition(viewModel.startTime, totalWidth: effectiveWidth)
-            viewModel.isDraggingStartHandle = true
-        } else {
-            initialEndTime = viewModel.endTime
-            endHandleInitialPosition = timeToPosition(viewModel.endTime, totalWidth: effectiveWidth)
-            viewModel.isDraggingEndHandle = true
-        }
-        viewModel.triggerHapticFeedback(for: .dragStart)
-    }
+    private func drag(handle: HandleType, in g: GeometryProxy) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("track"))
+            .onChanged { value in
+                if handle == .start && !viewModel.isDraggingStartHandle {
+                    viewModel.isDraggingStartHandle = true
+                    viewModel.startCoalescing()
+                    impactGenerator.impactOccurred()
+                    selectionGenerator.prepare()
+                } else if handle == .end && !viewModel.isDraggingEndHandle {
+                    viewModel.isDraggingEndHandle = true
+                    viewModel.startCoalescing()
+                    impactGenerator.impactOccurred()
+                    selectionGenerator.prepare()
+                }
 
-    private func handlePanChanged(gesture: UIPanGestureRecognizer, isStartHandle: Bool, effectiveWidth: CGFloat) {
-        let translation = gesture.translation(in: gesture.view)
-        let verticalDistance = abs(translation.y)
+                let trackWidth = g.size.width - handleWidth
+                let startX = timeToXLeft(viewModel.startTime, trackWidth: trackWidth)
+                let endX = timeToXLeft(viewModel.endTime, trackWidth: trackWidth)
+                let minPx = minDistancePx(g)
 
-        // Precision scaling based on vertical drag
-        let precisionScale = calculatePrecisionScale(verticalDistance: verticalDistance)
+                // finger-aligned center -> left-edge
+                var proposedLeft = value.location.x - handleWidth/2
+                proposedLeft = max(0, min(proposedLeft, trackWidth))
 
-        // Calculate new position
-        let initialPosition = isStartHandle ? startHandleInitialPosition : endHandleInitialPosition
-        let initialTime = isStartHandle ? initialStartTime : initialEndTime
-        let translationX = translation.x * precisionScale
+                // bumper
+                switch handle {
+                case .start:
+                    proposedLeft = min(proposedLeft, endX - minPx)
+                case .end:
+                    proposedLeft = max(proposedLeft, startX + minPx)
+                }
 
-        updateTime(translationX: translationX, initialTime: initialTime, initialPosition: initialPosition,
-                  isStartHandle: isStartHandle, effectiveWidth: effectiveWidth)
-    }
+                let t = xLeftToTime(proposedLeft, trackWidth: trackWidth)
+                viewModel.proposeTime(t, for: handle)
 
-    private func handlePanEnded(_ gesture: UIPanGestureRecognizer, isStartHandle: Bool) {
-        if isStartHandle {
-            viewModel.isDraggingStartHandle = false
-        } else {
-            viewModel.isDraggingEndHandle = false
-        }
-        viewModel.triggerHapticFeedback(for: .dragEnd)
-    }
+                // Haptic feedback for normal sliding
+                selectionGenerator.selectionChanged()
+            }
+            .onEnded { value in
+                let trackWidth = g.size.width - handleWidth
+                var xLeft = value.location.x - handleWidth/2
+                xLeft = max(0, min(xLeft, trackWidth))
+                let t = xLeftToTime(xLeft, trackWidth: trackWidth)
+                viewModel.commitTime(t, for: handle)
 
-    private func calculatePrecisionScale(verticalDistance: CGFloat) -> CGFloat {
-        let maxVerticalDistance: CGFloat = 100
-        let precisionReduction = min(verticalDistance / maxVerticalDistance, 1.0)
-        return 1.0 - (precisionReduction * 0.9) // Scale from 1.0 to 0.1
-    }
+                if handle == .start { viewModel.isDraggingStartHandle = false }
+                else { viewModel.isDraggingEndHandle = false }
 
-    private func updateTime(translationX: CGFloat, initialTime: CMTime, initialPosition: CGFloat,
-                           isStartHandle: Bool, effectiveWidth: CGFloat) {
-        let newPosition = initialPosition + translationX
-        let proposedTime = positionToTime(newPosition, totalWidth: effectiveWidth)
-
-        let frameDuration = viewModel.oneFrameDuration
-        let minTime = isStartHandle ? CMTime.zero : viewModel.startTime + frameDuration
-        let maxTime = isStartHandle ? viewModel.endTime - frameDuration : viewModel.videoDuration
-
-        var clampedTime = proposedTime
-        if frameDuration.seconds > 0 {
-            let frameNumber = round(proposedTime.seconds / frameDuration.seconds)
-            let snappedTime = CMTime(seconds: frameNumber * frameDuration.seconds,
-                                   preferredTimescale: proposedTime.timescale)
-            clampedTime = max(minTime, min(snappedTime, maxTime))
-        }
-
-        // Trigger haptic feedback for frame changes
-        if didFrameChange(from: isStartHandle ? viewModel.startTime : viewModel.endTime, to: clampedTime) {
-            let feedback = UISelectionFeedbackGenerator()
-            feedback.selectionChanged()
-        }
-
-        if isStartHandle {
-            viewModel.startTime = clampedTime
-        } else {
-            viewModel.endTime = clampedTime
-        }
-
-        viewModel.requestSeek(to: clampedTime)
-    }
-
-    private func didFrameChange(from oldTime: CMTime, to newTime: CMTime) -> Bool {
-        guard viewModel.oneFrameDuration.seconds > 0 else { return false }
-        let oldFrame = round(oldTime.seconds / viewModel.oneFrameDuration.seconds)
-        let newFrame = round(newTime.seconds / viewModel.oneFrameDuration.seconds)
-        return oldFrame != newFrame
+                viewModel.stopCoalescing()
+                impactGenerator.impactOccurred()
+            }
     }
 }
 
 // MARK: - Convenience Initializers for Common Handle Styles
 extension HybridPreciseTrimmerView {
-    // Emoji handles
+    // Default initializer with emoji fallback
+    init(viewModel: TrimmerViewModel) {
+        self.viewModel = viewModel
+        self.startHandleView = nil
+        self.endHandleView = nil
+    }
+
+    // Emoji handles - for backward compatibility
     static func emoji(viewModel: TrimmerViewModel,
                      startEmoji: String = "👟",
                      endEmoji: String = "🔥") -> HybridPreciseTrimmerView {
         HybridPreciseTrimmerView(
             viewModel: viewModel,
-            startHandleContent: AnyView(Text(startEmoji)),
-            endHandleContent: AnyView(Text(endEmoji))
+            startHandleView: AnyView(Text(startEmoji).font(.largeTitle)),
+            endHandleView: AnyView(Text(endEmoji).font(.largeTitle))
         )
     }
 
-    // SF Symbol handles
-    static func symbols(viewModel: TrimmerViewModel,
-                       startSymbol: String = "scissors",
-                       endSymbol: String = "scissors") -> HybridPreciseTrimmerView {
-        HybridPreciseTrimmerView(
-            viewModel: viewModel,
-            startHandleContent: AnyView(
-                Image(systemName: startSymbol)
-                    .foregroundColor(.blue)
-            ),
-            endHandleContent: AnyView(
-                Image(systemName: endSymbol)
-                    .foregroundColor(.blue)
-            )
-        )
-    }
-
-    // Custom view handles
+    // Custom view handles - now properly uses custom views
     static func custom(viewModel: TrimmerViewModel,
                       startView: some View,
                       endView: some View) -> HybridPreciseTrimmerView {
         HybridPreciseTrimmerView(
             viewModel: viewModel,
-            startHandleContent: AnyView(startView),
-            endHandleContent: AnyView(endView)
+            startHandleView: AnyView(startView),
+            endHandleView: AnyView(endView)
         )
     }
 }

@@ -10,15 +10,13 @@ import SwiftUI
 
 // MARK: - Handle Style Enum
 enum HandleStyle {
-    case emoji(start: String, end: String)
-    case symbols(start: String, end: String)
-    case custom(start: AnyView, end: AnyView)
+    case capsuleHandles
+    case thinVerticalBars
 
     var displayName: String {
         switch self {
-        case .emoji(let start, let end): return "\(start) → \(end)"
-        case .symbols(let start, let end): return "\(start) → \(end)"
-        case .custom: return "Custom Views"
+        case .capsuleHandles: return "Capsule Handles"
+        case .thinVerticalBars: return "Thin Vertical Bars"
         }
     }
 }
@@ -32,7 +30,7 @@ struct TrimmerConfiguration {
     let handleSize: CGSize
 
     static let `default` = TrimmerConfiguration(
-        handleStyle: .emoji(start: "👟", end: "🔥"),
+        handleStyle: .capsuleHandles,
         backgroundColor: Color.secondary.opacity(0.3),
         accentColor: .blue,
         trackHeight: 8,
@@ -40,30 +38,27 @@ struct TrimmerConfiguration {
     )
 
     static let classic = TrimmerConfiguration(
-        handleStyle: .symbols(start: "scissors", end: "scissors"),
+        handleStyle: .thinVerticalBars,
         backgroundColor: Color.secondary.opacity(0.3),
         accentColor: .blue,
         trackHeight: 8,
         handleSize: CGSize(width: 44, height: 60)
     )
 
-    static let playful = TrimmerConfiguration(
-        handleStyle: .emoji(start: "🎯", end: "🎪"),
-        backgroundColor: Color.secondary.opacity(0.3),
-        accentColor: .purple,
-        trackHeight: 8,
-        handleSize: CGSize(width: 44, height: 60)
-    )
-
     static let minimal = TrimmerConfiguration(
-        handleStyle: .custom(
-            start: AnyView(Capsule().fill(Color.blue.opacity(0.8))),
-            end: AnyView(Capsule().fill(Color.red.opacity(0.8)))
-        ),
+        handleStyle: .capsuleHandles,
         backgroundColor: Color.secondary.opacity(0.3),
         accentColor: .gray,
         trackHeight: 6,
         handleSize: CGSize(width: 40, height: 50)
+    )
+
+    static let professionalCapsule = TrimmerConfiguration(
+        handleStyle: .capsuleHandles,
+        backgroundColor: .clear, // Minimal background
+        accentColor: .accentColor, // Single accent color
+        trackHeight: 4, // Thin track
+        handleSize: CGSize(width: 44, height: 44) // Proper hit target
     )
 
     // MARK: - Factory Methods
@@ -76,38 +71,55 @@ struct TrimmerConfiguration {
             handleSize: CGSize(width: 44, height: 60)
         )
     }
+}
 
-    static func emoji(start: String, end: String) -> TrimmerConfiguration {
-        createWithStyle(.emoji(start: start, end: end))
+// MARK: - Professional Capsule Handle View
+struct CapsuleHandle: View {
+    let isStartHandle: Bool
+
+    var body: some View {
+        HandleView {
+            ZStack {
+                // Visual capsule (20x32 for more elegant proportions)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(.systemBackground).opacity(0.95))
+                    .frame(width: 20, height: 32)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.accentColor, lineWidth: 2)
+                            .shadow(color: Color.accentColor.opacity(0.4), radius: 3, x: 0, y: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.2), radius: 2, x: 0, y: 1)
+            }
+        }
     }
+}
 
-    static func symbols(start: String, end: String) -> TrimmerConfiguration {
-        createWithStyle(.symbols(start: start, end: end))
-    }
+// MARK: - Thin Vertical Handle View
+struct ThinVerticalHandle: View {
+    let isStartHandle: Bool
 
-    static func custom(startView: some View, endView: some View) -> TrimmerConfiguration {
-        createWithStyle(.custom(
-            start: AnyView(startView),
-            end: AnyView(endView)
-        ))
+    var body: some View {
+        HandleView {
+            ZStack {
+                // Thin vertical capsule (8px wide, 44px tall)
+                Capsule()
+                    .fill(Color.white.opacity(0.9))
+                    .frame(width: 8, height: 44)
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.accentColor.opacity(0.6), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 2)
+            }
+        }
     }
 }
 
 // MARK: - Predefined Handle Styles
 extension HandleStyle {
-    static let sneakers = HandleStyle.emoji(start: "👟", end: "🔥")
-    static let scissors = HandleStyle.symbols(start: "scissors", end: "scissors")
-    static let arrows = HandleStyle.symbols(start: "arrow.left", end: "arrow.right")
-    static let circles = HandleStyle.symbols(start: "circle.fill", end: "circle")
-    static let stars = HandleStyle.emoji(start: "⭐", end: "🌟")
-    static let hearts = HandleStyle.emoji(start: "💙", end: "❤️")
-    static let animals = HandleStyle.emoji(start: "🐱", end: "🐶")
-    static let food = HandleStyle.emoji(start: "🍎", end: "🍊")
-
-    static let allPresets: [HandleStyle] = [
-        .sneakers, .scissors, .arrows, .circles,
-        .stars, .hearts, .animals, .food
-    ]
+    // Only two handle styles: professional capsule and thin vertical bars
+    static let allPresets: [HandleStyle] = [.capsuleHandles, .thinVerticalBars]
 }
 
 // MARK: - Trimmer Factory
@@ -117,28 +129,20 @@ enum TrimmerFactory {
         viewModel: TrimmerViewModel
     ) -> some View {
         switch configuration.handleStyle {
-        case .emoji(let start, let end):
-            return AnyView(
-                HybridPreciseTrimmerView.emoji(
-                    viewModel: viewModel,
-                    startEmoji: start,
-                    endEmoji: end
-                )
-            )
-        case .symbols(let start, let end):
-            return AnyView(
-                HybridPreciseTrimmerView.symbols(
-                    viewModel: viewModel,
-                    startSymbol: start,
-                    endSymbol: end
-                )
-            )
-        case .custom(let start, let end):
+        case .capsuleHandles:
             return AnyView(
                 HybridPreciseTrimmerView.custom(
                     viewModel: viewModel,
-                    startView: start,
-                    endView: end
+                    startView: AnyView(CapsuleHandle(isStartHandle: true)),
+                    endView: AnyView(CapsuleHandle(isStartHandle: false))
+                )
+            )
+        case .thinVerticalBars:
+            return AnyView(
+                HybridPreciseTrimmerView.custom(
+                    viewModel: viewModel,
+                    startView: AnyView(ThinVerticalHandle(isStartHandle: true)),
+                    endView: AnyView(ThinVerticalHandle(isStartHandle: false))
                 )
             )
         }

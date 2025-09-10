@@ -21,7 +21,7 @@ struct NameMoveView: View {
                     // For trimmed assets, rotation is already baked into the exported file
                     // so we don't apply additional rotation to avoid double-rotation
                     let effectiveRotation = 0 // Rotation already baked into trimmed asset
-                    CustomVideoPlayerView(asset: trimmedAsset, rotationQuarterTurns: effectiveRotation)
+                    CustomVideoPlayerView(AVPlayer(playerItem: AVPlayerItem(asset: trimmedAsset)), asset: trimmedAsset, rotationQuarterTurns: effectiveRotation)
                         .cornerRadius(12)
                         .padding()
                         .accessibilityIdentifier("NameMoveVideoPlayer")
@@ -31,7 +31,7 @@ struct NameMoveView: View {
                             print("🎬 TRIMMED ASSET: Using rotationQuarterTurns=\(effectiveRotation) (already baked into exported file)")
                         }
                 } else if let originalAsset = originalAsset {
-                    CustomVideoPlayerView(asset: originalAsset, rotationQuarterTurns: rotationQuarterTurns)
+                    CustomVideoPlayerView(AVPlayer(playerItem: AVPlayerItem(asset: originalAsset)), asset: originalAsset, rotationQuarterTurns: rotationQuarterTurns)
                         .cornerRadius(12)
                         .padding()
                         .accessibilityIdentifier("NameMoveVideoPlayer")
@@ -41,7 +41,7 @@ struct NameMoveView: View {
                             print("🎬 ORIGINAL ASSET: Using rotationQuarterTurns=\(rotationQuarterTurns) (original untrimmed video)")
                         }
                 } else {
-                    CustomVideoPlayerView(photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
+                    CustomVideoPlayerView(move: nil, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
                         .cornerRadius(12)
                         .padding()
                         .accessibilityIdentifier("NameMoveVideoPlayer")

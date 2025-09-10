@@ -111,13 +111,22 @@ final class VideoTransformBuilder {
     ///   - asset: The source AVAsset
     ///   - trimRange: The time range to trim (optional)
     ///   - quarterTurns: Number of quarter turns
+    ///   - optimizeForScrubbing: If true, disables seekingWaitsForVideoCompositionRendering for faster scrubbing
     /// - Returns: Configured AVPlayerItem ready for playback
-    static func createPlayerItem(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int) async throws -> AVPlayerItem {
+    static func createPlayerItem(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int, optimizeForScrubbing: Bool = false) async throws -> AVPlayerItem {
         let (composition, videoComposition) = try await build(asset: asset, trimRange: trimRange, quarterTurns: quarterTurns)
 
         let playerItem = AVPlayerItem(asset: composition)
         playerItem.videoComposition = videoComposition
-        playerItem.seekingWaitsForVideoCompositionRendering = true
+
+        // Optimize seeking based on use case
+        if optimizeForScrubbing && quarterTurns == 0 {
+            // For no rotation and scrubbing, allow faster seeking
+            playerItem.seekingWaitsForVideoCompositionRendering = false
+        } else {
+            // For rotation or precise playback, ensure frame accuracy
+            playerItem.seekingWaitsForVideoCompositionRendering = true
+        }
 
         return playerItem
     }

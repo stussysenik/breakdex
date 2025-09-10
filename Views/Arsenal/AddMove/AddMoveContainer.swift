@@ -5,18 +5,26 @@ import Foundation
 import Photos
 import PhotosUI
 
+// MARK: - Memory Monitor Utility
+struct MemoryMonitor {
+    static func currentPressure() -> String {
+        // Simple memory pressure indicator
+        return "OK" // Could be enhanced with actual memory monitoring
+    }
+}
+
 // traffic manager - routes to the correct view based on the state
 struct AddMoveContainer: View {
     @Environment(\.managedObjectContext) var viewContext
     @StateObject private var viewModel: AddMoveViewModel
-    @StateObject private var trimmerViewModel: TrimmerViewModel
     @Binding var selectedTab: TabSelection
+
+    // Static tracking for debugging
+    private static var lastState: AddMoveState?
+    private static var viewEvaluationCount = 0
 
     private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>) { // designated initializer
         _viewModel = StateObject(wrappedValue: AddMoveViewModel(viewContext: context))
-        // Create a placeholder TrimmerViewModel that will be replaced when transitioning to trimming
-        let placeholderAsset = AVURLAsset(url: URL(fileURLWithPath: "/dev/null"))
-        _trimmerViewModel = StateObject(wrappedValue: TrimmerViewModel(asset: placeholderAsset, photosIdentifier: nil))
         _selectedTab = selectedTab
     }
     
@@ -28,61 +36,45 @@ struct AddMoveContainer: View {
         self.init(context: viewContext, selectedTab: selectedTab)
     }
     
-    private var currentView: some View {
-        let currentState = viewModel.state
-        print("🎬 ADDMOVE CONTAINER: currentView called, state: \(String(describing: currentState))")
-
-        switch currentState {
-        case .ready:
-            print("🎬 ADDMOVE CONTAINER: Showing ready state")
-            return AnyView(AddMoveSelectClipView(viewModel: viewModel))
-        case .loading(let progress, let status): // LOADING
-            print("🎬 ADDMOVE CONTAINER: Showing loading state - progress: \(progress), status: '\(status)'")
-            return AnyView(VStack {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .padding()
-                Text(status)
-                    .font(.caption)
-            })
-        case .previewing(let asset, let photosIdentifier): // PREVIEWING
-            print("🎬 ADDMOVE CONTAINER: Creating PreTrimView")
-            print("   📹 Asset: \(asset)")
-            print("   🆔 Photos ID: \(photosIdentifier ?? "nil")")
-            return AnyView(PreTrimView(viewModel: viewModel, asset: asset, photosIdentifier: photosIdentifier, selectedTab: $selectedTab))
-        case .selectingVideo(let currentAsset): // VIDEO SELECTION MODE
-            print("🎬 ADDMOVE CONTAINER: Showing PhotosPicker for video selection")
-            print("   📹 Current Asset: \(String(describing: currentAsset))")
-            return AnyView(
-                VideoPickerWrapper(viewModel: viewModel)
-            )
-        case .trimming(let asset, _, let rotationQuarterTurns): // TRIMMING
-            print("🎬 ADDMOVE CONTAINER: Creating TrimmerViewWrapper")
-            print("   📹 Asset: \(asset)")
-            print("   🔄 Rotation: \(rotationQuarterTurns)")
-
-            return AnyView(
-                TrimmerViewWrapper(
-                    viewModel: viewModel,
-                    trimmerViewModel: trimmerViewModel,
-                    asset: asset,
-                    rotationQuarterTurns: rotationQuarterTurns
-                )
-            )
-        case .naming: // NAMING MOVE
-            return AnyView(NameMoveView(viewModel: viewModel))
-        case .saving: // SAVING MOVE
-            return AnyView(Text("Saving Move..."))
-        case .error(let message, let underlyingError): // if ERROR
-            return AnyView(AddMoveErrorView(viewModel: viewModel, message: message, underlyingError: underlyingError as? Error, selectedTab: $selectedTab))
-        case .success(let message): // SUCCESS
-            return AnyView(MoveAddedSuccessView(viewModel: viewModel, message: message, selectedTab: $selectedTab))
-        }
-    }
     
     var body: some View {
-        currentView
-            .id(viewModel.state) // Force view recreation when state changes
+        // Main content - stable, doesn't get destroyed
+        mainContent
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        switch viewModel.state {
+        case .ready:
+            AddMoveSelectClipView(viewModel: viewModel)
+        case .loading:
+            // This should not happen now that we have the overlay
+            AddMoveSelectClipView(viewModel: viewModel)
+        case .previewing(let asset, let photosIdentifier):
+            PreTrimView(viewModel: viewModel, asset: asset, photosIdentifier: photosIdentifier, selectedTab: $selectedTab)
+        case .selectingVideo(let currentAsset):
+            VideoPickerWrapper(viewModel: viewModel)
+        case .trimming(let asset, _, let rotationQuarterTurns):
+            TrimmerViewWrapper(
+                viewModel: viewModel,
+                asset: asset,
+                rotationQuarterTurns: rotationQuarterTurns,
+                onError: { message, error in
+                    viewModel.state = .error(message: message, underlyingError: error?.localizedDescription)
+                },
+                onRotate: { newRotation in
+                    viewModel.updateTrimmingRotation(rotationQuarterTurns: newRotation)
+                }
+            )
+        case .naming:
+            NameMoveView(viewModel: viewModel)
+        case .saving:
+            Text("Saving Move...")
+        case .error(let message, let underlyingError):
+            AddMoveErrorView(viewModel: viewModel, message: message, underlyingError: underlyingError as? Error, selectedTab: $selectedTab)
+        case .success(let message):
+            MoveAddedSuccessView(viewModel: viewModel, message: message, selectedTab: $selectedTab)
+        }
     }
 }
 
@@ -120,27 +112,110 @@ struct VideoPickerWrapper: View {
 // MARK: - Trimmer View Wrapper (Safe State Management)
 struct TrimmerViewWrapper: View {
     @ObservedObject var viewModel: AddMoveViewModel
-    @ObservedObject var trimmerViewModel: TrimmerViewModel
+
+    // OWN ITS OWN VIEWMODEL: Created fresh for each trimming session
+    @StateObject private var trimmerViewModel: TrimmerViewModel
+
     let asset: AVAsset
     let rotationQuarterTurns: Int
 
-    @State private var hasInitialized = false
+    // Event-driven communication: pass callbacks from parent
+    let onError: (String, Error?) -> Void
+    let onRotate: (Int) -> Void
+
+    // Track wrapper lifecycle for debugging
+    private let wrapperId = UUID()
+    private let constructionTime = Date().timeIntervalSince1970
+
+    init(viewModel: AddMoveViewModel, asset: AVAsset, rotationQuarterTurns: Int, onError: @escaping (String, Error?) -> Void, onRotate: @escaping (Int) -> Void) {
+        self.viewModel = viewModel
+        self.asset = asset
+        self.rotationQuarterTurns = rotationQuarterTurns
+        self.onError = onError
+        self.onRotate = onRotate
+
+        // Initialize StateObject with the REAL asset from the start
+        _trimmerViewModel = StateObject(wrappedValue: TrimmerViewModel(asset: asset, photosIdentifier: nil))
+
+        let threadInfo = Thread.isMainThread ? "MAIN" : "BG"
+        print("🏗️ [\(String(format: "%.3f", constructionTime))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Constructed on \(threadInfo) thread")
+        print("   📹 Asset: \(asset.description.prefix(50))...")
+        print("   🔄 Rotation: \(rotationQuarterTurns)")
+        print("   🎯 Callbacks configured")
+    }
 
     var body: some View {
-        TrimmerView(addMoveViewModel: viewModel, trimmerViewModel: trimmerViewModel, rotationQuarterTurns: rotationQuarterTurns)
-            .onAppear {
-                // Only update once to prevent infinite loop
-                if !hasInitialized {
-                    hasInitialized = true
-                    print("🎬 TRIMMER WRAPPER: Initializing trimmer state")
-                    // Update trimmer state safely after view is fully constructed
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        if self.trimmerViewModel.asset.description != asset.description {
-                            self.trimmerViewModel.rotationQuarterTurns = rotationQuarterTurns
-                        }
+        let bodyTimestamp = Date().timeIntervalSince1970
+        let threadInfo = Thread.isMainThread ? "MAIN" : "BG"
+
+        print("🔄 [\(String(format: "%.3f", bodyTimestamp))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Body evaluated on \(threadInfo) thread")
+        print("   ⏱️ Time since construction: \(String(format: "%.3f", bodyTimestamp - constructionTime))s")
+        print("   📊 Memory pressure: \(MemoryMonitor.currentPressure())")
+
+        return TrimmerView(
+            trimmerViewModel: trimmerViewModel,
+            rotationQuarterTurns: rotationQuarterTurns,
+            onError: onError,
+            onRotate: onRotate,
+            onCancel: {
+                print("🎬 TRIMMER WRAPPER: Cancel button triggered - calling viewModel.cancelTrimming()")
+                viewModel.cancelTrimming()
+            },
+            onSave: {
+                print("🎬 TRIMMER WRAPPER: Save button triggered - calling viewModel.finishTrimming()")
+                viewModel.finishTrimming(with: trimmerViewModel)
+            }
+        )
+        .onAppear {
+            let appearTimestamp = Date().timeIntervalSince1970
+            print("👁️ [\(String(format: "%.3f", appearTimestamp))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: View appeared - starting safe async setup")
+            print("   ⏱️ Construction to appear: \(String(format: "%.3f", appearTimestamp - constructionTime))s")
+
+            // Perform async setup after view is fully constructed to prevent state mutations during construction
+            Task {
+                let taskStartTime = Date().timeIntervalSince1970
+                print("⚙️ [\(String(format: "%.3f", taskStartTime))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Starting safe async operations")
+
+                do {
+                    print("🎬 [\(String(format: "%.3f", Date().timeIntervalSince1970))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Starting setupAsync()")
+                    try await trimmerViewModel.setupAsync()
+                    print("✅ [\(String(format: "%.3f", Date().timeIntervalSince1970))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: setupAsync() completed successfully")
+
+                    print("🎬 [\(String(format: "%.3f", Date().timeIntervalSince1970))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Starting updatePreview()")
+                    await trimmerViewModel.updatePreview()
+                    print("✅ [\(String(format: "%.3f", Date().timeIntervalSince1970))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: updatePreview() completed successfully")
+
+                    let taskEndTime = Date().timeIntervalSince1970
+                    print("🎉 [\(String(format: "%.3f", taskEndTime))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: All async operations completed successfully")
+                    print("   ⏱️ Total time: \(String(format: "%.3f", taskEndTime - taskStartTime)) seconds")
+                    print("   📊 Final state: duration=\(String(format: "%.2f", trimmerViewModel.videoDuration.seconds))s, trim=\(String(format: "%.2f", trimmerViewModel.startTime.seconds))-\(String(format: "%.2f", trimmerViewModel.endTime.seconds))s")
+
+                } catch {
+                    let errorTime = Date().timeIntervalSince1970
+                    print("❌ [\(String(format: "%.3f", errorTime))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Async operation failed")
+                    print("   📝 Error: \(error.localizedDescription)")
+                    print("   🎯 Error type: \(type(of: error))")
+                    print("   📍 Error context: setup phase after \(String(format: "%.3f", errorTime - taskStartTime))s")
+
+                    // Log additional error context
+                    if let nsError = error as NSError? {
+                        print("   🏷️ Error domain: \(nsError.domain)")
+                        print("   🔢 Error code: \(nsError.code)")
                     }
+
+                    print("📤 [\(String(format: "%.3f", Date().timeIntervalSince1970))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Emitting error event via callback")
+                    // Event-driven error handling: emit error event instead of mutating parent state
+                    onError("Failed to load video for trimming.", error)
+                    print("✅ [\(String(format: "%.3f", Date().timeIntervalSince1970))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: Error event emitted")
                 }
             }
+        }
+        .onDisappear {
+            let disappearTime = Date().timeIntervalSince1970
+            print("👋 [\(String(format: "%.3f", disappearTime))] TRIMMER WRAPPER [\(wrapperId.uuidString.prefix(8))]: View disappeared")
+            print("   ⏱️ Total lifetime: \(String(format: "%.3f", disappearTime - constructionTime))s")
+            print("   📊 Final trim state: \(String(format: "%.2f", trimmerViewModel.startTime.seconds)) - \(String(format: "%.2f", trimmerViewModel.endTime.seconds))s")
+        }
     }
 }
 

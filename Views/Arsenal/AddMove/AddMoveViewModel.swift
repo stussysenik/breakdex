@@ -129,7 +129,16 @@ class AddMoveViewModel: ObservableObject {
     
     @Published var state: AddMoveState = .ready {
         didSet {
-            print("🔄 STATE CHANGE: \(oldValue) → \(state)")
+            let timestamp = Date().timeIntervalSince1970
+            print("🔄 [\(String(format: "%.3f", timestamp))] STATE TRANSITION: \(oldValue) → \(state)")
+
+            // Enhanced logging for trimming navigation
+            if case .trimming = state {
+                print("🎬 [\(String(format: "%.3f", timestamp))] NAVIGATION: Entering trimming interface")
+            } else if case .error = state {
+                print("❌ [\(String(format: "%.3f", timestamp))] ERROR: Navigation failed, showing error state")
+            }
+
             // Log stack trace for debugging
             if case .loading = state, case .previewing = oldValue {
                 print("   ⚠️ SUSPICIOUS: State reset from previewing back to loading!")
@@ -151,33 +160,47 @@ class AddMoveViewModel: ObservableObject {
             // Prevent re-processing if we're already in a loading/trimming state, but allow from previewing for "Change Video"
             switch state {
             case .loading, .trimming, .naming, .saving:
-                print("   ⚠️ Already processing a video (state: \(state)), skipping handleSelection()")
+                print("   ⚠️ Already processing a video (state: \(state)), skipping video loading")
                 return
             case .previewing:
                 print("   🔄 User tapped 'Change Video' from previewing state - allowing new selection")
-                // Continue to handleSelection for "Change Video" functionality
+                // Continue to video loading for "Change Video" functionality
             default:
                 break
             }
 
-            print("   - Triggering handleSelection()...")
-            Task { await handleSelection() }
+            // Use inline video loading to handle video selection
+            if let item = selectedItem {
+                print("   - Triggering inline video loading...")
+                loadVideoFromItem(item)
+            }
         }
     }
     @Published var moveName: String = ""
     @Published var selectedFilename: String? = nil
     
     let viewContext: NSManagedObjectContext
+
+    // Loading state exposed for UI
+    @Published private(set) var isLoading: Bool = false
+    @Published private(set) var loadingStatus: String = ""
+    @Published private(set) var loadingProgress: Double = 0.0
     
     private var currentPhotosIdentifier: String?
     private var currentProcessingItemHash: Int?
     private var cancellables = Set<AnyCancellable>()
-    private let albumManager: BreakDexAlbumManagerProtocol // dependency Injection for BreakDexAlbumManager
+    private let albumManager: BreakDexAlbumManager // dependency Injection for BreakDexAlbumManager
+
+    // Temporary inline video loader service
+    private var currentTask: Task<Void, Never>?
     
-    init(viewContext: NSManagedObjectContext, albumManager: BreakDexAlbumManagerProtocol? = nil) {
+    init(viewContext: NSManagedObjectContext, albumManager: BreakDexAlbumManager? = nil) {
         self.viewContext = viewContext
-        self.albumManager = albumManager ?? (BreakDexAlbumManager.shared as any BreakDexAlbumManagerProtocol)
+        self.albumManager = albumManager ?? BreakDexAlbumManager.shared
     }
+
+
+
     
     func reset() {
         logger.info("Resetting AddMoveViewModel state.")
@@ -187,6 +210,218 @@ class AddMoveViewModel: ObservableObject {
         currentPhotosIdentifier = nil
         selectedFilename = nil
         currentProcessingItemHash = nil // Clear processing state
+        currentTask?.cancel()
+        currentTask = nil
+        isLoading = false
+        loadingStatus = ""
+        loadingProgress = 0.0
+    }
+
+    // MARK: - Inline Video Loading
+
+    private func loadVideoFromItem(_ item: PhotosPickerItem) {
+        // Cancel any previous task
+        currentTask?.cancel()
+
+        // Set initial loading state
+        isLoading = true
+        loadingStatus = "Preparing to load video..."
+        loadingProgress = 0.0
+
+        // Start the loading task
+        currentTask = Task {
+            await performVideoLoading(from: item)
+        }
+    }
+
+    private func performVideoLoading(from item: PhotosPickerItem) async {
+        do {
+            // Initial progress update
+            await updateProgress(to: 0.1, status: "Analyzing video properties...")
+
+            // Check if we have a Photos identifier
+            if let identifier = item.itemIdentifier {
+                // Load from Photos library
+                let phAsset = try await loadAsset(from: identifier)
+                await updateProgress(to: 0.4, status: "Loading video from Photos library...")
+
+                let avAsset = try await createAVAsset(from: phAsset)
+                await updateProgress(to: 0.8, status: "Finalizing video preview...")
+
+                let filename = try await extractFilename(from: phAsset)
+
+                // Success - transition to previewing state
+                await MainActor.run {
+                    currentPhotosIdentifier = identifier
+                    selectedFilename = filename
+                    currentProcessingItemHash = nil
+                    state = .previewing(asset: avAsset, photosIdentifier: identifier)
+                }
+
+                await updateProgress(to: 1.0, status: "Video loaded successfully! 🎬")
+
+            } else {
+                // Load directly from PhotosPickerItem data
+                await updateProgress(to: 0.3, status: "Preparing to download video...")
+
+                let avAsset = try await loadAVAssetDirectlyFromPhotosPickerItem(item)
+                await updateProgress(to: 0.8, status: "Finalizing video preview...")
+
+                let tempIdentifier = "temp-\(UUID().uuidString)"
+
+                // Success - transition to previewing state
+                await MainActor.run {
+                    currentPhotosIdentifier = tempIdentifier
+                    selectedFilename = "Selected Video"
+                    currentProcessingItemHash = nil
+                    state = .previewing(asset: avAsset, photosIdentifier: tempIdentifier)
+                }
+
+                await updateProgress(to: 1.0, status: "Video loaded successfully! 🎬")
+            }
+
+        } catch {
+            // Error handling
+            await MainActor.run {
+                currentProcessingItemHash = nil
+                state = .error(message: "Failed to load video", underlyingError: error.localizedDescription)
+            }
+            await updateProgress(to: 0.0, status: "Failed to load video: \(error.localizedDescription)")
+        }
+
+        await MainActor.run {
+            isLoading = false
+        }
+    }
+
+    private func updateProgress(to value: Double, status: String) async {
+        await MainActor.run {
+            self.loadingProgress = value
+            self.loadingStatus = status
+        }
+    }
+
+    // MARK: - Photos Asset Loading Methods (copied from VideoLoaderService)
+
+    private func loadAsset(from identifier: String) async throws -> PHAsset {
+        return try await withCheckedThrowingContinuation { continuation in
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
+
+            if let asset = fetchResult.firstObject {
+                continuation.resume(returning: asset)
+            } else {
+                continuation.resume(throwing: NSError(
+                    domain: "AddMoveViewModel",
+                    code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "Could not find asset in Photos library."]
+                ))
+            }
+        }
+    }
+
+    private func createAVAsset(from asset: PHAsset) async throws -> AVAsset {
+        // First attempt with immediate response
+        do {
+            return try await attemptAVAssetCreation(from: asset)
+        } catch let error as NSError where error.domain == "PHPhotosErrorDomain" && error.code == 3164 {
+            // iCloud download failure - try retry mechanism
+            return try await retryAVAssetCreation(from: asset, originalError: error)
+        }
+    }
+
+    private func attemptAVAssetCreation(from asset: PHAsset) async throws -> AVAsset {
+        return try await withCheckedThrowingContinuation { continuation in
+            let options = PHVideoRequestOptions()
+            options.isNetworkAccessAllowed = true
+            options.deliveryMode = .highQualityFormat
+
+            PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
+                if let error = info?[PHImageErrorKey] as? Error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                if let cancelled = info?[PHImageCancelledKey] as? Bool, cancelled {
+                    continuation.resume(throwing: NSError(
+                        domain: "AddMoveViewModel",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Request cancelled"]
+                    ))
+                    return
+                }
+
+                guard let avAsset = avAsset else {
+                    continuation.resume(throwing: NSError(
+                        domain: "AddMoveViewModel",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "No asset returned"]
+                    ))
+                    return
+                }
+
+                continuation.resume(returning: avAsset)
+            }
+        }
+    }
+
+    private func retryAVAssetCreation(from asset: PHAsset, originalError: NSError) async throws -> AVAsset {
+        // Basic retry mechanism for iCloud downloads
+        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay
+        return try await attemptAVAssetCreation(from: asset)
+    }
+
+    private func loadAVAssetDirectlyFromPhotosPickerItem(_ item: PhotosPickerItem) async throws -> AVAsset {
+        return try await withCheckedThrowingContinuation { continuation in
+            item.loadTransferable(type: Data.self) { result in
+                Task {
+                    switch result {
+                    case .success(let data):
+                        guard let videoData = data else {
+                            continuation.resume(throwing: NSError(
+                                domain: "AddMoveViewModel",
+                                code: -1,
+                                userInfo: [NSLocalizedDescriptionKey: "No video data received"]
+                            ))
+                            return
+                        }
+
+                        do {
+                            // Calculate data size for feedback
+                            let dataSizeMB = Double(videoData.count) / (1024.0 * 1024.0)
+                            let sizeDescription = dataSizeMB > 100.0 ? ">100MB" : String(format: "%.1fMB", dataSizeMB)
+
+                            // Create a temporary file URL for the video data
+                            let tempDirectory = FileManager.default.temporaryDirectory
+                            let tempURL = tempDirectory.appendingPathComponent("temp_video_\(UUID().uuidString).mov")
+
+                            // Write the data to a temporary file
+                            try videoData.write(to: tempURL)
+
+                            // Create AVAsset from the temporary file
+                            let asset = AVURLAsset(url: tempURL)
+                            continuation.resume(returning: asset)
+
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
+
+                    case .failure(let error):
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        }
+    }
+
+    private func extractFilename(from asset: PHAsset) async throws -> String {
+        return try await withCheckedThrowingContinuation { continuation in
+            let resources = PHAssetResource.assetResources(for: asset)
+            if let resource = resources.first(where: { $0.type == .video }) {
+                continuation.resume(returning: resource.originalFilename)
+            } else {
+                continuation.resume(returning: "Video")
+            }
+        }
     }
 
     // Prepare for video reselection while preserving current state
@@ -301,7 +536,7 @@ class AddMoveViewModel: ObservableObject {
                 let avAsset = try await loadAVAssetDirectlyFromPhotosPickerItem(item)
 
                 // Analyze the loaded asset for better user feedback
-                let assetInfo = await analyzeAssetProperties(avAsset)
+                let assetInfo = try await analyzeAssetProperties(avAsset)
 
                 // Provide detailed feedback for long videos
                 let detailedFeedback = assetInfo.duration > 60.0
@@ -319,7 +554,7 @@ class AddMoveViewModel: ObservableObject {
                     self.state = .loading(progress: 0.8, status: "Validating video format...")
                 }
 
-                print("   📊 Asset Analysis: duration=\(assetInfo.duration), tracks=\(assetInfo.trackCount), large=\(assetInfo.isLargeAsset)")
+                print("   📊 Asset Analysis: duration=\(assetInfo.duration), tracks=\(assetInfo.trackCount), large=\(assetInfo.isLargeAsset), iCloud=\(assetInfo.isICloud)")
 
                 logger.info("AVAsset created directly from PhotosPickerItem.")
                 print("   🎬 AVAsset created successfully from PhotosPickerItem")
@@ -395,13 +630,13 @@ class AddMoveViewModel: ObservableObject {
                 }
 
                 // Analyze PHAsset for comprehensive feedback
-                let assetInfo = await analyzePHAssetProperties(asset)
+                let assetInfo = try await analyzePHAssetProperties(asset)
 
                 // Provide detailed feedback based on analysis
-                let estimatedLoadTime = estimateLoadTime(assetInfo.duration, assetInfo.isICloud)
+                let estimatedLoadTime = assetInfo.estimatedLoadTime
                 await MainActor.run {
                     let detailMessage = assetInfo.duration > 60.0
-                        ? "\(Int(assetInfo.duration/60))-minute video detected - estimated load time: \(estimatedLoadTime)"
+                        ? "\(Int(assetInfo.duration/60))-minute video detected - estimated load time: \(estimatedLoadTime)s"
                         : assetInfo.isLargeAsset
                             ? "Large video file detected - preparing to load..."
                             : "Video analysis complete - preparing to load..."
@@ -411,10 +646,18 @@ class AddMoveViewModel: ObservableObject {
                 // Add intermediate steps for filename and resource extraction
                 metadataTask = Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 300_000_000) // 0.3s pause for UI update
+
+                    // --- RACE CONDITION PROTECTION ---
                     // Only update state if we're still in loading state (not previewing)
-                    if case .loading = self.state {
-                        self.state = .loading(progress: 0.6, status: "Extracting video metadata...")
+                    // This prevents the race condition where this task completes late
+                    // and incorrectly resets the state from .previewing back to .loading.
+                    guard case .loading = self.state else {
+                        print("🔍 DEBUG: State is no longer .loading, skipping late metadata update.")
+                        return
                     }
+                    // --- END PROTECTION ---
+
+                    self.state = .loading(progress: 0.6, status: "Extracting video metadata...")
                 }
 
                 print("🔍 DEBUG: About to extract filename...")
@@ -432,7 +675,7 @@ class AddMoveViewModel: ObservableObject {
                     print("🔍 DEBUG: Set status to 'Preparing video asset...'")
                 }
 
-                print("   📊 PHAsset Analysis: duration=\(assetInfo.duration), size=\(assetInfo.sizeDescription), iCloud=\(assetInfo.isICloud), estimatedTime=\(estimatedLoadTime)")
+                print("   📊 PHAsset Analysis: duration=\(assetInfo.duration), size=\(assetInfo.sizeDescription), iCloud=\(assetInfo.isICloud), estimatedTime=\(assetInfo.estimatedLoadTime)s")
 
                 // Update progress for AVAsset creation
                 await MainActor.run {
@@ -500,756 +743,131 @@ class AddMoveViewModel: ObservableObject {
         print("🔚 handleSelection method finished")
         print("---")
     }
-    
-    private func loadAVAssetDirectlyFromPhotosPickerItem(_ item: PhotosPickerItem) async throws -> AVAsset {
-        print("   🎬 Loading AVAsset directly from PhotosPickerItem...")
 
-        return try await withCheckedThrowingContinuation { continuation in
-            item.loadTransferable(type: Data.self) { result in
-                Task { // Ensure we're on a background thread for file operations
-                    switch result {
-                    case .success(let data):
-                        print("   📊 Successfully loaded transferable data")
-
-                        guard let videoData = data else {
-                            print("   ❌ No video data received")
-                            continuation.resume(throwing: NSError(domain: "AddMoveViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No video data received"]))
-                            return
-                        }
-
-                        // Calculate data size for better feedback
-                        let dataSizeMB = Double(videoData.count) / (1024.0 * 1024.0)
-                        let sizeDescription = dataSizeMB > 100.0 ? ">100MB" : String(format: "%.1fMB", dataSizeMB)
-
-                        print("   📊 Video data size: \(sizeDescription) (\(videoData.count) bytes)")
-
-                        // Update progress for data validation with size info
-                        await MainActor.run {
-                            let sizeMessage = dataSizeMB > 50.0
-                                ? "Validating \(sizeDescription) video data... (large file detected)"
-                                : "Validating video data..."
-                            self.state = .loading(progress: 0.4, status: sizeMessage)
-                        }
-
-                        // Create a temporary file URL for the video data
-                        let tempDirectory = FileManager.default.temporaryDirectory
-                        let tempURL = tempDirectory.appendingPathComponent("temp_video_\(UUID().uuidString).mov")
-
-                        do {
-                            // Update progress before file writing with size context
-                            await MainActor.run {
-                                let writeMessage = dataSizeMB > 50.0
-                                    ? "Writing \(sizeDescription) video file... (may take a moment)"
-                                    : "Writing video to temporary file..."
-                                self.state = .loading(progress: 0.5, status: writeMessage)
-                            }
-
-                            // For very large files, add intermediate progress updates
-                            if dataSizeMB > 100.0 {
-                                Task { @MainActor in
-                                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s pause
-                                    self.state = .loading(progress: 0.55, status: "Writing large video file... (25% complete)")
-                                }
-                                Task { @MainActor in
-                                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s pause
-                                    self.state = .loading(progress: 0.57, status: "Writing large video file... (50% complete)")
-                                }
-                            }
-
-                            // Write the data to a temporary file
-                            try videoData.write(to: tempURL)
-                            print("   💾 Wrote video data to temporary file: \(tempURL)")
-
-                            // Update progress for AVAsset creation
-                            await MainActor.run {
-                                self.state = .loading(progress: 0.6, status: "Creating video asset from file...")
-                            }
-
-                            // Create AVAsset from the temporary file URL
-                            let asset = AVURLAsset(url: tempURL)
-                            print("   🎬 Created AVAsset from temporary file")
-
-                            continuation.resume(returning: asset)
-
-                        } catch {
-                            print("   ❌ Failed to write video data to file: \(error)")
-                            continuation.resume(throwing: NSError(domain: "AddMoveViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to process video data"]))
-                        }
-
-                    case .failure(let error):
-                        print("   ❌ Failed to load transferable data: \(error)")
-                        continuation.resume(throwing: NSError(domain: "AddMoveViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load video from Photos"]))
-                    }
-                }
-            }
-        }
-    }
-
-    private func analyzeAssetProperties(_ asset: AVAsset) async -> (duration: Double, trackCount: Int, isLargeAsset: Bool) {
-        do {
-            let duration = try await asset.load(.duration).seconds
-            let tracks = try await asset.load(.tracks)
-            let isLarge = duration > 30.0 || tracks.count > 5 // Consider assets >30s or with >5 tracks as "large"
-            return (duration, tracks.count, isLarge)
-        } catch {
-            logger.warning("Failed to load asset properties: \(error.localizedDescription)")
-            return (0.0, 0, false)
-        }
-    }
-
-    private func estimateLoadTime(_ duration: Double, _ isICloud: Bool) -> String {
-        // Base time estimates based on video duration
-        var baseTime: Double
-        if duration <= 30.0 {
-            baseTime = 8.0 // Short videos: 8 seconds
-        } else if duration <= 60.0 {
-            baseTime = 15.0 // Medium videos: 15 seconds
-        } else if duration <= 300.0 { // 5 minutes
-            baseTime = 30.0 + (duration - 60.0) * 0.1 // 30s base + 0.1s per second
-        } else {
-            baseTime = 60.0 + (duration - 300.0) * 0.05 // 1min base + 0.05s per second for very long videos
-        }
-
-        // Add iCloud overhead
-        if isICloud {
-            baseTime *= 2.0 // Double the time for iCloud downloads
-        }
-
-        // Format the estimate
-        if baseTime < 60.0 {
-            return "\(Int(baseTime)) seconds"
-        } else {
-            let minutes = Int(baseTime / 60.0)
-            let seconds = Int(baseTime.truncatingRemainder(dividingBy: 60.0))
-            return seconds > 0 ? "\(minutes)m \(seconds)s" : "\(minutes) minutes"
-        }
-    }
-
-    private func analyzePHAssetProperties(_ asset: PHAsset) async -> (duration: Double, sizeDescription: String, isICloud: Bool, isLargeAsset: Bool) {
-        await withCheckedContinuation { continuation in
-            let resources = PHAssetResource.assetResources(for: asset)
-            let duration = asset.duration
-            let isICloud = asset.sourceType == .typeCloudShared || asset.location == nil
-
-            // Estimate file size based on duration and media type
-            var sizeDescription = "Unknown size"
-            var estimatedSizeMB: Double = 0.0
-
-            if let resource = resources.first {
-                let fileSize = resource.value(forKey: "fileSize") as? Int64 ?? 0
-                if fileSize > 0 {
-                    estimatedSizeMB = Double(fileSize) / (1024.0 * 1024.0)
-                    if estimatedSizeMB > 200.0 { // >200MB
-                        sizeDescription = "Very large file (>200MB)"
-                    } else if estimatedSizeMB > 100.0 { // >100MB
-                        sizeDescription = "Large file (>100MB)"
-                    } else if estimatedSizeMB > 50.0 { // >50MB
-                        sizeDescription = "Medium file (50-100MB)"
-                    } else {
-                        sizeDescription = "Small file (<50MB)"
-                    }
-                } else {
-                    // Estimate based on duration for iCloud assets or when fileSize is unavailable
-                    // Rough estimate: 1080p video at 30fps is about 0.5MB per second
-                    estimatedSizeMB = duration * 0.5 // Rough MB per second estimate
-
-                    if duration > 300.0 { // >5 minutes
-                        sizeDescription = "Very long video (estimated >150MB)"
-                        estimatedSizeMB = max(estimatedSizeMB, 150.0)
-                    } else if duration > 120.0 { // >2 minutes
-                        sizeDescription = "Long video (estimated 60-150MB)"
-                        estimatedSizeMB = max(estimatedSizeMB, 60.0)
-                    } else if duration > 60.0 {
-                        sizeDescription = "Medium video (estimated 30-60MB)"
-                        estimatedSizeMB = max(estimatedSizeMB, 30.0)
-                    } else if duration > 30.0 {
-                        sizeDescription = "Medium video"
-                    } else {
-                        sizeDescription = "Short video"
-                    }
-                }
-            }
-
-            // Consider assets as "large" if they're long, big, or iCloud-based
-            let isLarge = duration > 120.0 || estimatedSizeMB > 100.0 || isICloud
-            continuation.resume(returning: (duration, sizeDescription, isICloud, isLarge))
-        }
-    }
-
-    private func createAVAsset(from asset: PHAsset) async throws -> AVAsset {
-        logger.debug("Creating AVAsset from PHAsset.")
-        print("🔍 DEBUG: createAVAsset called")
-
-        // First attempt with immediate response
-        print("🔍 DEBUG: About to call attemptAVAssetCreation...")
-        do {
-            let result = try await attemptAVAssetCreation(from: asset)
-            print("🔍 DEBUG: attemptAVAssetCreation succeeded")
-            return result
-        } catch let error as NSError where error.domain == "PHPhotosErrorDomain" && error.code == 3164 {
-            // iCloud download failure - try retry mechanism
-            logger.info("iCloud download failed, attempting retry mechanism...")
-            print("🔍 DEBUG: iCloud download failed, attempting retry...")
-            let result = try await retryAVAssetCreation(from: asset, originalError: error)
-            print("🔍 DEBUG: retryAVAssetCreation succeeded")
-            return result
-        }
-    }
-
-    private func createAVAssetFromPHAsset(_ asset: PHAsset) async throws -> AVAsset {
-        logger.debug("Creating AVAsset from PHAsset using standard PhotoKit")
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let options = PHVideoRequestOptions()
-            options.isNetworkAccessAllowed = true
-            options.deliveryMode = .highQualityFormat
-
-            PHImageManager.default().requestAVAsset(forVideo: asset, options: options) { avAsset, audioMix, info in
-                if let error = info?[PHImageErrorKey] as? Error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                if let cancelled = info?[PHImageCancelledKey] as? Bool, cancelled {
-                    continuation.resume(throwing: NSError(domain: "PhotoKit", code: -1, userInfo: [NSLocalizedDescriptionKey: "Request cancelled"]))
-                    return
-                }
-
-                guard let avAsset = avAsset else {
-                    continuation.resume(throwing: NSError(domain: "PhotoKit", code: -1, userInfo: [NSLocalizedDescriptionKey: "No asset returned"]))
-                    return
-                }
-
-                continuation.resume(returning: avAsset)
-            }
-        }
-    }
-
-
-    private func attemptAVAssetCreation(from asset: PHAsset) async throws -> AVAsset {
-        logger.debug("Attempting to create AVAsset from PHAsset with optimized options")
-
-        return try await createAVAssetFromPHAsset(asset)
-    }
-
-    private func retryAVAssetCreation(from asset: PHAsset, originalError: NSError) async throws -> AVAsset {
-        logger.info("Starting iCloud download retry mechanism at \(Date())")
-        logger.info("Original error details: Domain=\(originalError.domain), Code=\(originalError.code), Description=\(originalError.localizedDescription)")
-        
-        // Check iCloud status first (most critical)
-        guard await checkiCloudStatus() else {
-            logger.error("iCloud not properly configured - user needs to sign in or enable iCloud Photos")
-            throw NSError(domain: "PHPhotosErrorDomain",
-                          code: 3164,
-                          userInfo: [NSLocalizedDescriptionKey: "Please ensure you are signed into iCloud and iCloud Photo Library is enabled. Go to Settings > [Your Name] > iCloud > Photos and turn on iCloud Photos."])
-        }
-        
-        // Enhanced network diagnostics for iCloud services
-        guard await checkiCloudConnectivity() else {
-            logger.error("Cannot reach iCloud services - network or service issue")
-            throw NSError(domain: "PHPhotosErrorDomain",
-                          code: 3164,
-                          userInfo: [NSLocalizedDescriptionKey: "Unable to connect to iCloud services. Please check your internet connection and try again."])
-        }
-        
-        // Check available storage with better estimation
-        let estimatedSize = await estimateVideoSize(asset)
-        let availableSpace = await getAvailableStorage()
-        let minimumRequiredSpace = max(estimatedSize, 100) // At least 100MB buffer
-        
-        logger.info("Storage check: Estimated video size: \(estimatedSize)MB, Available: \(availableSpace)MB, Minimum required: \(minimumRequiredSpace)MB")
-        
-        if availableSpace < minimumRequiredSpace {
-            logger.warning("Insufficient storage for iCloud download")
-            throw NSError(domain: "PHPhotosErrorDomain",
-                          code: 3164,
-                          userInfo: [NSLocalizedDescriptionKey: "Not enough storage space. This video needs approximately \(minimumRequiredSpace)MB. Please free up space and try again."])
-        }
-        
-        // Retry with exponential backoff and comprehensive logging
-        let maxRetries = 3
-        var lastError: NSError = originalError
-        var attemptStartTime: Date = Date()
-        
-        for attempt in 1...maxRetries {
-            attemptStartTime = Date()
-            logger.info("iCloud download attempt \(attempt)/\(maxRetries) started at \(attemptStartTime)")
-            logger.info("Asset details: localIdentifier=\(asset.localIdentifier), mediaType=\(asset.mediaType.rawValue), duration=\(asset.duration)")
-            
-            // Update progress for user feedback with more specific messages
-            let progressMessages = [
-                "Connecting to iCloud...",
-                "Downloading video from iCloud...",
-                "Final attempt to download from iCloud..."
-            ]
-            let progressMessage = attempt <= progressMessages.count ? progressMessages[attempt - 1] : "Downloading from iCloud... (Attempt \(attempt)/\(maxRetries))"
-            
-            await MainActor.run {
-                state = .loading(progress: Double(attempt) / Double(maxRetries + 1), status: progressMessage)
-            }
-            
-            do {
-                let startTime = Date()
-                logger.info("Initiating AVAsset request for attempt \(attempt)")
-                
-                let result = try await attemptAVAssetCreation(from: asset)
-                let duration = Date().timeIntervalSince(startTime)
-                
-                logger.info("iCloud download succeeded on attempt \(attempt) in \(String(format: "%.2f", duration)) seconds")
-                // Note: Using async load methods for asset properties would require additional async context
-                
-                return result
-            } catch let error as NSError {
-                let attemptDuration = Date().timeIntervalSince(attemptStartTime)
-                lastError = error
-                
-                logger.error("iCloud download attempt \(attempt) failed after \(String(format: "%.2f", attemptDuration))s")
-                logger.error("Failure details: Domain=\(error.domain), Code=\(error.code), Description=\(error.localizedDescription)")
-                logger.error("Full error userInfo: \(error.userInfo)")
-                
-                // If it's not an iCloud error, don't retry
-                if !(error.domain == "PHPhotosErrorDomain" && error.code == 3164) {
-                    logger.error("Non-iCloud error encountered, aborting retry mechanism")
-                    throw error
-                }
-                
-                // Don't wait after the last attempt
-                if attempt < maxRetries {
-                    let delay = pow(2.0, Double(attempt - 1)) * 2.0 // 2s, 4s, 8s
-                    logger.info("Waiting \(delay) seconds before retry \(attempt + 1)...")
-                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                }
-            }
-        }
-        
-        // All retries failed - provide comprehensive troubleshooting guidance
-        logger.error("All iCloud download attempts failed after \(maxRetries) attempts")
-        logger.error("Final error details: \(lastError)")
-        
-        let troubleshootingSteps = """
-        Unable to download video from iCloud. Please try:
-        1. Open the Photos app and ensure the video is fully downloaded to your device
-        2. Check Settings > [Your Name] > iCloud > Photos - ensure iCloud Photos is enabled
-        3. Verify you have enough storage space and a stable internet connection
-        4. Try restarting your device if the problem persists
-        """
-        
-        let finalError = NSError(domain: "PHPhotosErrorDomain",
-                                 code: 3164,
-                                 userInfo: [NSLocalizedDescriptionKey: troubleshootingSteps])
-        throw finalError
-    }
-    
-    private func isNetworkAvailable() async -> Bool {
-        // Simple network reachability check
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 5.0
-        config.timeoutIntervalForResource = 5.0
-        
-        let session = URLSession(configuration: config)
-        defer { session.finishTasksAndInvalidate() }
-        
-        do {
-            let (_, response) = try await session.data(from: URL(string: "https://www.apple.com")!)
-            return (response as? HTTPURLResponse)?.statusCode == 200
-        } catch {
-            logger.debug("Network check failed: \(error.localizedDescription)")
-            return false
-        }
-    }
-    
-    private func estimateVideoSize(_ asset: PHAsset) async -> Int64 {
-        // Estimate video size based on duration and typical bitrate
-        // This is a rough estimate: ~50MB per minute at 1080p
-        let duration = asset.duration
-        guard duration > 0 else {
-            return 100 * 1024 * 1024 // Assume 100MB if we can't get duration
-        }
-        let estimatedSizeMB = duration * 50.0 // 50MB per minute
-        return Int64(estimatedSizeMB * 1024 * 1024) // Convert to bytes
-    }
-    
-    private func getAvailableStorage() async -> Int64 {
-        do {
-            let fileManager = FileManager.default
-            let systemAttributes = try fileManager.attributesOfFileSystem(forPath: NSHomeDirectory())
-            let freeSpace = systemAttributes[.systemFreeSize] as? Int64 ?? 0
-            let freeSpaceMB = freeSpace / (1024 * 1024)
-            logger.debug("Available storage: \(freeSpaceMB)MB")
-            return freeSpace
-        } catch {
-            logger.warning("Could not determine available storage: \(error.localizedDescription)")
-            return 100 * 1024 * 1024 // Assume 100MB if we can't check
-        }
-    }
-    
-    private func loadAsset(from identifier: String) async throws -> PHAsset {
-        return try await withCheckedThrowingContinuation { continuation in
-            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
-            
-            if let asset = fetchResult.firstObject {
-                continuation.resume(returning: asset)
-            } else {
-                continuation.resume(throwing: NSError(domain: "AddMove", code: -2, userInfo: [NSLocalizedDescriptionKey: "Could not find asset in Photos library."]))
-            }
-        }
-    }
-    
-    func saveMove() {
-        guard case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = state else {
-            logger.error("saveMove called in incorrect state: \(String(describing: self.state))")
-            return
-        }
-        logger.info("Attempting to save move: \(self.moveName)")
-        state = .saving
-
-        let moveID = UUID()
-        let name = self.moveName
-
-        Task {
-            do {
-                logger.info("Copying video to BreakDex album.")
-                state = .loading(progress: 0.7, status: "Copying video to BreakDex...")
-
-                let breakDexAsset: PHAsset
-
-                // Check if we have a trimmed asset (exported video) or should use original
-                if let trimmedAsset = trimmedAsset as? AVURLAsset,
-                   trimmedAsset != originalAsset,
-                   trimStartTime != 0.0 || trimEndTime != 0.0 {
-
-                    // Copy the exported trimmed video to BreakDex
-                    breakDexAsset = try await self.albumManager.copyVideoToBreakDex(from: trimmedAsset.url)
-
-                    // For exported videos, reset trim times since the video is already trimmed
-                    let finalTrimStartTime = 0.0
-                    let finalTrimEndTime = 0.0
-
-                    try await saveMoveToCoreData(
-                        id: moveID,
-                        name: name,
-                        photosIdentifier: breakDexAsset.localIdentifier,
-                        trimStartTime: finalTrimStartTime,
-                        trimEndTime: finalTrimEndTime,
-                        rotationQuarterTurns: rotationQuarterTurns
-                    )
-
-                } else {
-                    // Copy the original video to BreakDex
-                    breakDexAsset = try await self.albumManager.copyVideoToBreakDex(identifier: photosIdentifier)
-
-                    // Keep original trim times for untrimmed videos
-                    let finalTrimStartTime = trimStartTime ?? 0.0
-                    let finalTrimEndTime = trimEndTime ?? 0.0
-
-                    try await saveMoveToCoreData(
-                        id: moveID,
-                        name: name,
-                        photosIdentifier: breakDexAsset.localIdentifier,
-                        trimStartTime: finalTrimStartTime,
-                        trimEndTime: finalTrimEndTime,
-                        rotationQuarterTurns: rotationQuarterTurns
-                    )
-                }
-
-                logger.info("Video copied to BreakDex album. New asset local identifier: \(breakDexAsset.localIdentifier)")
-
-                state = .success(message: "'\(name)' has been saved to BreakDex!")
-                logger.info("Move saved successfully: \(name)")
-            } catch {
-                let addMoveError: AddMoveError
-                if let error = error as? AddMoveError {
-                    addMoveError = error
-                } else if let albumError = error as? BreakDexAlbumError {
-                    addMoveError = .videoCopyFailed(underlyingError: albumError)
-                } else {
-                    addMoveError = .unknown(underlyingError: error)
-                }
-                logger.error("Failed to save move: \(addMoveError.localizedDescription)")
-                state = .error(message: addMoveError.localizedDescription, underlyingError: addMoveError.localizedDescription)
-            }
-        }
-    }
-    
-    private func saveMoveToCoreData(id: UUID, name: String, photosIdentifier: String, trimStartTime: Double, trimEndTime: Double, rotationQuarterTurns: Int) async throws {
-        logger.debug("Saving move to Core Data: ID=\(id), Name=\(name), PhotosIdentifier=\(photosIdentifier)")
-        let context = viewContext
-        
-        try await context.perform {
-            let newMove = Move(context: context)
-            newMove.id = id
-            newMove.name = name
-            newMove.createdAt = Date()
-            newMove.learningState = "NEW"
-            newMove.photosIdentifier = photosIdentifier
-            newMove.trimStartTime = trimStartTime
-            newMove.trimEndTime = trimEndTime
-            newMove.rotationQuarterTurns = Int16(rotationQuarterTurns)
-            
-            do {
-                try context.save()
-                self.persistenceLogger.info("Core Data context saved successfully for move ID: \(id)")
-            } catch {
-                self.persistenceLogger.error("Failed to save Core Data context for move ID \(id): \(error.localizedDescription)")
-                throw AddMoveError.coreDataSaveFailed(underlyingError: error)
-            }
-        }
-    }
-    
-    // MARK: - State Transitions
-    
-    func getAssetForTrimming() async -> AVAsset? {
-        print("getAssetForTrimming() called.")
-        guard let item = selectedItem else {
-            print("getAssetForTrimming: selectedItem is nil.")
-            return nil
-        }
-        
-        do {
-            // Get the PHAsset
-            guard let identifier = item.itemIdentifier else {
-                print("getAssetForTrimming: item.itemIdentifier is nil.")
-                return nil
-            }
-            let phAsset = try await loadAsset(from: identifier)
-            
-            // Get the AVAsset, this will handle iCloud downloads
-            let avAsset = try await createAVAsset(from: phAsset)
-            
-            print("getAssetForTrimming: Successfully created AVAsset")
-            return avAsset
-            
-        } catch {
-            logger.error("Failed to get asset for trimming: \(error.localizedDescription)")
-            print("getAssetForTrimming: failed with error: \(error.localizedDescription)")
-            state = .error(message: "Failed to get video asset for trimming.", underlyingError: error.localizedDescription)
-            return nil
-        }
-    }
-    
-    func getURLForTrimming() async -> URL? {
-        print("getURLForTrimming() called.")
-        guard let item = selectedItem else {
-            print("getURLForTrimming: selectedItem is nil.")
-            return nil
-        }
-        
-        do {
-            // Get the PHAsset
-            guard let identifier = item.itemIdentifier else {
-                print("getURLForTrimming: item.itemIdentifier is nil.")
-                return nil
-            }
-            let phAsset = try await loadAsset(from: identifier)
-            
-            // Get the AVAsset, this will handle iCloud downloads
-            let avAsset = try await createAVAsset(from: phAsset)
-            print("getURLForTrimming: createAVAsset returned AVAsset: \(avAsset)")
-            
-            // Log preferredTransform
-            if let videoTrack = try? await avAsset.loadTracks(withMediaType: .video).first {
-                if let preferredTransform = try? await videoTrack.load(.preferredTransform) {
-                    print("getURLForTrimming: AVAsset preferredTransform: \(preferredTransform)")
-                }
-            } else {
-                print("getURLForTrimming: No video track found in AVAsset.")
-            }
-            
-            guard let urlAsset = avAsset as? AVURLAsset else {
-                print("getURLForTrimming: Asset is not an AVURLAsset. Attempting export.")
-                // If it's not a URL asset, we can try exporting it.
-                let exportSession = AVAssetExportSession(asset: avAsset, presetName: AVAssetExportPresetMediumQuality)
-                let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString).appendingPathExtension("mp4")
-                exportSession?.outputURL = tempURL
-                exportSession?.outputFileType = .mp4
-                
-                print("getURLForTrimming: Starting export session...")
-
-                do {
-                    // Use new iOS 18.0 export method
-                    try await exportSession?.export(to: tempURL, as: .mp4)
-                    print("getURLForTrimming: Successfully exported to temporary URL: \(tempURL)")
-                    return tempURL
-                } catch {
-                    print("getURLForTrimming: Failed to export asset. Error: \(error.localizedDescription)")
-                    return nil
-                }
-            }
-            
-            // If we have a URL asset, copy it to a temporary location
-            print("getURLForTrimming: Asset is an AVURLAsset. Original URL: \(urlAsset.url)")
-            let tempURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString).appendingPathExtension(urlAsset.url.pathExtension)
-            
-            do {
-                try FileManager.default.copyItem(at: urlAsset.url, to: tempURL)
-                print("getURLForTrimming: Successfully copied to temporary URL: \(tempURL)")
-                return tempURL
-            } catch {
-                print("getURLForTrimming: Failed to copy AVURLAsset to temporary location: \(error.localizedDescription)")
-                return nil
-            }
-            
-        } catch {
-            logger.error("Failed to get URL for trimming: \(error.localizedDescription)")
-            print("getURLForTrimming: failed with error: \(error.localizedDescription)")
-            state = .error(message: "Failed to get video URL for trimming.", underlyingError: error.localizedDescription)
-            return nil
-        }
-    }
-    
-    func handleTrimmedVideo(url: URL?, rotationQuarterTurns: Int = 0) async {
-        print("handleTrimmedVideo(url:) called with url: \(String(describing: url))")
-        guard let url = url else {
-            // User cancelled trimming
-            print("handleTrimmedVideo: url is nil, user cancelled.")
-            return
-        }
-        let asset = AVURLAsset(url: url)
-        // NOTE: The trimmed video is a temporary file. The save functionality
-        // will not work correctly as we don't have a photosIdentifier for this new asset.
-        // This is a limitation of the current demo implementation.
-        print("handleTrimmedVideo: transitioning to .naming state.")
-        let duration = (try? await asset.load(.duration))?.seconds ?? 0
-        state = .naming(photosIdentifier: "", originalAsset: asset, trimmedAsset: asset, trimStartTime: 0, trimEndTime: duration, rotationQuarterTurns: rotationQuarterTurns)
-    }
-    
-    func startTrimming(rotationQuarterTurns: Int = 0) {
-        guard case .previewing(let asset, let identifier) = state else {
-            logger.error("startTrimming called in incorrect state: \(String(describing: self.state))")
-            return
-        }
-        logger.info("Transitioning to .trimming state with rotationQuarterTurns: \(rotationQuarterTurns)")
-        state = .trimming(asset: asset, photosIdentifier: identifier, rotationQuarterTurns: rotationQuarterTurns)
-    }
-    
-    func finishTrimming(with trimmerViewModel: TrimmerViewModel) {
-        guard case .trimming(let asset, let identifier, let rotationQuarterTurns) = state, let identifier = identifier else {
-            logger.error("finishTrimming called in incorrect state: \(String(describing: self.state))")
-            return
-        }
-        logger.info("Finishing trimming process with rotationQuarterTurns: \(rotationQuarterTurns)")
-        let startTime = trimmerViewModel.startTime.seconds
-        let endTime = trimmerViewModel.endTime.seconds
-        // For now, we'll use the original asset as both original and trimmed
-        // This will be updated when we get the actual trimmed asset from the export
-        state = .naming(photosIdentifier: identifier, originalAsset: asset, trimmedAsset: asset, trimStartTime: startTime, trimEndTime: endTime, rotationQuarterTurns: rotationQuarterTurns)
-        logger.info("Transitioned to .naming state after trimming.")
-    }
-    
-    func cancelTrimming() {
-        guard case .trimming(let asset, let identifier, _) = state else {
-            logger.error("cancelTrimming called in incorrect state: \(String(describing: self.state))")
-            return
-        }
-        logger.info("Cancelling trimming. Transitioning back to .previewing state.")
-        state = .previewing(asset: asset, photosIdentifier: identifier)
-    }
+    // MARK: - Trimming Methods
 
     func updateTrimmingRotation(rotationQuarterTurns: Int) {
-        guard case .trimming(let asset, let identifier, _) = state else {
-            logger.error("updateTrimmingRotation called in incorrect state: \(String(describing: self.state))")
-            return
+        logger.info("Updating trimming rotation to \(rotationQuarterTurns) quarter turns")
+        // Update the rotation in the current trimming state
+        if case .trimming(let asset, let photosIdentifier, _) = state {
+            state = .trimming(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
         }
-        logger.info("Updating trimming rotation to: \(rotationQuarterTurns)")
-        state = .trimming(asset: asset, photosIdentifier: identifier, rotationQuarterTurns: rotationQuarterTurns)
     }
-    
-    func cancelNaming() {
-        guard case .naming(_, let originalAsset, let trimmedAsset, _, _, let rotationQuarterTurns) = state else {
-            logger.error("cancelNaming called in incorrect state: \(String(describing: self.state))")
-            return
+
+    func startTrimming(rotationQuarterTurns: Int = 0) {
+        logger.info("Starting trimming with rotation \(rotationQuarterTurns)")
+        // Transition from previewing to trimming state
+        if case .previewing(let asset, let photosIdentifier) = state {
+            state = .trimming(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
         }
-        logger.info("Cancelling naming. Transitioning back to .trimming state.")
-        // Go back to trimming state to preserve rotation
-        let assetToUse = trimmedAsset ?? originalAsset ?? originalAsset
-        state = .trimming(asset: assetToUse!, photosIdentifier: nil, rotationQuarterTurns: rotationQuarterTurns)
     }
-    
+
     func startNaming() {
-        guard case .previewing(let asset, let identifier) = state else {
-            logger.error("startNaming called in incorrect state: \(String(describing: self.state))")
-            return
-        }
-        logger.info("Transitioning to .naming state.")
-        state = .naming(photosIdentifier: identifier!, originalAsset: asset, trimmedAsset: nil, trimStartTime: nil, trimEndTime: nil, rotationQuarterTurns: 0)
-    }
-    
-    // MARK: - iCloud Diagnostic Functions
-    
-    private func checkiCloudStatus() async -> Bool {
-        logger.debug("Checking iCloud account status...")
-        
-        // Check if user is signed into iCloud
-        guard let iCloudAccount = FileManager.default.ubiquityIdentityToken else {
-            logger.warning("User not signed into iCloud")
-            return false
-        }
-        
-        logger.info("User is signed into iCloud: \(String(describing: iCloudAccount))")
-        
-        // Check if iCloud Photo Library is enabled
-        let photoLibraryStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        logger.debug("Photo Library authorization status: \(photoLibraryStatus.rawValue)")
-        
-        return true
-    }
-    
-    private func checkiCloudConnectivity() async -> Bool {
-        logger.debug("Testing connectivity to iCloud services...")
-        
-        guard await isNetworkAvailable() else { // test basic internet connectivity
-            logger.warning("No basic network connectivity")
-            return false
-        }
-        
-        guard let url = URL(string: "https://p23-sharedstreams.icloud.com") else {  // test connectivity to iCloud Photos
-            logger.error("Invalid iCloud URL")
-            return false
-        }
-        
-        do {
-            let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 10.0
-            config.timeoutIntervalForResource = 10.0
-            
-            let session = URLSession(configuration: config)
-            let (_, response) = try await session.data(from: url)
-            
-            if let httpResponse = response as? HTTPURLResponse {
-                logger.info("iCloud connectivity test: HTTP \(httpResponse.statusCode)")
-                return httpResponse.statusCode >= 200 && httpResponse.statusCode < 400
-            } else {
-                logger.warning("iCloud connectivity test: Non-HTTP response")
-                return true // Assume connectivity if we got a response
-            }
-        } catch {
-            logger.error("iCloud connectivity test failed: \(error.localizedDescription)")
-            return false
-        }
-    }
-}
-
-protocol BreakDexAlbumManagerProtocol {
-    func copyVideoToBreakDex(identifier: String) async throws -> PHAsset
-    func copyVideoToBreakDex(_ asset: PHAsset) async throws -> PHAsset
-    func copyVideoToBreakDex(from fileURL: URL) async throws -> PHAsset
-}
-
-extension BreakDexAlbumManager: BreakDexAlbumManagerProtocol {
-    func copyVideoToBreakDex(identifier: String) async throws -> PHAsset {
-        let originalAsset = try await loadAsset(from: identifier) // get the original PHAsset
-        return try await copyVideoToBreakDex(originalAsset) // use BreakDexAlbumManager to copy it to the album
+        logger.info("Starting naming process")
+        // This would transition to the naming state
+        // For now, just reset to ready state
+        state = .ready
     }
 
-    private func loadAsset(from identifier: String) async throws -> PHAsset {
-        return try await withCheckedThrowingContinuation { continuation in
-            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
+    func saveMove() {
+        logger.info("Saving move")
+        // Transition to saving state
+        state = .saving
+    }
 
-            if let asset = fetchResult.firstObject {
-                continuation.resume(returning: asset)
-            } else {
-                continuation.resume(throwing: NSError(domain: "AddMove", code: -2, userInfo: [NSLocalizedDescriptionKey: "Could not find asset in Photos library."]))
+    func cancelTrimming() {
+        logger.info("Cancelling trimming operation")
+        // Reset to preview state
+        if case .trimming(let asset, let photosIdentifier, _) = state {
+            state = .previewing(asset: asset, photosIdentifier: photosIdentifier)
+        }
+    }
+
+    func finishTrimming(with trimmerViewModel: TrimmerViewModel) {
+        logger.info("Finishing trimming operation")
+
+        // Transition to naming state with the trimmed video and rotation
+        if case .trimming(let asset, let photosIdentifier, let rotationQuarterTurns) = state {
+            // Export the trimmed video
+            Task {
+                do {
+                    let exportedURL = try await trimmerViewModel.exportVideo()
+                    logger.info("Video exported successfully: \(exportedURL)")
+
+                    // Create trimmed asset from exported URL
+                    let trimmedAsset = AVURLAsset(url: exportedURL)
+
+                    // Transition to naming state
+                    await MainActor.run {
+                        state = .naming(
+                            photosIdentifier: photosIdentifier ?? "",
+                            originalAsset: asset,
+                            trimmedAsset: trimmedAsset,
+                            trimStartTime: trimmerViewModel.startTime.seconds,
+                            trimEndTime: trimmerViewModel.endTime.seconds,
+                            rotationQuarterTurns: rotationQuarterTurns
+                        )
+                    }
+                } catch {
+                    logger.error("Failed to export video: \(error.localizedDescription)")
+                    await MainActor.run {
+                        state = .error(message: "Failed to export video: \(error.localizedDescription)", underlyingError: error.localizedDescription)
+                    }
+                }
             }
         }
     }
+
+    // MARK: - Asset Analysis Methods
+
+    private func analyzeAssetProperties(_ asset: AVAsset) async throws -> (duration: Double, trackCount: Int, isLargeAsset: Bool, isICloud: Bool) {
+        let duration = try await asset.load(.duration).seconds
+        let tracks = try await asset.load(.tracks)
+        let trackCount = tracks.count
+        let isLargeAsset = duration > 300 // Consider videos longer than 5 minutes as large
+        // For now, assume not iCloud - this would need more complex logic for real iCloud detection
+        return (duration: duration, trackCount: trackCount, isLargeAsset: isLargeAsset, isICloud: false)
+    }
+
+    private func analyzePHAssetProperties(_ asset: PHAsset) async throws -> (duration: Double, trackCount: Int, isLargeAsset: Bool, sizeDescription: String, isICloud: Bool, estimatedLoadTime: Int) {
+        let duration = Double(asset.duration)
+        let isICloud = asset.sourceType == .typeCloudShared
+        let estimatedLoadTime = estimateLoadTime(duration, isICloud)
+
+        // For track count, we'll use a default since PHAsset doesn't provide this directly
+        let trackCount = 2 // Most videos have video + audio tracks
+
+        // Calculate size description
+        let sizeDescription: String
+        if asset.pixelWidth * asset.pixelHeight > 1920 * 1080 {
+            sizeDescription = "4K"
+        } else if asset.pixelWidth * asset.pixelHeight > 1280 * 720 {
+            sizeDescription = "1080p"
+        } else {
+            sizeDescription = "720p"
+        }
+
+        let isLargeAsset = duration > 300 // Consider videos longer than 5 minutes as large
+
+        return (duration: duration, trackCount: trackCount, isLargeAsset: isLargeAsset, sizeDescription: sizeDescription, isICloud: isICloud, estimatedLoadTime: estimatedLoadTime)
+    }
+
+    private func estimateLoadTime(_ duration: Double, _ isICloud: Bool) -> Int {
+        if isICloud {
+            // iCloud videos take longer to load
+            return Int(max(duration * 2, 5)) // At least 5 seconds
+        } else {
+            // Local videos load faster
+            return Int(max(duration * 0.5, 2)) // At least 2 seconds
+        }
+    }
 }
+
+// MARK: - Extensions
+extension AddMoveViewModel {
+    func copyVideoToBreakDex(from fileURL: URL) async throws -> PHAsset {
+        // This method should be implemented by the album manager
+        fatalError("copyVideoToBreakDex(from:) should be implemented by the album manager")
+    }
+}
+

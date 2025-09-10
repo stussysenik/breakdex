@@ -22,7 +22,7 @@ struct SwiftUIHandleBridge<Content: View>: UIViewRepresentable {
         containerView.backgroundColor = .clear
 
         // Create hosting controller for SwiftUI content
-        let hostingController = UIHostingController(rootView: content)
+        let hostingController = UIHostingController(rootView: AnyView(content))
         hostingController.view.backgroundColor = .clear
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
 
@@ -60,7 +60,7 @@ struct SwiftUIHandleBridge<Content: View>: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {
         // Update the SwiftUI content if needed
         if let hostingController = context.coordinator.hostingController {
-            hostingController.rootView = content
+            hostingController.rootView = AnyView(content)
         }
     }
 

@@ -1,6 +1,7 @@
 import SwiftUI
 import AVKit
 import PhotosUI
+import CoreData
 
 struct PreTrimView: View {
     @ObservedObject var viewModel: AddMoveViewModel
@@ -8,7 +9,9 @@ struct PreTrimView: View {
     let photosIdentifier: String?
     @Binding var selectedTab: TabSelection
 
-    @State private var showTrimmer = false
+    // Video player model for proper lifecycle management
+    @StateObject private var videoModel = VideoPlayerViewModel()
+
 
     init(viewModel: AddMoveViewModel, asset: AVAsset, photosIdentifier: String?, selectedTab: Binding<TabSelection>) {
         self.viewModel = viewModel
@@ -30,6 +33,8 @@ struct PreTrimView: View {
                 Spacer()
                 Button("Cancel") {
                     print("🎬 PRE-TRIM VIEW: Cancel button tapped")
+                    // Clean teardown of video player to prevent lingering tasks
+                    videoModel.teardown()
                     selectedTab = .add
                     viewModel.reset()
                 }
@@ -37,7 +42,7 @@ struct PreTrimView: View {
                 .accessibilityIdentifier("Cancel Button")
             }
 
-            CustomVideoPlayerView(asset: asset, rotationQuarterTurns: 0)
+            CustomVideoPlayerView(videoModel: videoModel, asset: asset, rotationQuarterTurns: 0)
                 .cornerRadius(12)
                 .accessibilityIdentifier("CustomVideoPlayerView")
                 .onAppear {
@@ -45,6 +50,10 @@ struct PreTrimView: View {
                     print("   📹 Using asset: \(asset)")
                     print("   🆔 Photos ID: \(photosIdentifier ?? "nil")")
                     print("   🔄 Rotation: 0 (no rotation for preview)")
+                }
+                .task {
+                    print("🎬 PreTrimView: Setting up fresh video source")
+                    videoModel.setSource(asset: asset, quarterTurns: 0)
                 }
 
             VStack(spacing: 10) {
@@ -81,9 +90,9 @@ struct PreTrimView: View {
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 12)
         }
-        .sheet(isPresented: $showTrimmer) {
-            let trimmerViewModel = TrimmerViewModel(asset: asset, photosIdentifier: photosIdentifier)
-            TrimmerView(addMoveViewModel: viewModel, trimmerViewModel: trimmerViewModel, rotationQuarterTurns: 0)
+        .onDisappear {
+            print("🎬 PreTrimView: View disappeared, tearing down video player")
+            videoModel.teardown()
         }
     }
 }
