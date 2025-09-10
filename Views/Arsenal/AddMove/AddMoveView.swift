@@ -1,11 +1,10 @@
 import SwiftUI
+import Foundation
 
-// wrapper for the addMoveContainer view
+// Simple wrapper view - directly shows the select clip view
 struct AddMoveView: View {
-    @State private var selectedTab: TabSelection = .add
-    
     var body: some View {
-        AddMoveContainer(selectedTab: $selectedTab)
+        AddMoveSelectClipView(viewModel: AddMoveViewModel(viewContext: PersistenceController.shared.container.viewContext))
     }
 }
 

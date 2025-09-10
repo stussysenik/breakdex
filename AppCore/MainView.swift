@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 enum TabSelection: String, Hashable {
     case arsenal = "ArsenalTab"
@@ -25,8 +26,8 @@ struct MainView: View {
                 .accessibilityLabel("Breaking Arsenal")
                 .accessibilityHint("View your collection of breaking moves, or combos")
 
-            // Add Tab
-            AddMoveContainer(selectedTab: $selectedTab)
+            // Add Tab - Inline AddMoveContainer functionality
+            AddMoveView()
                 .tabItem {
                     Label {
                         Text("Add").font(.ibmPlexMono(size: 12))
