@@ -1,5 +1,0 @@
-NEW = #ff7eb6
-LEARNING = #82cfff
-MASTERY = #24a148
-
-HARD REVIEW BUTTON = #0043ce

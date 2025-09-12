@@ -64,13 +64,13 @@ class VideoRelinkManager: ObservableObject {
     }
     
     func addToRelinkQueue(_ move: Move) {
-        if !relinkQueue.contains(where: { $0.id == move.id }) {
+        if !relinkQueue.contains(where: { $0.managedObjectID == move.managedObjectID }) {
             relinkQueue.append(move)
         }
     }
     
     func removeFromRelinkQueue(_ move: Move) {
-        relinkQueue.removeAll { $0.id == move.id }
+        relinkQueue.removeAll { $0.managedObjectID == move.managedObjectID }
     }
     
     func processRelinkQueue(onProgress: ((Int, Int) -> Void)? = nil) async throws {
@@ -115,7 +115,7 @@ class VideoRelinkManager: ObservableObject {
         
         try await context.perform {
             let newMove = Move(context: context)
-            newMove.id = UUID()
+            // Note: We don't set the managedObjectID as it's read-only and managed by Core Data
             newMove.name = importedMove.name
             newMove.photosIdentifier = importedMove.photosIdentifier
             newMove.trimStartTime = importedMove.trimStartTime ?? 0.0

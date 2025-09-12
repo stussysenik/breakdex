@@ -58,3 +58,51 @@ struct PersistenceController {
         container.viewContext.automaticallyMergesChangesFromParent = true
     }
 }
+
+// MARK: - Move Extensions
+extension Move {
+    public var managedObjectID: NSManagedObjectID { objectID }
+
+    // Computed property to get the video URL from videoReference
+    @objc public var videoURL: URL? {
+        get {
+            guard let videoData = videoReference,
+                  let path = String(data: videoData, encoding: .utf8),
+                  !path.isEmpty else {
+                return nil
+            }
+            return URL(fileURLWithPath: path)
+        }
+        set {
+            if let url = newValue {
+                videoReference = Data(url.path.utf8)
+            } else {
+                videoReference = nil
+            }
+        }
+    }
+
+    // Helper method to check if the move has a video
+    @objc public var hasVideo: Bool {
+        return videoURL != nil
+    }
+
+    // Helper method to check if the video file exists
+    @objc public var videoFileExists: Bool {
+        guard let url = videoURL else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
+    // Method to update the last accessed date for the video
+    @objc public func updateVideoLastAccessedDate() {
+        // This method would update a lastAccessedDate property if it existed
+        // For now, it's a placeholder for future functionality
+    }
+}
+
+// MARK: - Hashable Conformance
+extension Move {
+    public static func == (lhs: Move, rhs: Move) -> Bool {
+        lhs.objectID == rhs.objectID
+    }
+}

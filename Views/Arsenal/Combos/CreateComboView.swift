@@ -6,7 +6,7 @@ struct CreateComboView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Move.createdAt, ascending: true)])
     private var allMoves: FetchedResults<Move>
-    
+
     @State private var comboMoves: [Move] = []
     @State private var activeNodeIndex: Int? = nil
     @State private var isMovePickerPresented = false
@@ -16,6 +16,19 @@ struct CreateComboView: View {
     @State private var showErrorMessage = false
     @State private var successMessage = ""
     @State private var errorMessage = ""
+
+    private func getVideoAsset(for move: Move) -> AVAsset? {
+        guard let videoData = move.videoReference,
+              let path = String(data: videoData, encoding: .utf8) else {
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+        return AVURLAsset(url: url)
+    }
     
     var body: some View {
         VStack(spacing: 6) {
@@ -29,9 +42,14 @@ struct CreateComboView: View {
             .padding(.horizontal, 20)
             
             if let activeMove = activeMove { // middle section: video player or empty state
-                CustomVideoPlayerView(move: activeMove, url: nil)
-                    .frame(height: 300)
-                    .id(activeMove.id) // Force re-initialization when activeMove changes
+                if let asset = getVideoAsset(for: activeMove) {
+                    CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared))
+                        .frame(height: 300)
+                        .id(activeMove.managedObjectID) // Force re-initialization when activeMove changes
+                } else {
+                    ContentUnavailableView("Video not available", systemImage: "video.slash")
+                        .frame(height: 300)
+                }
             } else {
                 ContentUnavailableView("No preview available", systemImage: "video.slash")
                     .frame(height: 300)
@@ -98,12 +116,12 @@ struct CreateComboView: View {
     
     private func saveCombo(name: String) {
         let newCombo = Combo(context: viewContext)
-        newCombo.id = UUID()
+        // Note: We don't set the id as it's managed by Core Data
         newCombo.name = name
         
         for (index, move) in comboMoves.enumerated() {
             let comboMove = ComboMove(context: viewContext)
-            comboMove.id = UUID()
+            // Note: We don't set the id as it's managed by Core Data
             comboMove.sequenceIndex = Int64(index)
             comboMove.move = move
             comboMove.combo = newCombo

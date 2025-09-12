@@ -26,79 +26,17 @@ struct ComboDetailView: View {
             return []
         }
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Combo Header
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(combo.name ?? "Untitled Combo")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .foregroundColor(.textPrimary)
-
-                    if !comboMoves.isEmpty {
-                        Text("\(comboMoves.count) moves")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-
-                CustomVideoPlayerView(move: activeMove?.move, url: nil) // video Player Section
-                    .frame(height: 300)
-                    .cornerRadius(10)
-                    .padding(.horizontal)
-                    .id(activeMove?.move?.id) // Force re-initialization when activeMove changes
-                
-                if !comboMoves.isEmpty { // timeline Section
-                    Text("COMBO SEQUENCE")
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 0) {
-                            ForEach(Array(comboMoves.enumerated()), id: \.element.id) { index, comboMove in
-                                if let move = comboMove.move {
-                                    VStack(spacing: 8) {
-                                        TimelineNodeView(
-                                            sequenceNumber: index + 1,
-                                            isActive: activeMoveIndex == index,
-                                            onDelete: {},
-                                            move: move,
-                                            showDelete: false
-                                        )
-                                        .onTapGesture {
-                                            activeMoveIndex = index
-                                        }
-
-                                        Text(move.name ?? "Move")
-                                            .font(.caption)
-                                            .foregroundColor(.textPrimary)
-                                            .frame(width: 60)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                    }
-                                }
-                                
-                                if index < comboMoves.count - 1 {
-                                    Rectangle()
-                                        .frame(width: 30, height: 2)
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
+                ComboDetailHeaderView(combo: combo, comboMovesCount: comboMoves.count)
+                ComboDetailPlayerView(move: activeMove?.move)
+                ComboDetailTimelineView(comboMoves: comboMoves, activeMoveIndex: $activeMoveIndex)
             }
             .padding(.vertical)
         }
         .background(Color.backgroundPrimary.ignoresSafeArea())
-        // .navigationTitle("Combo Detail")
         .navigationBarTitleDisplayMode(.inline)
     }
     
@@ -108,17 +46,12 @@ struct ComboDetailView: View {
         }
         return comboMoves[activeMoveIndex]
     }
-    
-    private func videoURL(for move: Move) -> URL {
-        let path = String(data: move.videoReference ?? Data(), encoding: .utf8) ?? ""
-        return URL(filePath: path)
-    }
 }
 
 #Preview {
     let context = PersistenceController.shared.container.viewContext
     let combo = Combo(context: context)
-    combo.id = UUID()
+    // Note: We don't set the id as it's managed by Core Data
     combo.name = "Sample Combo"
     
     return ComboDetailView(combo: combo)

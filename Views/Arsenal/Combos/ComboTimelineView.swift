@@ -16,7 +16,7 @@ struct ComboTimelineView: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 0) {
-                    ForEach(Array(moves.enumerated()), id: \.element.id) { index, move in
+                    ForEach(Array(moves.enumerated()), id: \.element.managedObjectID) { index, move in
                         HStack(spacing: 0) {
                             TimelineNodeView(
                                 sequenceNumber: index + 1,
@@ -45,7 +45,7 @@ struct ComboTimelineView: View {
             }
             .onChange(of: activeIndex) { oldIndex, newIndex in
                 if let newIndex, moves.indices.contains(newIndex) {
-                    withAnimation { proxy.scrollTo(moves[newIndex].id, anchor: .center) }
+                    withAnimation { proxy.scrollTo(moves[newIndex].managedObjectID, anchor: .center) }
                 }
             }
         }

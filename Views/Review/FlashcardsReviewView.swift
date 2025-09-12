@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CoreData
+import AVFoundation
 
 extension Array {
     subscript(safe index: Int) -> Element? {
@@ -30,13 +31,26 @@ enum ReviewType {
 struct FlashcardReviewView: View {
     let learningState: String
     let reviewType: ReviewType
-    
+
     @FetchRequest private var moves: FetchedResults<Move>
     @FetchRequest private var combos: FetchedResults<Combo>
-    
+
     @Environment(\.managedObjectContext) private var viewContext
     @State private var currentIndex = 0
     @State private var reviewedIndices: Set<Int> = []
+
+    private func getVideoAsset(for move: Move) -> AVAsset? {
+        guard let videoData = move.videoReference,
+              let path = String(data: videoData, encoding: .utf8) else {
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+        return AVURLAsset(url: url)
+    }
     
     init(learningState: String, reviewType: ReviewType = .moves) {
         self.learningState = learningState
@@ -142,6 +156,20 @@ struct MoveReviewView: View {
     let learningState: String
     let onReviewComplete: () -> Void
     @State private var showRelink = false
+    @State private var isPlayerReady = false
+
+    private func getVideoAsset(for move: Move) -> AVAsset? {
+        guard let videoData = move.videoReference,
+              let path = String(data: videoData, encoding: .utf8) else {
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+        return AVURLAsset(url: url)
+    }
     
     var body: some View {
         VStack(spacing: 16) {
@@ -169,10 +197,41 @@ struct MoveReviewView: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
             
-            CustomVideoPlayerView(move: move, url: nil, onRelinkRequested: { showRelink = true }) // video player with proper audio lifecycle management
-                .frame(height: 350)
-                .cornerRadius(16)
-                .padding(.horizontal, 20)
+            Group {
+                if let asset = getVideoAsset(for: move) {
+                    VStack {
+                        if isPlayerReady {
+                            CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared))
+                        } else {
+                            // Loading placeholder while player is initializing
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.secondary.opacity(0.2))
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                    .scaleEffect(1.5)
+                            }
+                        }
+                    }
+                    .onAppear {
+                        // Initialize the player and check when it's ready
+                        let viewModel = UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared)
+                        
+                        // Monitor when the player becomes ready
+                        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                            if viewModel.isPlayerReady {
+                                isPlayerReady = true
+                                timer.invalidate()
+                            }
+                        }
+                    }
+                } else {
+                    ContentUnavailableView("Video not available", systemImage: "video.slash")
+                }
+            } // video player with proper audio lifecycle management
+            .frame(height: 350)
+            .cornerRadius(16)
+            .padding(.horizontal, 20)
             
             Spacer(minLength: 40)
             
@@ -195,14 +254,28 @@ struct MoveReviewView: View {
 
 struct ComboReviewView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     let combo: Combo
     let learningState: String
     let onReviewComplete: () -> Void
-    
+
     @State private var activeMoveIndex: Int? = 0
     @State private var comboMoves: [Move] = []
     @State private var moveToRelink: Move? = nil
+    @State private var isPlayerReady = false
+
+    private func getVideoAsset(for move: Move) -> AVAsset? {
+        guard let videoData = move.videoReference,
+              let path = String(data: videoData, encoding: .utf8) else {
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else {
+            return nil
+        }
+        return AVURLAsset(url: url)
+    }
     
     var body: some View {
         VStack(spacing: 16) {
@@ -219,11 +292,49 @@ struct ComboReviewView: View {
             .padding(.top, 8)
             
             if let activeMove = activeMove { // video player section
-                CustomVideoPlayerView(move: activeMove, url: nil, onRelinkRequested: { moveToRelink = activeMove })
+                if let asset = getVideoAsset(for: activeMove) {
+                    VStack {
+                        if isPlayerReady {
+                            CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared))
+                        } else {
+                            // Loading placeholder while player is initializing
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.secondary.opacity(0.2))
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                    .scaleEffect(1.5)
+                            }
+                        }
+                    }
                     .frame(height: 320)
                     .cornerRadius(16)
                     .padding(.horizontal, 20)
-                    .id(activeMove.id) // Force re-initialization when activeMove changes
+                    .id(activeMove.managedObjectID) // Force re-initialization when activeMove changes
+                    .onAppear {
+                        // Reset player readiness state when move changes
+                        isPlayerReady = false
+                        
+                        // Initialize the player and check when it's ready
+                        let viewModel = UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared)
+                        
+                        // Monitor when the player becomes ready
+                        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                            if viewModel.isPlayerReady {
+                                isPlayerReady = true
+                                timer.invalidate()
+                            }
+                        }
+                    }
+                    .onChange(of: activeMoveIndex) { _ in
+                        // Reset player readiness state when move changes
+                        isPlayerReady = false
+                    }
+                } else {
+                    ContentUnavailableView("Video not available", systemImage: "video.slash")
+                        .frame(height: 320)
+                        .padding(.horizontal, 20)
+                }
             } else {
                 ContentUnavailableView("Select a move to see a preview", systemImage: "video.slash")
                     .frame(height: 320)
@@ -238,7 +349,7 @@ struct ComboReviewView: View {
                     
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 0) {
-                            ForEach(Array(comboMoves.enumerated()), id: \.element.id) { index, move in
+                            ForEach(Array(comboMoves.enumerated()), id: \.element.managedObjectID) { index, move in
                                 VStack(spacing: 6) {
                                     TimelineNodeView(
                                         sequenceNumber: index + 1,

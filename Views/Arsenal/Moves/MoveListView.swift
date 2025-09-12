@@ -51,7 +51,7 @@ struct MoveListView: View {
 
         for (name, state) in testMoves {
             let newMove = Move(context: viewContext)
-            newMove.id = UUID()
+            // Note: We don't set the managedObjectID as it's read-only and managed by Core Data
             newMove.name = name
             newMove.createdAt = Date().addingTimeInterval(Double.random(in: -86400...0)) // Random time in last 24 hours
             newMove.learningState = state

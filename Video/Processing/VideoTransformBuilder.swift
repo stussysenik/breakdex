@@ -13,7 +13,7 @@ final class VideoTransformBuilder {
     ///   - quarterTurns: Number of quarter turns (0, 1, 2, 3 for 0°, 90°, 180°, 270°)
     /// - Returns: Tuple containing the composition and video composition
     static func build(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int) async throws -> (composition: AVMutableComposition, videoComposition: AVMutableVideoComposition) {
-        print("🎬 VideoTransformBuilder.build() called with quarterTurns: \(quarterTurns), trimRange: \(trimRange?.description ?? "nil")")
+        print("🎬 VideoTransformBuilder.build() called with quarterTurns: \(quarterTurns), trimRange: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s")
 
         // Step 1: Create mutable composition
         let composition = AVMutableComposition()

@@ -257,7 +257,7 @@ struct ImportExportView: View {
     private func createMoveFromImport(_ moveData: MoveExport, context: NSManagedObjectContext) async throws {
         try await context.perform {
             let newMove = Move(context: context)
-            newMove.id = moveData.id
+            // Note: We don't set the managedObjectID as it's read-only and managed by Core Data
             newMove.name = moveData.name
             newMove.photosIdentifier = moveData.photosIdentifier
             newMove.trimStartTime = moveData.trimStartTime
