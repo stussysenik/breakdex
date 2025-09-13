@@ -11,14 +11,14 @@ enum HandleType {
 // MARK: - Unified Feature-Rich Trimmer View
 struct FeatureRichTrimmerView: View {
     @ObservedObject var viewModel: AddMoveViewModel
+    @EnvironmentObject private var videoPlayerManager: VideoPlayerManager
     @StateObject private var trimmerViewModel: TrimmerViewModel
     @State private var rotationQuarterTurns: Int = 0
     
     // MARK: - State
     @State private var isPlayerReady = false
-    @State private var playerViewModel: UpdatedVideoPlayerViewModel?
-    @State private var cancellables = Set<AnyCancellable>()
     @State private var playerTimeoutTask: Task<Void, Error>?
+    @State private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Configuration
     private let asset: AVAsset
@@ -74,8 +74,8 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Video Player Section
     private var videoPlayerSection: some View {
         Group {
-            if isPlayerReady, let playerViewModel = playerViewModel {
-                CustomVideoPlayerView(viewModel: playerViewModel)
+            if videoPlayerManager.isPlayerReady {
+                SharedVideoPlayerView()
                     .frame(height: 300)
                     .cornerRadius(12)
                     .padding(.horizontal)
@@ -190,31 +190,17 @@ struct FeatureRichTrimmerView: View {
     private func initializeTrimmer() {
         logger.info("🎬 FEATURE_RICH_TRIMMER: 🚀 Initializing trimmer")
         
-        // Create player view model
-        playerViewModel = UpdatedVideoPlayerViewModel(
-            asset: trimmerViewModel.asset,
-            rotationQuarterTurns: rotationQuarterTurns,
-            appContainer: AppContainer.shared
-        )
-        
-        // Monitor player readiness
-        if let playerViewModel = playerViewModel {
-            playerViewModel.$state
-                .compactMap { state in
-                    switch state {
-                    case .playing: return true
-                    case .loading, .error: return false
-                    }
+        // The shared player should already be prepared by the PreTrimView
+        // Monitor VideoPlayerManager readiness
+        videoPlayerManager.$isPlayerReady
+            .receive(on: RunLoop.main)
+            .sink { [self] isReady in
+                if isReady {
+                    isPlayerReady = true
+                    logger.info("🎬 FEATURE_RICH_TRIMMER: ✅ Shared player ready")
                 }
-                .receive(on: RunLoop.main)
-                .sink { [self] isReady in
-                    if isReady {
-                        isPlayerReady = true
-                        logger.info("🎬 FEATURE_RICH_TRIMMER: ✅ Player ready")
-                    }
-                }
-                .store(in: &cancellables)
-        }
+            }
+            .store(in: &cancellables)
         
         // Setup timeout
         setupPlayerTimeout()
@@ -237,12 +223,9 @@ struct FeatureRichTrimmerView: View {
         logger.info("🎬 FEATURE_RICH_TRIMMER: 🔄 Rotation changed to \(rotationQuarterTurns)°")
         trimmerViewModel.rotationQuarterTurns = rotationQuarterTurns
         
-        // Recreate player with new rotation
-        playerViewModel = UpdatedVideoPlayerViewModel(
-            asset: trimmerViewModel.asset,
-            rotationQuarterTurns: rotationQuarterTurns,
-            appContainer: AppContainer.shared
-        )
+        // Note: For rotation changes, we need to reload the player with the new rotation
+        // This is handled by re-preparing the player with the updated rotation
+        videoPlayerManager.preparePlayer(for: trimmerViewModel.asset)
     }
     
     private func setupTrimmerViewModel() async {

@@ -9,7 +9,8 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreT
 
 struct PreTrimView: View {
     @ObservedObject var viewModel: AddMoveViewModel
-    @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper // Type-erased wrapper
+    @EnvironmentObject private var videoPlayerManager: VideoPlayerManager
+    @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper // Type-erased wrapper (for backwards compatibility)
     var playerViewModel: any VideoPlayerViewModelProtocol { // Computed property for access
         return observableWrapper.viewModel
     }
@@ -46,7 +47,8 @@ struct PreTrimView: View {
 
         logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: ✅ BODY COMPUTATION COMPLETED - returning mainContent")
 
-        return content
+        var bodyView = content
+        bodyView = bodyView
             .onAppear {
                 let appearTimestamp = Date().timeIntervalSince1970
                 let threadInfo = Thread.isMainThread ? "MAIN" : "BG"
@@ -57,42 +59,11 @@ struct PreTrimView: View {
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Rotation: \(rotationQuarterTurns)")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Photos ID: \(photosIdentifier ?? "nil")")
 
-                logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: View appeared - starting safe async setup")
+                logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: View appeared - preparing shared video player")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Construction to appear: \(String(format: "%.3f", appearTimestamp - constructionTime))s")
 
-                // Perform async setup after view is fully constructed
-                Task {
-                    let taskStartTime = Date().timeIntervalSince1970
-                    logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Starting safe async operations")
-
-                    do {
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Starting playerViewModel.waitForReady()")
-                        try await playerViewModel.waitForReady()
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: playerViewModel.waitForReady() completed successfully")
-
-                        let taskEndTime = Date().timeIntervalSince1970
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: All async operations completed successfully")
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Total time: \(String(format: "%.3f", taskEndTime - taskStartTime)) seconds")
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Final state: player ready")
-
-                    } catch {
-                        let errorTime = Date().timeIntervalSince1970
-                        logger.error("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Async operation failed")
-                        logger.error("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Error: \(error.localizedDescription)")
-                        logger.error("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Error type: \(type(of: error))")
-                        logger.error("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Error context: setup phase after \(String(format: "%.3f", errorTime - taskStartTime))s")
-
-                        // Log additional error context
-                        if let nsError = error as NSError? {
-                            logger.error("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Error domain: \(nsError.domain)")
-                            logger.error("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Error code: \(nsError.code)")
-                        }
-
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Setting error state on main viewModel")
-                        viewModel.state = .error(message: "Failed to prepare video for preview.", underlyingError: error.localizedDescription)
-                        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Error state set")
-                    }
-                }
+                // Prepare the shared video player with the asset
+                videoPlayerManager.preparePlayer(for: asset)
             }
             .onDisappear {
                 let disappearTime = Date().timeIntervalSince1970
@@ -101,6 +72,8 @@ struct PreTrimView: View {
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Final player state: \(String(describing: playerViewModel.state))")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Final player is ready: \(playerViewModel.isPlayerReady)")
             }
+        
+        return bodyView
     }
 
     @ViewBuilder
@@ -146,11 +119,10 @@ struct PreTrimView: View {
     }
 
     private func renderVideoPlayerSection() -> some View {
-        logger.info("🎬 PRE_TRIM_VIEW: Rendering video player section with directly provided ViewModel.")
-        logger.info("🎬 PRE_TRIM_VIEW: Player is ready: \(playerViewModel.isPlayerReady)")
+        logger.info("🎬 PRE_TRIM_VIEW: Rendering video player section with shared VideoPlayerManager.")
         
-        // Pass the guaranteed-to-be-ready playerViewModel.
-        return CustomVideoPlayerView(viewModel: playerViewModel) 
+        // Use the shared player from VideoPlayerManager instead of individual view model
+        SharedVideoPlayerView()
             .cornerRadius(12)
             .padding(.horizontal)
     }
@@ -185,7 +157,7 @@ struct PreTrimView: View {
     private func renderFallbackUI() -> some View {
         logger.info("🎬 PRE_TRIM_VIEW: Rendering fallback UI")
 
-        return VStack {
+        VStack {
             Spacer()
             Text("Unable to load video preview")
                 .font(.headline)
@@ -231,3 +203,4 @@ struct PreTrimView: View {
     .environment(\.managedObjectContext, context)
     .preferredColorScheme(.dark)
 }
+

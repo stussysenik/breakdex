@@ -181,20 +181,24 @@ public struct CustomVideoPlayerView: View {
             observableWrapper.viewModel.startPlayback()
         }
         .onDisappear {
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View disappearing - calling teardown (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View disappearing - NOT tearing down (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
             logMemoryUsage(context: "onDisappear_start")
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Current state: \(String(describing: observableWrapper.viewModel.state))", metadata: nil)
             
-            // Ensure proper cleanup of resources
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: Starting resource cleanup", metadata: nil)
-            observableWrapper.viewModel.teardown()
+            // CRITICAL: Remove all teardown logic from here.
+            // The VideoPlayerManager now handles the player's lifecycle.
+            // Only pause playback, don't tear down resources.
+            if let player = getPlayerFromState() {
+                logger.info("🎬 CUSTOM_VIDEO_PLAYER: Pausing playback (no teardown)", metadata: nil)
+                player.pause()
+            }
             
-            // Reset view state
+            // Reset view state only
             isViewReady = false
             showFullscreen = false
             isMuted = false
             
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: Teardown completed", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View state reset, player preserved", metadata: nil)
             logMemoryUsage(context: "onDisappear_end")
             Self.playerViewInstanceCount -= 1
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: PlayerView instance count now: \(Self.playerViewInstanceCount)", metadata: nil)

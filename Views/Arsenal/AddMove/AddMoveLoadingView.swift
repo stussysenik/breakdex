@@ -11,7 +11,7 @@ struct AddMoveLoadingView: View {
                 .tint(.accentColor)
                 .padding(.horizontal, 40)
             Text(status)
-                .font(.ibmPlexMono(size: 14, weight: .thin))
+                .font(.ibmPlexMono(size: 14, weight: .regular))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }

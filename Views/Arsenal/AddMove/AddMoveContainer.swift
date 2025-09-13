@@ -17,6 +17,9 @@ struct AddMoveContainer: View {
     @StateObject private var viewModel: AddMoveViewModel
     @Binding var selectedTab: TabSelection
     
+    // VideoPlayerManager that persists across view transitions
+    @StateObject private var videoPlayerManager = VideoPlayerManager()
+    
     // Static tracking for debugging
     private static var lastState: AddMoveState?
     private static var viewEvaluationCount = 0
@@ -24,8 +27,23 @@ struct AddMoveContainer: View {
     private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>) { // designated initializer
         logger.info("🎬 CONTAINER: AddMoveContainer initialized")
         
-        logger.info("🎬 CONTAINER: Creating AddMoveViewModel with context")
-        _viewModel = StateObject(wrappedValue: AddMoveViewModel(viewContext: context))
+        let appContainer = AppContainer.shared
+        let stateManager = AddMoveStateManager()
+        let videoAssetPreparer = VideoAssetPreparer()
+        let videoPlayerCacheManager = VideoPlayerCacheManager()
+        let photosImportService = PhotosImportService()
+        let movePersistenceService = MovePersistenceService(viewContext: context)
+        
+        logger.info("🎬 CONTAINER: Creating AddMoveViewModel with dependency injection")
+        _viewModel = StateObject(wrappedValue: AddMoveViewModel(
+            viewContext: context,
+            stateManager: stateManager,
+            videoAssetPreparer: videoAssetPreparer,
+            videoPlayerCacheManager: videoPlayerCacheManager,
+            photosImportService: photosImportService,
+            movePersistenceService: movePersistenceService,
+            appContainer: appContainer
+        ))
         _selectedTab = selectedTab
         
         // Note: Cannot access viewModel.state during initialization - will log after view appears
@@ -47,6 +65,7 @@ struct AddMoveContainer: View {
         Group {
             if isValidContainerState() {
                 mainContent
+                    .environmentObject(videoPlayerManager)
                     .onAppear {
                         logger.info("🎬 CONTAINER: ⚠️ onAppear triggered")
                         logger.info("🎬 CONTAINER: onAppear - Initial state: \(String(describing: viewModel.state))")
@@ -64,6 +83,15 @@ struct AddMoveContainer: View {
                     .onDisappear {
                         logger.info("🎬 CONTAINER: ⚠️ onDisappear triggered")
                         logMemoryAndPerformance("container_disappear", state: viewModel.state, viewEvaluationCount: Self.viewEvaluationCount)
+                        
+                        // Clean up video player resources when entire workflow is finished
+                        switch viewModel.state {
+                        case .success, .error:
+                            logger.info("🎬 CONTAINER: Workflow completed, tearing down video player")
+                            videoPlayerManager.teardownPlayer()
+                        default:
+                            break
+                        }
                     }
                     .onChange(of: viewModel.state) { oldState, newState in
                         logger.info("🎬 CONTAINER: ⚠️ onChange(of: viewModel.state) triggered")
@@ -334,25 +362,50 @@ struct AddMoveContainer: View {
     }
 }
 
-// MARK: - Minimal Video Picker Wrapper
+// MARK: - Video Picker Wrapper (Single Source of Truth)
 struct VideoPickerWrapper: View {
     @ObservedObject var viewModel: AddMoveViewModel
-    @State private var selectedItem: PhotosPickerItem? = nil
     
     var body: some View {
-        PhotosPicker(
-            selection: $selectedItem,
-            matching: .videos,
-            photoLibrary: .shared()
-        ) {
-            Text("Select Video")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(.blue)
-        }
-        .photosPickerStyle(.inline)
-        .onChange(of: selectedItem) {
-            if let newItem = selectedItem {
-                viewModel.selectedItem = newItem
+        VStack {
+            PhotosPicker(
+                selection: $viewModel.selectedItem,
+                matching: .videos,
+                photoLibrary: .shared()
+            ) {
+                Text("Select Video")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.blue)
+            }
+            .photosPickerStyle(.inline)
+            
+            // Show import status
+            switch viewModel.importState {
+            case .idle:
+                EmptyView()
+            case .importing:
+                VStack {
+                    ProgressView("Importing video...")
+                        .padding()
+                    Text("Please wait while we process your video")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            case .ready(let url):
+                Text("Video imported successfully")
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .padding(.top, 8)
+            case .error(let error):
+                VStack {
+                    Text("Import failed")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                    Text(error.localizedDescription)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .padding(.top, 8)
             }
         }
     }
@@ -454,10 +507,10 @@ private func getStateDescription(_ state: AddMoveState) -> String {
     switch state {
     case .ready:
         return "ready"
-    case .loading(let progress, let status):
-        return "loading(\(progress), \(status))"
     case .initializing(let progress, let status):
         return "initializing(\(progress), \(status))"
+    case .loading(let progress, let status):
+        return "loading(\(progress), \(status))"
     case .loaded(_, let id, let rotation):
         return "loaded(id: \(id ?? "nil"), rotation: \(rotation)°)"
     case .previewing(_, _, let id, let rotation):

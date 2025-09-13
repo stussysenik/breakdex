@@ -160,6 +160,12 @@ public final class VideoPlayerViewModel: ObservableObject, @preconcurrency Equat
                 return
             }
             
+            // Also check if coordinator is ready (state update might be in progress)
+            if case .ready = coordinator.state {
+                continuation.resume()
+                return
+            }
+            
             // Set up a publisher to listen for state changes
             let cancellable = $state
                 .dropFirst() // Skip the current value

@@ -98,6 +98,11 @@ extension Font {
         }
     }
     
+    // App font method for consistent typography
+    static func appFont(_ weight: Font.Weight, size: CGFloat) -> Font {
+        return ibmPlexMono(size: size, weight: weight)
+    }
+    
     // Typography Scale
     static let titleLarge = ibmPlexMono(size: 32, weight: .bold)
     static let titleMedium = ibmPlexMono(size: 24, weight: .semibold)

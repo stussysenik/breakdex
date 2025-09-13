@@ -7,16 +7,6 @@
 
 import SwiftUI
 
-extension Color {
-    // Define colors from the IBM Design Language for review buttons.
-    // Red 60 for "AGAIN" (Error/Danger)
-    static let ibmErrorRed = Color(hex: "da1e28")
-    // Orange 40 for "HARD" (Warning)
-    static let ibmWarningOrange = Color(hex: "ff832b")
-    // Green 50 for "GOOD" (Success)
-    static let ibmSuccessGreen = Color(hex: "24a148")
-}
-
 // Helper to allow initializing Color with a hex string.
 extension Color {
     init(hex: String) {

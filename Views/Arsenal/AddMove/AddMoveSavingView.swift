@@ -7,7 +7,7 @@ struct AddMoveSavingView: View {
                 .progressViewStyle(.circular)
                 .tint(.accentColor)
             Text("Saving your move...")
-                .font(.ibmPlexMono(size: 14, weight: .thin))
+                .font(.appFont(AppFont.thin, size: 14))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }

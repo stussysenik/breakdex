@@ -1,6 +1,37 @@
 import SwiftUI
 import CoreData
 
+struct ComboTimelineNodeView: View {
+    let sequenceNumber: Int
+    let isActive: Bool
+    let onDelete: () -> Void
+    let move: Move
+    let showDelete: Bool
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .fill(isActive ? Color.blue : Color.gray)
+                    .frame(width: 32, height: 32)
+                
+                Text("\(sequenceNumber)")
+                    .foregroundColor(.white)
+                    .font(.caption)
+                    .fontWeight(.bold)
+            }
+            
+            if showDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+            }
+        }
+    }
+}
+
 struct ComboDetailTimelineView: View {
     let comboMoves: [ComboMove]
     @Binding var activeMoveIndex: Int?
@@ -18,7 +49,7 @@ struct ComboDetailTimelineView: View {
                     ForEach(Array(comboMoves.enumerated()), id: \.element.id) { index, comboMove in
                         if let move = comboMove.move {
                             VStack(spacing: 8) {
-                                TimelineNodeView(
+                                ComboTimelineNodeView(
                                     sequenceNumber: index + 1,
                                     isActive: activeMoveIndex == index,
                                     onDelete: {},

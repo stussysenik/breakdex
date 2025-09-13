@@ -24,6 +24,8 @@ public enum VideoHealthState {
 public protocol VideoHealthMonitor {
     func startMonitoring(asset: AVAsset)
     func stopMonitoring()
+    func pauseMonitoring()
+    func resumeMonitoring()
     func getCurrentHealth() -> VideoHealthState
     func getCurrentHealthStatus() -> VideoHealthStatus
     func getHealthReports() -> AsyncStream<VideoHealthReport>
@@ -99,6 +101,46 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         currentAsset = nil
         
         logger.info("🏥 Video health monitoring stopped")
+    }
+    
+    func pauseMonitoring() {
+        logger.info("🏥 Pausing video health monitoring")
+        logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
+        logger.info("🏥 Asset preserved: \(self.currentAsset != nil)")
+        
+        self.monitoringTask?.cancel()
+        self.monitoringTask = nil
+        // Keep continuations and asset for quick resume
+        
+        logger.info("🏥 📊 Memory after monitoring pause: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
+        
+        logger.info("🏥 ✅ Video health monitoring paused")
+    }
+    
+    func resumeMonitoring() {
+        logger.info("🏥 Resuming video health monitoring")
+        logger.info("🏥 Current asset available: \(self.currentAsset != nil)")
+        logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
+        
+        guard self.currentAsset != nil else {
+            logger.warning("🏥 ⚠️ Cannot resume monitoring - no asset")
+            logger.info("🏥 This indicates improper state management")
+            return
+        }
+        
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        // Restart monitoring with existing asset
+        self.monitoringTask = Task {
+            await self.monitorVideoHealth()
+        }
+        
+        let endTime = CFAbsoluteTimeGetCurrent()
+        let resumeTime = (endTime - startTime) * 1000
+        logger.info("🏥 ⚡ Monitoring resume took \(String(format: "%.2f", resumeTime))ms")
+        logger.info("🏥 📊 Memory after monitoring resume: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
+        
+        logger.info("🏥 ✅ Video health monitoring resumed successfully")
     }
     
     func getCurrentHealth() -> VideoHealthState {

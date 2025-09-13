@@ -251,6 +251,89 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
         healthStatus = VideoHealthStatus.unknown
     }
     
+    /// Pause the player for trimming (preserves resources for instant resume)
+    public func pauseForTrimming() {
+        memoryLogger.logMemoryEvent(
+            event: "Preview player pause for trimming",
+            correlationId: correlationId,
+            component: "PreviewVideoPlayer",
+            metadata: ["currentState": "\(state)"]
+        )
+        
+        Task { @MainActor in
+            if case .playing(let player) = state {
+                memoryLogger.logMemoryEvent(
+                    event: "Pausing AVPlayer for trimming",
+                    correlationId: correlationId,
+                    component: "PreviewVideoPlayer",
+                    metadata: ["playerStatus": "\(player.status.rawValue)"]
+                )
+                
+                player.pause()
+                videoHealthMonitor.pauseMonitoring()
+                memoryCheckTimer?.invalidate()
+                memoryCheckTimer = nil
+                
+                memoryLogger.logMemoryEvent(
+                    event: "Preview player paused successfully",
+                    correlationId: correlationId,
+                    component: "PreviewVideoPlayer",
+                    metadata: ["availableMemory": "\(memoryManager.getAvailableMemory() / (1024*1024))MB"]
+                )
+            }
+        }
+        shouldPlay = false
+    }
+    
+    /// Resume the player after trimming (instant playback)
+    public func resumeAfterTrimming() {
+        memoryLogger.logMemoryEvent(
+            event: "Preview player resume after trimming",
+            correlationId: correlationId,
+            component: "PreviewVideoPlayer",
+            metadata: ["currentState": "\(state)", "shouldPlay": "\(shouldPlay)"]
+        )
+        
+        Task { @MainActor in
+            if case .playing(let player) = state {
+                let startTime = CFAbsoluteTimeGetCurrent()
+                
+                videoHealthMonitor.resumeMonitoring()
+                
+                if shouldPlay {
+                    memoryLogger.logMemoryEvent(
+                        event: "Starting playback after trimming",
+                        correlationId: correlationId,
+                        component: "PreviewVideoPlayer",
+                        metadata: ["playerStatus": "\(player.status.rawValue)"]
+                    )
+                    
+                    player.play()
+                    
+                    let endTime = CFAbsoluteTimeGetCurrent()
+                    let resumeDuration = (endTime - startTime) * 1000
+                    
+                    memoryLogger.logMemoryEvent(
+                        event: "Preview player resumed successfully",
+                        correlationId: correlationId,
+                        component: "PreviewVideoPlayer",
+                        metadata: [
+                            "resumeDuration": "\(String(format: "%.2f", resumeDuration))ms",
+                            "availableMemory": "\(memoryManager.getAvailableMemory() / (1024*1024))MB"
+                        ]
+                    )
+                } else {
+                    memoryLogger.logMemoryEvent(
+                        event: "Player resumed but playback not started (shouldPlay=false)",
+                        correlationId: correlationId,
+                        component: "PreviewVideoPlayer",
+                        metadata: nil
+                    )
+                }
+            }
+        }
+    }
+    
     /// Wait for the player to be ready with shorter timeout for preview
     public func waitForReady() async throws {
         return try await withCheckedThrowingContinuation { continuation in

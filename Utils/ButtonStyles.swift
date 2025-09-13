@@ -75,18 +75,49 @@ struct AppButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - Global Type Aliases
+typealias AppButtonSize = AppButtonStyle.ButtonSize
+
 // MARK: - Convenience Extensions
-extension ButtonStyle where Self == AppButtonStyle {
-    static func appPrimary(size: AppButtonStyle.ButtonSize = .medium) -> AppButtonStyle {
-        AppButtonStyle(type: .primary, size: size)
-    }
+struct AppPrimaryButtonStyle: ButtonStyle {
+    let size: AppButtonSize
     
-    static func appSecondary(size: AppButtonStyle.ButtonSize = .medium) -> AppButtonStyle {
-        AppButtonStyle(type: .secondary, size: size)
+    func makeBody(configuration: Configuration) -> some View {
+        AppButtonStyle(type: .primary, size: size).makeBody(configuration: configuration)
     }
+}
+
+struct AppSecondaryButtonStyle: ButtonStyle {
+    let size: AppButtonSize
     
-    static func appAccent(size: AppButtonStyle.ButtonSize = .large) -> AppButtonStyle {
-        AppButtonStyle(type: .accent, size: size)
+    func makeBody(configuration: Configuration) -> some View {
+        AppButtonStyle(type: .secondary, size: size).makeBody(configuration: configuration)
+    }
+}
+
+struct AppAccentButtonStyle: ButtonStyle {
+    let size: AppButtonSize
+    
+    func makeBody(configuration: Configuration) -> some View {
+        AppButtonStyle(type: .accent, size: size).makeBody(configuration: configuration)
+    }
+}
+
+extension ButtonStyle where Self == AppPrimaryButtonStyle {
+    static func appPrimary(size: AppButtonSize = .medium) -> AppPrimaryButtonStyle {
+        AppPrimaryButtonStyle(size: size)
+    }
+}
+
+extension ButtonStyle where Self == AppSecondaryButtonStyle {
+    static func appSecondary(size: AppButtonSize = .medium) -> AppSecondaryButtonStyle {
+        AppSecondaryButtonStyle(size: size)
+    }
+}
+
+extension ButtonStyle where Self == AppAccentButtonStyle {
+    static func appAccent(size: AppButtonSize = .large) -> AppAccentButtonStyle {
+        AppAccentButtonStyle(size: size)
     }
 }
 

@@ -1,0 +1,40 @@
+import SwiftUI
+import PhotosUI
+
+// MARK: - Selection State (PhotosPicker Import)
+enum SelectionState {
+    case idle
+    case importing
+    case ready(URL)
+    case error(Error)
+}
+
+// MARK: - Movie Transferable Type
+struct Movie: Transferable {
+    let url: URL
+    
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { movie in
+            SentTransferredFile(movie.url)
+        } importing: { received in
+            let copy = URL.temporaryDirectory.appending(path: "\(UUID().uuidString).\(received.file.pathExtension)")
+            try FileManager.default.copyItem(at: received.file, to: copy)
+            return Movie(url: copy)
+        }
+    }
+}
+
+// MARK: - Import Error
+enum ImportError: Error, LocalizedError {
+    case unsupportedType
+    case fileOperationFailed(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedType:
+            return "Unsupported file type. Please select a video file."
+        case .fileOperationFailed(let error):
+            return "Failed to process video file: \(error.localizedDescription)"
+        }
+    }
+}

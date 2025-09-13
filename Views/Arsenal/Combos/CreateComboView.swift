@@ -37,7 +37,7 @@ struct CreateComboView: View {
                 MotionCatalog.Accessibility.actionHaptic()
                 isMovePickerPresented = true
             }
-            .font(.ibmPlexMono(size: 20, weight: .thin))
+            .font(.ibmPlexMono(size: 20, weight: .regular))
             .padding(.vertical, 40)
             .padding(.horizontal, 20)
             
@@ -69,7 +69,7 @@ struct CreateComboView: View {
                     isNamingAlertPresented = true
                 }
                 .font(.appFont(.regular, size: 18)) // IBM Plex Mono font
-                .buttonStyle(.appAccent(size: .medium))
+                .buttonStyle(.appAccent(size: .large))
                 .disabled(comboMoves.isEmpty)
                 
                 Spacer(minLength: 20)

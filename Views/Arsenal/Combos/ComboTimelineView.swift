@@ -18,7 +18,7 @@ struct ComboTimelineView: View {
                 HStack(spacing: 0) {
                     ForEach(Array(moves.enumerated()), id: \.element.managedObjectID) { index, move in
                         HStack(spacing: 0) {
-                            TimelineNodeView(
+                            ComboTimelineNodeView(
                                 sequenceNumber: index + 1,
                                 isActive: activeIndex == index,
                                 onDelete: {

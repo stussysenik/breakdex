@@ -13,7 +13,7 @@ struct AddMovePreviewingView: View {
                         .progressViewStyle(.circular)
                         .tint(.accentColor)
                     Text("Preparing video player...")
-                        .font(.ibmPlexMono(size: 14, weight: .thin))
+                        .font(.appFont(.thin, size: 14))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }
@@ -26,7 +26,7 @@ struct AddMovePreviewingView: View {
                     .progressViewStyle(.circular)
                     .tint(.accentColor)
                 Text("Loading video...")
-                    .font(.ibmPlexMono(size: 14, weight: .thin))
+                    .font(.appFont(.thin, size: 14))
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }

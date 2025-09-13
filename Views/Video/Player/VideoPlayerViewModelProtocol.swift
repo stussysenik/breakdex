@@ -24,6 +24,8 @@ public protocol VideoPlayerViewModelProtocol: ObservableObject, Equatable, Hasha
     func setRotation(_ quarterTurns: Int)
     func startPlayback()
     func teardown()
+    func pauseForTrimming()
+    func resumeAfterTrimming()
     func waitForReady() async throws
 }
 

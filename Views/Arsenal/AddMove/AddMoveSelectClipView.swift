@@ -54,7 +54,7 @@ struct AddMoveSelectClipView: View {
             case .initializing(progress: let progress, status: let status):
                 AddMoveLoadingView(progress: progress, status: status)
             case .previewing(_, _, _, _):
-                AddMovePreviewingView(viewModel: viewModel)
+                EmptyView() // Let AddMoveContainer handle the PreTrimView
             case .saving:
                 AddMoveSavingView()
             case .success(let message):
