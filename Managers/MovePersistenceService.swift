@@ -4,7 +4,7 @@ import CoreData
 import OSLog
 
 // MARK: - MovePersistenceService Protocol
-protocol MovePersistenceServiceProtocol {
+public protocol MovePersistenceServiceProtocol {
     func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> URL
     func createMoveEntity(
         name: String,

@@ -2,7 +2,12 @@ import Foundation
 import AVFoundation
 import Photos
 import PhotosUI
+import UniformTypeIdentifiers
+import SwiftUI
+
 import OSLog
+
+// Use the native PhotosUI PhotosPickerItem type
 
 // MARK: - Video Loading Errors
 public enum AddMoveVideoLoaderError: Error, LocalizedError {
@@ -95,7 +100,7 @@ public actor AddMoveVideoLoader {
         logger.info("🎬 VIDEO_LOADER: loadDirectly called")
         logger.info("🎬 VIDEO_LOADER: Checking content types for movie support")
 
-        guard item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) else {
+        guard item.supportedContentTypes.contains(where: { $0.conforms(to: UTType.movie) }) else {
             logger.error("🎬 VIDEO_LOADER: Unsupported file type - no movie content type found")
             throw AddMoveVideoLoaderError.unsupportedFileType
         }

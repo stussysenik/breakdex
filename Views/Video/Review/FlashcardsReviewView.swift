@@ -201,7 +201,7 @@ struct MoveReviewView: View {
                 if let asset = getVideoAsset(for: move) {
                     VStack {
                         if isPlayerReady {
-                            CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared))
+                            CustomVideoPlayerView(viewModel: MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared))
                         } else {
                             // Loading placeholder while player is initializing
                             ZStack {
@@ -215,7 +215,7 @@ struct MoveReviewView: View {
                     }
                     .onAppear {
                         // Initialize the player and check when it's ready
-                        let viewModel = UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared)
+                        let viewModel = MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared)
                         
                         // Monitor when the player becomes ready
                         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
@@ -295,7 +295,7 @@ struct ComboReviewView: View {
                 if let asset = getVideoAsset(for: activeMove) {
                     VStack {
                         if isPlayerReady {
-                            CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared))
+                            CustomVideoPlayerView(viewModel: MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared))
                         } else {
                             // Loading placeholder while player is initializing
                             ZStack {
@@ -316,7 +316,7 @@ struct ComboReviewView: View {
                         isPlayerReady = false
                         
                         // Initialize the player and check when it's ready
-                        let viewModel = UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared)
+                        let viewModel = MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared)
                         
                         // Monitor when the player becomes ready
                         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in

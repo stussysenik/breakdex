@@ -4,8 +4,8 @@ import Combine
 import OSLog
 
 @MainActor
-public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
-    public static func == (lhs: PreviewOptimizedVideoPlayerViewModel, rhs: PreviewOptimizedVideoPlayerViewModel) -> Bool {
+public final class MainVideoPlayerViewModel: ObservableObject, VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
+    public static func == (lhs: MainVideoPlayerViewModel, rhs: MainVideoPlayerViewModel) -> Bool {
         lhs.coordinator.state == rhs.coordinator.state
     }
     
@@ -27,14 +27,14 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
     
     // MARK: - Private Properties
     
-    private let coordinator: PreviewOptimizedVideoCoordinator
+    private let coordinator: UpdatedVideoCoordinator
     private var cancellables = Set<AnyCancellable>()
     private let logger: AppLogger
     private let videoHealthMonitor: VideoHealthMonitor
-    private let memoryLogger = CentralizedMemoryLogger.shared
     private let memoryManager: MemoryManager
+    private let memoryLogger = CentralizedMemoryLogger.shared
+    private let playerStateMonitor: PlayerStateMonitor
     private var correlationId: String?
-    private var memoryCheckTimer: Timer?
     
     // MARK: - Public Accessors
     
@@ -62,28 +62,29 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
         self.memoryManager = appContainer.memoryManager
         
         // Generate correlation ID for this player instance
-        correlationId = memoryLogger.generateCorrelationId(for: "PreviewVideoPlayer")
+        correlationId = memoryLogger.generateCorrelationId(for: "VideoPlayer")
         
-        // Create the coordinator with preview-optimized dependencies
-        self.coordinator = PreviewOptimizedVideoCoordinator(
-            assetLoader: PreviewOptimizedVideoAssetLoader(
+        // Create the coordinator with dependencies from the container
+        self.coordinator = UpdatedVideoCoordinator(
+            assetLoader: UpdatedVideoAssetLoader(
                 memoryManager: appContainer.memoryManager,
                 logger: appContainer.logger
             ),
-            playerInitializer: PreviewOptimizedVideoPlayerInitializer(
-                memoryManager: appContainer.memoryManager,
-                logger: appContainer.logger
-            ),
-            readinessMonitor: PreviewOptimizedReadinessMonitor(),
+            playerInitializer: PlayerInitializer(),
+            readinessMonitor: ReadinessMonitor(),
             memoryManager: appContainer.memoryManager,
             logger: appContainer.logger
         )
+        
+        // Initialize player state monitor
+        self.playerStateMonitor = PlayerStateMonitor()
         
         // Subscribe to coordinator state changes
         coordinator.$state
             .receive(on: RunLoop.main)
             .sink { [weak self] coordinatorState in
-                self?.updateState(from: coordinatorState)
+                guard let self = self else { return }
+                self.updateState(from: coordinatorState)
             }
             .store(in: &cancellables)
         
@@ -95,9 +96,6 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
                 }
             }
         }
-        
-        // Start periodic memory checks for preview
-        startMemoryChecks()
         
         // Load the video using the already loaded asset
         Task {
@@ -116,22 +114,22 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
         self.memoryManager = appContainer.memoryManager
         
         // Generate correlation ID for this player instance
-        correlationId = memoryLogger.generateCorrelationId(for: "PreviewVideoPlayer")
+        correlationId = memoryLogger.generateCorrelationId(for: "VideoPlayer")
         
-        // Create the coordinator with preview-optimized dependencies
-        self.coordinator = PreviewOptimizedVideoCoordinator(
-            assetLoader: PreviewOptimizedVideoAssetLoader(
+        // Create the coordinator with dependencies from the container
+        self.coordinator = UpdatedVideoCoordinator(
+            assetLoader: UpdatedVideoAssetLoader(
                 memoryManager: appContainer.memoryManager,
                 logger: appContainer.logger
             ),
-            playerInitializer: PreviewOptimizedVideoPlayerInitializer(
-                memoryManager: appContainer.memoryManager,
-                logger: appContainer.logger
-            ),
-            readinessMonitor: PreviewOptimizedReadinessMonitor(),
+            playerInitializer: PlayerInitializer(),
+            readinessMonitor: ReadinessMonitor(),
             memoryManager: appContainer.memoryManager,
             logger: appContainer.logger
         )
+        
+        // Initialize player state monitor
+        self.playerStateMonitor = PlayerStateMonitor()
         
         // Subscribe to coordinator state changes
         coordinator.$state
@@ -149,23 +147,27 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
                 }
             }
         }
-        
-        // Start periodic memory checks for preview
-        startMemoryChecks()
     }
     
     deinit {
+        logger.info("🎬 VIDEO_PLAYER_VIEWMODEL: Deinitializing", metadata: nil)
+        
+        // Cancel all subscriptions synchronously to prevent retain cycles
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+        
+        // Schedule async cleanup for main actor methods
         Task { @MainActor in
+            playerStateMonitor.stop()
             coordinator.teardown()
             videoHealthMonitor.stopMonitoring()
-            memoryCheckTimer?.invalidate()
-            memoryCheckTimer = nil
+            logger.info("🎬 VIDEO_PLAYER_VIEWMODEL: Cleanup completed", metadata: nil)
         }
     }
     
     // MARK: - State Management
     
-    private func updateState(from coordinatorState: PreviewOptimizedVideoCoordinator.State) {
+    private func updateState(from coordinatorState: UpdatedVideoCoordinator.State) {
         switch coordinatorState {
         case .loading:
             state = .loading
@@ -234,17 +236,11 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
         coordinator.startPlayback()
     }
     
-    /// Teardown the player with aggressive cleanup for preview
+    /// Teardown the player
     public func teardown() {
         Task { @MainActor in
             coordinator.teardown()
             videoHealthMonitor.stopMonitoring()
-            memoryCheckTimer?.invalidate()
-            memoryCheckTimer = nil
-            
-            // Aggressive memory cleanup for preview
-            memoryManager.clearCache()
-            memoryManager.clearCache()
         }
         state = .loading
         shouldPlay = false
@@ -253,187 +249,190 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
     
     /// Pause the player for trimming (preserves resources for instant resume)
     public func pauseForTrimming() {
-        memoryLogger.logMemoryEvent(
-            event: "Preview player pause for trimming",
-            correlationId: correlationId,
-            component: "PreviewVideoPlayer",
-            metadata: ["currentState": "\(state)"]
-        )
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: pauseForTrimming() called", metadata: nil)
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Current state: \(String(describing: state))", metadata: nil)
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Thread: \(Thread.isMainThread ? "Main" : "Background")", metadata: nil)
         
         Task { @MainActor in
             if case .playing(let player) = state {
-                memoryLogger.logMemoryEvent(
-                    event: "Pausing AVPlayer for trimming",
-                    correlationId: correlationId,
-                    component: "PreviewVideoPlayer",
-                    metadata: ["playerStatus": "\(player.status.rawValue)"]
-                )
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Pausing AVPlayer for trimming", metadata: nil)
+                let currentTime = player.currentTime()
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Current playback time: \(currentTime.seconds)s", metadata: nil)
                 
                 player.pause()
-                videoHealthMonitor.pauseMonitoring()
-                memoryCheckTimer?.invalidate()
-                memoryCheckTimer = nil
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ✅ AVPlayer paused successfully", metadata: nil)
                 
-                memoryLogger.logMemoryEvent(
-                    event: "Preview player paused successfully",
-                    correlationId: correlationId,
-                    component: "PreviewVideoPlayer",
-                    metadata: ["availableMemory": "\(memoryManager.getAvailableMemory() / (1024*1024))MB"]
-                )
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Pausing video health monitoring", metadata: nil)
+                videoHealthMonitor.pauseMonitoring()
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ✅ Video health monitoring paused", metadata: nil)
+                
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: 📊 Memory after pause: \(memoryManager.getAvailableMemory() / (1024*1024)) MB available", metadata: nil)
+            } else {
+                logger.warning("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ⚠️ Player not in playing state, cannot pause for trimming", metadata: nil)
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: State was: \(String(describing: state))", metadata: nil)
             }
         }
+        
         shouldPlay = false
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ✅ pauseForTrimming() completed", metadata: nil)
     }
     
     /// Resume the player after trimming (instant playback)
     public func resumeAfterTrimming() {
-        memoryLogger.logMemoryEvent(
-            event: "Preview player resume after trimming",
-            correlationId: correlationId,
-            component: "PreviewVideoPlayer",
-            metadata: ["currentState": "\(state)", "shouldPlay": "\(shouldPlay)"]
-        )
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: resumeAfterTrimming() called", metadata: nil)
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Current state: \(String(describing: state))", metadata: nil)
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: shouldPlay: \(shouldPlay)", metadata: nil)
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Thread: \(Thread.isMainThread ? "Main" : "Background")", metadata: nil)
         
         Task { @MainActor in
             if case .playing(let player) = state {
-                let startTime = CFAbsoluteTimeGetCurrent()
-                
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Resuming video health monitoring", metadata: nil)
                 videoHealthMonitor.resumeMonitoring()
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ✅ Video health monitoring resumed", metadata: nil)
                 
                 if shouldPlay {
-                    memoryLogger.logMemoryEvent(
-                        event: "Starting playback after trimming",
-                        correlationId: correlationId,
-                        component: "PreviewVideoPlayer",
-                        metadata: ["playerStatus": "\(player.status.rawValue)"]
-                    )
+                    logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: Starting playback after trimming", metadata: nil)
+                    let startTime = CFAbsoluteTimeGetCurrent()
                     
                     player.play()
+                    logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ✅ AVPlayer play() called", metadata: nil)
                     
                     let endTime = CFAbsoluteTimeGetCurrent()
-                    let resumeDuration = (endTime - startTime) * 1000
+                    let resumeTime = (endTime - startTime) * 1000
+                    logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ⚡ Resume operation completed in \(String(format: "%.2f", resumeTime))ms", metadata: nil)
                     
-                    memoryLogger.logMemoryEvent(
-                        event: "Preview player resumed successfully",
-                        correlationId: correlationId,
-                        component: "PreviewVideoPlayer",
-                        metadata: [
-                            "resumeDuration": "\(String(format: "%.2f", resumeDuration))ms",
-                            "availableMemory": "\(memoryManager.getAvailableMemory() / (1024*1024))MB"
-                        ]
-                    )
+                    logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: 📊 Memory after resume: \(memoryManager.getAvailableMemory() / (1024*1024)) MB available", metadata: nil)
                 } else {
-                    memoryLogger.logMemoryEvent(
-                        event: "Player resumed but playback not started (shouldPlay=false)",
-                        correlationId: correlationId,
-                        component: "PreviewVideoPlayer",
-                        metadata: nil
-                    )
+                    logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: shouldPlay=false, not starting playback", metadata: nil)
                 }
+            } else {
+                logger.warning("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ⚠️ Player not in playing state, cannot resume after trimming", metadata: nil)
+                logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: State was: \(String(describing: state))", metadata: nil)
             }
         }
+        
+        logger.info("🎬 UPDATED_VIDEO_PLAYER_VIEWMODEL: ✅ resumeAfterTrimming() completed", metadata: nil)
     }
     
-    /// Wait for the player to be ready with shorter timeout for preview
+    /// Wait for the player to be ready with atomic continuation management
     public func waitForReady() async throws {
+        print("🔄 UPDATED_VIDEO_PLAYER_VIEWMODEL: waitForReady() called")
+        print("📊 UPDATED_VIDEO_PLAYER_VIEWMODEL: Current state: \(String(describing: state))")
+        
+        // Check if already ready
+        if case .playing(let player) = state {
+            print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Player in playing state, monitoring readiness")
+            try await playerStateMonitor.waitForPlayerReady(player)
+            print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Player readiness confirmed")
+            return
+        }
+        
+        // Also check if coordinator is ready (state update might be in progress)
+        if case .ready(let player) = coordinator.state {
+            print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Coordinator in ready state, monitoring readiness")
+            try await playerStateMonitor.waitForPlayerReady(player)
+            print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Coordinator readiness confirmed")
+            return
+        }
+        
+        print("⏳ UPDATED_VIDEO_PLAYER_VIEWMODEL: Player not in playing state, setting up state monitoring")
+        
+        // Set up monitoring for state changes
         return try await withCheckedThrowingContinuation { continuation in
-            // Check if already ready
-            if case .playing = state {
-                continuation.resume()
-                return
-            }
-            
-            // Set up a publisher to listen for state changes
+            print("📡 UPDATED_VIDEO_PLAYER_VIEWMODEL: Setting up state change monitoring")
             let cancellable = $state
                 .dropFirst() // Skip the current value
-                .sink { newState in
-                    if case .playing = newState {
-                        continuation.resume()
-                    } else if case .error(let message) = newState {
-                        continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -1, userInfo: [NSLocalizedDescriptionKey: message]))
-                    }
+                .sink { [weak self] newState in
+                    print("📊 UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to: \(String(describing: newState))")
+                    self?.handleStateChange(newState, continuation: continuation)
                 }
             
             // Store the cancellable to keep it alive
             self.cancellables.insert(cancellable)
+            print("📡 UPDATED_VIDEO_PLAYER_VIEWMODEL: State monitoring setup complete")
             
-            // Set up a timeout with shorter duration for preview
-            Task {
-                try await Task.sleep(nanoseconds: 15 * 1_000_000_000) // 15 seconds (shorter for preview)
-                cancellable.cancel()
-                self.cancellables.remove(cancellable)
-                continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -2, userInfo: [NSLocalizedDescriptionKey: "Preview player readiness timeout"]))
+            // Set up timeout
+            Task { @MainActor [weak self] in
+                do {
+                    print("⏰ UPDATED_VIDEO_PLAYER_VIEWMODEL: Starting 30s timeout timer")
+                    try await Task.sleep(nanoseconds: 30 * 1_000_000_000) // 30 seconds
+                    print("⏰ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout reached")
+                    
+                    cancellable.cancel()
+                    self?.cancellables.remove(cancellable)
+                    
+                    // Only resume if still pending (atomic check)
+                    if let monitor = self?.playerStateMonitor,
+                       monitor.isPending {
+                        print("❌ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout - player never became ready")
+                        continuation.resume(throwing: PlayerStateMonitor.MonitorError.timeoutExceeded)
+                    } else {
+                        print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout avoided - continuation already completed")
+                    }
+                } catch {
+                    // Task was cancelled, monitoring must have completed
+                    print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout task cancelled - monitoring completed")
+                }
             }
+        }
+    }
+    
+    // MARK: - Private Helper Methods
+    
+    private func handleStateChange(
+        _ newState: State,
+        continuation: CheckedContinuation<Void, Error>
+    ) {
+        switch newState {
+        case .playing(let player):
+            print("🎮 UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to playing, monitoring player readiness")
+            // Player is ready, monitor its actual readiness
+            Task { @MainActor [weak self] in
+                do {
+                    print("🎮 UPDATED_VIDEO_PLAYER_VIEWMODEL: Starting player readiness monitoring")
+                    try await self?.playerStateMonitor.waitForPlayerReady(player)
+                    print("🎉 UPDATED_VIDEO_PLAYER_VIEWMODEL: Player ready, resuming waitForReady continuation")
+                    continuation.resume()
+                } catch {
+                    print("❌ UPDATED_VIDEO_PLAYER_VIEWMODEL: Player readiness failed: \(error)")
+                    continuation.resume(throwing: error)
+                }
+            }
+            
+        case .error(let message):
+            print("❌ UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to error: \(message), resuming with error")
+            continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -1, userInfo: [NSLocalizedDescriptionKey: message]))
+            
+        case .loading:
+            print("⏳ UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to loading, continuing to wait")
+            break
         }
     }
     
     // MARK: - Private Methods
-    
-    private func startMemoryChecks() {
-        // Set up periodic memory checks for preview with shorter interval
-        memoryCheckTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.checkMemoryAndOptimize()
-            }
-        }
-    }
-    
-    private func checkMemoryAndOptimize() {
-        let availableMemory = memoryManager.getAvailableMemory()
-        let memoryThreshold: Int64 = 30 * 1024 * 1024 // 30MB threshold for preview
-        
-        if availableMemory < memoryThreshold {
-            logger.warning("⚠️ Low memory during preview: \(availableMemory / (1024 * 1024))MB", metadata: ["correlationId": correlationId ?? "unknown"])
-            
-            // If player is ready, apply more aggressive optimizations
-            if case .playing(let player) = state {
-                // Reduce quality further
-                player.currentItem?.preferredPeakBitRate = 1_000_000 // Reduce to 1 Mbps
-                player.currentItem?.preferredForwardBufferDuration = 0.5 // Reduce buffer further
-                
-                // Pause playback to free up memory
-                player.pause()
-                
-                logger.info("⚠️ Applied aggressive memory optimizations for preview", metadata: ["correlationId": correlationId ?? "unknown"])
-            }
-            
-            // Clear cache
-            memoryManager.clearCache()
-            
-            // Log memory event
-            memoryLogger.logMemoryWarning(
-                message: "Low memory during preview: \(availableMemory / (1024 * 1024))MB",
-                correlationId: correlationId,
-                component: "PreviewVideoPlayer",
-                metadata: ["availableMemory": availableMemory]
-            )
-        }
-    }
     
     private func handleHealthStatusChange(_ healthStatus: VideoHealthStatus) {
         self.healthStatus = healthStatus
         
         // Log health status change
         memoryLogger.logMemoryEvent(
-            event: "Preview video health status changed to \(healthStatus)",
+            event: "Video health status changed to \(healthStatus)",
             correlationId: correlationId,
-            component: "PreviewVideoPlayer",
+            component: "VideoPlayer",
             metadata: ["healthStatus": healthStatus.rawValue]
         )
         
-        // Implement more aggressive automatic recovery actions based on health reports for preview
+        // Implement automatic recovery actions based on health reports
         switch healthStatus {
         case .critical:
-            // For critical health status, attempt immediate recovery
+            // For critical health status, attempt recovery
             attemptRecovery()
         case .poor:
-            // For poor health status, apply optimizations immediately
-            applyOptimizations()
-            
+            // For poor health status, log a warning but continue playing
             memoryLogger.logMemoryWarning(
-                message: "Preview video health is poor",
+                message: "Video health is poor",
                 correlationId: correlationId,
-                component: "PreviewVideoPlayer",
+                component: "VideoPlayer",
                 metadata: ["healthStatus": healthStatus.rawValue]
             )
         case .good, .excellent:
@@ -445,28 +444,11 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
         }
     }
     
-    private func applyOptimizations() {
-        // Apply optimizations without full recovery
-        if case .playing(let player) = state,
-           let currentItem = player.currentItem {
-            // Reduce quality
-            currentItem.preferredPeakBitRate = 1_500_000 // 1.5 Mbps
-            currentItem.preferredForwardBufferDuration = 0.8 // Smaller buffer
-            
-            memoryLogger.logMemoryEvent(
-                event: "Applied optimizations to preview player",
-                correlationId: correlationId,
-                component: "PreviewVideoPlayer",
-                metadata: nil
-            )
-        }
-    }
-    
     private func attemptRecovery() {
         memoryLogger.logMemoryEvent(
-            event: "Attempting preview video recovery",
+            event: "Attempting video recovery",
             correlationId: correlationId,
-            component: "PreviewVideoPlayer",
+            component: "VideoPlayer",
             metadata: nil
         )
         
@@ -482,23 +464,17 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
         // Pause playback
         player.pause()
         
-        // Clear memory aggressively
+        // Clear memory
         memoryLogger.logCacheClearing(
             correlationId: correlationId,
-            component: "PreviewVideoPlayer",
-            details: "Clearing cache as part of preview recovery"
+            component: "VideoPlayer",
+            details: "Clearing cache as part of recovery"
         )
-        memoryManager.clearCache()
-        memoryManager.clearCache()
         
-        // Reinitialize the player with the same asset but with preview optimizations
+        // Reinitialize the player with the same asset
         Task {
             // Create a new player item with the same asset
             let newPlayerItem = AVPlayerItem(asset: currentItem.asset)
-            
-            // Apply preview optimizations
-            newPlayerItem.preferredPeakBitRate = 1_000_000 // 1 Mbps for recovery
-            newPlayerItem.preferredForwardBufferDuration = 0.5 // Smaller buffer for recovery
             
             // Replace the current item
             player.replaceCurrentItem(with: newPlayerItem)
@@ -512,9 +488,9 @@ public final class PreviewOptimizedVideoPlayerViewModel: ObservableObject, Video
             }
             
             memoryLogger.logMemoryEvent(
-                event: "Preview video recovery completed",
+                event: "Video recovery completed",
                 correlationId: correlationId,
-                component: "PreviewVideoPlayer",
+                component: "VideoPlayer",
                 metadata: nil
             )
         }

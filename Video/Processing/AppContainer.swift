@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - App Container
-final class AppContainer {
+public final class AppContainer {
     static let shared = AppContainer()
     
     // MARK: - Core Services

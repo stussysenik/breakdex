@@ -5,7 +5,7 @@ import OSLog
 
 // MARK: - AddMoveStateManager Protocol
 @MainActor
-protocol AddMoveStateManagerProtocol {
+public protocol AddMoveStateManagerProtocol {
     var currentState: AddMoveState { get }
     var statePublisher: Published<AddMoveState>.Publisher { get }
     

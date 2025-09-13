@@ -45,6 +45,6 @@ struct AddMoveErrorView: View {
 
 #Preview {
     // Need to provide a dummy binding for preview
-    AddMoveErrorView(viewModel: AddMoveViewModel(viewContext: PersistenceController.shared.container.viewContext), message: "Failed to load video.", underlyingError: nil, selectedTab: .constant(.add))
+    AddMoveErrorView(viewModel: AddMoveViewModel.create(viewContext: PersistenceController.shared.container.viewContext), message: "Failed to load video.", underlyingError: nil, selectedTab: .constant(.add))
         .preferredColorScheme(.dark)
 }

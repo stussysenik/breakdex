@@ -34,6 +34,6 @@ struct MoveAddedSuccessView: View {
 
 #Preview {
     // Need to provide a dummy binding for preview
-    MoveAddedSuccessView(viewModel: AddMoveViewModel(viewContext: PersistenceController.shared.container.viewContext), message: "Your move has been added!", selectedTab: .constant(.add))
+    MoveAddedSuccessView(viewModel: AddMoveViewModel.create(viewContext: PersistenceController.shared.container.viewContext), message: "Your move has been added!", selectedTab: .constant(.add))
         .preferredColorScheme(.dark)
 }

@@ -4,7 +4,7 @@ import Photos
 import PhotosUI
 
 // MARK: - Video Asset
-struct VideoAsset {
+public struct VideoAsset {
     let avAsset: AVAsset
     let identifier: String
     let filename: String
@@ -32,7 +32,7 @@ struct VideoAsset {
 }
 
 // MARK: - Video Processing Pipeline Protocol
-protocol VideoProcessingPipeline {
+public protocol VideoProcessingPipeline {
     func loadVideo(from identifier: String) async throws -> VideoAsset
     func processVideo(_ asset: VideoAsset, rotationQuarterTurns: Int) async throws -> VideoAsset
     func saveVideo(_ asset: VideoAsset) async throws -> URL

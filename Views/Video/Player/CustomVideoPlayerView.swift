@@ -230,10 +230,10 @@ public struct CustomVideoPlayerView: View {
         
         if stateString.contains("playing") {
             // Try to extract the player from both possible state types
-            if let updatedState = state as? UpdatedVideoPlayerViewModel.State,
+            if let updatedState = state as? MainVideoPlayerViewModel.State,
                case .playing(let player) = updatedState {
                 return player
-            } else if let previewState = state as? PreviewOptimizedVideoPlayerViewModel.State,
+            } else if let previewState = state as? PreviewVideoPlayerViewModel.State,
                       case .playing(let player) = previewState {
                 return player
             }
@@ -249,10 +249,10 @@ public struct CustomVideoPlayerView: View {
         
         if stateString.contains("error") {
             // Try to extract the error message from both possible state types
-            if let updatedState = state as? UpdatedVideoPlayerViewModel.State,
+            if let updatedState = state as? MainVideoPlayerViewModel.State,
                case .error(let message) = updatedState {
                 return message
-            } else if let previewState = state as? PreviewOptimizedVideoPlayerViewModel.State,
+            } else if let previewState = state as? PreviewVideoPlayerViewModel.State,
                       case .error(let message) = previewState {
                 return message
             }

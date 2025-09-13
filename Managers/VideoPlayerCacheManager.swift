@@ -3,7 +3,7 @@ import AVKit
 import OSLog
 
 // MARK: - VideoPlayerCacheManager Protocol
-protocol VideoPlayerCacheManagerProtocol {
+public protocol VideoPlayerCacheManagerProtocol {
     func cacheVideoPlayerViewModel(_ viewModel: any VideoPlayerViewModelProtocol, for asset: AVAsset, photosIdentifier: String?, rotation: Int)
     func getCachedPlayerViewModel(asset: AVAsset, photosIdentifier: String?, rotation: Int) -> (any VideoPlayerViewModelProtocol)?
     func clearCache()

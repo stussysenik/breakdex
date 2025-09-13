@@ -43,7 +43,7 @@ struct CreateComboView: View {
             
             if let activeMove = activeMove { // middle section: video player or empty state
                 if let asset = getVideoAsset(for: activeMove) {
-                    CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared))
+                    CustomVideoPlayerView(viewModel: MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(activeMove.rotationQuarterTurns), appContainer: AppContainer.shared))
                         .frame(height: 300)
                         .id(activeMove.managedObjectID) // Force re-initialization when activeMove changes
                 } else {

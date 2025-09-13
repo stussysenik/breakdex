@@ -4,12 +4,13 @@ import AVKit
 import OSLog
 
 // MARK: - VideoAssetPreparer Protocol
-protocol VideoAssetPreparerProtocol {
+public protocol VideoAssetPreparerProtocol {
     func prepareVideo(from item: PhotosPickerItem) async throws -> PreparedVideoResult
+    func prepareAssetForDisplay(asset: AVAsset, photosIdentifier: String) async throws -> PreparedVideoResult
 }
 
 // MARK: - Prepared Video Result
-struct PreparedVideoResult {
+public struct PreparedVideoResult {
     let asset: AVAsset
     let photosIdentifier: String?
     let filename: String
@@ -50,8 +51,8 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         logger.info("🎬 VIDEO_PREPARER: 📊 Asset details - duration: \(duration)s, tracks: \(tracksCount)")
         
         // Create player view model
-        logger.info("🎬 VIDEO_PREPARER: Creating UpdatedVideoPlayerViewModel synchronously")
-        let playerViewModel = UpdatedVideoPlayerViewModel(
+        logger.info("🎬 VIDEO_PREPARER: Creating MainVideoPlayerViewModel synchronously")
+        let playerViewModel = MainVideoPlayerViewModel(
             asset: loaderResult.asset, 
             rotationQuarterTurns: 0, 
             appContainer: AppContainer.shared
@@ -59,7 +60,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after creating player VM: \(os_proc_available_memory() / (1024*1024)) MB available")
         
         // Wait for player to be ready
-        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for UpdatedVideoPlayerViewModel to become ready...")
+        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for MainVideoPlayerViewModel to become ready...")
         let readyStartTime = Date()
         while !playerViewModel.isPlayerReady {
             try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
@@ -69,7 +70,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
             }
         }
         let readyTime = Date().timeIntervalSince(readyStartTime)
-        logger.info("🎬 VIDEO_PREPARER: ✅ UpdatedVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
+        logger.info("🎬 VIDEO_PREPARER: ✅ MainVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after player ready: \(os_proc_available_memory() / (1024*1024)) MB available")
         
         let result = PreparedVideoResult(
@@ -82,6 +83,43 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         logger.info("🎬 VIDEO_PREPARER: ✅ Video preparation completed successfully")
         logger.info("🎬 VIDEO_PREPARER: 📊 Result details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
         
+        return result
+    }
+    
+    /// Prepare asset for display without PhotosPickerItem
+    func prepareAssetForDisplay(asset: AVAsset, photosIdentifier: String) async throws -> PreparedVideoResult {
+        logger.info("🎬 VIDEO_PREPARER: prepareAssetForDisplay called")
+        logger.info("🎬 VIDEO_PREPARER: Photos ID: \(photosIdentifier)")
+        
+        // Create player view model
+        logger.info("🎬 VIDEO_PREPARER: Creating MainVideoPlayerViewModel synchronously")
+        let playerViewModel = MainVideoPlayerViewModel(
+            asset: asset,
+            rotationQuarterTurns: 0,
+            appContainer: AppContainer.shared
+        )
+        
+        // Wait for player to be ready
+        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for MainVideoPlayerViewModel to become ready...")
+        let readyStartTime = Date()
+        while !playerViewModel.isPlayerReady {
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+            if Task.isCancelled {
+                logger.info("🎬 VIDEO_PREPARER: Video preparation task was cancelled during player readiness wait")
+                throw CancellationError()
+            }
+        }
+        let readyTime = Date().timeIntervalSince(readyStartTime)
+        logger.info("🎬 VIDEO_PREPARER: ✅ MainVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
+        
+        let result = PreparedVideoResult(
+            asset: asset,
+            photosIdentifier: photosIdentifier,
+            filename: "Video",
+            playerViewModel: playerViewModel
+        )
+        
+        logger.info("🎬 VIDEO_PREPARER: ✅ Asset preparation completed successfully")
         return result
     }
     

@@ -3,7 +3,7 @@ import PhotosUI
 import OSLog
 
 // MARK: - PhotosImportService Protocol
-protocol PhotosImportServiceProtocol {
+public protocol PhotosImportServiceProtocol {
     func importVideo(from item: PhotosPickerItem) async throws -> URL
     func cleanupTempArtifacts()
 }

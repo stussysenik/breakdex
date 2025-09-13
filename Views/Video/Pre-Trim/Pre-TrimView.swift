@@ -190,7 +190,7 @@ struct PreTrimView: View {
     let context = PersistenceController.shared.container.viewContext
     let viewModel = AddMoveViewModel(viewContext: context)
     let asset = AVAsset() // Dummy asset for preview
-    let playerViewModel = UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: 0, appContainer: AppContainer.shared)
+    let playerViewModel = MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: 0, appContainer: AppContainer.shared)
 
     return PreTrimView(
         viewModel: viewModel,

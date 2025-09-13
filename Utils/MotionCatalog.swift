@@ -13,6 +13,12 @@ import SwiftUI
 
 enum MotionCatalog {
 
+    // MARK: - Navigation (Basic animations for compatibility)
+    enum Navigation {
+        static let push = Animation.easeInOut(duration: 0.22)
+        static let tabSwitch = Animation.easeInOut(duration: 0.2)
+    }
+
     // MARK: - Basic Haptic Feedback Only
 
     enum Haptic {
@@ -56,6 +62,10 @@ enum MotionCatalog {
     // MARK: - Simplified API (No animations)
 
     enum Accessibility {
+        static func accessibleAnimation(_ animation: Animation) -> Animation {
+            return UIAccessibility.isReduceMotionEnabled ? .linear(duration: 0) : animation
+        }
+        
         static func buttonTap() {
             guard !UIAccessibility.isReduceMotionEnabled else { return }
             Haptic.light()

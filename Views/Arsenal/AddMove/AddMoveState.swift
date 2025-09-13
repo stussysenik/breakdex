@@ -108,6 +108,7 @@ public enum AddMoveError: LocalizedError {
     case videoFormatUnsupported
     case videoCopyFailed(underlyingError: Error?)
     case coreDataSaveFailed(underlyingError: Error?)
+    case invalidMoveName
     case unknown(underlyingError: Error?)
     
     public var errorDescription: String? {
@@ -124,6 +125,8 @@ public enum AddMoveError: LocalizedError {
             return "Failed to copy video to BreakDex. " + (error?.localizedDescription ?? "")
         case .coreDataSaveFailed(let error):
             return "Failed to save your move. " + (error?.localizedDescription ?? "")
+        case .invalidMoveName:
+            return "Please enter a name for your move."
         case .unknown(let error):
             return "An unexpected error occurred. " + (error?.localizedDescription ?? "")
         }

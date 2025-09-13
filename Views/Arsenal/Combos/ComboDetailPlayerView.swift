@@ -20,7 +20,7 @@ struct ComboDetailPlayerView: View {
     var body: some View {
         if let move = move,
            let asset = getVideoAsset(for: move) {
-            CustomVideoPlayerView(viewModel: UpdatedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared))
+            CustomVideoPlayerView(viewModel: MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared))
                 .frame(height: 300)
                 .cornerRadius(10)
                 .padding(.horizontal)
