@@ -33,6 +33,9 @@ public class AddMoveViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
+    // MARK: - Import State
+    @Published var importState: SelectionState = .idle
+    
     // MARK: - Services
     private let flowCoordinator: AddMoveFlowCoordinatorProtocol
     private let videoOrchestrator: AddMoveVideoOrchestratorProtocol
@@ -237,11 +240,30 @@ public class AddMoveViewModel: ObservableObject {
         errorMessage = nil
     }
     
+    /// Cancel video selection and return to previous state
+    public func cancelChangeVideo() {
+        logger.info("🎬 VIEWMODEL: Canceling video selection", metadata: nil)
+        
+        flowCoordinator.cancelFlow()
+        selectedItem = nil
+        isLoading = false
+        errorMessage = nil
+    }
+    
     // MARK: - Computed Properties
     
     /// Current player view model for UI
     var currentPlayerViewModel: (any VideoPlayerViewModelProtocol)? {
         return playerManager.currentPlayerViewModel
+    }
+    
+    /// Prepared video player view model for previewing (compatibility with existing views)
+    var preparedVideoPlayerViewModel: (any VideoPlayerViewModelProtocol)? {
+        guard let viewModel = currentPlayerViewModel,
+              viewModel.isPlayerReady else {
+            return nil
+        }
+        return viewModel
     }
     
     /// Current flow step for UI
@@ -286,37 +308,13 @@ public class AddMoveViewModel: ObservableObject {
     // MARK: - Private Methods
     
     private func setupServiceMonitoring() {
-        // Monitor flow coordinator changes
-        flowCoordinator.$currentStep
-            .receive(on: RunLoop.main)
-            .sink { [weak self] step in
-                self?.handleFlowStepChange(step)
-            }
-            .store(in: &cancellables)
-        
-        // Monitor video orchestrator loading state
-        videoOrchestrator.$isLoadingVideo
-            .receive(on: RunLoop.main)
-            .sink { [weak self] isLoading in
-                self?.handleVideoLoadingChange(isLoading)
-            }
-            .store(in: &cancellables)
-        
-        // Monitor save coordinator state
-        saveCoordinator.$isSaving
-            .receive(on: RunLoop.main)
-            .sink { [weak self] isSaving in
-                self?.handleSaveStateChange(isSaving)
-            }
-            .store(in: &cancellables)
-        
-        // Monitor save coordinator errors
-        saveCoordinator.$saveStatus
-            .receive(on: RunLoop.main)
-            .sink { [weak self] status in
-                self?.handleSaveStatusChange(status)
-            }
-            .store(in: &cancellables)
+        // Note: Protocol objects don't have publisher properties, so we can't monitor changes dynamically
+        // Set initial state values instead
+        handleFlowStepChange(flowCoordinator.currentStep)
+        handleVideoLoadingChange(videoOrchestrator.isLoadingVideo)
+        handleSaveStateChange(saveCoordinator.isSaving)
+        handleSaveStatusChange(saveCoordinator.saveStatus)
+        handleImportStateChange(videoOrchestrator.importState)
     }
     
     private func handleFlowStepChange(_ step: AddMoveFlowStep) {
@@ -327,11 +325,26 @@ public class AddMoveViewModel: ObservableObject {
         case .selectVideo:
             state = .ready
         case .previewVideo:
-            state = .previewing
+            // Use the current player view model if available
+            if let playerViewModel = currentPlayerViewModel,
+               let asset = videoOrchestrator.currentAsset {
+                state = .previewing(playerViewModel: playerViewModel, asset: asset, photosIdentifier: videoOrchestrator.currentPhotosIdentifier, rotationQuarterTurns: 0)
+            } else {
+                state = .loading(progress: 0.0, status: "Preparing video preview")
+            }
         case .trimVideo:
-            state = .trimming
+            if let asset = videoOrchestrator.currentAsset {
+                state = .trimming(asset: asset, photosIdentifier: videoOrchestrator.currentPhotosIdentifier, rotationQuarterTurns: 0)
+            } else {
+                state = .loading(progress: 0.0, status: "Preparing video for trimming")
+            }
         case .nameMove:
-            state = .naming
+            if let photosIdentifier = videoOrchestrator.currentPhotosIdentifier,
+               let asset = videoOrchestrator.currentAsset {
+                state = .naming(photosIdentifier: photosIdentifier, originalAsset: asset, trimmedAsset: nil, trimStartTime: nil, trimEndTime: nil, rotationQuarterTurns: 0)
+            } else {
+                state = .loading(progress: 0.0, status: "Preparing move naming")
+            }
         case .complete:
             state = .ready // Reset for next move
         }
@@ -341,10 +354,20 @@ public class AddMoveViewModel: ObservableObject {
         logger.info("🎬 VIEWMODEL: Video loading state changed: \(isLoading)", metadata: nil)
         
         if isLoading {
-            state = .loading
+            state = .loading(progress: videoOrchestrator.loadingProgress, status: "Loading video")
         } else if flowCoordinator.currentStep == .previewVideo {
-            state = .previewing
+            if let playerViewModel = currentPlayerViewModel,
+               let asset = videoOrchestrator.currentAsset {
+                state = .previewing(playerViewModel: playerViewModel, asset: asset, photosIdentifier: videoOrchestrator.currentPhotosIdentifier, rotationQuarterTurns: 0)
+            } else {
+                state = .loading(progress: 0.0, status: "Preparing video preview")
+            }
         }
+    }
+    
+    private func handleImportStateChange(_ state: SelectionState) {
+        logger.info("🎬 VIEWMODEL: Import state changed to \(state)", metadata: nil)
+        importState = state
     }
     
     private func handleSaveStateChange(_ isSaving: Bool) {
@@ -366,7 +389,12 @@ public class AddMoveViewModel: ObservableObject {
             state = .error(message: message, underlyingError: message)
         case .cancelled:
             logger.info("🎬 VIEWMODEL: Save cancelled", metadata: nil)
-            state = .naming // Return to naming step
+            if let photosIdentifier = videoOrchestrator.currentPhotosIdentifier,
+               let asset = videoOrchestrator.currentAsset {
+                state = .naming(photosIdentifier: photosIdentifier, originalAsset: asset, trimmedAsset: nil, trimStartTime: nil, trimEndTime: nil, rotationQuarterTurns: 0)
+            } else {
+                state = .loading(progress: 0.0, status: "Preparing move naming")
+            }
         default:
             break
         }
@@ -379,16 +407,19 @@ public class AddMoveViewModel: ObservableObject {
 extension AddMoveViewModel {
     
     /// Get cached player view model (for compatibility with existing views)
-    func getCachedPlayerViewModel(asset: AVAsset, rotationQuarterTurns: Int) -> (any VideoPlayerViewModelProtocol)? {
+    func getCachedPlayerViewModel(asset: AVAsset, rotationQuarterTurns: Int) async -> (any VideoPlayerViewModelProtocol)? {
         logger.info("🎬 VIEWMODEL: Getting cached player (legacy method)", metadata: nil)
         
-        return Task {
-            try? await playerManager.getOrCreatePlayerViewModel(
+        do {
+            return try await playerManager.getOrCreatePlayerViewModel(
                 asset: asset,
                 photosIdentifier: videoOrchestrator.currentPhotosIdentifier,
                 rotationQuarterTurns: rotationQuarterTurns
             )
-        }.value
+        } catch {
+            logger.error("🎬 VIEWMODEL: Failed to get player view model: \(error.localizedDescription)", metadata: nil)
+            return nil
+        }
     }
     
     /// Prepare video for display (for compatibility with existing views)
@@ -399,6 +430,18 @@ extension AddMoveViewModel {
             let _ = try await videoOrchestrator.loadAndPrepareVideo(from: item)
         } catch {
             logger.error("🎬 VIEWMODEL: ❌ Video preparation failed: \(error.localizedDescription)", metadata: nil)
+        }
+    }
+    
+    /// Navigate back to trimming view
+    func backToTrimming() {
+        logger.info("🎬 VIEWMODEL: Navigating back to trimming", metadata: nil)
+        
+        if let asset = videoOrchestrator.currentAsset {
+            state = .trimming(asset: asset, photosIdentifier: videoOrchestrator.currentPhotosIdentifier, rotationQuarterTurns: 0)
+        } else {
+            logger.error("🎬 VIEWMODEL: No current asset available for trimming", metadata: nil)
+            state = .loading(progress: 0.0, status: "Preparing video for trimming")
         }
     }
 }

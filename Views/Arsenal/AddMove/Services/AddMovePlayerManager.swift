@@ -208,38 +208,22 @@ public class AddMovePlayerManager: ObservableObject {
         // Cancel previous monitoring
         cancellables.removeAll()
         
-        // Monitor player readiness
-        playerViewModel.$healthStatus
-            .receive(on: RunLoop.main)
-            .sink { [weak self] status in
-                self?.handlePlayerHealthStatus(status)
-            }
-            .store(in: &cancellables)
+        // Set initial state
+        handlePlayerHealthStatus(playerViewModel.healthStatus)
+        handlePlaybackStateChange(playerViewModel.shouldPlay)
         
-        // Monitor playback state
-        playerViewModel.$shouldPlay
-            .receive(on: RunLoop.main)
-            .sink { [weak self] shouldPlay in
-                self?.handlePlaybackStateChange(shouldPlay)
-            }
-            .store(in: &cancellables)
+        // Note: Since the protocol doesn't have publisher properties,
+        // we can't monitor changes dynamically without specific implementation
     }
     
     private func handlePlayerHealthStatus(_ status: VideoHealthStatus) {
         switch status {
-        case .healthy, .ready:
+        case .excellent, .good:
             isPlayerReady = true
             playerState = .ready
-        case .loading:
+        case .unknown, .poor, .critical:
             isPlayerReady = false
             playerState = .loading
-        case .error(let message):
-            isPlayerReady = false
-            playerState = .error(message)
-            logger.error("🎬 PLAYER_MANAGER: Player error: \(message)", metadata: nil)
-        default:
-            isPlayerReady = false
-            playerState = .unknown
         }
     }
     

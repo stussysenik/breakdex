@@ -32,7 +32,7 @@ struct AnimationTester: View {
                         .background(Color.blue.opacity(0.2))
                         .cornerRadius(8)
                 }
-                .animation(MotionCatalog.Interaction.tap, value: isAnimating)
+                .animation(MotionCatalog.Navigation.push, value: isAnimating)
             }
 
             Spacer()
@@ -55,10 +55,10 @@ private extension View {
     @ViewBuilder
     func applyTestAnimation(testIndex: Int, isAnimating: Bool) -> some View {
         switch testIndex {
-        case 0: self.animation(MotionCatalog.Interaction.tap, value: isAnimating)
-        case 1: self.animation(MotionCatalog.Interaction.press, value: isAnimating)
+        case 0: self.animation(MotionCatalog.Navigation.push, value: isAnimating)
+        case 1: self.animation(MotionCatalog.Navigation.tabSwitch, value: isAnimating)
         case 2: self.animation(MotionCatalog.Navigation.push, value: isAnimating)
-        case 3: self.animation(MotionCatalog.Content.fadeIn, value: isAnimating)
+        case 3: self.animation(MotionCatalog.Navigation.push, value: isAnimating)
         case 4: self.animation(MotionCatalog.Navigation.tabSwitch, value: isAnimating)
         default: self
         }

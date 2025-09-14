@@ -74,7 +74,7 @@ public class AddMoveFlowCoordinator: ObservableObject {
         case .previewVideo:
             moveToTrimming()
         case .trimVideo:
-            moveToNaming()
+            nextStep()
         case .nameMove:
             // Should be called after save
             break

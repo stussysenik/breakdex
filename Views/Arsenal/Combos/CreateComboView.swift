@@ -68,7 +68,7 @@ struct CreateComboView: View {
                     MotionCatalog.Accessibility.successHaptic()
                     isNamingAlertPresented = true
                 }
-                .font(.appFont(.regular, size: 18)) // IBM Plex Mono font
+                .font(.custom("IBMPlexMono-Regular", size: 18)) // IBM Plex Mono font
                 .buttonStyle(.appAccent(size: .large))
                 .disabled(comboMoves.isEmpty)
                 

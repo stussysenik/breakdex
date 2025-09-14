@@ -27,23 +27,9 @@ struct AddMoveContainer: View {
     private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>) { // designated initializer
         logger.info("🎬 CONTAINER: AddMoveContainer initialized")
         
-        let appContainer = AppContainer.shared
-        let stateManager = AddMoveStateManager()
-        let videoAssetPreparer = VideoAssetPreparer()
-        let videoPlayerCacheManager = VideoPlayerCacheManager()
-        let photosImportService = PhotosImportService()
-        let movePersistenceService = MovePersistenceService(viewContext: context)
-        
-        logger.info("🎬 CONTAINER: Creating AddMoveViewModel with dependency injection")
-        _viewModel = StateObject(wrappedValue: AddMoveViewModel(
-            viewContext: context,
-            stateManager: stateManager,
-            videoAssetPreparer: videoAssetPreparer,
-            videoPlayerCacheManager: videoPlayerCacheManager,
-            photosImportService: photosImportService,
-            movePersistenceService: movePersistenceService,
-            appContainer: appContainer
-        ))
+                
+        logger.info("🎬 CONTAINER: Creating AddMoveViewModel with factory method")
+        _viewModel = StateObject(wrappedValue: AddMoveViewModel.create(viewContext: context))
         _selectedTab = selectedTab
         
         // Note: Cannot access viewModel.state during initialization - will log after view appears
@@ -134,9 +120,8 @@ struct AddMoveContainer: View {
         // Update state tracking before building the view
         updateViewStateTracking()
         
-        return AnyView(
-            Group {
-                switch viewModel.state {
+        return Group {
+            switch viewModel.state {
                 case .ready:
                     AddMoveSelectClipView(viewModel: viewModel)
                 case .loading:
@@ -196,7 +181,6 @@ struct AddMoveContainer: View {
                     MoveAddedSuccessView(viewModel: viewModel, message: message, selectedTab: $selectedTab)
                 }
             }
-        )
     }
     
     // MARK: - Helper Methods

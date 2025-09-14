@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import OSLog
+import Foundation
 
 // MARK: - PhotosImportService Protocol
 public protocol PhotosImportServiceProtocol {
@@ -10,22 +11,22 @@ public protocol PhotosImportServiceProtocol {
 
 // MARK: - Photos Import Service
 @MainActor
-class PhotosImportService: PhotosImportServiceProtocol {
+public class PhotosImportService: PhotosImportServiceProtocol {
     
     // MARK: - Properties
-    @Published var importState: SelectionState = .idle
+    @Published public var importState: SelectionState = .idle
     private var importTask: Task<Void, Never>?
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "PhotosImportService")
     
     // MARK: - Initialization
-    init() {
+    public init() {
         logger.info("📥 PHOTOS_IMPORT: Initialized")
     }
     
     // MARK: - Public API
     
     /// Import video from PhotosPicker item
-    func importVideo(from item: PhotosPickerItem) async throws -> URL {
+    public func importVideo(from item: PhotosPickerItem) async throws -> URL {
         logger.info("📥 PHOTOS_IMPORT: Import pipeline started")
         logger.info("📥 PHOTOS_IMPORT: Item ID: \(item.itemIdentifier ?? "nil")")
         logger.info("📥 PHOTOS_IMPORT: Supported content types: \(item.supportedContentTypes)")
@@ -123,7 +124,7 @@ class PhotosImportService: PhotosImportServiceProtocol {
     }
     
     /// Clean up temporary artifacts
-    func cleanupTempArtifacts() {
+    public func cleanupTempArtifacts() {
         logger.info("📥 PHOTOS_IMPORT: Cleaning up temporary artifacts")
         // Clean up any temporary files created during import
         // This could be expanded to clean up specific temp directories

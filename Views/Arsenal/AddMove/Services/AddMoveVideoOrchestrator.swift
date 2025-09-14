@@ -16,6 +16,9 @@ public class AddMoveVideoOrchestrator: ObservableObject {
     @Published public private(set) var currentPhotosIdentifier: String?
     @Published public private(set) var selectedFilename: String?
     
+    // MARK: - Import State
+    @Published public var importState: SelectionState = .idle
+    
     // MARK: - Services
     private let photosImportService: PhotosImportServiceProtocol
     private let videoAssetPreparer: VideoAssetPreparerProtocol
@@ -34,12 +37,17 @@ public class AddMoveVideoOrchestrator: ObservableObject {
         self.photosImportService = photosImportService
         self.videoAssetPreparer = videoAssetPreparer
         self.logger = logger
+        
+        // Sync importState with photosImportService if it's a concrete type
+        if let concreteService = photosImportService as? PhotosImportService {
+            importState = concreteService.importState
+        }
     }
     
     // MARK: - Public API
     
     /// Load and prepare video from PhotosPicker item
-    public func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> VideoPreparationResult {
+    public func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> PreparedVideoResult {
         logger.info("🎬 ORCHESTRATOR: Starting video load and preparation", metadata: nil)
         
         isLoadingVideo = true
@@ -54,7 +62,18 @@ public class AddMoveVideoOrchestrator: ObservableObject {
             // Step 1: Import video using PhotosImportService
             loadingProgress = 0.2
             logger.info("🎬 ORCHESTRATOR: Importing video from PhotosPicker", metadata: nil)
+            
+            // Sync importState if we have access to the concrete service
+            if let concreteService = photosImportService as? PhotosImportService {
+                importState = concreteService.importState
+            }
+            
             let importResult = try await photosImportService.importVideo(from: item)
+            
+            // Update importState after import completes
+            if let concreteService = photosImportService as? PhotosImportService {
+                importState = concreteService.importState
+            }
             
             // Step 2: Load video asset using VideoLoader
             loadingProgress = 0.4
@@ -79,11 +98,11 @@ public class AddMoveVideoOrchestrator: ObservableObject {
             
             logger.info("🎬 ORCHESTRATOR: Video preparation completed successfully", metadata: nil)
             
-            return VideoPreparationResult(
+            return PreparedVideoResult(
                 asset: preparationResult.asset,
                 photosIdentifier: loaderResult.photosIdentifier,
                 filename: loaderResult.filename,
-                isReadyForPlayback: preparationResult.isReadyForPlayback
+                playerViewModel: preparationResult.playerViewModel
             )
             
         } catch {
@@ -105,7 +124,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
         asset: AVAsset,
         photosIdentifier: String,
         rotationQuarterTurns: Int
-    ) async throws -> VideoPreparationResult {
+    ) async throws -> PreparedVideoResult {
         logger.info("🎬 ORCHESTRATOR: Preparing asset with rotation: \(rotationQuarterTurns)°", metadata: nil)
         
         let preparationResult = try await videoAssetPreparer.prepareAssetForDisplay(
@@ -118,11 +137,11 @@ public class AddMoveVideoOrchestrator: ObservableObject {
             self.currentPhotosIdentifier = photosIdentifier
         }
         
-        return VideoPreparationResult(
+        return PreparedVideoResult(
             asset: preparationResult.asset,
             photosIdentifier: photosIdentifier,
             filename: selectedFilename ?? "Video",
-            isReadyForPlayback: preparationResult.isReadyForPlayback
+            playerViewModel: preparationResult.playerViewModel
         )
     }
     
@@ -169,26 +188,6 @@ public class AddMoveVideoOrchestrator: ObservableObject {
     }
 }
 
-// MARK: - Video Preparation Result
-public struct VideoPreparationResult {
-    public let asset: AVAsset
-    public let photosIdentifier: String
-    public let filename: String
-    public let isReadyForPlayback: Bool
-    
-    public init(
-        asset: AVAsset,
-        photosIdentifier: String,
-        filename: String,
-        isReadyForPlayback: Bool
-    ) {
-        self.asset = asset
-        self.photosIdentifier = photosIdentifier
-        self.filename = filename
-        self.isReadyForPlayback = isReadyForPlayback
-    }
-}
-
 // MARK: - Video Orchestrator Protocol
 @MainActor
 public protocol AddMoveVideoOrchestratorProtocol: ObservableObject {
@@ -197,9 +196,10 @@ public protocol AddMoveVideoOrchestratorProtocol: ObservableObject {
     var currentAsset: AVAsset? { get }
     var currentPhotosIdentifier: String? { get }
     var selectedFilename: String? { get }
+    var importState: SelectionState { get }
     
-    func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> VideoPreparationResult
-    func prepareAssetWithRotation(asset: AVAsset, photosIdentifier: String, rotationQuarterTurns: Int) async throws -> VideoPreparationResult
+    func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> PreparedVideoResult
+    func prepareAssetWithRotation(asset: AVAsset, photosIdentifier: String, rotationQuarterTurns: Int) async throws -> PreparedVideoResult
     func cancelLoading()
     func reset()
 }

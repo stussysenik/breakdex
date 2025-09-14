@@ -2,7 +2,7 @@ import SwiftUI
 import PhotosUI
 
 // MARK: - Selection State (PhotosPicker Import)
-enum SelectionState {
+public enum SelectionState {
     case idle
     case importing
     case ready(URL)
@@ -10,10 +10,10 @@ enum SelectionState {
 }
 
 // MARK: - Movie Transferable Type
-struct Movie: Transferable {
+public struct Movie: Transferable {
     let url: URL
     
-    static var transferRepresentation: some TransferRepresentation {
+    public static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(contentType: .movie) { movie in
             SentTransferredFile(movie.url)
         } importing: { received in
@@ -25,11 +25,11 @@ struct Movie: Transferable {
 }
 
 // MARK: - Import Error
-enum ImportError: Error, LocalizedError {
+public enum ImportError: Error, LocalizedError {
     case unsupportedType
     case fileOperationFailed(Error)
     
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .unsupportedType:
             return "Unsupported file type. Please select a video file."

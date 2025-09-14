@@ -163,7 +163,7 @@ struct FeatureRichTrimmerView: View {
             
             Button("Save") {
                 HapticManager.shared.trigger(.dragEnd)
-                viewModel.finishTrimming(with: trimmerViewModel)
+                viewModel.completeTrimming(with: trimmerViewModel)
             }
             .buttonStyle(.appPrimary(size: .medium))
             .disabled(trimmerViewModel.isExporting)
