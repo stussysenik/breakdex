@@ -14,7 +14,7 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "AddM
 // traffic manager - routes to the correct view based on the state
 struct AddMoveContainer: View {
     @Environment(\.managedObjectContext) var viewContext
-    @StateObject private var viewModel: AddMoveViewModel
+    @State private var viewModel: AddMoveViewModel
     @Binding var selectedTab: TabSelection
     
     // VideoPlayerManager that persists across view transitions
@@ -27,9 +27,8 @@ struct AddMoveContainer: View {
     private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>) { // designated initializer
         logger.info("🎬 CONTAINER: AddMoveContainer initialized")
         
-                
-        logger.info("🎬 CONTAINER: Creating AddMoveViewModel with factory method")
-        _viewModel = StateObject(wrappedValue: AddMoveViewModel.create(viewContext: context))
+        let viewModel = AddMoveViewModel.create(viewContext: context)
+        _viewModel = State(initialValue: viewModel)
         _selectedTab = selectedTab
         
         // Note: Cannot access viewModel.state during initialization - will log after view appears
@@ -53,34 +52,29 @@ struct AddMoveContainer: View {
                 mainContent
                     .environmentObject(videoPlayerManager)
                     .onAppear {
-                        logger.info("🎬 CONTAINER: ⚠️ onAppear triggered")
-                        logger.info("🎬 CONTAINER: onAppear - Initial state: \(String(describing: viewModel.state))")
-                        logger.info("🎬 CONTAINER: onAppear - Selected tab: \(String(describing: selectedTab))")
-                        logger.info("🎬 CONTAINER: onAppear - ViewModel validation: \(isViewModelValid())")
-                        logMemoryAndPerformance("container_appear", state: viewModel.state, viewEvaluationCount: Self.viewEvaluationCount)
-                        
-                        // Additional validation on appear
-                        if !isValidContainerState() {
-                            logger.error("🎬 CONTAINER: ❌ INVALID STATE ON APPEAR!")
-                        } else {
-                            logger.info("🎬 CONTAINER: ✅ Container state still valid on appear")
+                        // Only log once when view first appears
+                        if Self.viewEvaluationCount == 0 {
+                            logger.info("🎬 CONTAINER: View first appeared")
+                            logMemoryAndPerformance("container_appear", state: viewModel.state, viewEvaluationCount: Self.viewEvaluationCount)
                         }
                     }
                     .onDisappear {
-                        logger.info("🎬 CONTAINER: ⚠️ onDisappear triggered")
-                        logMemoryAndPerformance("container_disappear", state: viewModel.state, viewEvaluationCount: Self.viewEvaluationCount)
-                        
-                        // Clean up video player resources when entire workflow is finished
-                        switch viewModel.state {
-                        case .success, .error:
-                            logger.info("🎬 CONTAINER: Workflow completed, tearing down video player")
-                            videoPlayerManager.teardownPlayer()
-                        default:
-                            break
+                        // Only log when view actually disappears
+                        if Self.viewEvaluationCount > 0 {
+                            logger.info("🎬 CONTAINER: View disappeared")
+                            logMemoryAndPerformance("container_disappear", state: viewModel.state, viewEvaluationCount: Self.viewEvaluationCount)
+                            
+                            // Clean up video player resources when entire workflow is finished
+                            switch viewModel.state {
+                            case .success, .error:
+                                logger.info("🎬 CONTAINER: Workflow completed, tearing down video player")
+                                videoPlayerManager.teardownPlayer()
+                            default:
+                                break
+                            }
                         }
                     }
                     .onChange(of: viewModel.state) { oldState, newState in
-                        logger.info("🎬 CONTAINER: ⚠️ onChange(of: viewModel.state) triggered")
                         logger.info("🎬 CONTAINER: State change - From: \(getStateDescription(oldState)) To: \(getStateDescription(newState))")
                         
                         // Validate state transitions
@@ -89,12 +83,6 @@ struct AddMoveContainer: View {
                             logger.error("🎬 CONTAINER: From: \(getStateDescription(oldState)) To: \(getStateDescription(newState))")
                             // Reset to a safe state if invalid transition detected
                             viewModel.reset()
-                        }
-                        
-                        if !isValidContainerState() {
-                            logger.error("🎬 CONTAINER: ❌ CONTAINER STATE BECAME INVALID AFTER CHANGE!")
-                        } else {
-                            logger.info("🎬 CONTAINER: ✅ Container state remains valid after change")
                         }
                     }
             } else {
@@ -120,67 +108,67 @@ struct AddMoveContainer: View {
         // Update state tracking before building the view
         updateViewStateTracking()
         
-        return Group {
+        return AnyView(Group {
             switch viewModel.state {
-                case .ready:
-                    AddMoveSelectClipView(viewModel: viewModel)
-                case .loading:
-                    AddMoveSelectClipView(viewModel: viewModel)
-                case .initializing(_, let status):
-                    VStack {
-                        Spacer()
-                        ProgressView("Initializing...")
-                            .progressViewStyle(.circular)
-                        Text(status)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        Spacer()
-                    }
-                    .background(Color.black.ignoresSafeArea())
-                case .loaded(_, _, _):
-                    VStack {
-                        Spacer()
-                        ProgressView("Preparing video preview...")
-                            .progressViewStyle(.circular)
-                        Text("Video loaded successfully")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        Spacer()
-                    }
-                    .background(Color.black.ignoresSafeArea())
-                case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns):
-                    PreTrimView(
-                        viewModel: viewModel,
-                        playerViewModel: playerViewModel,
-                        asset: asset,
-                        photosIdentifier: photosIdentifier,
-                        rotationQuarterTurns: rotationQuarterTurns,
-                        selectedTab: $selectedTab
-                    )
-                case .selectingVideo:
-                    VideoPickerWrapper(viewModel: viewModel)
-                case .trimming(let asset, _, let rotationQuarterTurns):
-                    TrimmerViewWrapper(
-                        viewModel: viewModel,
-                        asset: asset,
-                        rotationQuarterTurns: rotationQuarterTurns,
-                        onError: { message, error in
-                            viewModel.state = .error(message: message, underlyingError: error?.localizedDescription)
-                        },
-                        onRotate: { newRotation in
-                            viewModel.state = .trimming(asset: asset, photosIdentifier: nil, rotationQuarterTurns: newRotation)
-                        }
-                    )
-                case .naming:
-                    NameMoveView(viewModel: viewModel)
-                case .saving:
-                    Text("Saving Move...")
-                case .error(let message, let underlyingError):
-                    AddMoveErrorView(viewModel: viewModel, message: message, underlyingError: underlyingError as? Error, selectedTab: $selectedTab)
-                case .success(let message):
-                    MoveAddedSuccessView(viewModel: viewModel, message: message, selectedTab: $selectedTab)
+            case .ready:
+                AddMoveSelectClipView(viewModel: viewModel)
+            case .loading:
+                AddMoveSelectClipView(viewModel: viewModel)
+            case .initializing(_, let status):
+                VStack {
+                    Spacer()
+                    ProgressView("Initializing...")
+                        .progressViewStyle(.circular)
+                    Text(status)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    Spacer()
                 }
+                .background(Color.black.ignoresSafeArea())
+            case .loaded(_, _, _):
+                VStack {
+                    Spacer()
+                    ProgressView("Preparing video preview...")
+                        .progressViewStyle(.circular)
+                    Text("Video loaded successfully")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    Spacer()
+                }
+                .background(Color.black.ignoresSafeArea())
+            case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns):
+                PreTrimView(
+                    viewModel: viewModel,
+                    playerViewModel: playerViewModel,
+                    asset: asset,
+                    photosIdentifier: photosIdentifier,
+                    rotationQuarterTurns: rotationQuarterTurns,
+                    selectedTab: $selectedTab
+                )
+            case .selectingVideo:
+                VideoPickerWrapper(viewModel: viewModel)
+            case .trimming(let asset, _, let rotationQuarterTurns):
+                TrimmerViewWrapper(
+                    viewModel: viewModel,
+                    asset: asset,
+                    rotationQuarterTurns: rotationQuarterTurns,
+                    onError: { message, error in
+                        viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
+                    },
+                    onRotate: { newRotation in
+                        viewModel.setTrimmingState(asset: asset, rotationQuarterTurns: newRotation)
+                    }
+                )
+            case .naming:
+                NameMoveView(viewModel: viewModel)
+            case .saving:
+                Text("Saving Move...")
+            case .error(let message, let underlyingError):
+                AddMoveErrorView(viewModel: viewModel, message: message, underlyingError: underlyingError as? Error, selectedTab: $selectedTab)
+            case .success(let message):
+                MoveAddedSuccessView(viewModel: viewModel, message: message, selectedTab: $selectedTab)
             }
+        })
     }
     
     // MARK: - Helper Methods
@@ -214,9 +202,12 @@ struct AddMoveContainer: View {
                 return false
             }
         case .loading:
-            // From loading, can go to initializing, loaded, or error
+            // From loading, can go to previewing, initializing, loaded, error, or stay in loading (progress updates)
             switch newState {
-            case .initializing, .loaded, .error:
+            case .previewing, .initializing, .loaded, .error:
+                return true
+            case .loading:
+                // Allow loading -> loading transitions for progress updates
                 return true
             default:
                 return false
@@ -348,7 +339,7 @@ struct AddMoveContainer: View {
 
 // MARK: - Video Picker Wrapper (Single Source of Truth)
 struct VideoPickerWrapper: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     
     var body: some View {
         VStack {
@@ -361,7 +352,6 @@ struct VideoPickerWrapper: View {
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.blue)
             }
-            .photosPickerStyle(.inline)
             
             // Show import status
             switch viewModel.importState {
@@ -375,7 +365,7 @@ struct VideoPickerWrapper: View {
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
-            case .ready(let url):
+            case .ready(_):
                 Text("Video imported successfully")
                     .font(.caption)
                     .foregroundColor(.green)
@@ -397,9 +387,9 @@ struct VideoPickerWrapper: View {
 
 // MARK: - Trimmer View Wrapper (Safe State Management)
 struct TrimmerViewWrapper: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     
-    @StateObject private var trimmerViewModel: TrimmerViewModel
+    @State private var trimmerViewModel: TrimmerViewModel
     
     let asset: AVAsset
     let rotationQuarterTurns: Int
@@ -417,7 +407,7 @@ struct TrimmerViewWrapper: View {
         self.onError = onError
         self.onRotate = onRotate
         
-        _trimmerViewModel = StateObject(wrappedValue: TrimmerViewModel(asset: asset, photosIdentifier: nil))
+        _trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, photosIdentifier: nil))
     }
     
     var body: some View {

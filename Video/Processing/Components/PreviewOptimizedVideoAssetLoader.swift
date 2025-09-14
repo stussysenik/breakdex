@@ -8,7 +8,7 @@ import CoreData
 @MainActor
 public class PreviewOptimizedVideoAssetLoader {
     private let imageManager = PHImageManager.default()
-    private let correlationID = VideoLogger.generateCorrelationID()
+    private let correlationID = UUID().uuidString
     private let memoryManager: MemoryManager
     private let logger: AppLogger
     
@@ -31,145 +31,145 @@ public class PreviewOptimizedVideoAssetLoader {
         public var errorDescription: String? {
             switch self {
             case .itemIdentifierMissing:
-                return "The selected item does not have a valid identifier."
+                return "Item identifier is missing"
             case .assetNotFound:
-                return "Could not find the video in the Photos library."
+                return "Asset not found"
             case .avAssetCreationFailed:
-                return "Failed to create a playable video asset."
+                return "Failed to create AVAsset"
             case .unsupportedFileType:
-                return "The selected file type is not a supported video format."
+                return "Unsupported file type"
             case .dataUnavailable:
-                return "Could not retrieve video data for the selected item."
-            case .temporaryFileError(let underlyingError):
-                return "Failed to save video data to a temporary file: \(underlyingError.localizedDescription)"
+                return "Data unavailable"
+            case .temporaryFileError(let error):
+                return "Temporary file error: \(error.localizedDescription)"
             case .memoryLimitExceeded(let used, let available):
                 return "Memory limit exceeded. Used: \(used)MB, Available: \(available)MB"
             }
         }
     }
     
-    init(memoryManager: MemoryManager, logger: AppLogger) {
+    public init(memoryManager: MemoryManager, logger: AppLogger) {
         self.memoryManager = memoryManager
         self.logger = logger
+        logger.info("📦 PreviewOptimizedVideoAssetLoader initialized", metadata: ["correlationID": correlationID])
     }
     
     public func loadAsset(from source: Source) async throws -> AVAsset {
-        // Check memory before loading with stricter threshold for preview
-        let availableMemory = memoryManager.getAvailableMemory()
-        let memoryThreshold: Int64 = 100 * 1024 * 1024 // 100MB (stricter for preview)
+        logger.info("🔄 Loading preview asset from source: \(sourceType(from: source))", metadata: ["correlationID": correlationID])
         
-        if availableMemory < memoryThreshold {
-            logger.warning("⚠️ Low memory before loading preview asset: \(availableMemory / (1024 * 1024))MB", metadata: nil)
-            memoryManager.clearCache()
-            
-            // If still low, throw error
-            if memoryManager.getAvailableMemory() < memoryThreshold {
-                let error = VideoAssetLoaderError.memoryLimitExceeded(
-                    used: memoryManager.getUsedMemory() / (1024 * 1024),
-                    available: availableMemory / (1024 * 1024)
-                )
-                logger.error("❌ Memory limit exceeded for preview: \(error.localizedDescription)", metadata: nil)
-                throw error
-            }
+        // Check memory before loading
+        let availableMemory = memoryManager.getAvailableMemory()
+        let requiredMemory: Int64 = 50 * 1024 * 1024 // 50MB for preview (smaller than regular)
+        
+        if availableMemory < requiredMemory {
+            logger.error("❌ Memory limit exceeded for preview", metadata: [
+                "correlationID": correlationID,
+                "availableMemory": "\(availableMemory / (1024*1024))MB",
+                "requiredMemory": "\(requiredMemory / (1024*1024))MB"
+            ])
+            throw VideoAssetLoaderError.memoryLimitExceeded(used: requiredMemory, available: availableMemory)
         }
+        
+        let asset: AVAsset
         
         switch source {
         case .photos(let identifier):
-            return try await loadFromPhotos(identifier: identifier)
+            asset = try await loadAssetFromPhotos(identifier: identifier)
         case .url(let url):
-            return AVURLAsset(url: url)
+            asset = try await loadAssetFromURL(url)
         case .move(let move):
-            return try await loadFromMove(move: move)
-        case .asset(let asset):
-            // Return the pre-loaded asset directly without reloading it
-            logger.info("✅ Using pre-loaded asset directly for preview", metadata: nil)
-            return asset
-        }
-    }
-    
-    private func loadFromPhotos(identifier: String) async throws -> AVAsset {
-        logger.info("🔄 Loading preview asset from Photos library", metadata: ["identifier": identifier])
-        
-        // Fetch the PHAsset
-        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
-        guard let phAsset = fetchResult.firstObject else {
-            let error = VideoAssetLoaderError.assetNotFound
-            logger.error("❌ PHAsset not found for identifier: \(identifier)", metadata: nil)
-            throw error
+            asset = try await loadAssetFromMove(move)
+        case .asset(let avAsset):
+            asset = avAsset
         }
         
-        // Request the AVAsset with preview-optimized options
-        let options = PHVideoRequestOptions()
-        options.isNetworkAccessAllowed = true
-        
-        // Use fast format for preview to minimize memory usage
-        options.deliveryMode = .fastFormat
-        
-        logger.info("🔄 Requesting AVAsset with fast format options for preview", metadata: nil)
-        let asset = try await requestAVAsset(for: phAsset, options: options)
-        
-        logger.info("✅ Preview asset loaded successfully from Photos", metadata: ["identifier": identifier])
+        logger.info("✅ Preview asset loaded successfully", metadata: ["correlationID": correlationID])
         return asset
     }
     
-    private func loadFromMove(move: Move) async throws -> AVAsset {
-        // Update last accessed date
-        move.updateVideoLastAccessedDate()
+    private func loadAssetFromPhotos(identifier: String) async throws -> AVAsset {
+        logger.info("📱 Loading preview asset from Photos", metadata: ["correlationID": correlationID])
         
-        // Log the operation
-        logger.info("🔄 Loading preview video from move", metadata: [
-            "moveID": move.managedObjectID,
-            "hasVideo": move.hasVideo
-        ])
-        
-        // Check if the move has a video URL
-        guard let videoURL = move.videoURL else {
-            let error = VideoAssetLoaderError.assetNotFound
-            logger.error("❌ Move does not have a video URL", metadata: nil)
-            throw error
+        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject else {
+            logger.error("❌ Asset not found in Photos", metadata: ["correlationID": correlationID])
+            throw VideoAssetLoaderError.assetNotFound
         }
         
-        // Check if the file exists at the URL
-        guard FileManager.default.fileExists(atPath: videoURL.path) else {
-            let error = VideoAssetLoaderError.assetNotFound
-            logger.error("❌ Video file does not exist at URL: \(videoURL.path)", metadata: nil)
-            throw error
-        }
-        
-        // Create asset with preview-specific options
-        let asset = AVURLAsset(url: videoURL)
-        
-        // Set resource loading options for preview
-        asset.resourceLoader.setDelegate(PreviewResourceLoaderDelegate(), queue: DispatchQueue.global(qos: .userInitiated))
-        
-        logger.info("✅ Preview asset loaded successfully from move", metadata: ["moveID": move.managedObjectID])
-        return asset
-    }
-    
-    private func requestAVAsset(for phAsset: PHAsset, options: PHVideoRequestOptions) async throws -> AVAsset {
         return try await withCheckedThrowingContinuation { continuation in
-            imageManager.requestAVAsset(forVideo: phAsset, options: options) { avAsset, _, info in
-                if let error = info?[PHImageErrorKey] as? Error {
-                    self.logger.error("❌ Failed to request preview AVAsset: \(error.localizedDescription)", metadata: nil)
-                    continuation.resume(throwing: error)
-                } else if let asset = avAsset {
-                    self.logger.info("✅ Preview AVAsset requested successfully", metadata: nil)
-                    continuation.resume(returning: asset)
-                } else {
-                    let error = VideoAssetLoaderError.avAssetCreationFailed
-                    self.logger.error("❌ No AVAsset or error received from PHImageManager for preview", metadata: nil)
-                    continuation.resume(throwing: error)
+            let options = PHVideoRequestOptions()
+            options.version = .current
+            options.deliveryMode = .automatic // Use automatic for preview
+            options.isNetworkAccessAllowed = true
+            
+            imageManager.requestAVAsset(forVideo: asset, options: options) { avAsset, _, info in
+                Task { @MainActor in
+                    if let error = info?[PHImageErrorKey] as? Error {
+                        self.logger.error("❌ Failed to load preview asset from Photos: \(error.localizedDescription)", metadata: ["correlationID": self.correlationID])
+                        continuation.resume(throwing: VideoAssetLoaderError.avAssetCreationFailed)
+                        return
+                    }
+                    
+                    guard let avAsset = avAsset else {
+                        self.logger.error("❌ No AVAsset returned from Photos", metadata: ["correlationID": self.correlationID])
+                        continuation.resume(throwing: VideoAssetLoaderError.avAssetCreationFailed)
+                        return
+                    }
+                    
+                    self.logger.info("✅ Preview asset loaded from Photos successfully", metadata: ["correlationID": self.correlationID])
+                    continuation.resume(returning: avAsset)
                 }
             }
         }
     }
-}
-
-// MARK: - Preview Resource Loader Delegate
-class PreviewResourceLoaderDelegate: NSObject, AVAssetResourceLoaderDelegate {
-    func resourceLoader(_ resourceLoader: AVAssetResourceLoader, shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest) -> Bool {
-        // Implement optimized resource loading for preview
-        // This could include setting lower bitrates or smaller buffer sizes
-        return true
+    
+    private func loadAssetFromURL(_ url: URL) async throws -> AVAsset {
+        logger.info("🌐 Loading preview asset from URL", metadata: ["correlationID": correlationID])
+        
+        // Check if URL is accessible
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            logger.error("❌ File does not exist at URL", metadata: ["correlationID": correlationID])
+            throw VideoAssetLoaderError.assetNotFound
+        }
+        
+        do {
+            let asset = AVAsset(url: url)
+            
+            // Check if asset is playable
+            let isPlayable = try await asset.load(.isPlayable)
+            guard isPlayable else {
+                logger.error("❌ Asset is not playable", metadata: ["correlationID": correlationID])
+                throw VideoAssetLoaderError.unsupportedFileType
+            }
+            
+            logger.info("✅ Preview asset loaded from URL successfully", metadata: ["correlationID": correlationID])
+            return asset
+        } catch {
+            logger.error("❌ Failed to load preview asset from URL: \(error.localizedDescription)", metadata: ["correlationID": correlationID])
+            throw VideoAssetLoaderError.avAssetCreationFailed
+        }
+    }
+    
+    private func loadAssetFromMove(_ move: Move) async throws -> AVAsset {
+        logger.info("🎯 Loading preview asset from Move", metadata: ["correlationID": correlationID])
+        
+        guard let videoURL = move.videoURL else {
+            logger.error("❌ Move has no video URL", metadata: ["correlationID": correlationID])
+            throw VideoAssetLoaderError.assetNotFound
+        }
+        
+        return try await loadAssetFromURL(videoURL)
+    }
+    
+    private func sourceType(from source: Source) -> String {
+        switch source {
+        case .photos:
+            return "photos"
+        case .url:
+            return "url"
+        case .move:
+            return "move"
+        case .asset:
+            return "asset"
+        }
     }
 }

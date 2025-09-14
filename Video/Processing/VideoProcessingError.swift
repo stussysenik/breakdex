@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Video Processing Errors
-enum VideoProcessingError: LocalizedError {
+public enum VideoProcessingError: LocalizedError {
     case memoryLimitExceeded(used: Int64, available: Int64)
     case invalidStateTransition(from: VideoState, to: VideoState)
     case videoLoadingFailed(identifier: String, underlyingError: Error)
@@ -10,7 +10,7 @@ enum VideoProcessingError: LocalizedError {
     case playerInitializationFailed
     case readinessTimeout
     
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .memoryLimitExceeded(let used, let available):
             return "Memory limit exceeded. Used: \(used)MB, Available: \(available)MB"
@@ -29,7 +29,7 @@ enum VideoProcessingError: LocalizedError {
         }
     }
     
-    var recoverySuggestion: String? {
+    public var recoverySuggestion: String? {
         switch self {
         case .memoryLimitExceeded:
             return "Try closing other apps or using a smaller video file"

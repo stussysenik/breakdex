@@ -8,8 +8,9 @@ public enum TrimmerHandleType {
 }
 
 // MARK: - TrimmerViewModel
+@Observable
 @MainActor
-public final class TrimmerViewModel: ObservableObject {
+public final class TrimmerViewModel {
     // MARK: - Core Properties
     let player: AVPlayer
     public let asset: AVAsset
@@ -18,15 +19,15 @@ public final class TrimmerViewModel: ObservableObject {
     public var oneFrameDuration: CMTime = CMTime(value: 1, timescale: 30)
     public let minimumDuration: CMTime = CMTime(seconds: 3.0, preferredTimescale: 600)
 
-    // MARK: - Published State
-    @Published public var startTime: CMTime = .zero
-    @Published public var endTime: CMTime = .zero
-    @Published public var videoDuration: CMTime = .zero
-    @Published public var isExporting: Bool = false
-    @Published public var rotationQuarterTurns: Int = 0
-    @Published public var showMinimumDurationWarning = false
-    @Published public var isDraggingStartHandle: Bool = false
-    @Published public var isDraggingEndHandle: Bool = false
+    // MARK: - Observable State
+    public var startTime: CMTime = .zero
+    public var endTime: CMTime = .zero
+    public var videoDuration: CMTime = .zero
+    public var isExporting: Bool = false
+    public var rotationQuarterTurns: Int = 0
+    public var showMinimumDurationWarning = false
+    public var isDraggingStartHandle: Bool = false
+    public var isDraggingEndHandle: Bool = false
 
     // MARK: - Coalescing and Chasing Seek State
     private var displayLink: CADisplayLink?

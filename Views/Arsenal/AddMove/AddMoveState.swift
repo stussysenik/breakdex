@@ -15,7 +15,7 @@ public enum AddMoveState: Equatable, Hashable {
     case saving
     case success(message: String)
     case error(message: String, underlyingError: String?)
-
+    
     public static func == (lhs: AddMoveState, rhs: AddMoveState) -> Bool {
         switch (lhs, rhs) {
         case (.ready, .ready), (.saving, .saving):
@@ -42,7 +42,7 @@ public enum AddMoveState: Equatable, Hashable {
             return false
         }
     }
-
+    
     public func hash(into hasher: inout Hasher) {
         switch self {
         case .ready:

@@ -3,8 +3,9 @@ import AVKit
 import Combine
 import OSLog
 
+@Observable
 @MainActor
-public final class MainVideoPlayerViewModel: ObservableObject, VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
+public final class MainVideoPlayerViewModel: VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
     public static func == (lhs: MainVideoPlayerViewModel, rhs: MainVideoPlayerViewModel) -> Bool {
         lhs.coordinator.state == rhs.coordinator.state
     }
@@ -21,9 +22,9 @@ public final class MainVideoPlayerViewModel: ObservableObject, VideoPlayerViewMo
         case error(message: String)
     }
     
-    @Published public private(set) var state: State = .loading
-    @Published public private(set) var shouldPlay: Bool = false
-    @Published public private(set) var healthStatus: VideoHealthStatus = .unknown
+    public private(set) var state: State = .loading
+    public var shouldPlay: Bool = false
+    public private(set) var healthStatus: VideoHealthStatus = .unknown
     
     // MARK: - Private Properties
     
@@ -152,12 +153,13 @@ public final class MainVideoPlayerViewModel: ObservableObject, VideoPlayerViewMo
     deinit {
         logger.info("🎬 VIDEO_PLAYER_VIEWMODEL: Deinitializing", metadata: nil)
         
-        // Cancel all subscriptions synchronously to prevent retain cycles
-        cancellables.forEach { $0.cancel() }
-        cancellables.removeAll()
-        
-        // Schedule async cleanup for main actor methods
+        // Schedule all cleanup on main actor since cancellables is main actor-isolated
         Task { @MainActor in
+            // Cancel all subscriptions to prevent retain cycles
+            cancellables.forEach { $0.cancel() }
+            cancellables.removeAll()
+            
+            // Cleanup other main actor methods
             playerStateMonitor.stop()
             coordinator.teardown()
             videoHealthMonitor.stopMonitoring()
@@ -337,43 +339,60 @@ public final class MainVideoPlayerViewModel: ObservableObject, VideoPlayerViewMo
         
         print("⏳ UPDATED_VIDEO_PLAYER_VIEWMODEL: Player not in playing state, setting up state monitoring")
         
-        // Set up monitoring for state changes
+        // Set up monitoring for state changes - use polling approach for @Observable
         return try await withCheckedThrowingContinuation { continuation in
             print("📡 UPDATED_VIDEO_PLAYER_VIEWMODEL: Setting up state change monitoring")
-            let cancellable = $state
-                .dropFirst() // Skip the current value
-                .sink { [weak self] newState in
-                    print("📊 UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to: \(String(describing: newState))")
-                    self?.handleStateChange(newState, continuation: continuation)
-                }
             
-            // Store the cancellable to keep it alive
-            self.cancellables.insert(cancellable)
-            print("📡 UPDATED_VIDEO_PLAYER_VIEWMODEL: State monitoring setup complete")
+            let startTime = Date()
+            let checkInterval: TimeInterval = 0.1 // Check every 100ms
+            let timeout: TimeInterval = 30.0 // 30 second timeout
             
-            // Set up timeout
-            Task { @MainActor [weak self] in
-                do {
-                    print("⏰ UPDATED_VIDEO_PLAYER_VIEWMODEL: Starting 30s timeout timer")
-                    try await Task.sleep(nanoseconds: 30 * 1_000_000_000) // 30 seconds
-                    print("⏰ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout reached")
+            var timer: Timer?
+            timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
                     
-                    cancellable.cancel()
-                    self?.cancellables.remove(cancellable)
+                    let currentTime = Date()
+                    let elapsedTime = currentTime.timeIntervalSince(startTime)
                     
-                    // Only resume if still pending (atomic check)
-                    if let monitor = self?.playerStateMonitor,
-                       monitor.isPending {
+                    // Check if timeout exceeded
+                    if elapsedTime > timeout {
+                        timer?.invalidate()
                         print("❌ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout - player never became ready")
                         continuation.resume(throwing: PlayerStateMonitor.MonitorError.timeoutExceeded)
-                    } else {
-                        print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout avoided - continuation already completed")
+                        return
                     }
-                } catch {
-                    // Task was cancelled, monitoring must have completed
-                    print("✅ UPDATED_VIDEO_PLAYER_VIEWMODEL: Timeout task cancelled - monitoring completed")
+                    
+                    // Check current state and handle accordingly
+                    switch self.state {
+                    case .playing(let player):
+                        print("🎮 UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to playing, monitoring player readiness")
+                        // Player is ready, monitor its actual readiness
+                        Task { @MainActor [weak self] in
+                            do {
+                                print("🎮 UPDATED_VIDEO_PLAYER_VIEWMODEL: Starting player readiness monitoring")
+                                try await self?.playerStateMonitor.waitForPlayerReady(player)
+                                print("🎉 UPDATED_VIDEO_PLAYER_VIEWMODEL: Player ready, resuming waitForReady continuation")
+                                timer?.invalidate()
+                                continuation.resume()
+                            } catch {
+                                print("❌ UPDATED_VIDEO_PLAYER_VIEWMODEL: Player readiness failed: \(error)")
+                                timer?.invalidate()
+                                continuation.resume(throwing: error)
+                            }
+                        }
+                    case .error(let message):
+                        print("❌ UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to error: \(message), resuming with error")
+                        timer?.invalidate()
+                        continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -1, userInfo: [NSLocalizedDescriptionKey: message]))
+                    case .loading:
+                        print("⏳ UPDATED_VIDEO_PLAYER_VIEWMODEL: State changed to loading, continuing to wait")
+                        break
+                    }
                 }
             }
+            
+            print("📡 UPDATED_VIDEO_PLAYER_VIEWMODEL: State monitoring setup complete")
         }
     }
     

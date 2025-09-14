@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MoveAddedSuccessView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     let message: String
     @Binding var selectedTab: TabSelection // Added selectedTab binding
     
@@ -32,8 +32,3 @@ struct MoveAddedSuccessView: View {
     }
 }
 
-#Preview {
-    // Need to provide a dummy binding for preview
-    MoveAddedSuccessView(viewModel: AddMoveViewModel.create(viewContext: PersistenceController.shared.container.viewContext), message: "Your move has been added!", selectedTab: .constant(.add))
-        .preferredColorScheme(.dark)
-}

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AddMoveReadyView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     @State private var isButtonPressed = false
 
     var body: some View {

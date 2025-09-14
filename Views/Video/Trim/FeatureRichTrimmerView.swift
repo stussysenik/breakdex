@@ -10,9 +10,9 @@ enum HandleType {
 
 // MARK: - Unified Feature-Rich Trimmer View
 struct FeatureRichTrimmerView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     @EnvironmentObject private var videoPlayerManager: VideoPlayerManager
-    @StateObject private var trimmerViewModel: TrimmerViewModel
+    @State private var trimmerViewModel: TrimmerViewModel
     @State private var rotationQuarterTurns: Int = 0
     
     // MARK: - State
@@ -28,7 +28,7 @@ struct FeatureRichTrimmerView: View {
         self.viewModel = viewModel
         self.asset = asset
         self._rotationQuarterTurns = State(initialValue: rotation)
-        self._trimmerViewModel = StateObject(wrappedValue: TrimmerViewModel(asset: asset, rotationQuarterTurns: rotation))
+        self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, rotationQuarterTurns: rotation))
     }
     
     var body: some View {
@@ -380,7 +380,7 @@ struct TimeProgressBar: View {
 
 // MARK: - Hybrid Precise Trimmer (Integrated)
 struct HybridPreciseTrimmerView: View {
-    @ObservedObject var viewModel: TrimmerViewModel
+    @Bindable var viewModel: TrimmerViewModel
     
     // Custom handle views
     var startHandleView: AnyView?
@@ -546,9 +546,7 @@ extension HybridPreciseTrimmerView {
     // Shoe handles - our new default
     static func shoe(viewModel: TrimmerViewModel) -> HybridPreciseTrimmerView {
         HybridPreciseTrimmerView(
-            viewModel: viewModel,
-            startHandleView: AnyView(ShoeHandle(isActive: viewModel.isDraggingStartHandle)),
-            endHandleView: AnyView(ShoeHandle(isActive: viewModel.isDraggingEndHandle))
+            viewModel: viewModel
         )
     }
     
@@ -557,9 +555,7 @@ extension HybridPreciseTrimmerView {
                       startView: some View,
                       endView: some View) -> HybridPreciseTrimmerView {
         HybridPreciseTrimmerView(
-            viewModel: viewModel,
-            startHandleView: AnyView(startView),
-            endHandleView: AnyView(endView)
+            viewModel: viewModel
         )
     }
 }

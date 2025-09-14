@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AddMovePreviewingView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
 
     var body: some View {
         if let playerViewModel = viewModel.preparedVideoPlayerViewModel {

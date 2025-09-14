@@ -48,7 +48,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         guard let urlAsset = asset as? AVURLAsset else {
             let error = NSError(domain: "MovePersistenceService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Asset is not a URL asset"])
             logger.error("💾 MOVE_PERSISTENCE: ❌ Asset is not a URL asset")
-            throw VideoError.assetLoadingFailed(underlyingError: error)
+            throw VideoProcessingError.videoLoadingFailed(identifier: "unknown", underlyingError: error)
         }
         
         // For now, return the existing URL (in production, you'd save to Photos library)

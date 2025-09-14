@@ -16,11 +16,11 @@ public class AddMoveFlowCoordinator: ObservableObject {
     @Published public private(set) var flowProgress: Double = 0.0
     
     // MARK: - Services
-    private let stateManager: AddMoveStateManagerProtocol
     private let videoOrchestrator: AddMoveVideoOrchestratorProtocol
     private let playerManager: AddMovePlayerManagerProtocol
     private let saveCoordinator: AddMoveSaveCoordinatorProtocol
     private let logger: AppLogger
+    private let appState: AddMoveAppState
     
     // MARK: - Flow State
     private var flowHistory: [AddMoveFlowStep] = []
@@ -31,17 +31,16 @@ public class AddMoveFlowCoordinator: ObservableObject {
     
     // MARK: - Initialization
     public init(
-        stateManager: AddMoveStateManagerProtocol,
         videoOrchestrator: AddMoveVideoOrchestratorProtocol,
         playerManager: AddMovePlayerManagerProtocol,
         saveCoordinator: AddMoveSaveCoordinatorProtocol,
         logger: AppLogger
     ) {
-        self.stateManager = stateManager
         self.videoOrchestrator = videoOrchestrator
         self.playerManager = playerManager
         self.saveCoordinator = saveCoordinator
         self.logger = logger
+        self.appState = AddMoveAppState()
         
         setupStateMonitoring()
     }
@@ -60,7 +59,6 @@ public class AddMoveFlowCoordinator: ObservableObject {
         videoOrchestrator.reset()
         playerManager.reset()
         saveCoordinator.reset()
-        stateManager.reset()
     }
     
     /// Move to next step in flow
@@ -127,31 +125,23 @@ public class AddMoveFlowCoordinator: ObservableObject {
         do {
             let preparationResult = try await videoOrchestrator.loadAndPrepareVideo(from: item)
             
-            // Store video info
-            currentVideoAsset = preparationResult.asset
-            currentPhotosIdentifier = preparationResult.photosIdentifier
-            
-            // Setup player
-            let playerViewModel = try await playerManager.setupPlayerForPlayback(
-                asset: preparationResult.asset,
-                photosIdentifier: preparationResult.photosIdentifier,
-                rotationQuarterTurns: 0
-            )
-            
-            // Move to preview step
+            // Update app state directly
             await MainActor.run {
-                self.currentStep = .previewVideo
-                self.updateFlowProgress()
+                self.appState.videoAsset = preparationResult.asset
+                self.appState.photosIdentifier = preparationResult.photosIdentifier
+                self.appState.selectedFilename = preparationResult.filename
+                self.appState.currentPlayerViewModel = preparationResult.playerViewModel
+                self.appState.currentStep = .previewVideo
+                self.appState.updateFlowProgress()
             }
             
             logger.info("🎬 FLOW_COORDINATOR: Video loaded successfully, moved to preview", metadata: nil)
             
         } catch {
             logger.error("🎬 FLOW_COORDINATOR: ❌ Video selection failed: \(error.localizedDescription)", metadata: nil)
-            await stateManager.transitionToError(
-                message: "Failed to load video",
-                underlyingError: error.localizedDescription
-            )
+            await MainActor.run {
+                self.appState.setError(message: "Failed to load video", underlying: error.localizedDescription)
+            }
         }
     }
     
@@ -161,17 +151,18 @@ public class AddMoveFlowCoordinator: ObservableObject {
     public func moveToTrimming() {
         logger.info("🎬 FLOW_COORDINATOR: Moving to trimming step", metadata: nil)
         
-        guard let asset = currentVideoAsset else {
+        guard let asset = appState.videoAsset else {
             logger.error("🎬 FLOW_COORDINATOR: No asset available for trimming", metadata: nil)
+            appState.setError(message: "No video available for trimming")
             return
         }
         
         // Prepare player for trimming
         playerManager.preparePlayerForTrimming()
         
-        // Update step
-        currentStep = .trimVideo
-        updateFlowProgress()
+        // Update app state
+        appState.currentStep = .trimVideo
+        appState.updateFlowProgress()
         
         logger.info("🎬 FLOW_COORDINATOR: Moved to trimming step", metadata: nil)
     }
@@ -187,24 +178,23 @@ public class AddMoveFlowCoordinator: ObservableObject {
             let trimmedAssetURL = try await trimmerViewModel.exportVideo()
             let trimmedAsset = AVURLAsset(url: trimmedAssetURL)
             
-            // Update current asset to trimmed version
-            currentVideoAsset = trimmedAsset
-            currentRotation = trimmerViewModel.rotationQuarterTurns
-            
-            // Move to naming step
+            // Update app state with trimmed video
             await MainActor.run {
-                self.currentStep = .nameMove
-                self.updateFlowProgress()
+                self.appState.videoAsset = trimmedAsset
+                self.appState.rotationQuarterTurns = trimmerViewModel.rotationQuarterTurns
+                self.appState.trimStartTime = trimmerViewModel.startTime.seconds
+                self.appState.trimEndTime = trimmerViewModel.endTime.seconds
+                self.appState.currentStep = .nameMove
+                self.appState.updateFlowProgress()
             }
             
             logger.info("🎬 FLOW_COORDINATOR: Trimming completed, moved to naming", metadata: nil)
             
         } catch {
             logger.error("🎬 FLOW_COORDINATOR: ❌ Trimming failed: \(error.localizedDescription)", metadata: nil)
-            await stateManager.transitionToError(
-                message: "Failed to trim video",
-                underlyingError: error.localizedDescription
-            )
+            await MainActor.run {
+                self.appState.setError(message: "Failed to trim video", underlying: error.localizedDescription)
+            }
         }
     }
     
@@ -212,46 +202,46 @@ public class AddMoveFlowCoordinator: ObservableObject {
     
     /// Save move with current name
     public func saveMove() async {
-        logger.info("🎬 FLOW_COORDINATOR: Saving move: \(moveName)", metadata: nil)
+        logger.info("🎬 FLOW_COORDINATOR: Saving move: \(appState.moveName)", metadata: nil)
         
-        guard let asset = currentVideoAsset,
-              let photosIdentifier = currentPhotosIdentifier else {
+        guard let asset = appState.videoAsset,
+              let photosIdentifier = appState.photosIdentifier else {
             logger.error("🎬 FLOW_COORDINATOR: Missing required data for save", metadata: nil)
+            appState.setError(message: "Missing video data for save")
             return
         }
         
         do {
             let result = try await saveCoordinator.saveTrimmedMove(
-                name: moveName,
+                name: appState.moveName,
                 originalAsset: asset,
                 trimmedAsset: asset, // Assuming we're using the processed asset
                 photosIdentifier: photosIdentifier,
-                trimStartTime: 0.0, // These would come from trimming state
-                trimEndTime: asset.duration.seconds,
-                rotationQuarterTurns: currentRotation
+                trimStartTime: appState.trimStartTime ?? 0.0,
+                trimEndTime: appState.trimEndTime ?? asset.duration.seconds,
+                rotationQuarterTurns: appState.rotationQuarterTurns
             )
             
             // Move to complete step
             await MainActor.run {
-                self.currentStep = .complete
-                self.updateFlowProgress()
+                self.appState.currentStep = .complete
+                self.appState.updateFlowProgress()
             }
             
             logger.info("🎬 FLOW_COORDINATOR: ✅ Move saved successfully", metadata: nil)
             
         } catch {
             logger.error("🎬 FLOW_COORDINATOR: ❌ Save failed: \(error.localizedDescription)", metadata: nil)
-            await stateManager.transitionToError(
-                message: "Failed to save move",
-                underlyingError: error.localizedDescription
-            )
+            await MainActor.run {
+                self.appState.setError(message: "Failed to save move", underlying: error.localizedDescription)
+            }
         }
     }
     
     /// Update move name
     public func updateMoveName(_ name: String) {
         logger.info("🎬 FLOW_COORDINATOR: Move name updated: \(name)", metadata: nil)
-        moveName = name
+        appState.moveName = name
     }
     
     // MARK: - Private Methods - Flow Navigation
@@ -262,14 +252,15 @@ public class AddMoveFlowCoordinator: ObservableObject {
         // Clear player
         playerManager.clearCurrentPlayer()
         
-        // Reset video data
-        currentVideoAsset = nil
-        currentPhotosIdentifier = nil
-        currentRotation = 0
+        // Reset app state video data
+        appState.videoAsset = nil
+        appState.photosIdentifier = nil
+        appState.rotationQuarterTurns = 0
+        appState.currentPlayerViewModel = nil
         
         // Go back to selection
-        currentStep = .selectVideo
-        updateFlowProgress()
+        appState.currentStep = .selectVideo
+        appState.updateFlowProgress()
     }
     
     private func returnToPreview() {
@@ -278,8 +269,8 @@ public class AddMoveFlowCoordinator: ObservableObject {
         // Resume player
         playerManager.resumePlayerAfterTrimming()
         
-        currentStep = .previewVideo
-        updateFlowProgress()
+        appState.currentStep = .previewVideo
+        appState.updateFlowProgress()
     }
     
     private func returnToTrimming() {
@@ -288,46 +279,24 @@ public class AddMoveFlowCoordinator: ObservableObject {
         // Prepare player for trimming again
         playerManager.preparePlayerForTrimming()
         
-        currentStep = .trimVideo
-        updateFlowProgress()
+        appState.currentStep = .trimVideo
+        appState.updateFlowProgress()
     }
     
     private func resetFlow() {
         logger.info("🎬 FLOW_COORDINATOR: Resetting flow", metadata: nil)
         
-        flowHistory.removeAll()
-        currentVideoAsset = nil
-        currentPhotosIdentifier = nil
-        currentRotation = 0
-        moveName = ""
+        appState.reset()
         currentStep = .selectVideo
-        
         updateFlowProgress()
     }
     
     private func updateFlowProgress() {
-        switch currentStep {
-        case .selectVideo:
-            flowProgress = 0.0
-            canGoBack = false
-            canGoForward = false
-        case .previewVideo:
-            flowProgress = 0.33
-            canGoBack = true
-            canGoForward = true
-        case .trimVideo:
-            flowProgress = 0.66
-            canGoBack = true
-            canGoForward = true
-        case .nameMove:
-            flowProgress = 0.9
-            canGoBack = true
-            canGoForward = false // Save action instead
-        case .complete:
-            flowProgress = 1.0
-            canGoBack = false
-            canGoForward = false
-        }
+        // Synchronize with app state
+        currentStep = appState.currentStep
+        flowProgress = appState.flowProgress
+        canGoBack = appState.canGoBack
+        canGoForward = appState.canGoForward
         
         logger.info("🎬 FLOW_COORDINATOR: Flow progress updated - Step: \(currentStep), Progress: \(flowProgress)", metadata: nil)
     }
@@ -335,8 +304,9 @@ public class AddMoveFlowCoordinator: ObservableObject {
     // MARK: - Private Methods - State Monitoring
     
     private func setupStateMonitoring() {
-        // Monitor state manager changes
-        // This would integrate with the existing state management system
+        // Modern @Observable pattern - no explicit monitoring needed
+        // SwiftUI automatically tracks changes to @Observable properties
+        logger.info("🎬 FLOW_COORDINATOR: Modern state monitoring setup complete", metadata: nil)
     }
 }
 

@@ -8,7 +8,7 @@ import CoreData
 @MainActor
 public class UpdatedVideoAssetLoader {
     private let imageManager = PHImageManager.default()
-    private let correlationID = VideoLogger.generateCorrelationID()
+    private let correlationID = UUID().uuidString
     private let memoryManager: MemoryManager
     private let logger: AppLogger
     

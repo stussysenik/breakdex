@@ -7,7 +7,7 @@ public class UpdatedVideoCoordinator: ObservableObject {
     public enum State: Equatable, Hashable {
         case loading
         case ready(AVPlayer)
-        case error(VideoError)
+        case error(VideoProcessingError)
         
         // Implement Equatable
         public static func == (lhs: State, rhs: State) -> Bool {
@@ -107,7 +107,7 @@ public class UpdatedVideoCoordinator: ObservableObject {
                 
             } catch {
                 // Handle error
-                let videoError = VideoErrorHandler.handle(error, correlationID: correlationID)
+                let videoError: VideoProcessingError = .videoLoadingFailed(identifier: correlationID, underlyingError: error)
                 state = .error(videoError)
                 logger.error("❌ Video load failed: \(videoError.errorDescription ?? "Unknown error")", metadata: [
                     "correlationID": correlationID,

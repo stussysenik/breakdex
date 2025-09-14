@@ -4,14 +4,14 @@ import OSLog
 import UIKit
 
 struct NameMoveView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     @State private var isSaving = false
     
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "NameMoveView")
     
     // Haptic feedback generator
     private let impactGenerator = UIImpactFeedbackGenerator(style: .medium)
-
+    
     var body: some View {
         VStack {
             if case .naming(_, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotation) = viewModel.state {
@@ -89,7 +89,7 @@ struct NameMoveView: View {
             }
         }
         .background(Color.black.ignoresSafeArea())
-        .onReceive(viewModel.$state) { newState in
+        .onChange(of: viewModel.state) { _, newState in
             if case .ready = newState {
                 isSaving = false
             }

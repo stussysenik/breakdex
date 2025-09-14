@@ -3,8 +3,9 @@ import AVKit
 import Combine
 import OSLog
 
+@Observable
 @MainActor
-public final class PreviewVideoPlayerViewModel: ObservableObject, VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
+public final class PreviewVideoPlayerViewModel: VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
     public static func == (lhs: PreviewVideoPlayerViewModel, rhs: PreviewVideoPlayerViewModel) -> Bool {
         lhs.coordinator.state == rhs.coordinator.state
     }
@@ -21,9 +22,9 @@ public final class PreviewVideoPlayerViewModel: ObservableObject, VideoPlayerVie
         case error(message: String)
     }
     
-    @Published public private(set) var state: State = .loading
-    @Published public private(set) var shouldPlay: Bool = false
-    @Published public private(set) var healthStatus: VideoHealthStatus = .unknown
+    public private(set) var state: State = .loading
+    public var shouldPlay: Bool = false
+    public private(set) var healthStatus: VideoHealthStatus = .unknown
     
     // MARK: - Private Properties
     
@@ -343,26 +344,40 @@ public final class PreviewVideoPlayerViewModel: ObservableObject, VideoPlayerVie
                 return
             }
             
-            // Set up a publisher to listen for state changes
-            let cancellable = $state
-                .dropFirst() // Skip the current value
-                .sink { newState in
-                    if case .playing = newState {
+            // With @Observable, we need to use a different approach for state monitoring
+            // Since @Observable doesn't provide publishers like @Published, we'll use polling
+            let startTime = Date()
+            let checkInterval: TimeInterval = 0.1 // Check every 100ms
+            let timeout: TimeInterval = 15.0 // 15 second timeout
+            
+            var timer: Timer?
+            timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    
+                    let currentTime = Date()
+                    let elapsedTime = currentTime.timeIntervalSince(startTime)
+                    
+                    // Check if timeout exceeded
+                    if elapsedTime > timeout {
+                        timer?.invalidate()
+                        continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -2, userInfo: [NSLocalizedDescriptionKey: "Preview player readiness timeout"]))
+                        return
+                    }
+                    
+                    // Check current state
+                    switch self.state {
+                    case .playing:
+                        timer?.invalidate()
                         continuation.resume()
-                    } else if case .error(let message) = newState {
+                    case .error(let message):
+                        timer?.invalidate()
                         continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -1, userInfo: [NSLocalizedDescriptionKey: message]))
+                    case .loading:
+                        // Still loading, continue waiting
+                        break
                     }
                 }
-            
-            // Store the cancellable to keep it alive
-            self.cancellables.insert(cancellable)
-            
-            // Set up a timeout with shorter duration for preview
-            Task {
-                try await Task.sleep(nanoseconds: 15 * 1_000_000_000) // 15 seconds (shorter for preview)
-                cancellable.cancel()
-                self.cancellables.remove(cancellable)
-                continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -2, userInfo: [NSLocalizedDescriptionKey: "Preview player readiness timeout"]))
             }
         }
     }

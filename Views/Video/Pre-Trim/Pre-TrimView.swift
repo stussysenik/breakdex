@@ -8,7 +8,7 @@ import UIKit
 private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreTrimView")
 
 struct PreTrimView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     @EnvironmentObject private var videoPlayerManager: VideoPlayerManager
     @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper // Type-erased wrapper (for backwards compatibility)
     var playerViewModel: any VideoPlayerViewModelProtocol { // Computed property for access
@@ -98,14 +98,14 @@ struct PreTrimView: View {
                     .foregroundColor(.white)
             }
             Spacer()
-            Text(viewModel.selectedFilename ?? "Video Preview")
+            Text("Video Preview")
                 .font(.headline)
                 .foregroundColor(.white)
             Spacer()
             Button(action: {
                 impactGenerator.impactOccurred()
                 logger.info("🎬 PRE_TRIM_VIEW: Change video button tapped")
-                viewModel.state = .selectingVideo(currentAsset: asset)
+                viewModel.startVideoSelection(from: asset)
             }) {
                 Text("Change")
                     .font(.headline)
@@ -139,7 +139,7 @@ struct PreTrimView: View {
             Button(action: {
                 impactGenerator.impactOccurred()
                 logger.info("🎬 PRE_TRIM_VIEW: Use Full Video button tapped")
-                viewModel.nextStep()
+                viewModel.startNaming()
             }) {
                 Text("Use Full Video")
                     .frame(maxWidth: .infinity)
@@ -181,23 +181,5 @@ struct PreTrimView: View {
             logger.info("🎬 PRE_TRIM_VIEW: Fallback UI appeared")
         }
     }
-}
-
-#Preview {
-    let context = PersistenceController.shared.container.viewContext
-    let viewModel = AddMoveViewModel.create(viewContext: context)
-    let asset = AVAsset() // Dummy asset for preview
-    let playerViewModel = MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: 0, appContainer: AppContainer.shared)
-    
-    PreTrimView(
-        viewModel: viewModel,
-        playerViewModel: playerViewModel,
-        asset: asset,
-        photosIdentifier: "preview-id",
-        rotationQuarterTurns: 0,
-        selectedTab: .constant(.add)
-    )
-    .environment(\.managedObjectContext, context)
-    .preferredColorScheme(.dark)
 }
 

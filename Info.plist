@@ -8,6 +8,8 @@
 		<string>IBMPlexMono-Regular.ttf</string>
 		<string>IBMPlexMono-Thin.ttf</string>
 	</array>
+	<key>UIObservationTrackingEnabled</key>
+	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to record breaking moves for your training arsenal.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

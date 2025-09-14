@@ -3,7 +3,7 @@ import Photos
 
 // MARK: - Video Gallery View
 struct VideoGalleryView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     @StateObject private var galleryViewModel = VideoGalleryViewModel()
 
     var body: some View {

@@ -38,7 +38,7 @@ struct AppPhotosPickerButton: View {
 }
 
 struct AddMoveSelectClipView: View {
-    @ObservedObject var viewModel: AddMoveViewModel
+    @Bindable var viewModel: AddMoveViewModel
     
     var body: some View {
         VStack(spacing: 0) {

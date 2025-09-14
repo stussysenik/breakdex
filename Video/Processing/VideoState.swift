@@ -1,7 +1,7 @@
 import Foundation
 
 // MARK: - Video State
-enum VideoState: String, CaseIterable, Equatable, Hashable {
+public enum VideoState: String, CaseIterable, Equatable, Hashable {
     case idle = "idle"
     case loading = "loading"
     case loaded = "loaded"
@@ -11,7 +11,7 @@ enum VideoState: String, CaseIterable, Equatable, Hashable {
     case paused = "paused"
     case error = "error"
     
-    var canTransitionTo: [VideoState] {
+    public var canTransitionTo: [VideoState] {
         switch self {
         case .idle:
             return [.loading]
@@ -32,7 +32,7 @@ enum VideoState: String, CaseIterable, Equatable, Hashable {
         }
     }
     
-    func canTransition(to state: VideoState) -> Bool {
+    public func canTransition(to state: VideoState) -> Bool {
         return canTransitionTo.contains(state)
     }
 }

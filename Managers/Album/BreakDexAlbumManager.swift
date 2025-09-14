@@ -101,13 +101,13 @@ class BreakDexAlbumManager: ObservableObject {
     func copyVideoToBreakDex(_ asset: PHAsset) async throws -> PHAsset {
         await MainActor.run { isOperationInProgress = true }
         defer { Task { await MainActor.run { isOperationInProgress = false } } }
-
+        
         let album = try await ensureBreakDexAlbum()
-
+        
         // For copying existing PHAssets, we need to get the video data first
         let videoData = try await getVideoData(from: asset)
         let tempURL = try await saveVideoDataToTempFile(videoData)
-
+        
         return try await withCheckedThrowingContinuation { continuation in
             PHPhotoLibrary.shared().performChanges {
                 let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
@@ -118,13 +118,13 @@ class BreakDexAlbumManager: ObservableObject {
             } completionHandler: { success, error in
                 // Clean up temp file
                 try? FileManager.default.removeItem(at: tempURL)
-
+                
                 if success {
                     // Find the newly created asset
                     let fetchOptions = PHFetchOptions()
                     fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
                     fetchOptions.fetchLimit = 1
-
+                    
                     let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
                     if let newAsset = fetchResult.firstObject {
                         continuation.resume(returning: newAsset)
@@ -214,13 +214,13 @@ class BreakDexAlbumManager: ObservableObject {
             let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
             options.deliveryMode = .highQualityFormat
-
+            
             manager.requestAVAsset(forVideo: asset, options: options) { avAsset, _, _ in
                 guard let urlAsset = avAsset as? AVURLAsset else {
                     continuation.resume(throwing: BreakDexAlbumError.assetCreationFailed)
                     return
                 }
-
+                
                 do {
                     let data = try Data(contentsOf: urlAsset.url)
                     continuation.resume(returning: data)
@@ -326,7 +326,7 @@ extension PHAsset {
         await withCheckedContinuation { continuation in
             let options = PHVideoRequestOptions()
             options.isNetworkAccessAllowed = true
-
+            
             PHImageManager.default().requestAVAsset(forVideo: self, options: options) { avAsset, _, _ in
                 if let asset = avAsset {
                     if #available(iOS 16.0, *) {
