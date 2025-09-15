@@ -17,7 +17,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
     @Published public private(set) var selectedFilename: String?
     
     // MARK: - Import State
-    @Published public var importState: SelectionState = .idle
+    @Published public var importState: AddMoveImportState = .idle
     
     // MARK: - Services
     private let photosImportService: PhotosImportServiceProtocol
@@ -196,7 +196,7 @@ public protocol AddMoveVideoOrchestratorProtocol: ObservableObject {
     var currentAsset: AVAsset? { get }
     var currentPhotosIdentifier: String? { get }
     var selectedFilename: String? { get }
-    var importState: SelectionState { get }
+    var importState: AddMoveImportState { get }
     
     func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> PreparedVideoResult
     func prepareAssetWithRotation(asset: AVAsset, photosIdentifier: String, rotationQuarterTurns: Int) async throws -> PreparedVideoResult

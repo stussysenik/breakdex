@@ -26,7 +26,7 @@ struct MoveDetailView: View {
                 if let asset = getVideoAsset(for: move) {
                     VStack {
                         if isPlayerReady {
-                            CustomVideoPlayerView(viewModel: MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared))
+                            CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), mode: .main, appContainer: AppContainer.shared))
                                 .frame(height: 300)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                         } else {
@@ -43,7 +43,7 @@ struct MoveDetailView: View {
                     }
                     .onAppear {
                         // Initialize the player and check when it's ready
-                        let viewModel = MainVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), appContainer: AppContainer.shared)
+                        let viewModel = UnifiedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: Int(move.rotationQuarterTurns), mode: .main, appContainer: AppContainer.shared)
                         
                         // Monitor when the player becomes ready
                         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in

@@ -51,16 +51,17 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         logger.info("🎬 VIDEO_PREPARER: 📊 Asset details - duration: \(duration)s, tracks: \(tracksCount)")
         
         // Create player view model
-        logger.info("🎬 VIDEO_PREPARER: Creating MainVideoPlayerViewModel synchronously")
-        let playerViewModel = MainVideoPlayerViewModel(
-            asset: loaderResult.asset, 
-            rotationQuarterTurns: 0, 
+        logger.info("🎬 VIDEO_PREPARER: Creating UnifiedVideoPlayerViewModel synchronously")
+        let playerViewModel = UnifiedVideoPlayerViewModel(
+            asset: loaderResult.asset,
+            rotationQuarterTurns: 0,
+            mode: .main,
             appContainer: AppContainer.shared
         )
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after creating player VM: \(os_proc_available_memory() / (1024*1024)) MB available")
         
         // Wait for player to be ready
-        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for MainVideoPlayerViewModel to become ready...")
+        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for UnifiedVideoPlayerViewModel to become ready...")
         let readyStartTime = Date()
         while !playerViewModel.isPlayerReady {
             try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
@@ -70,7 +71,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
             }
         }
         let readyTime = Date().timeIntervalSince(readyStartTime)
-        logger.info("🎬 VIDEO_PREPARER: ✅ MainVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
+        logger.info("🎬 VIDEO_PREPARER: ✅ UnifiedVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after player ready: \(os_proc_available_memory() / (1024*1024)) MB available")
         
         let result = PreparedVideoResult(
@@ -92,15 +93,16 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         logger.info("🎬 VIDEO_PREPARER: Photos ID: \(photosIdentifier)")
         
         // Create player view model
-        logger.info("🎬 VIDEO_PREPARER: Creating MainVideoPlayerViewModel synchronously")
-        let playerViewModel = MainVideoPlayerViewModel(
+        logger.info("🎬 VIDEO_PREPARER: Creating UnifiedVideoPlayerViewModel synchronously")
+        let playerViewModel = UnifiedVideoPlayerViewModel(
             asset: asset,
             rotationQuarterTurns: 0,
+            mode: .main,
             appContainer: AppContainer.shared
         )
         
         // Wait for player to be ready
-        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for MainVideoPlayerViewModel to become ready...")
+        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for UnifiedVideoPlayerViewModel to become ready...")
         let readyStartTime = Date()
         while !playerViewModel.isPlayerReady {
             try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
@@ -110,7 +112,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
             }
         }
         let readyTime = Date().timeIntervalSince(readyStartTime)
-        logger.info("🎬 VIDEO_PREPARER: ✅ MainVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
+        logger.info("🎬 VIDEO_PREPARER: ✅ UnifiedVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
         
         let result = PreparedVideoResult(
             asset: asset,

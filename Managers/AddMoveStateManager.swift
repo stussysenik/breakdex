@@ -72,9 +72,9 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
             return "loading(\(progress), \(status))"
         case .initializing(let progress, let status):
             return "initializing(\(progress), \(status))"
-        case .loaded(_, let id, let _):
+        case .loaded(_, let id, _):
             return "loaded(id: \(id ?? "nil"), rotation: 0°)"
-        case .previewing(_, _, let id, let rotation):
+        case .previewing(_, let id, let rotation):
             return "previewing(id: \(id ?? "nil"), rotation: \(rotation)°)"
         case .selectingVideo(let asset):
             return "selectingVideo(asset: \(asset != nil ? "exists" : "nil"))"
@@ -118,7 +118,6 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
         logger.info("🔄 STATE_MANAGER: Photos ID: \(photosIdentifier ?? "nil")")
         logger.info("🔄 STATE_MANAGER: Rotation: \(rotationQuarterTurns)°")
         currentState = .previewing(
-            playerViewModel: playerViewModel,
             asset: asset,
             photosIdentifier: photosIdentifier,
             rotationQuarterTurns: rotationQuarterTurns

@@ -209,55 +209,38 @@ public struct CustomVideoPlayerView: View {
     
     /// Get the state as a string for type-erased comparison
     private func getStateAsString() -> String {
-        let state = observableWrapper.viewModel.state
-        let stateString = String(describing: state)
-        
-        if stateString.contains("loading") {
-            return "loading"
-        } else if stateString.contains("playing") {
-            return "playing"
-        } else if stateString.contains("error") {
-            return "error"
+        if let state = observableWrapper.viewModel.state as? UnifiedVideoPlayerViewModel.State {
+            switch state {
+            case .idle:
+                return "idle"
+            case .loading:
+                return "loading"
+            case .ready:
+                return "ready"
+            case .playing:
+                return "playing"
+            case .error:
+                return "error"
+            }
         }
-        
         return "unknown"
     }
     
     /// Extract the player from the state if available
     private func getPlayerFromState() -> AVPlayer? {
-        let state = observableWrapper.viewModel.state
-        let stateString = String(describing: state)
-        
-        if stateString.contains("playing") {
-            // Try to extract the player from both possible state types
-            if let updatedState = state as? MainVideoPlayerViewModel.State,
-               case .playing(let player) = updatedState {
-                return player
-            } else if let previewState = state as? PreviewVideoPlayerViewModel.State,
-                      case .playing(let player) = previewState {
-                return player
-            }
+        if let unifiedState = observableWrapper.viewModel.state as? UnifiedVideoPlayerViewModel.State,
+           case .playing(let player) = unifiedState {
+            return player
         }
-        
         return nil
     }
     
     /// Extract the error message from the state if available
     private func getErrorMessage() -> String? {
-        let state = observableWrapper.viewModel.state
-        let stateString = String(describing: state)
-        
-        if stateString.contains("error") {
-            // Try to extract the error message from both possible state types
-            if let updatedState = state as? MainVideoPlayerViewModel.State,
-               case .error(let message) = updatedState {
-                return message
-            } else if let previewState = state as? PreviewVideoPlayerViewModel.State,
-                      case .error(let message) = previewState {
-                return message
-            }
+        if let unifiedState = observableWrapper.viewModel.state as? UnifiedVideoPlayerViewModel.State,
+           case .error(let message) = unifiedState {
+            return message
         }
-        
         return nil
     }
     

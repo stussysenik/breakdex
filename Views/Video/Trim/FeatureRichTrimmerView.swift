@@ -11,7 +11,7 @@ enum HandleType {
 // MARK: - Unified Feature-Rich Trimmer View
 struct FeatureRichTrimmerView: View {
     @Bindable var viewModel: AddMoveViewModel
-    @EnvironmentObject private var videoPlayerManager: VideoPlayerManager
+    @State private var playerViewModel: UnifiedVideoPlayerViewModel
     @State private var trimmerViewModel: TrimmerViewModel
     @State private var rotationQuarterTurns: Int = 0
     
@@ -24,11 +24,12 @@ struct FeatureRichTrimmerView: View {
     private let asset: AVAsset
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "FeatureRichTrimmer")
     
-    init(viewModel: AddMoveViewModel, asset: AVAsset, rotation: Int) {
+    init(viewModel: AddMoveViewModel, asset: AVAsset, rotation: Int, playerViewModel: UnifiedVideoPlayerViewModel) {
         self.viewModel = viewModel
         self.asset = asset
         self._rotationQuarterTurns = State(initialValue: rotation)
-        self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, rotationQuarterTurns: rotation))
+        self._playerViewModel = State(initialValue: playerViewModel)
+        self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, rotationQuarterTurns: rotation, playerViewModel: playerViewModel))
     }
     
     var body: some View {
@@ -74,8 +75,8 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Video Player Section
     private var videoPlayerSection: some View {
         Group {
-            if videoPlayerManager.isPlayerReady {
-                SharedVideoPlayerView()
+            if playerViewModel.isPlayerReady {
+                CustomVideoPlayerView(viewModel: playerViewModel)
                     .frame(height: 300)
                     .cornerRadius(12)
                     .padding(.horizontal)
@@ -163,7 +164,7 @@ struct FeatureRichTrimmerView: View {
             
             Button("Save") {
                 HapticManager.shared.trigger(.dragEnd)
-                viewModel.completeTrimming(with: trimmerViewModel)
+                viewModel.finishTrimming(with: trimmerViewModel)
             }
             .buttonStyle(.appPrimary(size: .medium))
             .disabled(trimmerViewModel.isExporting)
@@ -190,17 +191,19 @@ struct FeatureRichTrimmerView: View {
     private func initializeTrimmer() {
         logger.info("🎬 FEATURE_RICH_TRIMMER: 🚀 Initializing trimmer")
         
-        // The shared player should already be prepared by the PreTrimView
-        // Monitor VideoPlayerManager readiness
-        videoPlayerManager.$isPlayerReady
-            .receive(on: RunLoop.main)
-            .sink { [self] isReady in
-                if isReady {
-                    isPlayerReady = true
-                    logger.info("🎬 FEATURE_RICH_TRIMMER: ✅ Shared player ready")
+        // Monitor unified player readiness
+        Task {
+            while !isPlayerReady {
+                try? await Task.sleep(nanoseconds: 100_000_000) // Check every 0.1 seconds
+                if playerViewModel.isPlayerReady {
+                    await MainActor.run {
+                        isPlayerReady = true
+                        logger.info("🎬 FEATURE_RICH_TRIMMER: ✅ Shared player ready")
+                    }
+                    break
                 }
             }
-            .store(in: &cancellables)
+        }
         
         // Setup timeout
         setupPlayerTimeout()
@@ -222,10 +225,7 @@ struct FeatureRichTrimmerView: View {
     private func handleRotationChange() {
         logger.info("🎬 FEATURE_RICH_TRIMMER: 🔄 Rotation changed to \(rotationQuarterTurns)°")
         trimmerViewModel.rotationQuarterTurns = rotationQuarterTurns
-        
-        // Note: For rotation changes, we need to reload the player with the new rotation
-        // This is handled by re-preparing the player with the updated rotation
-        videoPlayerManager.preparePlayer(for: trimmerViewModel.asset)
+        playerViewModel.setRotation(rotationQuarterTurns)
     }
     
     private func setupTrimmerViewModel() async {

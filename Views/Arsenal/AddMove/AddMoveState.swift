@@ -8,7 +8,7 @@ public enum AddMoveState: Equatable, Hashable {
     case initializing(progress: Double, status: String)
     case loading(progress: Double, status: String)
     case loaded(asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int) // NEW: Intermediate state
-    case previewing(playerViewModel: any VideoPlayerViewModelProtocol, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int)
+    case previewing(asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int)
     case selectingVideo(currentAsset: AVAsset?) // NEW: For video selection mode
     case trimming(asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int)
     case naming(photosIdentifier: String, originalAsset: AVAsset?, trimmedAsset: AVAsset?, trimStartTime: Double?, trimEndTime: Double?, rotationQuarterTurns: Int)
@@ -30,8 +30,8 @@ public enum AddMoveState: Equatable, Hashable {
             return p1 == p2 && s1 == s2
         case (let .loaded(a1, id1, rot1), let .loaded(a2, id2, rot2)):
             return a1 == a2 && id1 == id2 && rot1 == rot2
-        case (let .previewing(vm1, a1, id1, rot1), let .previewing(vm2, a2, id2, rot2)):
-            return vm1.hashValue == vm2.hashValue && a1 == a2 && id1 == id2 && rot1 == rot2
+        case (let .previewing(a1, id1, rot1), let .previewing(a2, id2, rot2)):
+            return a1 == a2 && id1 == id2 && rot1 == rot2
         case (let .selectingVideo(asset1), let .selectingVideo(asset2)):
             return asset1 == asset2
         case (let .trimming(a1, id1, rot1), let .trimming(a2, id2, rot2)):
@@ -60,9 +60,8 @@ public enum AddMoveState: Equatable, Hashable {
             hasher.combine(ObjectIdentifier(asset))
             hasher.combine(photosIdentifier)
             hasher.combine(rotationQuarterTurns)
-        case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns):
+        case .previewing(let asset, let photosIdentifier, let rotationQuarterTurns):
             hasher.combine(4)
-            hasher.combine(playerViewModel.hashValue)
             hasher.combine(ObjectIdentifier(asset))
             hasher.combine(photosIdentifier)
             hasher.combine(rotationQuarterTurns)

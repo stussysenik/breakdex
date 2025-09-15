@@ -8,24 +8,29 @@ import UIKit
 private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreTrimView")
 
 struct PreTrimView: View {
-    @Bindable var viewModel: AddMoveViewModel
-    @EnvironmentObject private var videoPlayerManager: VideoPlayerManager
-    @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper // Type-erased wrapper (for backwards compatibility)
-    var playerViewModel: any VideoPlayerViewModelProtocol { // Computed property for access
-        return observableWrapper.viewModel
-    }
+    var viewModel: AddMoveViewModel
+    @StateObject private var playerViewModel: UnifiedVideoPlayerViewModel
     let asset: AVAsset
     let photosIdentifier: String?
     let rotationQuarterTurns: Int
     @Binding var selectedTab: TabSelection
     
+    // Direct PhotosPicker state
+    @State private var showPhotosPicker = false
+    @State private var tempSelection: PhotosPickerItem?
+    
     // Track view lifecycle for debugging
     private let viewId = UUID()
     private let constructionTime = Date().timeIntervalSince1970
     
-    init(viewModel: AddMoveViewModel, playerViewModel: any VideoPlayerViewModelProtocol, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int, selectedTab: Binding<TabSelection>) {
+    init(viewModel: AddMoveViewModel, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int, selectedTab: Binding<TabSelection>) {
         self.viewModel = viewModel
-        self.observableWrapper = ObservableVideoPlayerWrapper(viewModel: playerViewModel) // Initialize the wrapper
+        self._playerViewModel = StateObject(wrappedValue: UnifiedVideoPlayerViewModel(
+            asset: asset,
+            rotationQuarterTurns: rotationQuarterTurns,
+            mode: .preview,
+            appContainer: AppContainer.shared
+        ))
         self.asset = asset
         self.photosIdentifier = photosIdentifier
         self.rotationQuarterTurns = rotationQuarterTurns
@@ -58,11 +63,10 @@ struct PreTrimView: View {
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Rotation: \(rotationQuarterTurns)")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Photos ID: \(photosIdentifier ?? "nil")")
                 
-                logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: View appeared - preparing shared video player")
+                logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: View appeared - loading video with unified player")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Construction to appear: \(String(format: "%.3f", appearTimestamp - constructionTime))s")
                 
-                // Prepare the shared video player with the asset
-                videoPlayerManager.preparePlayer(for: asset)
+                // Video loading is handled automatically by UnifiedVideoPlayerViewModel
             }
             .onDisappear {
                 let disappearTime = Date().timeIntervalSince1970
@@ -82,6 +86,23 @@ struct PreTrimView: View {
         }
         .background(Color.black.ignoresSafeArea())
         .navigationBarHidden(true)
+        .photosPicker(
+            isPresented: $showPhotosPicker,
+            selection: $tempSelection,
+            matching: .videos,
+            preferredItemEncoding: .automatic, // iOS 18.0 best practice - let system choose optimal encoding
+            photoLibrary: .shared()
+        )
+        .onChange(of: tempSelection) { _, newItem in
+            if let newItem = newItem {
+                logger.info("🎬 PRE_TRIM_VIEW: Direct PhotosPicker selection received: \(newItem.itemIdentifier ?? "unknown")")
+                // Handle the new selection directly without intermediate state
+                Task {
+                    await viewModel.handleDirectVideoSelection(newItem)
+                }
+                tempSelection = nil // Reset for next use
+            }
+        }
     }
     
     // MARK: - UI Components
@@ -104,8 +125,8 @@ struct PreTrimView: View {
             Spacer()
             Button(action: {
                 impactGenerator.impactOccurred()
-                logger.info("🎬 PRE_TRIM_VIEW: Change video button tapped")
-                viewModel.startVideoSelection(from: asset)
+                logger.info("🎬 PRE_TRIM_VIEW: Change video button tapped - showing direct PhotosPicker")
+                showPhotosPicker = true
             }) {
                 Text("Change")
                     .font(.headline)
@@ -116,10 +137,10 @@ struct PreTrimView: View {
     }
     
     private func renderVideoPlayerSection() -> some View {
-        logger.info("🎬 PRE_TRIM_VIEW: Rendering video player section with shared VideoPlayerManager.")
+        logger.info("🎬 PRE_TRIM_VIEW: Rendering video player section with unified player.")
         
-        // Use the shared player from VideoPlayerManager instead of individual view model
-        return SharedVideoPlayerView()
+        // Use the unified video player with the view model
+        return CustomVideoPlayerView(viewModel: playerViewModel)
             .cornerRadius(12)
             .padding(.horizontal)
     }

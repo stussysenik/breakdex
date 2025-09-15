@@ -2,6 +2,14 @@ import SwiftUI
 import AVKit
 import PhotosUI
 
+// MARK: - Import State Enum
+public enum AddMoveImportState {
+    case idle
+    case importing
+    case ready(URL)
+    case error(Error)
+}
+
 // MARK: - Add Move App State
 // iOS 18 Modern Observable Pattern
 @Observable
@@ -41,7 +49,7 @@ class AddMoveAppState {
     var underlyingError: String?
     
     // MARK: - Import State
-    var importState: SelectionState = .idle
+    var importState: AddMoveImportState = .idle
     
     // MARK: - Computed Properties
     

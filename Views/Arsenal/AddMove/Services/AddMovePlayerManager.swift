@@ -63,9 +63,10 @@ public class AddMovePlayerManager: ObservableObject {
         
         // Create new player
         logger.info("🎬 PLAYER_MANAGER: Creating new player instance", metadata: nil)
-        let newPlayer = PreviewVideoPlayerViewModel(
+        let newPlayer = UnifiedVideoPlayerViewModel(
             asset: asset,
             rotationQuarterTurns: rotationQuarterTurns,
+            mode: .preview,
             appContainer: appContainer
         )
         

@@ -41,7 +41,7 @@ public protocol VideoProcessingPipeline {
 
 // MARK: - Video Processing Pipeline Implementation
 final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
-    private let videoLoader: VideoLoader
+    private let loadingService: VideoLoadingService
     private let videoProcessor: VideoProcessor
     private let videoSaver: VideoSaver
     private let memoryManager: MemoryManager
@@ -53,14 +53,14 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
     private var correlationId: String?
     
     init(
-        videoLoader: VideoLoader,
+        loadingService: VideoLoadingService,
         videoProcessor: VideoProcessor,
         videoSaver: VideoSaver,
         memoryManager: MemoryManager,
         stateManager: VideoStateManager,
         logger: AppLogger
     ) {
-        self.videoLoader = videoLoader
+        self.loadingService = loadingService
         self.videoProcessor = videoProcessor
         self.videoSaver = videoSaver
         self.memoryManager = memoryManager
@@ -88,7 +88,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
         
         // Create and start the loading task
         return try await withTaskCancellationHandler {
-            let result: VideoLoaderResult
+            let result: VideoAsset
             
             // Check memory before loading
             let availableMemory = memoryManager.getAvailableMemory()
@@ -129,8 +129,34 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
                 // Log memory just before loading
                 memoryLogger.logMemoryState(context: "Just before video loading", correlationId: operationCorrelationId, component: "VideoProcessingPipeline")
                 
-                // Load the video directly from the Photos identifier
-                result = try await videoLoader.loadVideo(fromIdentifier: identifier)
+                // Load the video using the loading service
+                let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
+                guard let phAsset = fetchResult.firstObject else {
+                    throw NSError(domain: "VideoProcessingPipeline", code: -1, userInfo: [NSLocalizedDescriptionKey: "Asset not found"])
+                }
+                
+                // Use the loading service to load the video asset
+                let progressStream = loadingService.loadPHAssetWithProgress(phAsset)
+                
+                // Wait for completion and get the final asset
+                var finalAsset: AVAsset?
+                for try await event in progressStream {
+                    if event.fraction >= 1.0, let asset = event.asset {
+                        finalAsset = asset
+                        break
+                    }
+                }
+                
+                // Ensure we have an asset
+                guard let asset = finalAsset else {
+                    throw NSError(domain: "VideoProcessingPipeline", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load video asset"])
+                }
+                
+                result = try await VideoAsset(
+                    avAsset: asset,
+                    identifier: identifier,
+                    filename: "video-\(Date().timeIntervalSince1970).mov"
+                )
                 
                 // Log memory after loading
                 memoryLogger.logMemoryState(context: "After video loading", correlationId: operationCorrelationId, component: "VideoProcessingPipeline")
@@ -148,12 +174,8 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
                 throw VideoProcessingError.videoLoadingFailed(identifier: identifier, underlyingError: error)
             }
             
-            // Create VideoAsset
-            let videoAsset = try await VideoAsset(
-                avAsset: result.asset,
-                identifier: result.photosIdentifier,
-                filename: result.filename
-            )
+            // The video asset is already created and stored in result
+            let videoAsset = result
             
             logger.info("✅ Video loaded successfully", metadata: [
                 "identifier": identifier,

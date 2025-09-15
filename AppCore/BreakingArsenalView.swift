@@ -9,10 +9,12 @@ import SwiftUI
 
 struct BreakingArsenalView: View {
     @Binding var selectedTab: TabSelection
-
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 40) {
+                Spacer()
+                
                 // Move Section
                 NavigationLink {
                     MoveListView(onNavigateToAdd: {
@@ -20,25 +22,21 @@ struct BreakingArsenalView: View {
                     })
                 } label: {
                     Text("MOVE")
-                        .font(.ibmPlexMono(size: 36, weight: .bold))
+                        .font(.ibmPlexMono(size: 42, weight: .bold))
                         .foregroundColor(Color(red: 237/255, green: 245/255, blue: 255/255))
                 }
-
+                
                 // Combo Section
                 NavigationLink {
                     ComboListView()
                 } label: {
                     Text("COMBO")
-                        .font(.ibmPlexMono(size: 36, weight: .bold))
+                        .font(.ibmPlexMono(size: 42, weight: .bold))
                         .foregroundColor(Color(red: 237/255, green: 255/255, blue: 255/255))
                 }
-
-                // REVIEW moved back to dedicated tab in MainView
-
-                // IMPORT / EXPORT removed from arsenal; moved to AddMoveView subtle link
+                
+                Spacer()
             }
-            // .navigationTitle("BREAKING ARSENAL")
-            // .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

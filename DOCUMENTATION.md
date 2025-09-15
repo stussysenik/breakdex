@@ -17,6 +17,8 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
   - Health monitoring
 - **`AddMoveState.swift`** - State machine enum for the Add Move flow with strict state transitions
 - **`AddMoveContainer.swift`** - State router that manages view transitions based on AddMoveState
+- **`AddMoveStateManager.swift`** - Centralized state management for complex Add Move flow transitions
+- **`FeatureFlag.swift`** - Feature flag system for controlled feature rollout
 
 ## Feature Modules
 
@@ -42,6 +44,10 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **`VideoTransformBuilder.swift`** - Utility for video transformations (trimming, rotation)
 - **`VideoProcessingPipeline.swift`** - Orchestration of video processing steps
 - **`MemoryManager.swift`** - Memory monitoring and cleanup for video operations
+- **`VideoStateManager.swift`** - Centralized video state management across all operations
+- **`VideoState.swift`** - Comprehensive state enum for video processing lifecycle
+- **`ContinuationManager.swift`** - Handles async continuations and state restoration
+- **`EnhancedVideoLogger.swift`** - Specialized logging for video operations with metadata
 
 #### Core Data Persistence
 - **`MovePersistenceService.swift`** - Service layer for Core Data operations
@@ -87,6 +93,11 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **`VideoPlayerManager.swift`** - Player lifecycle management
 - **`MainVideoPlayerViewModel.swift`** - ViewModel for main video player
 - **`PreviewVideoPlayerViewModel.swift`** - ViewModel for preview players
+- **`UnifiedVideoPlayerViewModel.swift`** - Unified player logic for different contexts
+- **`AddMovePlayerManager.swift`** - Specialized player manager for Add Move workflow
+- **`VideoPlayerCacheManager.swift`** - Video asset caching and memory optimization
+- **`VideoRelinkManager.swift`** - Handles video asset re-linking when files are moved/renamed
+- **`VideoRelinkView.swift`** - UI for re-linking broken video assets
 
 ## Supporting Systems
 
@@ -97,13 +108,23 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 
 ### Logging & Debugging
 - **`AppLogger.swift`** - Centralized logging system with multiple loggers
+- **`EnhancedVideoLogger.swift`** - Specialized video operation logging with metadata
 - **`OSLog`** integration throughout for detailed debugging
+- **PlayerStateMonitor.swift** - Monitors and logs player state changes
 
 ### Photo Library Integration
 - **`PhotosPermissionManager.swift`** - Handles Photos permissions
 - **`AlbumSyncManager.swift`** - Syncs Core Data with Photos library
 - **`BreakDexAlbumManager.swift`** - Manages dedicated app album
 - **`VideoRelinkManager.swift`** - Handles broken video links
+
+### Manager Architecture
+- **`Managers/`** - Centralized service layer with specialized managers:
+  - **State Managers:** `AddMoveStateManager.swift`, `VideoStateManager.swift`
+  - **Video Managers:** `VideoPlayerManager.swift`, `VideoPlayerCacheManager.swift`, `AddMovePlayerManager.swift`, `VideoRelinkManager.swift`
+  - **Album Managers:** `BreakDexAlbumManager.swift`, `AlbumSyncManager.swift`, `PhotosPermissionManager.swift`
+  - **Processing Managers:** `MemoryManager.swift`, `VideoHealthMonitor.swift`, `ContinuationManager.swift`
+  - **Component Managers:** `UpdatedVideoCoordinator.swift`, `PlayerStateMonitor.swift`
 
 ### Design System
 - **`DesignSystem.swift`** - App-wide design tokens and styles
@@ -159,7 +180,8 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 BreakingFlashcards/
 ├── AppCore/
 │   ├── BreakingFlashcardsApp.swift
-│   └── MainView.swift
+│   ├── MainView.swift
+│   └── FeatureFlag.swift
 ├── Views/
 │   ├── Arsenal/
 │   │   ├── AddMove/          # Complete Add Move flow
@@ -168,10 +190,24 @@ BreakingFlashcards/
 │   └── Video/
 │       ├── Player/          # Video player components
 │       ├── Trim/            # Video trimming interface
+│       ├── Re-link/         # Video re-linking functionality
 │       └── Review/          # Review system
 ├── Video/
 │   └── Processing/          # Video processing pipeline
+│       ├── Components/      # Video processing components
+│       ├── VideoState.swift
+│       ├── VideoStateManager.swift
+│       └── VideoTransformBuilder.swift
 ├── Managers/                # Service layer managers
+│   ├── AddMoveStateManager.swift
+│   ├── VideoPlayerManager.swift
+│   ├── VideoPlayerCacheManager.swift
+│   ├── AddMovePlayerManager.swift
+│   ├── VideoRelinkManager.swift
+│   ├── BreakDexAlbumManager.swift
+│   ├── AlbumSyncManager.swift
+│   ├── PhotosPermissionManager.swift
+│   └── MemoryManager.swift
 ├── CoreData/               # Data models and persistence
 └── Utils/                   # Utility functions and extensions
 ```

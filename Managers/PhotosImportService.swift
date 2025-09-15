@@ -14,7 +14,7 @@ public protocol PhotosImportServiceProtocol {
 public class PhotosImportService: PhotosImportServiceProtocol {
     
     // MARK: - Properties
-    @Published public var importState: SelectionState = .idle
+    @Published public var importState: AddMoveImportState = .idle
     private var importTask: Task<Void, Never>?
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "PhotosImportService")
     

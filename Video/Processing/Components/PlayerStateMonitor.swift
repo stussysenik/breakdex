@@ -93,14 +93,18 @@ public class PlayerStateMonitor {
         
         // Monitor player status using KVO
         let playerStatusKVO = player.observe(\.status, options: [.initial, .new]) { [weak self] _, change in
-            self?.handlePlayerStatusChange(player.status, player: player, continuation: continuation)
+            Task { @MainActor [weak self] in
+                self?.handlePlayerStatusChange(player.status, player: player, continuation: continuation)
+            }
         }
         kvoObservers.append(playerStatusKVO)
         
         // Monitor current item status if available
         if let currentItem = player.currentItem {
             let itemStatusKVO = currentItem.observe(\.status, options: [.initial, .new]) { [weak self] _, change in
-                self?.handlePlayerItemStatusChange(currentItem.status, player: player, continuation: continuation)
+                Task { @MainActor [weak self] in
+                    self?.handlePlayerItemStatusChange(currentItem.status, player: player, continuation: continuation)
+                }
             }
             kvoObservers.append(itemStatusKVO)
         }
@@ -240,8 +244,14 @@ public class PlayerStateMonitor {
     }
     
     deinit {
-        Task { @MainActor in
-            stop()
-        }
+        // Clean up synchronously to avoid retain cycles
+        kvoObservers.removeAll()
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        currentPlayer = nil
+        // Note: continuationManager.cancel() cannot be called from deinit due to actor isolation
+        // The continuation manager will be cleaned up when it's released
     }
 }

@@ -12,7 +12,7 @@ public enum TrimmerHandleType {
 @MainActor
 public final class TrimmerViewModel {
     // MARK: - Core Properties
-    let player: AVPlayer
+    let playerViewModel: VideoPlayerViewModelProtocol
     public let asset: AVAsset
     public let photosIdentifier: String?
 
@@ -32,14 +32,12 @@ public final class TrimmerViewModel {
     // MARK: - Coalescing and Chasing Seek State
     private var displayLink: CADisplayLink?
     private var pendingPreviewTime: CMTime?
-    private var isSeekInProgress = false
-    private var chaseTime: CMTime = .zero
 
     // MARK: - Initialization & Deinitialization
-    public init(asset: AVAsset, photosIdentifier: String? = nil, rotationQuarterTurns: Int = 0) {
+    public init(asset: AVAsset, photosIdentifier: String? = nil, rotationQuarterTurns: Int = 0, playerViewModel: VideoPlayerViewModelProtocol) {
         self.asset = asset
         self.photosIdentifier = photosIdentifier
-        self.player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+        self.playerViewModel = playerViewModel
         self.rotationQuarterTurns = rotationQuarterTurns
         Task {
             do {
@@ -72,7 +70,7 @@ public final class TrimmerViewModel {
 
     // MARK: - Coalescing Timer Control
     public func startCoalescing() {
-        player.pause()
+        playerViewModel.pauseForTrimming()
         guard displayLink == nil else { return }
         displayLink = CADisplayLink(target: self, selector: #selector(tick))
         displayLink?.add(to: .main, forMode: .common)
@@ -86,7 +84,7 @@ public final class TrimmerViewModel {
     @objc private func tick() {
         guard let time = pendingPreviewTime else { return }
         pendingPreviewTime = nil
-        seekTo(time)
+        playerViewModel.seek(to: time)
     }
 
     // MARK: - Time Proposal and Committing
@@ -149,36 +147,6 @@ public final class TrimmerViewModel {
         return validatedTime
     }
 
-    // MARK: - Chasing Seek Implementation
-    private func seekTo(_ newTime: CMTime) {
-        if newTime != chaseTime {
-            chaseTime = newTime
-            if !isSeekInProgress {
-                trySeekToChaseTime()
-            }
-        }
-    }
-
-    private func trySeekToChaseTime() {
-        guard player.currentItem?.status == .readyToPlay else { return }
-        actuallySeekToTime()
-    }
-
-    private func actuallySeekToTime() {
-        isSeekInProgress = true
-        let seekTimeInProgress = chaseTime
-        player.seek(to: seekTimeInProgress, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            Task { @MainActor in
-                guard let self = self else { return }
-                if seekTimeInProgress == self.chaseTime {
-                    self.isSeekInProgress = false
-                } else {
-                    self.trySeekToChaseTime()
-                }
-            }
-        }
-    }
-
     // MARK: - Validation Methods
     public func validateTrimRanges() -> Bool {
         return startTime >= .zero && endTime <= videoDuration && startTime < endTime
@@ -213,7 +181,7 @@ public final class TrimmerViewModel {
     }
 
     public func requestSeek(to time: CMTime) {
-        seekTo(time)
+        playerViewModel.seek(to: time)
     }
 
     // MARK: - Haptic Feedback

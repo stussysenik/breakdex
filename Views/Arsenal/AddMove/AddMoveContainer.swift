@@ -17,8 +17,6 @@ struct AddMoveContainer: View {
     @State private var viewModel: AddMoveViewModel
     @Binding var selectedTab: TabSelection
     
-    // VideoPlayerManager that persists across view transitions
-    @StateObject private var videoPlayerManager = VideoPlayerManager()
     
     // Static tracking for debugging
     private static var lastState: AddMoveState?
@@ -50,7 +48,6 @@ struct AddMoveContainer: View {
         Group {
             if isValidContainerState() {
                 mainContent
-                    .environmentObject(videoPlayerManager)
                     .onAppear {
                         // Only log once when view first appears
                         if Self.viewEvaluationCount == 0 {
@@ -68,7 +65,7 @@ struct AddMoveContainer: View {
                             switch viewModel.state {
                             case .success, .error:
                                 logger.info("🎬 CONTAINER: Workflow completed, tearing down video player")
-                                videoPlayerManager.teardownPlayer()
+                                // VideoPlayerManager removed - unified player handles cleanup
                             default:
                                 break
                             }
@@ -104,71 +101,113 @@ struct AddMoveContainer: View {
         Self.viewEvaluationCount += 1
     }
     
-    private var mainContent: some View {
+    private var mainContent: AnyView {
         // Update state tracking before building the view
         updateViewStateTracking()
         
-        return AnyView(Group {
-            switch viewModel.state {
-            case .ready:
-                AddMoveSelectClipView(viewModel: viewModel)
-            case .loading:
-                AddMoveSelectClipView(viewModel: viewModel)
-            case .initializing(_, let status):
-                VStack {
-                    Spacer()
-                    ProgressView("Initializing...")
-                        .progressViewStyle(.circular)
-                    Text(status)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    Spacer()
+        let content: AnyView
+        if case .ready = viewModel.state {
+            content = AnyView(AddMoveSelectClipView(viewModel: viewModel))
+        } else if case .loaded(let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
+            // Use PreTrimContainer with progress loading
+            content = AnyView(PreTrimContainerView(
+                phAsset: PHAsset.fetchAssets(withLocalIdentifiers: [photosIdentifier ?? ""], options: nil).firstObject ?? PHAsset(),
+                rotationQuarterTurns: rotationQuarterTurns,
+                appContainer: AppContainer.shared,
+                onLoadingComplete: { playerItem in
+                    // Handle loading completion if needed
+                    logger.info("🎬 CONTAINER: Video loading completed successfully")
+                },
+                onError: { message, error in
+                    viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
                 }
-                .background(Color.black.ignoresSafeArea())
-            case .loaded(_, _, _):
-                VStack {
-                    Spacer()
-                    ProgressView("Preparing video preview...")
-                        .progressViewStyle(.circular)
-                    Text("Video loaded successfully")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    Spacer()
-                }
-                .background(Color.black.ignoresSafeArea())
-            case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns):
-                PreTrimView(
-                    viewModel: viewModel,
-                    playerViewModel: playerViewModel,
-                    asset: asset,
-                    photosIdentifier: photosIdentifier,
-                    rotationQuarterTurns: rotationQuarterTurns,
-                    selectedTab: $selectedTab
-                )
-            case .selectingVideo:
-                VideoPickerWrapper(viewModel: viewModel)
-            case .trimming(let asset, _, let rotationQuarterTurns):
-                TrimmerViewWrapper(
-                    viewModel: viewModel,
-                    asset: asset,
-                    rotationQuarterTurns: rotationQuarterTurns,
-                    onError: { message, error in
-                        viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
-                    },
-                    onRotate: { newRotation in
-                        viewModel.setTrimmingState(asset: asset, rotationQuarterTurns: newRotation)
-                    }
-                )
-            case .naming:
-                NameMoveView(viewModel: viewModel)
-            case .saving:
-                Text("Saving Move...")
-            case .error(let message, let underlyingError):
-                AddMoveErrorView(viewModel: viewModel, message: message, underlyingError: underlyingError as? Error, selectedTab: $selectedTab)
-            case .success(let message):
-                MoveAddedSuccessView(viewModel: viewModel, message: message, selectedTab: $selectedTab)
+            ))
+        } else if case .selectingVideo(_) = viewModel.state {
+            content = AnyView(VStack {
+                Spacer()
+                Text("Choose from your photo library")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
             }
-        })
+                .background(Color.black.ignoresSafeArea()))
+        } else if case .loading(let progress, let status) = viewModel.state {
+            content = AnyView(VStack {
+                Spacer()
+                ProgressView(status)
+                    .progressViewStyle(.circular)
+                Text("\(Int(progress * 100))%")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
+            }
+                .background(Color.black.ignoresSafeArea()))
+        } else if case .initializing(_, let status) = viewModel.state {
+            content = AnyView(VStack {
+                Spacer()
+                ProgressView("Initializing...")
+                    .progressViewStyle(.circular)
+                Text(status)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
+            }
+                .background(Color.black.ignoresSafeArea()))
+        } else if case .previewing(let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
+            // Use PreTrimContainer with progress loading for previewing as well
+            content = AnyView(PreTrimContainerView(
+                phAsset: PHAsset.fetchAssets(withLocalIdentifiers: [photosIdentifier ?? ""], options: nil).firstObject ?? PHAsset(),
+                rotationQuarterTurns: rotationQuarterTurns,
+                appContainer: AppContainer.shared,
+                onLoadingComplete: { playerItem in
+                    logger.info("🎬 CONTAINER: Preview video loading completed successfully")
+                },
+                onError: { message, error in
+                    viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
+                }
+            ))
+        } else if case .trimming(let asset, _, let rotationQuarterTurns) = viewModel.state {
+            content = AnyView(TrimmerViewWrapper(
+                viewModel: viewModel,
+                asset: asset,
+                rotationQuarterTurns: rotationQuarterTurns,
+                onError: { message, error in
+                    viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
+                },
+                onRotate: { newRotation in
+                    viewModel.setTrimmingState(asset: asset, rotationQuarterTurns: newRotation)
+                }
+            ))
+        } else if case .naming = viewModel.state {
+            content = AnyView(NameMoveView(viewModel: viewModel))
+        } else if case .saving = viewModel.state {
+            content = AnyView(Text("Saving Move..."))
+        } else if case .error(let message, let underlyingError) = viewModel.state {
+            content = AnyView(AddMoveErrorView(viewModel: viewModel, message: message, underlyingError: underlyingError as? Error, selectedTab: $selectedTab))
+        } else if case .success(let message) = viewModel.state {
+            content = AnyView(VStack {
+                Spacer()
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.green)
+                Text(message)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                Button("Done") {
+                    viewModel.reset()
+                }
+                .buttonStyle(.appPrimary(size: .medium))
+                .padding(.top)
+                Spacer()
+            }
+                .background(Color.black.ignoresSafeArea()))
+        } else {
+            content = AnyView(EmptyView())
+        }
+        
+        return content
     }
     
     // MARK: - Helper Methods
@@ -346,6 +385,7 @@ struct VideoPickerWrapper: View {
             PhotosPicker(
                 selection: $viewModel.selectedItem,
                 matching: .videos,
+                preferredItemEncoding: .current,
                 photoLibrary: .shared()
             ) {
                 Text("Select Video")
@@ -390,6 +430,7 @@ struct TrimmerViewWrapper: View {
     @Bindable var viewModel: AddMoveViewModel
     
     @State private var trimmerViewModel: TrimmerViewModel
+    @State private var playerViewModel: UnifiedVideoPlayerViewModel
     
     let asset: AVAsset
     let rotationQuarterTurns: Int
@@ -407,7 +448,9 @@ struct TrimmerViewWrapper: View {
         self.onError = onError
         self.onRotate = onRotate
         
-        _trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, photosIdentifier: nil))
+        let playerVM = UnifiedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: rotationQuarterTurns, mode: .preview, appContainer: AppContainer.shared)
+        self._playerViewModel = State(initialValue: playerVM)
+        self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, photosIdentifier: nil, rotationQuarterTurns: rotationQuarterTurns, playerViewModel: playerVM))
     }
     
     var body: some View {
@@ -421,7 +464,8 @@ struct TrimmerViewWrapper: View {
         return FeatureRichTrimmerView(
             viewModel: viewModel,
             asset: asset,
-            rotation: rotationQuarterTurns
+            rotation: rotationQuarterTurns,
+            playerViewModel: playerViewModel
         )
         .onAppear {
             let appearTimestamp = Date().timeIntervalSince1970
@@ -487,7 +531,7 @@ private func getStateDescription(_ state: AddMoveState) -> String {
         return "loading(\(progress), \(status))"
     case .loaded(_, let id, let rotation):
         return "loaded(id: \(id ?? "nil"), rotation: \(rotation)°)"
-    case .previewing(_, _, let id, let rotation):
+    case .previewing(_, let id, let rotation):
         return "previewing(id: \(id ?? "nil"), rotation: \(rotation)°)"
     case .selectingVideo(let asset):
         return "selectingVideo(asset: \(asset != nil ? "exists" : "nil"))"

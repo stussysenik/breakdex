@@ -1,6 +1,14 @@
 import SwiftUI
 import AVKit
 import Combine
+import CoreData
+
+/// Defines a generic video source for the player
+public enum VideoSource {
+    case photos(identifier: String)
+    case url(URL)
+    case move(Move)
+}
 
 // MARK: - Video Player View Model Protocol
 @MainActor
@@ -18,15 +26,14 @@ public protocol VideoPlayerViewModelProtocol: ObservableObject, Equatable, Hasha
     var isPlayerReady: Bool { get }
     
     // MARK: - Public Methods
-    func loadVideo(fromPhotosIdentifier identifier: String, quarterTurns: Int)
-    func loadVideo(fromURL url: URL, quarterTurns: Int)
-    func loadVideo(fromMove move: Move, quarterTurns: Int)
+    func loadVideo(from source: VideoSource, quarterTurns: Int)
     func setRotation(_ quarterTurns: Int)
     func startPlayback()
     func teardown()
     func pauseForTrimming()
     func resumeAfterTrimming()
     func waitForReady() async throws
+    func seek(to time: CMTime)
 }
 
 // MARK: - Default Implementation for Equatable and Hashable
