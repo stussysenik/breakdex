@@ -155,7 +155,7 @@ struct AddMoveSelectClipView: View {
                     Spacer()
                 }
                 .background(Color.black.ignoresSafeArea())
-            case .previewing(_, _, _):
+            case .previewing(_, _, _, _):
                 EmptyView() // Let AddMoveContainer handle the PreTrimView
             case .saving:
                 VStack {

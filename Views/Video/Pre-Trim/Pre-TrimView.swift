@@ -9,7 +9,7 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreT
 
 struct PreTrimView: View {
     var viewModel: AddMoveViewModel
-    @StateObject private var playerViewModel: UnifiedVideoPlayerViewModel
+    @ObservedObject private var playerViewModel: UnifiedVideoPlayerViewModel
     let asset: AVAsset
     let photosIdentifier: String?
     let rotationQuarterTurns: Int
@@ -23,18 +23,15 @@ struct PreTrimView: View {
     private let viewId = UUID()
     private let constructionTime = Date().timeIntervalSince1970
     
-    init(viewModel: AddMoveViewModel, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int, selectedTab: Binding<TabSelection>) {
+    init(viewModel: AddMoveViewModel, playerViewModel: UnifiedVideoPlayerViewModel, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int, selectedTab: Binding<TabSelection>) {
         self.viewModel = viewModel
-        self._playerViewModel = StateObject(wrappedValue: UnifiedVideoPlayerViewModel(
-            asset: asset,
-            rotationQuarterTurns: rotationQuarterTurns,
-            mode: .preview,
-            appContainer: AppContainer.shared
-        ))
+        self.playerViewModel = playerViewModel // Assign the received ViewModel
         self.asset = asset
         self.photosIdentifier = photosIdentifier
         self.rotationQuarterTurns = rotationQuarterTurns
         self._selectedTab = selectedTab
+        
+        // Log initialization in onAppear to avoid capturing self during init
     }
     
     // Haptic feedback generator
@@ -62,6 +59,7 @@ struct PreTrimView: View {
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Asset: \(asset.description.prefix(50))...")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Rotation: \(rotationQuarterTurns)")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Photos ID: \(photosIdentifier ?? "nil")")
+                logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: PlayerViewModel state: \(String(describing: playerViewModel.state))")
                 
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: View appeared - loading video with unified player")
                 logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Construction to appear: \(String(format: "%.3f", appearTimestamp - constructionTime))s")
@@ -137,7 +135,7 @@ struct PreTrimView: View {
     }
     
     private func renderVideoPlayerSection() -> some View {
-        logger.info("🎬 PRE_TRIM_VIEW: Rendering video player section with unified player.")
+        logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Rendering video player section (state: \(String(describing: playerViewModel.state)), playerExists: \(playerViewModel.avPlayer != nil), itemExists: \(playerViewModel.playerItem != nil), isReady: \(playerViewModel.isPlayerReady), health: \(String(describing: playerViewModel.healthStatus)))")
         
         // Use the unified video player with the view model
         return CustomVideoPlayerView(viewModel: playerViewModel)

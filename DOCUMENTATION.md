@@ -297,3 +297,40 @@ Complete Video Loading Flow
   - No hanging: Timeout mechanism prevents infinite waiting
 
   This flow ensures robust video loading with proper validation, timeout protection, and clear user feedback at each step.
+
+  ### EXTRA
+    Core Real-Time Files:
+
+  Video Health Monitoring:
+  - Video/Processing/VideoHealthMonitor.swift - 2-second interval health monitoring
+
+  Memory Management:
+  - Video/Processing/MemoryManager.swift - 5-second interval memory monitoring
+  - Utils/MemoryMonitor.swift - Memory pressure utilities
+
+  Player State Monitoring:
+  - Video/Processing/Components/PlayerStateMonitor.swift - AVPlayer status monitoring
+  - Video/Processing/Components/PlayerItemStatusMonitor.swift - AVPlayerItem status tracking
+  - Video/Processing/Components/ReadinessMonitor.swift - Player readiness with timeouts
+
+  Video Loading:
+  - Video/Processing/VideoLoadingService.swift - 30 Hz progress updates for iCloud downloads
+  - Views/Video/Player/UnifiedVideoPlayerViewModel.swift - Real-time player state management
+
+  Data Synchronization:
+  - Managers/Album/AlbumSyncManager.swift - 5-minute periodic sync timer
+
+  Performance & Caching:
+  - Managers/VideoPlayerCacheManager.swift - Real-time LRU cache management
+  - Managers/SeekScheduler.swift - Seek latency monitoring
+
+  Async Operations:
+  - Video/Processing/Components/ContinuationManager.swift - Task continuation management
+
+  State Management:
+  - Managers/AddMoveStateManager.swift - Real-time state transitions
+  - Managers/VideoStateManager.swift - Video state synchronization
+
+  Video Processing:
+  - Video/Processing/Components/UpdatedVideoCoordinator.swift - Processing coordination
+  - Video/Processing/Components/UpdatedVideoAssetLoader.swift - Asset loading management

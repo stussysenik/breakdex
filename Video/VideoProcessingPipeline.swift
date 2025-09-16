@@ -141,7 +141,11 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
                 // Wait for completion and get the final asset
                 var finalAsset: AVAsset?
                 for try await event in progressStream {
-                    if event.fraction >= 1.0, let asset = event.asset {
+                    switch event {
+                    case .progress(let fraction, _):
+                        // Continue processing
+                        continue
+                    case .success(let asset):
                         finalAsset = asset
                         break
                     }

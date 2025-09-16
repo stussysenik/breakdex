@@ -53,8 +53,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         // Create player view model
         logger.info("🎬 VIDEO_PREPARER: Creating UnifiedVideoPlayerViewModel synchronously")
         let playerViewModel = UnifiedVideoPlayerViewModel(
-            asset: loaderResult.asset,
-            rotationQuarterTurns: 0,
+            player: AVPlayer(playerItem: AVPlayerItem(asset: loaderResult.asset)),
             mode: .main,
             appContainer: AppContainer.shared
         )
@@ -95,8 +94,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         // Create player view model
         logger.info("🎬 VIDEO_PREPARER: Creating UnifiedVideoPlayerViewModel synchronously")
         let playerViewModel = UnifiedVideoPlayerViewModel(
-            asset: asset,
-            rotationQuarterTurns: 0,
+            player: AVPlayer(playerItem: AVPlayerItem(asset: asset)),
             mode: .main,
             appContainer: AppContainer.shared
         )

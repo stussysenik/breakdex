@@ -26,7 +26,7 @@ public final class AppContainer {
     
     // MARK: - Video Processing Services
     private(set) lazy var videoLoadingService: VideoLoadingService = {
-        return LiveVideoLoadingService()
+        return LiveVideoLoadingService(memoryManager: memoryManager, logger: logger)
     }()
     
     private(set) lazy var videoProcessor: VideoProcessor = {

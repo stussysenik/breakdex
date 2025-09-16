@@ -87,7 +87,6 @@ public struct CustomVideoPlayerView: View {
                         }
                         .task {
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: RenderStart: representable", metadata: nil)
-                            Self.playerViewInstanceCount += 1
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🔄 AVPlayerViewRepresentable task started (Instance #\(Self.playerViewInstanceCount), Recompute #\(Self.viewRecomputeCount))", metadata: nil)
                             logMemoryUsage(context: "playing_task_start")
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer status: \(player.status.rawValue)", metadata: nil)
@@ -170,7 +169,9 @@ public struct CustomVideoPlayerView: View {
         }
         .onAppear {
             Self.viewRecomputeCount += 1
+            Self.playerViewInstanceCount += 1
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View appeared (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: PlayerView instance count now: \(Self.playerViewInstanceCount)", metadata: nil)
             logMemoryUsage(context: "onAppear")
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel state: \(String(describing: observableWrapper.viewModel.state))", metadata: nil)
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Thread: \(Thread.current.isMainThread ? "Main" : "Background")", metadata: nil)

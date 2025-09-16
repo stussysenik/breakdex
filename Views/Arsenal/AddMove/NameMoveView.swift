@@ -20,7 +20,7 @@ struct NameMoveView: View {
                 // Video preview section
                 VStack(spacing: 16) {
                     if let asset = assetToPlay {
-                        CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: rotation, mode: .preview, appContainer: AppContainer.shared))
+                        CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .preview, appContainer: AppContainer.shared))
                             .frame(height: 300)
                             .cornerRadius(12)
                             .padding(.horizontal)

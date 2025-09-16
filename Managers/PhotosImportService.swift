@@ -3,6 +3,14 @@ import PhotosUI
 import OSLog
 import Foundation
 
+// MARK: - Import State Enum
+public enum AddMoveImportState {
+    case idle
+    case importing
+    case ready(URL)
+    case error(Error)
+}
+
 // MARK: - PhotosImportService Protocol
 public protocol PhotosImportServiceProtocol {
     func importVideo(from item: PhotosPickerItem) async throws -> URL

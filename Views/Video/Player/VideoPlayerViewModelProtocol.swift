@@ -26,7 +26,7 @@ public protocol VideoPlayerViewModelProtocol: ObservableObject, Equatable, Hasha
     var isPlayerReady: Bool { get }
     
     // MARK: - Public Methods
-    func loadVideo(from source: VideoSource, quarterTurns: Int)
+    func loadVideo(from source: VideoSource, quarterTurns: Int) async throws
     func setRotation(_ quarterTurns: Int)
     func startPlayback()
     func teardown()

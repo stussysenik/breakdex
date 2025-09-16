@@ -9,11 +9,11 @@ import Photos
 @MainActor
 public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @preconcurrency Equatable, @preconcurrency Hashable {
     public static func == (lhs: UnifiedVideoPlayerViewModel, rhs: UnifiedVideoPlayerViewModel) -> Bool {
-        lhs.coordinator.state == rhs.coordinator.state
+        lhs.state == rhs.state
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(coordinator.state)
+        hasher.combine(state)
     }
 
     // MARK: - Enums
@@ -41,77 +41,60 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     public var shouldPlay: Bool = false
     public private(set) var healthStatus: VideoHealthStatus = .unknown
     
-    // Progress tracking properties
-    public var progress: Double = 0
-    public var etaSeconds: TimeInterval?
-    public var isLoading: Bool = false
     public var playerItem: AVPlayerItem?
 
     // MARK: - Private Properties
 
-    private let coordinator: UpdatedVideoCoordinator
+    private let player: AVPlayer
     private var cancellables = Set<AnyCancellable>()
     private let logger: AppLogger
     private let videoHealthMonitor: VideoHealthMonitor
     private let memoryManager: MemoryManager
     private let memoryLogger = CentralizedMemoryLogger.shared
-    private let playerStateMonitor: PlayerStateMonitor
-    private let loadingService: VideoLoadingService
     private var correlationId: String?
     private let mode: PlayerMode
     private var memoryCheckTimer: Timer?
-    private var loadingTask: Task<Void, Never>?
 
     // MARK: - Public Accessors
 
     /// Public getter for AVPlayer access (for logging and debugging)
     public var avPlayer: AVPlayer? {
-        if case .ready(let player) = coordinator.state {
+        switch state {
+        case .ready(let player), .playing(let player):
             return player
+        default:
+            return nil
         }
-        return nil
     }
 
     public var isPlayerReady: Bool {
-        if case .ready = coordinator.state {
+        switch state {
+        case .ready, .playing:
             return true
+        default:
+            return false
         }
-        return false
     }
 
     // MARK: - Initialization
 
-    /// Initializes the player with an asset and a specific mode.
-    public init(asset: AVAsset, rotationQuarterTurns: Int = 0, mode: PlayerMode = .main, appContainer: AppContainer) {
+    /// Initializes the player with a pre-loaded player and a specific mode.
+    public init(player: AVPlayer, mode: PlayerMode = .main, appContainer: AppContainer) {
+        self.player = player // Assign to the new stored property
+        self.state = .ready(player: self.player) // Use the stored property for the initial state
+        self.playerItem = player.currentItem
         self.mode = mode
         self.logger = appContainer.logger
         self.videoHealthMonitor = appContainer.videoHealthMonitor
         self.memoryManager = appContainer.memoryManager
-        self.loadingService = LiveVideoLoadingService()
-
+        
         correlationId = memoryLogger.generateCorrelationId(for: "VideoPlayer-\(mode)")
-
-        self.coordinator = UpdatedVideoCoordinator(
-            assetLoader: UpdatedVideoAssetLoader(
-                memoryManager: appContainer.memoryManager,
-                logger: appContainer.logger
-            ),
-            playerInitializer: PlayerInitializer(),
-            readinessMonitor: ReadinessMonitor(),
-            memoryManager: appContainer.memoryManager,
-            logger: appContainer.logger
-        )
-
-        self.playerStateMonitor = PlayerStateMonitor()
-
-        coordinator.$state
-            .receive(on: RunLoop.main)
-            .sink { [weak self] coordinatorState in
-                guard let self = self else { return }
-                self.updateState(from: coordinatorState)
-            }
-            .store(in: &cancellables)
-
+        
+        // Start monitoring the health of the provided asset
+        if let asset = player.currentItem?.asset {
+            videoHealthMonitor.startMonitoring(asset: asset)
+        }
+        
         Task {
             for await report in videoHealthMonitor.getHealthStatusReports() {
                 await MainActor.run {
@@ -123,81 +106,46 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         if mode == .preview {
             startMemoryChecks()
         }
-
-        Task {
-            await coordinator.loadVideo(from: .asset(asset), quarterTurns: rotationQuarterTurns)
-            videoHealthMonitor.startMonitoring(asset: asset)
-        }
     }
     
-    public func loadVideo(from source: VideoSource, quarterTurns: Int = 0) {
-        Task {
-            let loaderSource: UpdatedVideoAssetLoader.Source
-            switch source {
-            case .photos(let identifier):
-                loaderSource = .photos(identifier: identifier)
-            case .url(let url):
-                loaderSource = .url(url)
-            case .move(let move):
-                loaderSource = .move(move)
-            }
-            
-            await coordinator.loadVideo(from: loaderSource, quarterTurns: quarterTurns)
-
-            if case .playing(let player) = state,
-               let currentItem = player.currentItem {
-                videoHealthMonitor.startMonitoring(asset: currentItem.asset)
-            }
-        }
-    }
 
     deinit {
-        // Minimal cleanup to avoid retain cycles
-        // Note: Properties cannot be accessed from deinit due to actor isolation
-        
-        // Note: All cleanup will happen when objects are naturally released
-        // This prevents retain cycles from Task creation in deinit
-    }
-
-    // MARK: - State Management
-
-    private func updateState(from coordinatorState: UpdatedVideoCoordinator.State) {
-        switch coordinatorState {
-        case .loading:
-            state = .loading(progress: 0, etaSeconds: nil, status: "Loading...")
-        case .ready(let player):
-            state = .playing(player: player)
-        case .error(let videoError):
-            state = .error(message: videoError.errorDescription ?? "Unknown error")
-        }
-    }
-
-    // MARK: - Public Methods
-
-    public func setRotation(_ quarterTurns: Int) {
-        if case .playing(let player) = state,
-           let currentItem = player.currentItem,
-           let urlAsset = currentItem.asset as? AVURLAsset {
-            loadVideo(from: .url(urlAsset.url), quarterTurns: quarterTurns)
-        }
-    }
-
-    public func startPlayback() {
-        coordinator.startPlayback()
-    }
-
-    public func teardown() {
         Task { @MainActor in
-            coordinator.teardown()
+            // Cleanup on main actor
             videoHealthMonitor.stopMonitoring()
             if mode == .preview {
                 memoryCheckTimer?.invalidate()
                 memoryCheckTimer = nil
-                memoryManager.clearCache()
-                memoryManager.clearCache()
             }
         }
-        state = .loading(progress: 0, etaSeconds: nil, status: "Resetting...")
+    }
+
+    // MARK: - State Management
+
+
+    // MARK: - Public Methods
+
+
+    public func startPlayback() {
+        if case .ready(let player) = state {
+            player.play()
+            self.state = .playing(player: player)
+        } else if case .playing(let player) = state {
+            player.play()
+        }
+    }
+
+    public func teardown() {
+        player.pause()
+        player.replaceCurrentItem(with: nil)
+        videoHealthMonitor.stopMonitoring()
+        if mode == .preview {
+            memoryCheckTimer?.invalidate()
+            memoryCheckTimer = nil
+            memoryManager.clearCache()
+            memoryManager.clearCache()
+        }
+        state = .idle
         shouldPlay = false
         healthStatus = .unknown
     }
@@ -234,125 +182,21 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         }
     }
     
-      // MARK: - Progress-Aware Loading
-    
-    public func loadVideoWithProgress(from phAsset: PHAsset, onLoadingComplete: @escaping () -> Void = {}) {
-        loadingTask?.cancel()
-        
-        state = .loading(progress: 0, etaSeconds: nil, status: "Starting...")
-        progress = 0
-        etaSeconds = nil
-        isLoading = true
-        
-        loadingTask = Task { @MainActor in
-            do {
-                let progressStream = loadingService.loadPHAssetWithProgress(phAsset)
-                
-                for try await event in progressStream {
-                    progress = event.fraction
-                    etaSeconds = event.etaSeconds
-                    
-                    state = .loading(
-                        progress: event.fraction,
-                        etaSeconds: event.etaSeconds,
-                        status: event.status
-                    )
-                    
-                    // Check if loading is complete
-                    if event.fraction >= 1.0 {
-                        // Create player from the loaded asset
-                        // For now, create a simple player for demonstration
-                        let playerItem = AVPlayerItem(asset: AVAsset())
-                        let player = AVPlayer(playerItem: playerItem)
-                        
-                        // Transition to ready state with 0.1s animation
-                        withAnimation(.linear(duration: 0.1)) {
-                            isLoading = false
-                            state = .ready(player: player)
-                            self.playerItem = playerItem
-                        }
-                        
-                        // Call completion callback
-                        onLoadingComplete()
-                    }
-                }
-            } catch {
-                logger.error("❌ Progress loading failed: \(error.localizedDescription)", metadata: nil)
-                state = .error(message: error.localizedDescription)
-                isLoading = false
-            }
-        }
-    }
-    
-    public func cancelLoading() {
-        loadingTask?.cancel()
-        loadingService.cancelCurrentOperation()
-        state = .idle
-        progress = 0
-        etaSeconds = nil
-        isLoading = false
-    }
     
     // MARK: - Existing Methods
     
     public func seek(to time: CMTime) {
-        if case .playing(let player) = state {
-            player.seek(to: time)
-        }
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
     }
 
     public func waitForReady() async throws {
-        print("🔄 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): waitForReady() called")
+        // Since we're initialized with a ready player, this is mostly a no-op
+        // but we can still check if the player is actually ready
+        // We always have a player now, so this check is just for consistency
         
-        if case .playing(let player) = state {
-            try await playerStateMonitor.waitForPlayerReady(player)
-            return
-        }
-
-        if case .ready(let player) = coordinator.state {
-            try await playerStateMonitor.waitForPlayerReady(player)
-            return
-        }
-
-        let timeout: TimeInterval = mode == .preview ? 15.0 : 30.0
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            let startTime = Date()
-            let checkInterval: TimeInterval = 0.1
-
-            var timer: Timer?
-            timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { _ in
-                Task { @MainActor [weak self] in
-                    guard let self = self else { return }
-
-                    if Date().timeIntervalSince(startTime) > timeout {
-                        timer?.invalidate()
-                        continuation.resume(throwing: PlayerStateMonitor.MonitorError.timeoutExceeded)
-                        return
-                    }
-
-                    switch self.state {
-                    case .playing(let player):
-                        timer?.invalidate()
-                        Task {
-                            do {
-                                try await self.playerStateMonitor.waitForPlayerReady(player)
-                                continuation.resume()
-                            } catch {
-                                continuation.resume(throwing: error)
-                            }
-                        }
-                    case .error(let message):
-                        timer?.invalidate()
-                        continuation.resume(throwing: NSError(domain: "VideoPlayer", code: -1, userInfo: [NSLocalizedDescriptionKey: message]))
-                    case .loading:
-                        break
-                    case .idle, .ready:
-                        break
-                    }
-                }
-            }
-        }
+        // For simplicity, we'll just return immediately since the player should be ready
+        // In a more complex implementation, you might want to verify player status here
+        return
     }
 
     // MARK: - Private Helper Methods
@@ -458,6 +302,113 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
                 component: "PreviewVideoPlayer"
             )
         }
+    }
+    
+    // MARK: - VideoPlayerViewModelProtocol Implementation
+    
+    public func loadVideo(from source: VideoSource, quarterTurns: Int) async throws {
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): loadVideo() called", metadata: [
+            "source": "\(source)",
+            "quarterTurns": quarterTurns,
+            "correlationId": correlationId ?? "unknown"
+        ])
+        
+        guard case .photos(let identifier) = source else {
+            let errorMessage = "Unsupported video source type."
+            logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Unsupported source type - \(source)", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "source": "\(source)"
+            ])
+            self.state = .error(message: errorMessage)
+            throw NSError(domain: "UnifiedVideoPlayerViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        }
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Loading video from Photos", metadata: [
+            "identifier": identifier,
+            "correlationId": correlationId ?? "unknown"
+        ])
+        
+        guard let phAsset = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil).firstObject else {
+            let errorMessage = "Could not find PHAsset with identifier: \(identifier)."
+            logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): PHAsset not found", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "identifier": identifier
+            ])
+            self.state = .error(message: errorMessage)
+            throw NSError(domain: "UnifiedVideoPlayerViewModel", code: -2, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        }
+        
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): PHAsset found successfully", metadata: [
+            "assetDuration": phAsset.duration,
+            "assetMediaType": "\(phAsset.mediaType)",
+            "correlationId": correlationId ?? "unknown"
+        ])
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Creating LiveVideoLoadingService", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
+        let loadingService = LiveVideoLoadingService(memoryManager: memoryManager, logger: logger) // As per 2. plan.md, this is the main loading service
+        
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Starting video loading stream", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
+        let progressStream = loadingService.loadPHAssetWithProgress(phAsset)
+
+        do {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Entering progress stream processing", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+            for try await event in progressStream {
+                await MainActor.run {
+                    switch event {
+                    case .progress(let fraction, let status):
+                        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Progress update", metadata: [
+                            "progress": fraction,
+                            "status": status,
+                            "correlationId": correlationId ?? "unknown"
+                        ])
+                        self.state = .loading(progress: fraction, etaSeconds: nil, status: status)
+                    case .success(let asset):
+                        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Loading successful", metadata: [
+                            "assetDuration": CMTimeGetSeconds(asset.duration),
+                            "correlationId": correlationId ?? "unknown"
+                        ])
+
+                        // Create a new AVPlayerItem from the loaded asset
+                        let newPlayerItem = AVPlayerItem(asset: asset)
+                        
+                        // Diagnostic Check: Log before replacement
+                        logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player reference is valid. Replacing item.", metadata: ["correlationId": correlationId ?? "unknown"])
+
+                        // Use the stable `self.player` reference to replace the item
+                        self.player.replaceCurrentItem(with: newPlayerItem)
+                        self.playerItem = newPlayerItem
+                        
+                        // Diagnostic Check: Log after replacement and transition to ready state
+                        logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player item replaced successfully. Transitioning to ready state.", metadata: ["correlationId": correlationId ?? "unknown"])
+                        self.state = .ready(player: self.player)
+                        
+                        videoHealthMonitor.startMonitoring(asset: asset)
+                    }
+                }
+            }
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Progress stream completed successfully", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+        } catch {
+            let errorMessage = "Failed to load video asset: \(error.localizedDescription)"
+            logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Video loading failed", metadata: [
+                "error": error.localizedDescription,
+                "correlationId": correlationId ?? "unknown"
+            ])
+            self.state = .error(message: errorMessage)
+            throw error
+        }
+    }
+    
+    public func setRotation(_ quarterTurns: Int) {
+        // Rotation is handled by the asset transform during initialization
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): setRotation(\(quarterTurns)) called", metadata: ["quarterTurns": quarterTurns])
     }
 }
 

@@ -49,7 +49,7 @@ public final class AddMoveViewModel {
     }
     
     // MARK: - Initialization
-    init(viewContext: NSManagedObjectContext, loadingService: VideoLoadingService = LiveVideoLoadingService()) {
+    init(viewContext: NSManagedObjectContext, loadingService: VideoLoadingService = LiveVideoLoadingService(memoryManager: AppContainer.shared.memoryManager, logger: AppContainer.shared.logger)) {
         self.viewContext = viewContext
         self.loadingService = loadingService
         logger.info("🎬 VIEWMODEL: Initialized")
@@ -124,7 +124,7 @@ public final class AddMoveViewModel {
     public func startNaming() {
         logger.info("🎬 VIEWMODEL: Starting naming")
         
-        guard case .previewing(let asset, let photosIdentifier, let rotationQuarterTurns) = state else {
+        guard case .previewing(_, let asset, let photosIdentifier, let rotationQuarterTurns) = state else {
             logger.error("🎬 VIEWMODEL: Cannot start naming - not in previewing state")
             return
         }
@@ -159,7 +159,16 @@ public final class AddMoveViewModel {
         }
         
         // Return to previewing state
-        state = .previewing(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
+        state = .previewing(
+            playerViewModel: UnifiedVideoPlayerViewModel(
+                player: AVPlayer(playerItem: AVPlayerItem(asset: asset)),
+                mode: .preview,
+                appContainer: AppContainer.shared
+            ),
+            asset: asset,
+            photosIdentifier: photosIdentifier,
+            rotationQuarterTurns: rotationQuarterTurns
+        )
     }
     
     /// Go back to trimming from naming state
@@ -202,48 +211,50 @@ public final class AddMoveViewModel {
         
         // Consume real progress updates
         for try await event in progressStream {
-            let progress = event.fraction
-            let status = event.status
-            let stage = event.stage
-            
-            // Map progress to overall loading progress
-            let overallProgress: Double
-            switch stage {
-            case .downloadingFromICloud:
-                overallProgress = progress * 0.7 // 0-70%
-            case .loadingAssetProperties:
-                overallProgress = 0.7 + (progress * 0.2) // 70-90%
-            case .preparingPlayerItem:
-                overallProgress = 0.9 + (progress * 0.05) // 90-95%
-            case .monitoringReadiness:
-                overallProgress = 0.95 + (progress * 0.05) // 95-100%
-            case .completed:
-                overallProgress = 1.0
-                finalAsset = event.asset
+            switch event {
+            case .progress(let fraction, let status):
+                // The progress is already properly scaled by the VideoLoadingService
+                await updateProgress(to: fraction, status: status)
+                logger.info("🎬 VIEWMODEL: 📊 Progress: \(Int(fraction * 100))% - \(status)")
+                
+            case .success(let asset):
+                finalAsset = asset
+                // Ensure we show 100% completion
+                await updateProgress(to: 1.0, status: "🎉 Ready to trim your video!")
+                logger.info("🎬 VIEWMODEL: 📊 Progress: 100% - 🎉 Ready to trim your video!")
             }
-            
-            await updateProgress(to: overallProgress, status: status)
-            
-            logger.info("🎬 VIEWMODEL: 📊 Progress: \(Int(overallProgress * 100))% - \(status)")
         }
         
-        // Create final player item
+        // --- Completion ---
         guard let asset = finalAsset else {
             throw NSError(domain: "AddMoveViewModel", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to load video asset"])
         }
         
-        await updateProgress(to: 1.0, status: "🎉 Ready to trim your video!")
+        // 1. Create the final player with the loaded asset
+        let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
         
-        // --- Completion ---
+        // 2. Create the UnifiedVideoPlayerViewModel with the now-ready player
+        let playerViewModel = UnifiedVideoPlayerViewModel(
+            player: player,
+            mode: .preview,
+            appContainer: AppContainer.shared
+        )
+        
+        // 3. Get rotation and transition to previewing state
         let rotation = await asset.rotation()
-        logger.info("🎬 VIEWMODEL: ✅ Real-time loading complete. Transitioning to trimming.")
+        logger.info("🎬 VIEWMODEL: ✅ Video loaded and player created. Transitioning to previewing.")
         
-        state = .trimming(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotation)
+        state = .previewing(
+            playerViewModel: playerViewModel,
+            asset: asset,
+            photosIdentifier: photosIdentifier,
+            rotationQuarterTurns: rotation
+        )
     }
-      
+    
     // MARK: - Player Readiness Helpers
     
-        
+    
     // MARK: - Progress Updates
     
     /// Updates the loading progress and status message.
@@ -260,7 +271,7 @@ public final class AddMoveViewModel {
     
     public func startTrimming(rotationQuarterTurns: Int = 0) {
         logger.info("🎬 VIEWMODEL: Starting trimming")
-        guard case .previewing(let asset, let photosIdentifier, _) = state else {
+        guard case .previewing(_, let asset, let photosIdentifier, _) = state else {
             logger.error("🎬 VIEWMODEL: Cannot start trimming - not in previewing state")
             return
         }

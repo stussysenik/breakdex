@@ -108,21 +108,7 @@ struct AddMoveContainer: View {
         let content: AnyView
         if case .ready = viewModel.state {
             content = AnyView(AddMoveSelectClipView(viewModel: viewModel))
-        } else if case .loaded(let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
-            // Use PreTrimContainer with progress loading
-            content = AnyView(PreTrimContainerView(
-                phAsset: PHAsset.fetchAssets(withLocalIdentifiers: [photosIdentifier ?? ""], options: nil).firstObject ?? PHAsset(),
-                rotationQuarterTurns: rotationQuarterTurns,
-                appContainer: AppContainer.shared,
-                onLoadingComplete: { playerItem in
-                    // Handle loading completion if needed
-                    logger.info("🎬 CONTAINER: Video loading completed successfully")
-                },
-                onError: { message, error in
-                    viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
-                }
-            ))
-        } else if case .selectingVideo(_) = viewModel.state {
+            } else if case .selectingVideo(_) = viewModel.state {
             content = AnyView(VStack {
                 Spacer()
                 Text("Choose from your photo library")
@@ -153,18 +139,15 @@ struct AddMoveContainer: View {
                 Spacer()
             }
                 .background(Color.black.ignoresSafeArea()))
-        } else if case .previewing(let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
-            // Use PreTrimContainer with progress loading for previewing as well
-            content = AnyView(PreTrimContainerView(
-                phAsset: PHAsset.fetchAssets(withLocalIdentifiers: [photosIdentifier ?? ""], options: nil).firstObject ?? PHAsset(),
+        } else if case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
+            // Direct routing to PreTrimView with prepared playerViewModel
+            content = AnyView(PreTrimView(
+                viewModel: viewModel,
+                playerViewModel: playerViewModel,
+                asset: asset,
+                photosIdentifier: photosIdentifier,
                 rotationQuarterTurns: rotationQuarterTurns,
-                appContainer: AppContainer.shared,
-                onLoadingComplete: { playerItem in
-                    logger.info("🎬 CONTAINER: Preview video loading completed successfully")
-                },
-                onError: { message, error in
-                    viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
-                }
+                selectedTab: $selectedTab
             ))
         } else if case .trimming(let asset, _, let rotationQuarterTurns) = viewModel.state {
             content = AnyView(TrimmerViewWrapper(
@@ -241,9 +224,9 @@ struct AddMoveContainer: View {
                 return false
             }
         case .loading:
-            // From loading, can go to previewing, initializing, loaded, error, or stay in loading (progress updates)
+            // From loading, can go to previewing, initializing, error, or stay in loading (progress updates)
             switch newState {
-            case .previewing, .initializing, .loaded, .error:
+            case .previewing, .initializing, .error:
                 return true
             case .loading:
                 // Allow loading -> loading transitions for progress updates
@@ -252,20 +235,12 @@ struct AddMoveContainer: View {
                 return false
             }
         case .initializing:
-            // From initializing, can go to loaded, previewing, or error
+            // From initializing, can go to previewing or error
             switch newState {
             case .previewing:
                 // Allow direct transition from initializing to previewing
                 return true
-            case .loaded, .error:
-                return true
-            default:
-                return false
-            }
-        case .loaded:
-            // From loaded, can go to previewing or error
-            switch newState {
-            case .previewing, .error:
+            case .error:
                 return true
             default:
                 return false
@@ -326,6 +301,14 @@ struct AddMoveContainer: View {
             default:
                 return false
             }
+        case .loaded:
+            // From loaded, can go to previewing or error
+            switch newState {
+            case .previewing, .error:
+                return true
+            default:
+                return false
+            }
         }
     }
     
@@ -336,13 +319,7 @@ struct AddMoveContainer: View {
         return false
     }
     
-    private func isLoadedState(_ state: AddMoveState) -> Bool {
-        if case .loaded = state {
-            return true
-        }
-        return false
-    }
-    
+      
     private func renderContainerFallbackUI() -> some View {
         VStack {
             Spacer()
@@ -448,7 +425,7 @@ struct TrimmerViewWrapper: View {
         self.onError = onError
         self.onRotate = onRotate
         
-        let playerVM = UnifiedVideoPlayerViewModel(asset: asset, rotationQuarterTurns: rotationQuarterTurns, mode: .preview, appContainer: AppContainer.shared)
+        let playerVM = UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .preview, appContainer: AppContainer.shared)
         self._playerViewModel = State(initialValue: playerVM)
         self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, photosIdentifier: nil, rotationQuarterTurns: rotationQuarterTurns, playerViewModel: playerVM))
     }
@@ -531,7 +508,7 @@ private func getStateDescription(_ state: AddMoveState) -> String {
         return "loading(\(progress), \(status))"
     case .loaded(_, let id, let rotation):
         return "loaded(id: \(id ?? "nil"), rotation: \(rotation)°)"
-    case .previewing(_, let id, let rotation):
+    case .previewing(_, _, let id, let rotation):
         return "previewing(id: \(id ?? "nil"), rotation: \(rotation)°)"
     case .selectingVideo(let asset):
         return "selectingVideo(asset: \(asset != nil ? "exists" : "nil"))"

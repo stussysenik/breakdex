@@ -350,8 +350,8 @@ public final class CentralizedMemoryLogger {
     private var correlationIds: [String: String] = [:]
     
     private init() {
-        // Initialize with a memory manager
-        let memoryManager = MemoryManagerImpl()
+        // Initialize with the shared memory manager from AppContainer
+        let memoryManager = AppContainer.shared.memoryManager
         self.memoryLogger = MemoryLoggerImpl(memoryManager: memoryManager)
     }
     

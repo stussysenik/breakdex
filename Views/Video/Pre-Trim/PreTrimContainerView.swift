@@ -7,11 +7,11 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreT
 
 /// A container view that manages the loading state transition for Pre-Trim with real-time progress
 struct PreTrimContainerView: View {
-    @StateObject private var playerViewModel: UnifiedVideoPlayerViewModel
+    @State private var playerViewModel: UnifiedVideoPlayerViewModel
     @State private var showLoadingOverlay = true
     let phAsset: PHAsset
     let rotationQuarterTurns: Int
-    let onLoadingComplete: (AVPlayerItem) -> Void
+    let onLoadingComplete: () -> Void
     let onError: (String, Error?) -> Void
     
     // Track view lifecycle for debugging
@@ -22,7 +22,7 @@ struct PreTrimContainerView: View {
         phAsset: PHAsset,
         rotationQuarterTurns: Int,
         appContainer: AppContainer,
-        onLoadingComplete: @escaping (AVPlayerItem) -> Void,
+        onLoadingComplete: @escaping () -> Void,
         onError: @escaping (String, Error?) -> Void
     ) {
         self.phAsset = phAsset
@@ -31,12 +31,13 @@ struct PreTrimContainerView: View {
         self.onError = onError
         
         // Initialize the view model with the new progress-aware loading
-        self._playerViewModel = StateObject(wrappedValue: UnifiedVideoPlayerViewModel(
-            asset: AVAsset(), // Temporary asset, will be replaced during loading
-            rotationQuarterTurns: rotationQuarterTurns,
+        self.playerViewModel = UnifiedVideoPlayerViewModel(
+            player: AVPlayer(), // Corrected: Use a valid, empty player as a placeholder
             mode: .preview,
             appContainer: appContainer
-        ))
+        )
+        
+        // Logging moved to onAppear to avoid capturing self during init
     }
     
     var body: some View {
@@ -48,7 +49,8 @@ struct PreTrimContainerView: View {
             // Main content - always present but conditionally visible
             PreTrimView(
                 viewModel: AddMoveViewModel.create(viewContext: PersistenceController.shared.container.viewContext),
-                asset: playerViewModel.playerItem?.asset ?? AVAsset(),
+                playerViewModel: self.playerViewModel, // Pass the container's ViewModel down
+                asset: playerViewModel.playerItem?.asset ?? AVAsset(url: URL(fileURLWithPath: "")), // Fallback remains for safety
                 photosIdentifier: phAsset.localIdentifier,
                 rotationQuarterTurns: rotationQuarterTurns,
                 selectedTab: .constant(.add)
@@ -57,14 +59,14 @@ struct PreTrimContainerView: View {
             .animation(.linear(duration: 0.1), value: showLoadingOverlay)
             
             // Loading overlay - visible during loading
-            if showLoadingOverlay || playerViewModel.isLoading {
+            if showLoadingOverlay {
                 LoadingOverlayView(
-                    progress: playerViewModel.progress,
+                    progress: getProgressFromState(),
                     status: getStatusFromState() ?? "Loading..."
                 )
                 .transition(.opacity.animation(.linear(duration: 0.1)))
             }
-            
+              
             // Error overlay
             if case .error(let message) = playerViewModel.state {
                 ErrorView(
@@ -76,31 +78,59 @@ struct PreTrimContainerView: View {
             }
         }
         .onAppear {
-            let appearTimestamp = Date().timeIntervalSince1970
             logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: View appeared")
+            logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: Created playerViewModel (viewId: \(viewId.uuidString.prefix(8)), mode: preview)")
+            logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: PreTrimView created with shared playerViewModel (state: \(String(describing: self.playerViewModel.state)), playerExists: \(self.playerViewModel.avPlayer != nil), itemExists: \(self.playerViewModel.playerItem != nil))")
             logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: Starting progressive video loading")
             
             // Start progressive loading
             startProgressiveLoading()
         }
-        .onDisappear {
+        .onDisappear(perform: {
             logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: View disappeared")
-            playerViewModel.cancelLoading()
-        }
+            playerViewModel.teardown()
+        })
     }
     
     // MARK: - Private Methods
     
     private func startProgressiveLoading() {
-        logger.info("🎬 PRE_TRIM_CONTAINER: Starting progressive loading for asset: \(phAsset.localIdentifier)")
+        logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: Starting progressive loading for asset: \(phAsset.localIdentifier)")
+        logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: Current player state before loading: \(String(describing: playerViewModel.state))")
         
-        // Use the new progress-aware loading method
-        playerViewModel.loadVideoWithProgress(from: phAsset) {
-            // Loading completed - hide overlay with 0.1s animation
-            withAnimation(.linear(duration: 0.1)) {
-                self.showLoadingOverlay = false
+        // Use the available loadVideo method
+        Task { @MainActor in
+            logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: 🚀 Entering loadVideo Task")
+            do {
+                logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: ⬇️ Calling playerViewModel.loadVideo...")
+                try await playerViewModel.loadVideo(from: .photos(identifier: phAsset.localIdentifier), quarterTurns: rotationQuarterTurns)
+                logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: ✅ loadVideo completed successfully")
+                
+                // Loading completed - hide overlay with 0.1s animation and call completion
+                await MainActor.run {
+                    logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: 🎬 Hiding loading overlay and calling completion")
+                    let oldOverlayState = self.showLoadingOverlay
+                    withAnimation(.linear(duration: 0.1)) {
+                        self.showLoadingOverlay = false
+                    }
+                    logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: Loading overlay state: \(oldOverlayState) → \(self.showLoadingOverlay)")
+                    self.onLoadingComplete()
+                    logger.info("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: ✅ onLoadingComplete() called")
+                }
+            } catch {
+                logger.error("🎬 PRE_TRIM_CONTAINER [\(viewId.uuidString.prefix(8))]: ❌ loadVideo failed: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.onError("Failed to load video", error)
+                }
             }
         }
+    }
+    
+    private func getProgressFromState() -> Double {
+        guard case .loading(let progress, _, _) = playerViewModel.state else {
+            return 0.0
+        }
+        return progress
     }
     
     private func getStatusFromState() -> String? {
