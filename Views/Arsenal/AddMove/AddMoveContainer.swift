@@ -246,9 +246,9 @@ struct AddMoveContainer: View {
                 return false
             }
         case .previewing:
-            // From previewing, can go to trimming, naming, selectingVideo, or error
+            // From previewing, can go to trimming, naming, selectingVideo, ready, or error
             switch newState {
-            case .trimming, .naming, .selectingVideo, .error:
+            case .trimming, .naming, .selectingVideo, .ready, .error:
                 return true
             default:
                 return false

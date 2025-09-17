@@ -3,6 +3,8 @@
 ## Overview
 BreakingFlashcards is a video flashcard application for learning and reviewing complex physical movements, built on iOS 18.0 with SwiftUI, following KISS, DRY, and YAGNI principles.
 
+**Current State**: 79 Swift files with modern iOS 18.0 patterns, comprehensive state management, and robust video processing pipeline.
+
 ## Core Architecture
 
 ### Application Entry Point
@@ -15,9 +17,11 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
   - Video processing pipeline
   - Logging system
   - Health monitoring
-- **`AddMoveState.swift`** - State machine enum for the Add Move flow with strict state transitions
-- **`AddMoveContainer.swift`** - State router that manages view transitions based on AddMoveState
-- **`AddMoveStateManager.swift`** - Centralized state management for complex Add Move flow transitions
+- **`AddMoveState.swift`** - Traditional enum-based state machine for Add Move flow (133 lines)
+- **`AddMoveAppState.swift`** - Modern iOS 18.0 @Observable state management class (151 lines)
+- **`AddMoveContainer.swift`** - State router that manages view transitions based on state
+- **`AddMoveStateManager.swift`** - Centralized state management for complex Add Move flow transitions (248 lines)
+- **`AddMoveFlowCoordinator.swift`** - Modern flow control coordinator (362 lines)
 - **`FeatureFlag.swift`** - Feature flag system for controlled feature rollout
 
 ## Feature Modules
@@ -57,18 +61,17 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 
 #### Views in Add Move Flow
 1. **`AddMoveSelectClipView.swift`** - Video selection from Photos library
-2. **`AddMovePreviewingView.swift`** - Initial video preview before trimming
-3. **`FeatureRichTrimmerView.swift`** - Video trimming and rotation interface (located in `/Views/Video/Trim/`)
-4. **`NameMoveView.swift`** - Move naming and final save confirmation
-5. **`AddMoveSavingView.swift`** - Progress indicator during save
-6. **`MoveAddedSuccessView.swift`** - Success confirmation
-7. **`AddMoveErrorView.swift`** - Error handling and retry options
+2. **`Pre-TrimView.swift`** - Initial video preview before trimming (located in `/Views/Video/Pre-Trim/`)
+3. **`PreTrimContainerView.swift`** - Container for Pre-Trim with loading states (located in `/Views/Video/Pre-Trim/`)
+4. **`FeatureRichTrimmerView.swift`** - Video trimming and rotation interface (located in `/Views/Video/Trim/`)
+5. **`NameMoveView.swift`** - Move naming and final save confirmation
+6. **`AddMoveErrorView.swift`** - Error handling and retry options
+7. **`LoadingOverlayView.swift`** - Loading state component
 
-#### Additional Add Move Views
-8. **`AddMoveReadyView.swift`** - Welcome screen with call-to-action
-9. **`AddMoveLoadingView.swift`** - Loading state indicator
-10. **`AddMoveSelectingVideoView.swift`** - Video selection mode interface
-11. **`LoadingOverlayView.swift`** - Loading overlay component
+#### Additional Views
+8. **`AddMoveView.swift`** - Entry point wrapper for Add Move functionality
+9. **`ImportExportView.swift`** - Import/export functionality
+10. **`VideoPickerWrapper.swift`** - Safe video picker with error handling
 
 ### 2. Arsenal Page
 - **`BreakingArsenalView.swift`** - Main arsenal container
@@ -91,13 +94,12 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **`CustomVideoPlayerView.swift`** - Custom video player built on AVPlayerLayer
 - **`AVPlayerViewRepresentable.swift`** - UIViewRepresentable wrapper for AVPlayer
 - **`VideoPlayerManager.swift`** - Player lifecycle management
-- **`MainVideoPlayerViewModel.swift`** - ViewModel for main video player
-- **`PreviewVideoPlayerViewModel.swift`** - ViewModel for preview players
 - **`UnifiedVideoPlayerViewModel.swift`** - Unified player logic for different contexts
+- **`VideoPlayerViewModelProtocol.swift`** - Protocol-based design for video players
 - **`AddMovePlayerManager.swift`** - Specialized player manager for Add Move workflow
 - **`VideoPlayerCacheManager.swift`** - Video asset caching and memory optimization
-- **`VideoRelinkManager.swift`** - Handles video asset re-linking when files are moved/renamed
-- **`VideoRelinkView.swift`** - UI for re-linking broken video assets
+- **`VideoRelinkManager.swift`** - Handles video asset re-linking when files are moved/renamed (located in `/Views/Video/Re-link/`)
+- **`VideoRelinkView.swift`** - UI for re-linking broken video assets (located in `/Views/Video/Re-link/`)
 
 ## Supporting Systems
 
@@ -120,11 +122,11 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 
 ### Manager Architecture
 - **`Managers/`** - Centralized service layer with specialized managers:
-  - **State Managers:** `AddMoveStateManager.swift`, `VideoStateManager.swift`
-  - **Video Managers:** `VideoPlayerManager.swift`, `VideoPlayerCacheManager.swift`, `AddMovePlayerManager.swift`, `VideoRelinkManager.swift`
+  - **State Managers:** `AddMoveStateManager.swift` (248 lines)
+  - **Video Managers:** `VideoPlayerManager.swift`, `VideoPlayerCacheManager.swift`, `AddMovePlayerManager.swift`
   - **Album Managers:** `BreakDexAlbumManager.swift`, `AlbumSyncManager.swift`, `PhotosPermissionManager.swift`
-  - **Processing Managers:** `MemoryManager.swift`, `VideoHealthMonitor.swift`, `ContinuationManager.swift`
-  - **Component Managers:** `UpdatedVideoCoordinator.swift`, `PlayerStateMonitor.swift`
+  - **Processing Managers:** (Located in Video/Processing/ directory) `MemoryManager.swift`, `VideoHealthMonitor.swift`, `ContinuationManager.swift`
+  - **Component Managers:** (Located in Video/Processing/Components/) `PlayerStateMonitor.swift`, `PlayerItemStatusMonitor.swift`, `ReadinessMonitor.swift`
 
 ### Design System
 - **`DesignSystem.swift`** - App-wide design tokens and styles
@@ -145,11 +147,13 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 7. **Success State** → Confirmation and return to ready state
 
 #### Enhanced State Management (iOS 18.0)
+- **Dual State Systems**: Both traditional enum-based (`AddMoveState`) and modern @Observable (`AddMoveAppState`) patterns
 - **Progressive Loading**: Loading state includes progress tracking (0.1 → 0.2 → 0.3 → 0.5 → 0.7 → 0.8 → 0.9 → 1.0)
 - **Debounced Transitions**: State changes are debounced to prevent rapid UI updates
 - **Timeout Protection**: 30-second timeout for video loading operations
 - **Enhanced Validation**: Asset validation using iOS 18.0 AVFoundation best practices
 - **Permission Checks**: Pre-loading Photos permission validation
+- **Pre-Trim Integration**: Video preview with change functionality and state lifecycle management
 
 ### Video Processing Pipeline
 1. **Asset Loading** → `VideoAssetLoader` loads and validates video
@@ -164,6 +168,27 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - Retry mechanisms for transient failures
 - Graceful degradation under memory pressure
 - Detailed logging for debugging
+
+## Current State & Known Issues
+
+### ✅ Strengths
+- **Modern iOS 18.0 Patterns**: @Observable, async/await, PhotosPicker integration
+- **Robust Video Processing**: Comprehensive pipeline with timeout protection
+- **Comprehensive Logging**: OSLog integration with emoji prefixes for debugging
+- **Protocol-Based Design**: Video player system with proper abstraction
+- **Memory Management**: Proactive monitoring and cleanup
+- **Error Handling**: Comprehensive error states and recovery paths
+
+### ⚠️ Known Issues
+1. **Dual State Management**: Both `AddMoveState` and `AddMoveAppState` exist simultaneously
+2. **Pre-Trim State Lifecycle**: Multiple routes to Pre-Trim create inconsistent state contexts
+3. **File Organization**: Some files are in different locations than documented
+4. **Test Coverage**: Gaps in unit test coverage for new architecture components
+
+### 🔧 Active Development Areas
+- **Pre-Trim Controls**: Back button, change video, and "Use Original" functionality
+- **State Transition Validation**: Ensuring proper cleanup between state changes
+- **Video Player Resource Management**: Proper cleanup during video replacement
 
 ## Key Architectural Principles
 
@@ -184,30 +209,32 @@ BreakingFlashcards/
 │   └── FeatureFlag.swift
 ├── Views/
 │   ├── Arsenal/
-│   │   ├── AddMove/          # Complete Add Move flow
+│   │   ├── AddMove/          # Add Move flow (11 files)
 │   │   ├── Moves/           # Move display and management
 │   │   └── Combos/          # Combo creation and display
 │   └── Video/
-│       ├── Player/          # Video player components
-│       ├── Trim/            # Video trimming interface
-│       ├── Re-link/         # Video re-linking functionality
-│       └── Review/          # Review system
+│       ├── Player/          # Video player components (5 files)
+│       ├── Pre-Trim/        # Video preview before trimming (2 files)
+│       ├── Trim/            # Video trimming interface (2 files)
+│       ├── Re-link/         # Video re-linking functionality (2 files)
+│       └── Review/          # Review system (2 files)
 ├── Video/
 │   └── Processing/          # Video processing pipeline
-│       ├── Components/      # Video processing components
+│       ├── Components/      # Video processing components (multiple monitors)
 │       ├── VideoState.swift
 │       ├── VideoStateManager.swift
-│       └── VideoTransformBuilder.swift
-├── Managers/                # Service layer managers
+│       ├── VideoTransformBuilder.swift
+│       ├── MemoryManager.swift
+│       ├── VideoHealthMonitor.swift
+│       └── ContinuationManager.swift
+├── Managers/                # Service layer managers (4 main managers)
 │   ├── AddMoveStateManager.swift
 │   ├── VideoPlayerManager.swift
 │   ├── VideoPlayerCacheManager.swift
 │   ├── AddMovePlayerManager.swift
-│   ├── VideoRelinkManager.swift
 │   ├── BreakDexAlbumManager.swift
 │   ├── AlbumSyncManager.swift
-│   ├── PhotosPermissionManager.swift
-│   └── MemoryManager.swift
+│   └── PhotosPermissionManager.swift
 ├── CoreData/               # Data models and persistence
 └── Utils/                   # Utility functions and extensions
 ```

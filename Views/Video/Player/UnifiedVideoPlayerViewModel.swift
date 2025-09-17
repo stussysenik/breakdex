@@ -54,6 +54,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     private var correlationId: String?
     private let mode: PlayerMode
     private var memoryCheckTimer: Timer?
+    private var healthMonitorTask: Task<Void, Never>?
 
     // MARK: - Public Accessors
 
@@ -95,10 +96,11 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             videoHealthMonitor.startMonitoring(asset: asset)
         }
         
-        Task {
-            for await report in videoHealthMonitor.getHealthStatusReports() {
+        healthMonitorTask = Task { [weak self] in
+            guard let self = self else { return }
+            for await report in self.videoHealthMonitor.getHealthStatusReports() {
                 await MainActor.run {
-                    handleHealthStatusChange(report.status)
+                    self.handleHealthStatusChange(report.status)
                 }
             }
         }
@@ -110,14 +112,8 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     
 
     deinit {
-        Task { @MainActor in
-            // Cleanup on main actor
-            videoHealthMonitor.stopMonitoring()
-            if mode == .preview {
-                memoryCheckTimer?.invalidate()
-                memoryCheckTimer = nil
-            }
-        }
+        // The Task in deinit was causing retain cycles - cleanup is now handled in teardown()
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): deinit called", metadata: nil)
     }
 
     // MARK: - State Management
@@ -136,6 +132,12 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     }
 
     public func teardown() {
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() called", metadata: ["correlationId": correlationId ?? "unknown"])
+        
+        // Cancel the health monitor task to break retain cycle
+        healthMonitorTask?.cancel()
+        healthMonitorTask = nil
+        
         player.pause()
         player.replaceCurrentItem(with: nil)
         videoHealthMonitor.stopMonitoring()
@@ -143,11 +145,12 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             memoryCheckTimer?.invalidate()
             memoryCheckTimer = nil
             memoryManager.clearCache()
-            memoryManager.clearCache()
         }
         state = .idle
         shouldPlay = false
         healthStatus = .unknown
+        
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() completed", metadata: ["correlationId": correlationId ?? "unknown"])
     }
 
     public func pauseForTrimming() {
@@ -240,7 +243,6 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         player.pause()
 
         if mode == .preview {
-            memoryManager.clearCache()
             memoryManager.clearCache()
         }
 

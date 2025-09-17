@@ -35,6 +35,7 @@ public final class LiveVideoLoadingService: VideoLoadingService {
         case unsupportedFileType
         case dataUnavailable
         case memoryLimitExceeded(used: Int64, available: Int64)
+        case requestTimedOut
         
         public var errorDescription: String? {
             switch self {
@@ -48,9 +49,29 @@ public final class LiveVideoLoadingService: VideoLoadingService {
                 return "Could not retrieve video data for the selected item."
             case .memoryLimitExceeded(let used, let available):
                 return "Memory limit exceeded. Used: \(used)MB, Available: \(available)MB"
+            case .requestTimedOut:
+                return "Video request timed out. Please check your connection and try again."
             }
         }
+        
+        var errorCode: Int {
+            switch self {
+            case .assetNotFound: return -1
+            case .avAssetCreationFailed: return -2
+            case .unsupportedFileType: return -3
+            case .dataUnavailable: return -4
+            case .memoryLimitExceeded: return -5
+            case .requestTimedOut: return -100
+            }
+        }
+        
+        var errorDomain: String {
+            return "VideoLoadingService"
+        }
     }
+    
+    // MARK: - Constants
+    private let assetRequestTimeout: TimeInterval = 30.0
     
     public init(memoryManager: MemoryManager, logger: AppLogger) {
         self.memoryManager = memoryManager
@@ -145,10 +166,90 @@ public final class LiveVideoLoadingService: VideoLoadingService {
         continuation.finish()
     }
     
+    // MARK: - Private Async Wrapper with Timeout
+    
+    /// Wrapper function that adds timeout and cancellation to PHImageManager.requestAVAsset
+    private func requestAVAssetWithTimeout(for asset: PHAsset, options: PHVideoRequestOptions) async throws -> AVAsset {
+        var requestID: PHImageRequestID?
+        
+        return try await withTaskCancellationHandler {
+            // MARK: - Timeout Logic
+            let asset = try await withThrowingTaskGroup(of: AVAsset.self) { group in
+                // Add the video request task
+                group.addTask {
+                    try await self.requestAVAssetInternal(asset: asset, options: options, requestID: &requestID)
+                }
+                
+                // Add the timeout task
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(self.assetRequestTimeout * 1_000_000_000))
+                    self.logger.info("⏰ Video request timed out after \(self.assetRequestTimeout) seconds")
+                    throw VideoLoadingError.requestTimedOut
+                }
+                
+                // Wait for the first task to complete
+                for try await result in group {
+                    group.cancelAll()
+                    return result
+                }
+                
+                throw VideoLoadingError.requestTimedOut
+            }
+            
+            return asset
+        } onCancel: {
+            // MARK: - Cancellation Handler
+            if let id = requestID {
+                self.logger.info("🛑 Cancelling video request due to task cancellation")
+                PHImageManager.default().cancelImageRequest(id)
+            }
+        }
+    }
+    
+    /// Internal function that bridges callback-based PhotoKit API to async/await
+    private func requestAVAssetInternal(asset: PHAsset, options: PHVideoRequestOptions, requestID: inout PHImageRequestID?) async throws -> AVAsset {
+        try await withCheckedThrowingContinuation { continuation in
+            requestID = PHImageManager.default().requestAVAsset(
+                forVideo: asset,
+                options: options
+            ) { avAsset, _, info in
+                self.logger.info("🎬 PhotoKit callback received for asset \(asset.localIdentifier)")
+                
+                // Check for errors
+                if let error = info?[PHImageErrorKey] as? Error {
+                    self.logger.error("❌ PhotoKit error: \(error.localizedDescription)")
+                    continuation.resume(throwing: error)
+                    return
+                }
+                
+                // Check for cancellation
+                if (info?[PHImageCancelledKey] as? Bool) == true {
+                    self.logger.info("🛑 PhotoKit request was cancelled")
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                
+                // Validate asset
+                guard let loadedAsset = avAsset else {
+                    let error = NSError(domain: "VideoLoadingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "AVAsset is nil."])
+                    self.logger.error("❌ AVAsset is nil: \(error.localizedDescription)")
+                    continuation.resume(throwing: error)
+                    return
+                }
+                
+                // Success!
+                self.logger.info("✅ AVAsset successfully loaded: \(loadedAsset)")
+                continuation.resume(returning: loadedAsset)
+            }
+        }
+    }
+    
     public func loadPHAssetWithProgress(_ asset: PHAsset) -> AsyncThrowingStream<VideoLoadEvent, Error> {
         AsyncThrowingStream { continuation in
             // Cancel any previous request before starting a new one.
             cancelCurrentOperation()
+            
+            self.logger.info("🚀 Starting video loading with timeout support")
             
             // Check memory before loading
             do {
@@ -158,45 +259,34 @@ public final class LiveVideoLoadingService: VideoLoadingService {
                 return
             }
 
-            let options = PHVideoRequestOptions()
-            options.isNetworkAccessAllowed = true
-            options.deliveryMode = .highQualityFormat // Request high quality for trimming.
-            
-            // STAGE 1: iCloud Download Progress (0% -> 70%)
-            options.progressHandler = { progress, _, _, _ in
-                let scaledProgress = progress * 0.7 // Scale to 0-70% range
-                let status = progress < 0.9 ? "Downloading from iCloud..." : "Finalizing download..."
-                continuation.yield(.progress(fraction: scaledProgress, status: status))
-            }
-
-            currentRequestID = PHImageManager.default().requestAVAsset(
-                forVideo: asset,
-                options: options
-            ) { [weak self] avAsset, _, info in
-                guard let self = self else { return }
-                
-                Task {
-                    do {
-                        if let error = info?[PHImageErrorKey] as? Error {
-                            continuation.finish(throwing: error)
-                            return
-                        }
-                        guard let loadedAsset = avAsset else {
-                            throw NSError(domain: "VideoLoadingService", code: -1, userInfo: [NSLocalizedDescriptionKey: "AVAsset is nil."])
-                        }
-
-                        // STAGE 2: Loading Asset Properties (70% -> 100%)
-                        continuation.yield(.progress(fraction: 0.7, status: "Loading video metadata..."))
-                        try await loadedAsset.load(.isPlayable, .duration, .tracks)
-                        continuation.yield(.progress(fraction: 0.95, status: "Preparing asset..."))
-                        
-                        // YIELD FINAL RESULT
-                        continuation.yield(.success(asset: loadedAsset))
-                        continuation.finish()
-
-                    } catch {
-                        continuation.finish(throwing: error)
+            Task {
+                do {
+                    let options = PHVideoRequestOptions()
+                    options.isNetworkAccessAllowed = true
+                    options.deliveryMode = .highQualityFormat // Request high quality for trimming.
+                    
+                    // STAGE 1: iCloud Download Progress (0% -> 70%)
+                    options.progressHandler = { progress, _, _, _ in
+                        let scaledProgress = progress * 0.7 // Scale to 0-70% range
+                        let status = progress < 0.9 ? "Downloading from iCloud..." : "Finalizing download..."
+                        continuation.yield(.progress(fraction: scaledProgress, status: status))
                     }
+
+                    // Use the new async wrapper with timeout
+                    let loadedAsset = try await requestAVAssetWithTimeout(for: asset, options: options)
+                    
+                    // STAGE 2: Loading Asset Properties (70% -> 100%)
+                    continuation.yield(.progress(fraction: 0.7, status: "Loading video metadata..."))
+                    try await loadedAsset.load(.isPlayable, .duration, .tracks)
+                    continuation.yield(.progress(fraction: 0.95, status: "Preparing asset..."))
+                    
+                    // YIELD FINAL RESULT
+                    continuation.yield(.success(asset: loadedAsset))
+                    continuation.finish()
+                    
+                } catch {
+                    self.logger.error("❌ Video loading failed: \(error.localizedDescription)")
+                    continuation.finish(throwing: error)
                 }
             }
         }

@@ -109,8 +109,10 @@ struct PreTrimView: View {
         HStack {
             Button(action: {
                 impactGenerator.impactOccurred()
-                logger.info("🎬 PRE_TRIM_VIEW: Back button tapped")
+                logger.info("🎬 PRE_TRIM_VIEW: Back button tapped - initiating cleanup and reset")
+                logger.info("🎬 PRE_TRIM_VIEW: Current state before reset: \(String(describing: viewModel.state))")
                 viewModel.reset()
+                logger.info("🎬 PRE_TRIM_VIEW: Reset call completed - should return to select clip view")
             }) {
                 Image(systemName: "arrow.left")
                     .font(.title2)
@@ -138,7 +140,8 @@ struct PreTrimView: View {
         logger.info("🎬 PRE_TRIM_VIEW [\(viewId.uuidString.prefix(8))]: Rendering video player section (state: \(String(describing: playerViewModel.state)), playerExists: \(playerViewModel.avPlayer != nil), itemExists: \(playerViewModel.playerItem != nil), isReady: \(playerViewModel.isPlayerReady), health: \(String(describing: playerViewModel.healthStatus)))")
         
         // Use the unified video player with the view model
-        return CustomVideoPlayerView(viewModel: playerViewModel)
+        // Enable teardown to prevent retain cycles when navigating away
+        return CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: true)
             .cornerRadius(12)
             .padding(.horizontal)
     }

@@ -18,6 +18,8 @@ public final class AddMoveViewModel {
     public var selectedItem: PhotosPickerItem? {
         didSet {
             guard selectedItem != nil else { return }
+            // Immediately transition to loading state to provide instant feedback
+            state = .loading(progress: 0.0, status: "Preparing to load video...")
             handleVideoSelection()
         }
     }
@@ -65,11 +67,17 @@ public final class AddMoveViewModel {
     /// Resets the view model to its initial state.
     public func reset() {
         logger.info("🎬 VIEWMODEL: Resetting state.")
+        
+        // Cleanup video resources first to prevent memory leaks
+        cleanupVideoResources()
+        
         videoLoadingTask?.cancel()
         videoLoadingTask = nil
         state = .ready
         selectedItem = nil
         moveName = ""
+        
+        logger.info("🎬 VIEWMODEL: Reset completed - ready for new video selection")
     }
     
     /// Cancels the ongoing video loading process.
@@ -91,6 +99,12 @@ public final class AddMoveViewModel {
         // Let loadVideo handle the initial loading state to avoid double state changes
         do {
             try await loadVideo(from: item)
+        } catch let error as NSError where error.domain == "VideoLoadingService" && error.code == -100 {
+            logger.error("⏰ VIEWMODEL: Direct video loading timed out")
+            state = .error(
+                message: "Download from iCloud timed out", 
+                underlyingError: "Please check your network connection and try again."
+            )
         } catch {
             logger.error("🎬 VIEWMODEL: Direct video loading failed: \(error.localizedDescription)")
             state = .error(message: "Direct video loading failed", underlyingError: error.localizedDescription)
@@ -113,6 +127,12 @@ public final class AddMoveViewModel {
             } catch is CancellationError {
                 logger.info("🎬 VIEWMODEL: Video loading task was cancelled.")
                 // Do nothing, as the cancellation was intentional.
+            } catch let error as NSError where error.domain == "VideoLoadingService" && error.code == -100 {
+                logger.error("⏰ VIEWMODEL: Video loading timed out")
+                state = .error(
+                    message: "Download from iCloud timed out", 
+                    underlyingError: "Please check your network connection and try again."
+                )
             } catch {
                 logger.error("🎬 VIEWMODEL: Video loading failed: \(error.localizedDescription)")
                 state = .error(message: "Failed to load video", underlyingError: error.localizedDescription)
@@ -187,6 +207,25 @@ public final class AddMoveViewModel {
         
         // Return to trimming state with available asset
         state = .trimming(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
+    }
+    
+    // MARK: - Resource Cleanup
+    
+    /// Cleans up video player resources to prevent memory leaks and state conflicts
+    private func cleanupVideoResources() {
+        logger.info("🎬 CLEANUP: Starting video resource cleanup")
+        
+        // Safely cleanup video player if it exists
+        if let playerViewModel = currentVideoPlayerViewModel {
+            logger.info("🎬 CLEANUP: Tearing down video player")
+            playerViewModel.teardown()
+            currentVideoPlayerViewModel = nil
+        }
+        
+        // Clear prepared video player reference
+        preparedVideoPlayerViewModel = nil
+        
+        logger.info("🎬 CLEANUP: Video resources cleanup completed")
     }
     
     // MARK: - Video Loading - Single Source of Truth

@@ -11,6 +11,7 @@ public struct CustomVideoPlayerView: View {
     @State private var isViewReady = false
     @State private var showFullscreen = false
     @State private var isMuted = false
+    private let shouldTeardownOnDisappear: Bool
     
     // MARK: - Static Properties
     private static var viewRecomputeCount = 0
@@ -23,8 +24,9 @@ public struct CustomVideoPlayerView: View {
     private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
     
     // MARK: - Initialization
-    public init(viewModel: any VideoPlayerViewModelProtocol) {
+    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false) {
         self._observableWrapper = StateObject(wrappedValue: ObservableVideoPlayerWrapper(viewModel: viewModel))
+        self.shouldTeardownOnDisappear = shouldTeardownOnDisappear
     }
     
     // MARK: - Body
@@ -182,16 +184,20 @@ public struct CustomVideoPlayerView: View {
             observableWrapper.viewModel.startPlayback()
         }
         .onDisappear {
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View disappearing - NOT tearing down (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View disappearing - \(shouldTeardownOnDisappear ? "WILL teardown" : "NOT tearing down") (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
             logMemoryUsage(context: "onDisappear_start")
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Current state: \(String(describing: observableWrapper.viewModel.state))", metadata: nil)
             
-            // CRITICAL: Remove all teardown logic from here.
-            // The VideoPlayerManager now handles the player's lifecycle.
-            // Only pause playback, don't tear down resources.
-            if let player = getPlayerFromState() {
-                logger.info("🎬 CUSTOM_VIDEO_PLAYER: Pausing playback (no teardown)", metadata: nil)
-                player.pause()
+            if shouldTeardownOnDisappear {
+                // Full teardown for contexts like Pre-Trim view where view model should be cleaned up
+                logger.info("🎬 CUSTOM_VIDEO_PLAYER: Performing full teardown of view model", metadata: nil)
+                observableWrapper.viewModel.teardown()
+            } else {
+                // Legacy behavior: only pause playback, don't tear down resources
+                if let player = getPlayerFromState() {
+                    logger.info("🎬 CUSTOM_VIDEO_PLAYER: Pausing playback (no teardown)", metadata: nil)
+                    player.pause()
+                }
             }
             
             // Reset view state only
@@ -199,7 +205,7 @@ public struct CustomVideoPlayerView: View {
             showFullscreen = false
             isMuted = false
             
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View state reset, player preserved", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: View state reset, \(shouldTeardownOnDisappear ? "model torn down" : "player preserved")", metadata: nil)
             logMemoryUsage(context: "onDisappear_end")
             Self.playerViewInstanceCount -= 1
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: PlayerView instance count now: \(Self.playerViewInstanceCount)", metadata: nil)
