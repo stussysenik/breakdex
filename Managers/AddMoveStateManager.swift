@@ -14,7 +14,12 @@ public protocol AddMoveStateManagerProtocol {
     func getStateDescription(_ state: AddMoveState) -> String
     
     // Convenience state transition methods
-    func transitionToError(message: String, underlyingError: String?)
+    func transitionToTrimming(
+        playerViewModel: UnifiedVideoPlayerViewModel,
+        asset: AVAsset,
+        photosIdentifier: String?,
+        rotationQuarterTurns: Int
+    )
     func transitionToTrimming(asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int)
     func transitionToPreviewing(playerViewModel: any VideoPlayerViewModelProtocol, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int)
     
@@ -78,9 +83,11 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
             return "previewing(id: \(id ?? "nil"), rotation: \(rotation)°)"
         case .selectingVideo(let asset):
             return "selectingVideo(asset: \(asset != nil ? "exists" : "nil"))"
-        case .trimming(_, let id, let rotation):
+        case .trimming(_, _, let id, let rotation):
             return "trimming(id: \(id ?? "nil"), rotation: \(rotation)°)"
-        case .naming(let id, _, _, let start, let end, let rotation):
+        case .exporting(let progress, let status):
+            return "exporting(\(progress), \(status))"
+        case .naming(let id, _, let start, let end, let rotation):
             return "naming(id: \(id), start: \(start ?? -1), end: \(end ?? -1), rotation: \(rotation)°)"
         case .saving:
             return "saving"
@@ -131,6 +138,7 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
     
     /// Transition to trimming state
     func transitionToTrimming(
+        playerViewModel: UnifiedVideoPlayerViewModel,
         asset: AVAsset,
         photosIdentifier: String?,
         rotationQuarterTurns: Int
@@ -139,6 +147,34 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
         logger.info("🔄 STATE_MANAGER: Photos ID: \(photosIdentifier ?? "nil")")
         logger.info("🔄 STATE_MANAGER: Rotation: \(rotationQuarterTurns)°")
         currentState = .trimming(
+            playerViewModel: playerViewModel,
+            asset: asset,
+            photosIdentifier: photosIdentifier,
+            rotationQuarterTurns: rotationQuarterTurns
+        )
+    }
+    
+    /// Legacy transition to trimming state (for backward compatibility)
+    func transitionToTrimming(
+        asset: AVAsset,
+        photosIdentifier: String?,
+        rotationQuarterTurns: Int
+    ) {
+        logger.info("🔄 STATE_MANAGER: Legacy transition to trimming state")
+        logger.info("🔄 STATE_MANAGER: Photos ID: \(photosIdentifier ?? "nil")")
+        logger.info("🔄 STATE_MANAGER: Rotation: \(rotationQuarterTurns)°")
+        
+        // Apply the same fix as loadVideo - create player immediately to avoid deadlock
+        let playerItem = AVPlayerItem(asset: asset)
+        let player = AVPlayer(playerItem: playerItem)
+        let playerViewModel = UnifiedVideoPlayerViewModel(
+            player: player,
+            mode: .preview,
+            appContainer: AppContainer.shared
+        )
+        
+        currentState = .trimming(
+            playerViewModel: playerViewModel,
             asset: asset,
             photosIdentifier: photosIdentifier,
             rotationQuarterTurns: rotationQuarterTurns
@@ -148,20 +184,18 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
     /// Transition to naming state
     func transitionToNaming(
         photosIdentifier: String,
-        originalAsset: AVAsset?,
-        trimmedAsset: AVAsset?,
-        trimStartTime: Double?,
-        trimEndTime: Double?,
+        originalAsset: AVAsset,
+        trimStartTime: Double,
+        trimEndTime: Double,
         rotationQuarterTurns: Int
     ) {
         logger.info("🔄 STATE_MANAGER: Transitioning to naming state")
         logger.info("🔄 STATE_MANAGER: Photos ID: \(photosIdentifier)")
-        logger.info("🔄 STATE_MANAGER: Trim start: \(trimStartTime ?? -1), end: \(trimEndTime ?? -1)")
+        logger.info("🔄 STATE_MANAGER: Trim start: \(trimStartTime), end: \(trimEndTime)")
         logger.info("🔄 STATE_MANAGER: Rotation: \(rotationQuarterTurns)°")
         currentState = .naming(
             photosIdentifier: photosIdentifier,
             originalAsset: originalAsset,
-            trimmedAsset: trimmedAsset,
             trimStartTime: trimStartTime,
             trimEndTime: trimEndTime,
             rotationQuarterTurns: rotationQuarterTurns

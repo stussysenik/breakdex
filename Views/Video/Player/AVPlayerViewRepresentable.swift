@@ -18,14 +18,17 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
     
     let player: AVPlayer
     let metadata: [AVMetadataItem]?
+    let rotationQuarterTurns: Int
     
-    init(player: AVPlayer, metadata: [AVMetadataItem]? = nil) {
+    init(player: AVPlayer, metadata: [AVMetadataItem]? = nil, rotationQuarterTurns: Int = 0) {
         self.player = player
         self.metadata = metadata
+        self.rotationQuarterTurns = rotationQuarterTurns
         logger.info("🎬 AV_PLAYER_VIEW: init called")
         logger.info("🎬 AV_PLAYER_VIEW: AVPlayer status: \(player.status.rawValue)")
         logger.info("🎬 AV_PLAYER_VIEW: AVPlayer currentItem exists: \(player.currentItem != nil)")
         logger.info("🎬 AV_PLAYER_VIEW: Metadata provided: \(metadata != nil)")
+        logger.info("🎬 AV_PLAYER_VIEW: Rotation quarter turns: \(rotationQuarterTurns)")
         if let item = player.currentItem {
             logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem status: \(item.status.rawValue)")
             logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem duration: \(CMTimeGetSeconds(item.duration))")
@@ -38,6 +41,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         let playerView = PlayerView()
         playerView.playerLayer.player = player
         playerView.playerLayer.videoGravity = .resizeAspect
+        playerView.rotationQuarterTurns = rotationQuarterTurns
         
         logger.info("🎬 AV_PLAYER_VIEW: PlayerView created successfully")
         logger.info("🎬 AV_PLAYER_VIEW: AVPlayerLayer configured with videoGravity: resizeAspect")
@@ -60,6 +64,13 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
             uiView.playerLayer.player = player
         }
         
+        // Update rotation if needed
+        if uiView.rotationQuarterTurns != rotationQuarterTurns {
+            logger.info("🎬 AV_PLAYER_VIEW: Updating rotation from \(uiView.rotationQuarterTurns) to \(rotationQuarterTurns)")
+            uiView.rotationQuarterTurns = rotationQuarterTurns
+            uiView.applyRotation()
+        }
+        
         logger.info("🎬 AV_PLAYER_VIEW: updateUIView completed")
     }
     
@@ -74,6 +85,13 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         
         var playerLayer: AVPlayerLayer {
             return layer as! AVPlayerLayer
+        }
+        
+        var rotationQuarterTurns: Int = 0 {
+            didSet {
+                logger.info("🎬 PLAYER_VIEW: Rotation quarter turns changed to \(self.rotationQuarterTurns)")
+                applyRotation()
+            }
         }
         
         override init(frame: CGRect) {
@@ -117,6 +135,27 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
             }
             
             logger.info("🎬 PLAYER_VIEW: New player rate: \(player.rate)")
+        }
+        
+        // MARK: - Rotation Methods
+        
+        func applyRotation() {
+            guard rotationQuarterTurns > 0 else {
+                logger.info("🎬 PLAYER_VIEW: No rotation needed (rotationQuarterTurns: \(self.rotationQuarterTurns))")
+                playerLayer.transform = CATransform3DIdentity
+                return
+            }
+            
+            logger.info("🎬 PLAYER_VIEW: Applying rotation: \(self.rotationQuarterTurns) quarter turns (\(self.rotationQuarterTurns * 90)°)")
+            
+            // Calculate rotation angle in radians
+            let rotationAngle = CGFloat.pi / 2 * CGFloat(self.rotationQuarterTurns)
+            
+            // Apply rotation transform
+            let rotationTransform = CATransform3DMakeRotation(rotationAngle, 0, 0, 1)
+            playerLayer.transform = rotationTransform
+            
+            logger.info("🎬 PLAYER_VIEW: Rotation transform applied successfully")
         }
         
         deinit {

@@ -7,10 +7,11 @@ import UIKit
 // MARK: - Custom Video Player View
 public struct CustomVideoPlayerView: View {
     // MARK: - Properties
-    @StateObject private var observableWrapper: ObservableVideoPlayerWrapper
+    @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper
     @State private var isViewReady = false
     @State private var showFullscreen = false
     @State private var isMuted = false
+    @Binding private var rotationQuarterTurns: Int
     private let shouldTeardownOnDisappear: Bool
     
     // MARK: - Static Properties
@@ -24,9 +25,15 @@ public struct CustomVideoPlayerView: View {
     private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
     
     // MARK: - Initialization
-    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false) {
-        self._observableWrapper = StateObject(wrappedValue: ObservableVideoPlayerWrapper(viewModel: viewModel))
+    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false, rotationQuarterTurns: Binding<Int> = .constant(0)) {
+        self.observableWrapper = ObservableVideoPlayerWrapper(viewModel: viewModel)
         self.shouldTeardownOnDisappear = shouldTeardownOnDisappear
+        self._rotationQuarterTurns = rotationQuarterTurns
+        
+        // Log the fix for diagnostic purposes
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: ✅ INIT - Using @ObservedObject (corrected from @StateObject)", metadata: nil)
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel type: \(type(of: viewModel))", metadata: nil)
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: Should teardown: \(shouldTeardownOnDisappear)", metadata: nil)
     }
     
     // MARK: - Body
@@ -55,7 +62,7 @@ public struct CustomVideoPlayerView: View {
                 
             case "playing":
                 if isViewReady, let player = getPlayerFromState() {
-                    AVPlayerViewRepresentable(player: player)
+                    AVPlayerViewRepresentable(player: player, rotationQuarterTurns: rotationQuarterTurns ?? 0)
                         .overlay(alignment: Alignment.topTrailing) {
                             HStack {
                                 Button {
@@ -85,7 +92,7 @@ public struct CustomVideoPlayerView: View {
                             player.isMuted = muted
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
-                            FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
+                            FullscreenVideoPlayer(player: player, isPresented: $showFullscreen, rotationQuarterTurns: rotationQuarterTurns)
                         }
                         .task {
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: RenderStart: representable", metadata: nil)
@@ -150,7 +157,7 @@ public struct CustomVideoPlayerView: View {
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
                             if let player = observableWrapper.viewModel.avPlayer {
-                                FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
+                                FullscreenVideoPlayer(player: player, isPresented: $showFullscreen, rotationQuarterTurns: rotationQuarterTurns)
                             }
                         }
                 }
@@ -347,6 +354,7 @@ public struct CustomVideoPlayerView: View {
     private struct FullscreenVideoPlayer: View {
         let player: AVPlayer
         @Binding var isPresented: Bool
+        let rotationQuarterTurns: Int?
         private let logger = AppContainer.shared.logger
         private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
         
@@ -356,7 +364,7 @@ public struct CustomVideoPlayerView: View {
             logger.info("🎬 FULLSCREEN_PLAYER: Player rate: \(player.rate)", metadata: nil)
             
             return ZStack(alignment: Alignment.topLeading) {
-                AVPlayerViewRepresentable(player: player)
+                AVPlayerViewRepresentable(player: player, rotationQuarterTurns: rotationQuarterTurns ?? 0)
                     .edgesIgnoringSafeArea(.all)
                 
                 Button {
@@ -386,9 +394,15 @@ public struct CustomVideoPlayerView: View {
 @MainActor
 class ObservableVideoPlayerWrapper: ObservableObject {
     @Published var viewModel: any VideoPlayerViewModelProtocol
+    private let logger = AppContainer.shared.logger
     
     init(viewModel: any VideoPlayerViewModelProtocol) {
         self.viewModel = viewModel
+        logger.info("🎬 OBSERVABLE_WRAPPER: ✅ INIT - Created wrapper for viewModel", metadata: nil)
+    }
+    
+    deinit {
+        logger.info("🎬 OBSERVABLE_WRAPPER: 🗑️ DEINIT - Wrapper being deallocated", metadata: nil)
     }
 }
 

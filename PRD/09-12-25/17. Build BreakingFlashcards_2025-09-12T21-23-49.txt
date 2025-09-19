@@ -1,0 +1,482 @@
+
+Showing Recent Issues
+
+Build target BreakingFlashcards of project BreakingFlashcards with configuration Debug
+
+SwiftCompile normal arm64 Compiling\ VideoCoordinator.swift,\ TrimmerConfiguration.swift,\ PreviewOptimizedVideoPlayerViewModel.swift,\ PhotosPermissionManager.swift,\ EnhancedTabView.swift,\ TrimmerView.swift,\ AddMoveLoadingView.swift,\ AddMoveContainer.swift,\ ComboDetailView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/TrimmerConfiguration.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/PhotosPermissionManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/EnhancedTabView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveLoadingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveContainer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift:158:14: warning: capture of 'self' in a closure that outlives deinit; this is an error in the Swift 6 language mode
+        Task { @MainActor in
+             ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift:158:14: Capture of 'self' in a closure that outlives deinit; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 Compiling\ PlayerInitializer.swift,\ SwiftUIHandleBridge.swift,\ TrimmerViewModel.swift,\ AddMoveSelectClipView.swift,\ MotionCatalog.swift,\ VideoProcessingPipeline.swift,\ VideoHealthStatus.swift,\ CustomVideoPlayerView.swift,\ UpdatedVideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PlayerInitializer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/SwiftUIHandleBridge.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSelectClipView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/MotionCatalog.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessingPipeline.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthStatus.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/CustomVideoPlayerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerViewModel.swift:57:34: warning: reference to captured var 'self' in concurrently-executing code; this is an error in the Swift 6 language mode
+                guard let self = self else { return }
+                                 ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerViewModel.swift:57:34: Reference to captured var 'self' in concurrently-executing code; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift:150:14: warning: capture of 'self' in a closure that outlives deinit; this is an error in the Swift 6 language mode
+        Task { @MainActor in
+             ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift:150:14: Capture of 'self' in a closure that outlives deinit; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 Compiling\ MoveListView.swift,\ ComboListView.swift,\ VideoSaver.swift,\ PreviewOptimizedVideoAssetLoader.swift,\ FeatureFlag.swift,\ MainView.swift,\ MoveDetailView.swift,\ AppLogger.swift,\ ComboDetailHeaderView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveListView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboListView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/FeatureFlag.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/MainView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveDetailView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/AppLogger.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailHeaderView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:44:27: warning: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+            exportSession.exportAsynchronously {
+                          ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:50:38: warning: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+        if let error = exportSession.error {
+                                     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:94:27: warning: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+            exportSession.exportAsynchronously {
+                          ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:100:38: warning: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+        if let error = exportSession.error {
+                                     ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:44:27: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:50:38: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:94:27: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:100:38: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveDetailView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveDetailView.swift:54:41: warning: capture of 'timer' with non-sendable type 'Timer' in a '@Sendable' closure; this is an error in the Swift 6 language mode
+                                        timer.invalidate()
+                                        ^
+/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSTimer.h:10:12: note: class 'Timer' does not conform to the 'Sendable' protocol
+@interface NSTimer : NSObject
+           ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveDetailView.swift:54:41: Capture of 'timer' with non-sendable type 'Timer' in a '@Sendable' closure; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 Compiling\ BreakDexAlbumManager.swift,\ VideoLogger.swift,\ UpdatedVideoAssetLoader.swift,\ VideoRelinkView.swift,\ ComboDetailPlayerView.swift,\ DesignSystem.swift,\ Combine+Extensions.swift,\ VideoProcessor.swift,\ Quantizer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/BreakDexAlbumManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoLogger.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/UpdatedVideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Re-link/VideoRelinkView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailPlayerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/DesignSystem.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Combine+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Quantizer.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift:125:29: warning: 'export()' was deprecated in iOS 18.0
+        await exportSession.export()
+                            ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift:128:38: warning: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+        if let error = exportSession.error {
+                                     ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift:125:29: 'export()' was deprecated in iOS 18.0
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift:128:38: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+
+SwiftCompile normal arm64 Compiling\ PreviewOptimizedVideoPlayerInitializer.swift,\ VideoLoader.swift,\ NameMoveView.swift,\ AddMoveView.swift,\ AppContainer.swift,\ AlbumSyncManager.swift,\ FlashcardsReviewView.swift,\ BreakingFlashcardsApp.swift,\ TrimmerShapes.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoPlayerInitializer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/VideoLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/NameMoveView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/AppContainer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/AlbumSyncManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/BreakingFlashcardsApp.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Styles/TrimmerShapes.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/NameMoveView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/NameMoveView.swift:30:28: warning: value 'trimmed' was defined but never used; consider replacing with boolean test
+                    if let trimmed = trimmedAsset {
+                       ~~~~^~~~~~~~~~
+                                                  != nil
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/NameMoveView.swift:30:28: Value 'trimmed' was defined but never used; consider replacing with boolean test
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift:222:42: warning: main actor-isolated property 'isPlayerReady' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+                            if viewModel.isPlayerReady {
+                                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift:47:16: note: property declared here
+    public var isPlayerReady: Bool {
+               ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift:329:22: warning: 'onChange(of:perform:)' was deprecated in iOS 17.0: Use `onChange` with a two or zero parameter action closure instead.
+                    .onChange(of: activeMoveIndex) { _ in
+                     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift:323:42: warning: main actor-isolated property 'isPlayerReady' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+                            if viewModel.isPlayerReady {
+                                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift:47:16: note: property declared here
+    public var isPlayerReady: Bool {
+               ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift:222:42: Main actor-isolated property 'isPlayerReady' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift:329:22: 'onChange(of:perform:)' was deprecated in iOS 17.0: Use `onChange` with a two or zero parameter action closure instead.
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift:323:42: Main actor-isolated property 'isPlayerReady' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 Compiling\ PreviewOptimizedVideoCoordinator.swift,\ VideoPlayerViewModelProtocol.swift,\ TimelineNodeView.swift,\ MemoryManager.swift,\ MoveAddedSuccessView.swift,\ ComboTimelineView.swift,\ UpdatedAddMoveViewModel.swift,\ TrimmerButtonStyles.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/VideoPlayerViewModelProtocol.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/TimelineNodeView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/MemoryManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/Move\ Management/MoveAddedSuccessView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboTimelineView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/AddMove/UpdatedAddMoveViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Styles/TrimmerButtonStyles.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoCoordinator.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoCoordinator.swift:213:56: warning: 'tracks(withMediaType:)' was deprecated in iOS 16.0: Use loadTracks(withMediaType:) instead
+        if let videoTracks = player.currentItem?.asset.tracks(withMediaType: .video),
+                                                       ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoCoordinator.swift:213:56: 'tracks(withMediaType:)' was deprecated in iOS 16.0: Use loadTracks(withMediaType:) instead
+
+SwiftCompile normal arm64 Compiling\ ComboDetailTimelineView.swift,\ AvailableMoveRowView.swift,\ ButtonStyles.swift,\ VideoTransformBuilder.swift,\ Persistence.swift,\ VideoHealthMonitor.swift,\ HandleView.swift,\ Combo+CoreDataClass.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailTimelineView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/AvailableMoveRowView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/ButtonStyles.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/CoreData/Persistence.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/HandleView.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Combo+CoreDataClass.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailTimelineView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/AvailableMoveRowView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/ButtonStyles.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/CoreData/Persistence.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:172:71: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+            additionalInfo["duration"] = String(format: "%.2f", asset.duration.seconds)
+                                                                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:173:49: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+            additionalInfo["tracks"] = "\(asset.tracks.count)"
+                                                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:175:39: warning: 'tracks(withMediaType:)' was deprecated in iOS 16.0: Use loadTracks(withMediaType:) instead
+            if let videoTrack = asset.tracks(withMediaType: .video).first {
+                                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:176:39: warning: 'naturalSize' was deprecated in iOS 16.0: Use load(.naturalSize) instead
+                let size = videoTrack.naturalSize
+                                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:180:44: warning: 'nominalFrameRate' was deprecated in iOS 16.0: Use load(.nominalFrameRate) instead
+                let frameRate = videoTrack.nominalFrameRate
+                                           ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:203:71: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+            additionalInfo["duration"] = String(format: "%.2f", asset.duration.seconds)
+                                                                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:204:49: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+            additionalInfo["tracks"] = "\(asset.tracks.count)"
+                                                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:206:39: warning: 'tracks(withMediaType:)' was deprecated in iOS 16.0: Use loadTracks(withMediaType:) instead
+            if let videoTrack = asset.tracks(withMediaType: .video).first {
+                                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:207:39: warning: 'naturalSize' was deprecated in iOS 16.0: Use load(.naturalSize) instead
+                let size = videoTrack.naturalSize
+                                      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:211:44: warning: 'nominalFrameRate' was deprecated in iOS 16.0: Use load(.nominalFrameRate) instead
+                let frameRate = videoTrack.nominalFrameRate
+                                           ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:289:21: warning: initialization of 'UnsafeMutableRawPointer' results in a dangling pointer
+                    UnsafeMutableRawPointer(&threadInfo).assumingMemoryBound(to: integer_t.self),
+                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:289:45: note: implicit argument conversion from 'thread_basic_info' to 'UnsafeMutableRawPointer' produces a pointer valid only for the duration of the call to 'init(_:)'
+                    UnsafeMutableRawPointer(&threadInfo).assumingMemoryBound(to: integer_t.self),
+                                            ^~~~~~~~~~~
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:289:45: note: use 'withUnsafeMutableBytes' in order to explicitly convert argument to buffer pointer valid for a defined scope
+                    UnsafeMutableRawPointer(&threadInfo).assumingMemoryBound(to: integer_t.self),
+                                            ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:172:71: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:173:49: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:175:39: 'tracks(withMediaType:)' was deprecated in iOS 16.0: Use loadTracks(withMediaType:) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:176:39: 'naturalSize' was deprecated in iOS 16.0: Use load(.naturalSize) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:180:44: 'nominalFrameRate' was deprecated in iOS 16.0: Use load(.nominalFrameRate) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:203:71: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:204:49: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:206:39: 'tracks(withMediaType:)' was deprecated in iOS 16.0: Use loadTracks(withMediaType:) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:207:39: 'naturalSize' was deprecated in iOS 16.0: Use load(.naturalSize) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:211:44: 'nominalFrameRate' was deprecated in iOS 16.0: Use load(.nominalFrameRate) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift:289:21: Initialization of 'UnsafeMutableRawPointer' results in a dangling pointer
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/HandleView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Combo+CoreDataClass.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: warning: non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+        let videoTracks = try await composition.loadTracks(withMediaType: .video)
+                                                ^
+Swift.Array:1:23: note: generic struct 'Array' does not conform to the 'Sendable' protocol
+@frozen public struct Array<Element> : _DestructorSafeContainer {
+                      ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift:34:49: Non-sendable result type '[AVMutableCompositionTrack]' cannot be sent from nonisolated context in call to instance method 'loadTracks(withMediaType:)'; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 Compiling\ Font+Extensions.swift,\ ImportExportView.swift,\ Color+Extensions.swift,\ ReadinessMonitor.swift,\ AddMoveViewModel.swift,\ VideoErrorHandler.swift,\ Pre-TrimView.swift,\ AVPlayerViewRepresentable.swift,\ MemoryErrorHandler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Font+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/ImportExportView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Color+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoErrorHandler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Pre-Trim/Pre-TrimView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/AVPlayerViewRepresentable.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/MemoryErrorHandler.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveReadyView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/StatePillView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoState.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MovePickerSheet.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/SeekScheduler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/Move\ Management/AddMoveErrorView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/VideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/UpdatedVideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/BreakingArsenalView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/TrimmerConfiguration.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/PhotosPermissionManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/EnhancedTabView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveLoadingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveContainer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PlayerInitializer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/SwiftUIHandleBridge.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSelectClipView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/MotionCatalog.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessingPipeline.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthStatus.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/CustomVideoPlayerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Font+Extensions.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/ImportExportView.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Color+Extensions.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoErrorHandler.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Pre-Trim/Pre-TrimView.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/AVPlayerViewRepresentable.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/MemoryErrorHandler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/BreakDexAlbumManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoLogger.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/UpdatedVideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Re-link/VideoRelinkView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailPlayerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/DesignSystem.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Combine+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Quantizer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoPlayerInitializer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/VideoLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/NameMoveView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/AppContainer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/AlbumSyncManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/BreakingFlashcardsApp.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Styles/TrimmerShapes.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveListView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboListView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/FeatureFlag.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/MainView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveDetailView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/AppLogger.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailHeaderView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Re-link/VideoRelinkManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMovePreviewingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSavingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/CreateComboView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSelectingVideoView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoStateManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessingError.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Review/ReviewView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/VideoPlayerViewModelProtocol.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/TimelineNodeView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/MemoryManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/Move\ Management/MoveAddedSuccessView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboTimelineView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/AddMove/UpdatedAddMoveViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Styles/TrimmerButtonStyles.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailTimelineView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/AvailableMoveRowView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/ButtonStyles.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/CoreData/Persistence.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/Components/HandleView.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Combo+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Combo+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/ComboMove+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/ComboMove+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Move+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Move+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Review+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Review+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/BreakingFlashcards+CoreDataModel.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/GeneratedAssetSymbols.swift -supplementary-output-file-map /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/supplementaryOutputs-239 -emit-localized-strings -emit-localized-strings-path /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64 -target arm64-apple-ios18.5 -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -I /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Products/Debug-iphoneos -F /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Products/Debug-iphoneos -no-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -module-cache-path /Users/s3nik/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -profile-generate -profile-coverage-mapping -swift-version 5 -enforce-exclusivity\=checked -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/BreakingFlashcards_const_extract_protocols.json -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/s3nik/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards -resource-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift -enable-anonymous-context-mangled-names -file-compilation-dir /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards -Xcc -ivfsstatcache -Xcc /Users/s3nik/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-7fa4eea80a99bbfdc046826b63ec4baf.sdkstatcache -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-generated-files.hmap -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-own-target-headers.hmap -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-all-target-headers.hmap -Xcc -iquote -Xcc /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-project-headers.hmap -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Products/Debug-iphoneos/include -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources-normal/arm64 -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/arm64 -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources -Xcc -DDEBUG\=1 -module-name BreakingFlashcards -frontend-parseable-output -disable-clang-spi -target-sdk-version 18.5 -target-sdk-name iphoneos18.5 -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/Font+Extensions.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/ImportExportView.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/Color+Extensions.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/ReadinessMonitor.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/AddMoveViewModel.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/VideoErrorHandler.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/Pre-TrimView.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/AVPlayerViewRepresentable.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/MemoryErrorHandler.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/Font+Extensions.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/ImportExportView.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/Color+Extensions.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/ReadinessMonitor.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/AddMoveViewModel.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/VideoErrorHandler.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/Pre-TrimView.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/AVPlayerViewRepresentable.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/MemoryErrorHandler.o -index-store-path /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Index.noindex/DataStore -index-system-modules
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:65:26: warning: main actor-isolated property 'timeoutTask' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.timeoutTask?.cancel()
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:25:17: note: property declared here
+    private var timeoutTask: Task<Void, Never>?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:66:26: warning: main actor-isolated property 'timeoutTask' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.timeoutTask = nil
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:25:17: note: mutation of this property is only permitted within the actor
+    private var timeoutTask: Task<Void, Never>?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:69:26: warning: main actor-isolated property 'readinessObserver' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.readinessObserver?.invalidate()
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:24:17: note: property declared here
+    private var readinessObserver: NSKeyValueObservation?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:70:26: warning: main actor-isolated property 'readinessObserver' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.readinessObserver = nil
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:24:17: note: mutation of this property is only permitted within the actor
+    private var readinessObserver: NSKeyValueObservation?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:77:26: warning: main actor-isolated property 'timeoutTask' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.timeoutTask?.cancel()
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:25:17: note: property declared here
+    private var timeoutTask: Task<Void, Never>?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:78:26: warning: main actor-isolated property 'timeoutTask' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.timeoutTask = nil
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:25:17: note: mutation of this property is only permitted within the actor
+    private var timeoutTask: Task<Void, Never>?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:81:26: warning: main actor-isolated property 'readinessObserver' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.readinessObserver?.invalidate()
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:24:17: note: property declared here
+    private var readinessObserver: NSKeyValueObservation?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:82:26: warning: main actor-isolated property 'readinessObserver' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+                    self.readinessObserver = nil
+                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:24:17: note: mutation of this property is only permitted within the actor
+    private var readinessObserver: NSKeyValueObservation?
+                ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:415:64: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+            logger.info("🎬 VIEWMODEL: Asset exists: \(asset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:440:64: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+            logger.info("🎬 VIEWMODEL: Asset exists: \(asset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:462:24: error: value of optional type 'AVAsset?' must be unwrapped to a value of type 'AVAsset'
+                asset: originalAsset,
+                       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:462:24: note: coalesce using '??' to provide a default when the optional value contains 'nil'
+                asset: originalAsset,
+                       ^
+                                     ?? <#default value#>
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:462:24: note: force-unwrap using '!' to abort execution if the optional value contains 'nil'
+                asset: originalAsset,
+                       ^
+                                    !
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:478:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:553:72: error: value of optional type 'AVAsset?' must be unwrapped to a value of type 'AVAsset'
+                let savedVideoURL = try await saveVideoToPhotos(asset: assetToSave, moveName: self.moveName)
+                                                                       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:553:72: note: coalesce using '??' to provide a default when the optional value contains 'nil'
+                let savedVideoURL = try await saveVideoToPhotos(asset: assetToSave, moveName: self.moveName)
+                                                                       ^
+                                                                                   ?? <#default value#>
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:553:72: note: force-unwrap using '!' to abort execution if the optional value contains 'nil'
+                let savedVideoURL = try await saveVideoToPhotos(asset: assetToSave, moveName: self.moveName)
+                                                                       ^
+                                                                                  !
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:592:64: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+            logger.info("🎬 VIEWMODEL: Asset exists: \(asset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:589:33: warning: immutable value 'playerViewModel' was never used; consider replacing with '_' or removing it
+        if case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = self.state {
+                            ~~~~^~~~~~~~~~~~~~~
+                            _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:610:26: warning: immutable value 'asset' was never used; consider replacing with '_' or removing it
+        case .loaded(let asset, let id, let rotation):
+                     ~~~~^~~~~
+                     _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:704:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:671:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:671:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:785:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:814:49: error: missing argument label 'underlyingError:' in call
+            throw VideoError.assetLoadingFailed("Asset is not a URL asset")
+                                                ^
+                                                underlyingError: 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:814:49: error: argument type 'String' does not conform to expected type 'Error'
+            throw VideoError.assetLoadingFailed("Asset is not a URL asset")
+                                                ^
+                                                                           as! Error
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:834:23: error: cannot find 'appContainer' in scope
+        let context = appContainer.persistentController.container.viewContext
+                      ^~~~~~~~~~~~
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:65:26: Main actor-isolated property 'timeoutTask' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:66:26: Main actor-isolated property 'timeoutTask' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:69:26: Main actor-isolated property 'readinessObserver' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:70:26: Main actor-isolated property 'readinessObserver' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:77:26: Main actor-isolated property 'timeoutTask' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:78:26: Main actor-isolated property 'timeoutTask' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:81:26: Main actor-isolated property 'readinessObserver' can not be referenced from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift:82:26: Main actor-isolated property 'readinessObserver' can not be mutated from a Sendable closure; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:415:64: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:440:64: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:462:24: Value of optional type 'AVAsset?' must be unwrapped to a value of type 'AVAsset'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:478:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:553:72: Value of optional type 'AVAsset?' must be unwrapped to a value of type 'AVAsset'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:592:64: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:589:33: Immutable value 'playerViewModel' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:610:26: Immutable value 'asset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:704:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:671:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:671:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:785:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:814:49: Missing argument label 'underlyingError:' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:814:49: Argument type 'String' does not conform to expected type 'Error'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:834:23: Cannot find 'appContainer' in scope
+
+
+
+Build failed    9/12/25, 9:23 PM    2.9 seconds

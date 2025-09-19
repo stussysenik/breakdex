@@ -79,8 +79,13 @@ struct PreTrimView: View {
     private var mainContent: some View {
         VStack(spacing: 0) {
             renderHeader()
+            Spacer()
             renderVideoPlayerSection()
+                .padding(.bottom, 10)
+            Spacer()
             renderActionButtons()
+            Spacer()
+            Spacer()
         }
         .background(Color.black.ignoresSafeArea())
         .navigationBarHidden(true)
@@ -147,28 +152,30 @@ struct PreTrimView: View {
     }
     
     private func renderActionButtons() -> some View {
-        return VStack(spacing: 16) {
+        return VStack(spacing: 20) {
             Button(action: {
                 impactGenerator.impactOccurred()
                 logger.info("🎬 PRE_TRIM_VIEW: Trim & Edit button tapped")
                 viewModel.startTrimming()
             }) {
                 Text("Trim & Edit")
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: 275)
             }
-            .buttonStyle(.appPrimary(size: .large))
-            
+            .buttonStyle(.appPrimary(size: .medium))
+
             Button(action: {
                 impactGenerator.impactOccurred()
                 logger.info("🎬 PRE_TRIM_VIEW: Use Full Video button tapped")
-                viewModel.startNaming()
+                Task {
+                    await viewModel.startNaming()
+                }
             }) {
                 Text("Use Full Video")
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: 275)
             }
-            .buttonStyle(.appSecondary(size: .large))
+            .buttonStyle(.appSecondary(size: .medium))
         }
-        .padding()
+        .padding(.bottom, 10)
     }
     
     // MARK: - State Validation and Fallback

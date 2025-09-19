@@ -1,0 +1,821 @@
+
+Showing Recent Issues
+
+Build target BreakingFlashcards of project BreakingFlashcards with configuration Debug
+
+SwiftCompile normal arm64 Compiling\ PlayerInitializer.swift,\ AddMoveViewModel.swift,\ PhotosPermissionManager.swift,\ VideoSaver.swift,\ CustomVideoPlayerView.swift,\ VideoAssetLoader.swift,\ DesignSystem.swift,\ PreviewOptimizedVideoPlayerViewModel.swift,\ MotionCatalog.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PlayerInitializer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/PhotosPermissionManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/CustomVideoPlayerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/DesignSystem.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/MotionCatalog.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+
+Failed frontend command:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PlayerStateMonitor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ContinuationManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/AlbumSyncManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/VideoLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/AppContainer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/MainView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/AppLogger.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/ImportExportView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSavingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMovePreviewingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/AvailableMoveRowView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/UpdatedVideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Review/FlashcardsReviewView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/FeatureRichTrimmerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoLogger.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailTimelineView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveReadyView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Review/ReviewView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailPlayerView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Quantizer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoErrorHandler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/MemoryManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/VideoPlayerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveListView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboTimelineView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Color+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/EnhancedTabView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/AVPlayerViewRepresentable.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/BreakingFlashcardsApp.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MovePickerSheet.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/ReadinessMonitor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Trim/TrimmerViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Moves/MoveDetailView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Combine+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/Move\ Management/MoveAddedSuccessView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSelectingVideoView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/Font+Extensions.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/BreakingArsenalView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthMonitor.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PlayerInitializer.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/PhotosPermissionManager.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/CustomVideoPlayerView.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoAssetLoader.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/DesignSystem.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift -primary-file /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/MotionCatalog.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoState.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/UpdatedVideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoTransformBuilder.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessingPipeline.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/ButtonStyles.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboDetailHeaderView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/NameMoveView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/SeekScheduler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/VideoPlayerViewModelProtocol.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Re-link/VideoRelinkManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessingError.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/TimelineNodeView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/MemoryErrorHandler.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveSelectClipView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveContainer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoHealthStatus.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/BreakDexAlbumManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Pre-Trim/Pre-TrimView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Re-link/VideoRelinkView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/UpdatedVideoAssetLoader.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoStateManager.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveLoadingView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/AppCore/FeatureFlag.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/CoreData/Persistence.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/CreateComboView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoProcessor.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoPlayerInitializer.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PreviewOptimizedVideoCoordinator.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/AddMove/UpdatedAddMoveViewModel.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/Combos/ComboListView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/StatePillView.swift /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/Move\ Management/AddMoveErrorView.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Combo+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Combo+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/ComboMove+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/ComboMove+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Move+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Move+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Review+CoreDataClass.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/Review+CoreDataProperties.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/CoreDataGenerated/BreakingFlashcards/BreakingFlashcards+CoreDataModel.swift /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/GeneratedAssetSymbols.swift -supplementary-output-file-map /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/supplementaryOutputs-619 -emit-localized-strings -emit-localized-strings-path /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64 -target arm64-apple-ios18.5 -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk -I /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Products/Debug-iphoneos -F /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Products/Debug-iphoneos -no-color-diagnostics -enable-testing -g -debug-info-format\=dwarf -dwarf-version\=5 -module-cache-path /Users/s3nik/Library/Developer/Xcode/DerivedData/ModuleCache.noindex -profile-generate -profile-coverage-mapping -swift-version 5 -enforce-exclusivity\=checked -Onone -D DEBUG -serialize-debugging-options -const-gather-protocols-file /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/BreakingFlashcards_const_extract_protocols.json -enable-experimental-feature DebugDescriptionMacro -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/s3nik/Library/Developer/Xcode/DerivedData/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards -resource-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift -enable-anonymous-context-mangled-names -file-compilation-dir /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards -Xcc -ivfsstatcache -Xcc /Users/s3nik/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphoneos18.5-22F76-7fa4eea80a99bbfdc046826b63ec4baf.sdkstatcache -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-generated-files.hmap -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-own-target-headers.hmap -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-all-target-headers.hmap -Xcc -iquote -Xcc /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/BreakingFlashcards-project-headers.hmap -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Products/Debug-iphoneos/include -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources-normal/arm64 -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources/arm64 -Xcc -I/Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/DerivedSources -Xcc -DDEBUG\=1 -module-name BreakingFlashcards -frontend-parseable-output -disable-clang-spi -target-sdk-version 18.5 -target-sdk-name iphoneos18.5 -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/lib/swift/host/plugins\#/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -in-process-plugin-server-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/libSwiftInProcPluginServer.dylib -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/PlayerInitializer.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/AddMoveViewModel.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/PhotosPermissionManager.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/VideoSaver.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/CustomVideoPlayerView.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/VideoAssetLoader.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/DesignSystem.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/PreviewOptimizedVideoPlayerViewModel.o -o /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Build/Intermediates.noindex/BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/MotionCatalog.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/PlayerInitializer.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/AddMoveViewModel.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/PhotosPermissionManager.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/VideoSaver.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/CustomVideoPlayerView.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/VideoAssetLoader.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/DesignSystem.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/PreviewOptimizedVideoPlayerViewModel.o -index-unit-output-path /BreakingFlashcards.build/Debug-iphoneos/BreakingFlashcards.build/Objects-normal/arm64/MotionCatalog.o -index-store-path /Users/s3nik/Library/Developer/Xcode/DerivedData/BreakingFlashcards-abrtbhjwvhhvgthfroapwouuassm/Index.noindex/DataStore -index-system-modules
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/PlayerInitializer.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Managers/Album/PhotosPermissionManager.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:44:27: warning: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+            exportSession.exportAsynchronously {
+                          ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:50:38: warning: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+        if let error = exportSession.error {
+                                     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:94:27: warning: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+            exportSession.exportAsynchronously {
+                          ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:100:38: warning: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+        if let error = exportSession.error {
+                                     ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:44:27: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:50:38: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:94:27: 'exportAsynchronously(completionHandler:)' was deprecated in iOS 18.0
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/VideoSaver.swift:100:38: 'error' was deprecated in iOS 18.0: Use export(to:as:) async throws instead
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/CustomVideoPlayerView.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Video/Processing/Components/VideoAssetLoader.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/DesignSystem.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift:158:14: warning: capture of 'self' in a closure that outlives deinit; this is an error in the Swift 6 language mode
+        Task { @MainActor in
+             ^
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Video/Player/PreviewOptimizedVideoPlayerViewModel.swift:158:14: Capture of 'self' in a closure that outlives deinit; this is an error in the Swift 6 language mode
+
+SwiftCompile normal arm64 /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards/BreakingFlashcards/Utilities/MotionCatalog.swift (in target 'BreakingFlashcards' from project 'BreakingFlashcards')
+    cd /Users/s3nik/Desktop/dev\ playground/BreakingFlashcards
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: error: cannot find 'cacheKey' in scope
+            logger.info("🎬 VIEWMODEL: 📦 Cache key for preservation: \(cacheKey)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: error: reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: note: reference 'self.' explicitly
+                logger.info("🎬 VIEWMODEL: Available cache keys: \(Array(videoPlayerCache.keys.map { $0.prefix(8) }))")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: warning: immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                 ~~~~^~~~~~~~~~~~
+                                                                 _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: warning: immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                   ~~~~^~~~~~~~~~~~~
+                                                                                   _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: warning: immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+        if case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = self.state {
+                                                                                                      ~~~~^~~~~~~~~~~
+                                                                                                      _
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Asset exists: \(currentAsset != nil)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: extra argument 'metadata' in call
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: error: 'nil' requires a contextual type
+            logger.info("🎬 VIEWMODEL: Asset exists: true", metadata: nil)
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: warning: 'let' pattern has no effect; sub-pattern didn't bind any variables
+        case .loaded(_, let id, let _):
+                                ^~~~~
+                                
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                    logger.info("🎬 VIEWMODEL: 📊 Video details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: warning: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: warning: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+                    logger.info("🎬 VIEWMODEL: 📊 Asset details - duration: \(result.asset.duration.seconds)s, tracks: \(result.asset.tracks.count)")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: warning: left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+                logger.info("🎬 VIEWMODEL: Result photos ID: \(result.photosIdentifier ?? "nil")")
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: warning: comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+                logger.info("🎬 VIEWMODEL: Result asset exists: \(result.asset != nil)")
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:423:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:432:77: Cannot find 'cacheKey' in scope
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:461:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:490:76: Reference to property 'videoPlayerCache' in closure requires explicit use of 'self' to make capture semantics explicit
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:70: Immutable value 'trimmedAsset' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:88: Immutable value 'trimStartTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:511:107: Immutable value 'trimEndTime' was never used; consider replacing with '_' or removing it
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:539:75: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: Extra argument 'metadata' in call
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:669:73: 'nil' requires a contextual type
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:687:33: 'let' pattern has no effect; sub-pattern didn't bind any variables
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:784:137: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:96: 'duration' was deprecated in iOS 16.0: Use load(.duration) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:748:139: 'tracks' was deprecated in iOS 16.0: Use load(.tracks) instead
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:864:90: Left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:865:82: Comparing non-optional value of type 'AVAsset' to 'nil' always returns true
+
+
+
+Build failed    9/13/25, 12:20 PM    4.4 seconds

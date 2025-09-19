@@ -9,7 +9,6 @@ import Combine
 import AVFoundation
 import OSLog
 
-@MainActor
 public class PlayerItemStatusMonitor {
     
     private let logger = Logger(subsystem: "BreakingFlashcards", category: "PlayerItemStatusMonitor")
@@ -34,8 +33,19 @@ public class PlayerItemStatusMonitor {
         self.playerItem = playerItem
     }
     
+    // Helper to get human-readable status description
+    private func statusDescription(_ status: AVPlayerItem.Status) -> String {
+        switch status {
+        case .unknown: return "unknown"
+        case .readyToPlay: return "readyToPlay"
+        case .failed: return "failed"
+        @unknown default: return "unknown (\(status.rawValue))"
+        }
+    }
+    
     /// Waits until the player item is ready and has buffered a sufficient duration for smooth interaction.
     /// Reports progress of the buffering process via a callback.
+    @MainActor
     public func awaitReadyAndBuffered(
         timeout: TimeInterval = 15.0,
         onProgress: @escaping @MainActor (Double) -> Void
@@ -56,52 +66,124 @@ public class PlayerItemStatusMonitor {
                     var hasResumed = false
 
                     let cleanupAndResume: (Result<Void, Error>?) -> Void = { result in
-                        guard !hasResumed else { return }
+                        guard !hasResumed else { 
+                            self.logger.info("🎬 MONITOR: ⚠️ Continuation already resumed, ignoring duplicate call")
+                            return 
+                        }
                         hasResumed = true
                         observers.forEach { $0.invalidate() }
                         observers.removeAll()
-                        if let result = result {
-                            continuation.resume(with: result)
-                        } else {
+                        
+                        switch result {
+                        case .success:
+                            self.logger.info("🎬 MONITOR: ✅ Continuation resumed successfully")
+                            continuation.resume()
+                        case .failure(let error):
+                            self.logger.error("🎬 MONITOR: 🚨 Continuation resumed with error: \(error.localizedDescription)")
+                            continuation.resume(throwing: error)
+                        case .none:
+                            self.logger.info("🎬 MONITOR: ✅ Continuation resumed without error")
                             continuation.resume()
                         }
                     }
+                    
+                    // Log initial state
+                    self.logger.info("🎬 MONITOR: 🚀 Starting monitoring - Initial status: \(self.statusDescription(self.playerItem.status))")
 
                     let checkReadiness = {
-                        guard self.playerItem.status == .readyToPlay else {
-                            if self.playerItem.status == .failed {
-                                cleanupAndResume(.failure(MonitorError.playerItemFailed(self.playerItem.error)))
+                        // Use switch statement for exhaustive state handling
+                        switch self.playerItem.status {
+                        case .failed:
+                            self.logger.error("🎬 MONITOR: 🚨 Player item failed with error: \(String(describing: self.playerItem.error?.localizedDescription))")
+                            cleanupAndResume(.failure(MonitorError.playerItemFailed(self.playerItem.error)))
+                            
+                        case .unknown:
+                            // Simply wait for status update - do nothing, continuation remains pending
+                            self.logger.info("🎬 MONITOR: ⏳ Status is unknown, waiting for update...")
+                            return
+                            
+                        case .readyToPlay:
+                            self.logger.info("🎬 MONITOR: ✅ Status is ready, checking buffer...")
+                            
+                            // Check loaded time ranges
+                            guard let firstRange = self.playerItem.loadedTimeRanges.first?.timeRangeValue else {
+                                Task { @MainActor in
+                                    await onProgress(0) // No buffer yet
+                                    self.logger.info("🎬 MONITOR: 📈 Buffer progress: 0% (no loaded ranges)")
+                                }
+                                return
                             }
-                            return
-                        }
-                        
-                        guard let firstRange = self.playerItem.loadedTimeRanges.first?.timeRangeValue else {
-                        Task { @MainActor in
-                            await onProgress(0) // No buffer yet
-                        }
-                            return
-                        }
-                        
-                        let bufferedDuration = CMTimeGetSeconds(firstRange.duration)
-                        let progress = min(1.0, bufferedDuration / requiredBufferDuration)
-                        Task { @MainActor in
-                            await onProgress(progress)
-                        }
+                            
+                            // Calculate buffer progress
+                            let bufferedDuration = CMTimeGetSeconds(firstRange.duration)
+                            let progress = min(1.0, bufferedDuration / requiredBufferDuration)
+                            Task { @MainActor in
+                                await onProgress(progress)
+                                self.logger.info("🎬 MONITOR: 📈 Buffer progress: \(Int(progress * 100))% (\(String(format: "%.2f", bufferedDuration))s buffered)")
+                            }
 
-                        if bufferedDuration >= requiredBufferDuration || self.playerItem.isPlaybackBufferFull || self.playerItem.isPlaybackLikelyToKeepUp {
-                            cleanupAndResume(nil)
+                            // Check if buffer requirements are met
+                            if bufferedDuration >= requiredBufferDuration || 
+                               self.playerItem.isPlaybackBufferFull || 
+                               self.playerItem.isPlaybackLikelyToKeepUp {
+                                self.logger.info("🎬 MONITOR: 🎉 Buffer requirements met - resuming continuation!")
+                                cleanupAndResume(nil)
+                            }
+                            
+                        @unknown default:
+                            self.logger.warning("🎬 MONITOR: ⚠️ Unknown player item status: \(self.statusDescription(self.playerItem.status))")
+                            // Wait for known status
+                            return
                         }
                     }
                     
+                    // Initial check to handle case where player is already ready
+                    checkReadiness()
+                    
+                    // Observe status changes with detailed logging
                     observers.append(self.playerItem.observe(
-                        \.status, options: [.new, .initial]) { _, _ in
-                        Task { @MainActor in checkReadiness() }
+                        \.status, options: [.new, .initial]) { _, change in
+                        Task { @MainActor in
+                            let oldStatus = change.oldValue.map { self.statusDescription($0) } ?? "unknown"
+                            let newStatus = self.statusDescription(self.playerItem.status)
+                            self.logger.info("🎬 MONITOR: 📊 Status changed from \(oldStatus) to \(newStatus)")
+                            checkReadiness()
+                        }
                     })
 
+                    // Observe loaded time ranges with detailed logging
                     observers.append(self.playerItem.observe(
                         \.loadedTimeRanges, options: [.new, .initial]) { _, _ in
-                        Task { @MainActor in checkReadiness() }
+                        Task { @MainActor in
+                            let rangeCount = self.playerItem.loadedTimeRanges.count
+                            if let firstRange = self.playerItem.loadedTimeRanges.first?.timeRangeValue {
+                                let duration = CMTimeGetSeconds(firstRange.duration)
+                                self.logger.info("🎬 MONITOR: 📊 Loaded ranges updated: \(rangeCount) ranges, first duration: \(String(format: "%.2f", duration))s")
+                            } else {
+                                self.logger.info("🎬 MONITOR: 📊 Loaded ranges updated: \(rangeCount) ranges, no durations available")
+                            }
+                            checkReadiness()
+                        }
                     })
+                    
+                    // Observe additional playback properties for comprehensive monitoring
+                    observers.append(self.playerItem.observe(
+                        \.isPlaybackBufferFull, options: [.new]) { _, _ in
+                        Task { @MainActor in
+                            self.logger.info("🎬 MONITOR: 📊 Playback buffer full: \(self.playerItem.isPlaybackBufferFull)")
+                            checkReadiness()
+                        }
+                    })
+                    
+                    observers.append(self.playerItem.observe(
+                        \.isPlaybackLikelyToKeepUp, options: [.new]) { _, _ in
+                        Task { @MainActor in
+                            self.logger.info("🎬 MONITOR: 📊 Likely to keep up: \(self.playerItem.isPlaybackLikelyToKeepUp)")
+                            checkReadiness()
+                        }
+                    })
+                    
+                    self.logger.info("🎬 MONITOR: ✅ All observers set up successfully")
                 }
             }
 

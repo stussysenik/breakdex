@@ -1,0 +1,155 @@
+
+    
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:12:6: error: invalid redeclaration of 'SelectionState'
+enum SelectionState {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:318:6: note: 'SelectionState' previously declared here
+enum SelectionState {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:318:6: note: 'SelectionState' previously declared here
+enum SelectionState {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:20:8: error: invalid redeclaration of 'Movie'
+struct Movie: Transferable {
+       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:326:8: note: 'Movie' previously declared here
+struct Movie: Transferable {
+       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:326:8: note: 'Movie' previously declared here
+struct Movie: Transferable {
+       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:35:6: error: invalid redeclaration of 'ImportError'
+enum ImportError: Error, LocalizedError {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:341:6: note: 'ImportError' previously declared here
+enum ImportError: Error, LocalizedError {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:341:6: note: 'ImportError' previously declared here
+enum ImportError: Error, LocalizedError {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:54:33: error: 'SelectionState' is ambiguous for type lookup in this context
+    @Published var importState: SelectionState = .idle
+                                ^~~~~~~~~~~~~~
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:12:6: note: found this candidate
+enum SelectionState {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:318:6: note: found this candidate
+enum SelectionState {
+     ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:174:33: error: 'Movie' is ambiguous for type lookup in this context
+    private func persist(movie: Movie) throws -> URL {
+                                ^~~~~
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:20:8: note: found this candidate
+struct Movie: Transferable {
+       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:326:8: note: found this candidate
+struct Movie: Transferable {
+       ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:164:10: warning: main actor-isolated instance method 'cleanupTempArtifacts()' cannot be used to satisfy nonisolated requirement from protocol 'PhotosImportServiceProtocol'; this is an error in the Swift 6 language mode
+    func cleanupTempArtifacts() {
+         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:164:10: note: add 'nonisolated' to 'cleanupTempArtifacts()' to make this instance method not isolated to the actor
+    func cleanupTempArtifacts() {
+         ^
+    nonisolated 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:51:28: note: add '@preconcurrency' to the 'PhotosImportServiceProtocol' conformance to defer isolation checking to run time
+class PhotosImportService: PhotosImportServiceProtocol {
+                           ^
+                           @preconcurrency 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:8:10: note: mark the protocol requirement 'cleanupTempArtifacts()' 'async' to allow actor-isolated conformances
+    func cleanupTempArtifacts()
+         ^
+                                async
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:21:20: warning: main actor-isolated property 'currentState' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+    @Published var currentState: AddMoveState = .ready {
+                   ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:18:28: note: add '@preconcurrency' to the 'AddMoveStateManagerProtocol' conformance to defer isolation checking to run time
+class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
+                           ^
+                           @preconcurrency 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:8:9: note: requirement 'currentState' declared here
+    var currentState: AddMoveState { get }
+        ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:27:9: warning: main actor-isolated property 'statePublisher' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+    var statePublisher: Published<AddMoveState>.Publisher { $currentState }
+        ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:9:9: note: requirement 'statePublisher' declared here
+    var statePublisher: Published<AddMoveState>.Publisher { get }
+        ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:39:10: warning: main actor-isolated instance method 'transition(to:)' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+    func transition(to state: AddMoveState) {
+         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:39:10: note: add 'nonisolated' to 'transition(to:)' to make this instance method not isolated to the actor
+    func transition(to state: AddMoveState) {
+         ^
+    nonisolated 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:11:10: note: mark the protocol requirement 'transition(to:)' 'async' to allow actor-isolated conformances
+    func transition(to state: AddMoveState)
+         ^
+                                            async
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:49:10: warning: main actor-isolated instance method 'reset()' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+    func reset() {
+         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:49:10: note: add 'nonisolated' to 'reset()' to make this instance method not isolated to the actor
+    func reset() {
+         ^
+    nonisolated 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:12:10: note: mark the protocol requirement 'reset()' 'async' to allow actor-isolated conformances
+    func reset()
+         ^
+                 async
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:58:10: warning: main actor-isolated instance method 'getStateDescription' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+    func getStateDescription(_ state: AddMoveState) -> String {
+         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:58:10: note: add 'nonisolated' to 'getStateDescription' to make this instance method not isolated to the actor
+    func getStateDescription(_ state: AddMoveState) -> String {
+         ^
+    nonisolated 
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:13:10: note: mark the protocol requirement 'getStateDescription' 'async' to allow actor-isolated conformances
+    func getStateDescription(_ state: AddMoveState) -> String
+         ^
+                                                    async
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:358:5: error: expected declaration
+    @Published var state: AddMoveState {
+    ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:356:7: note: in declaration of 'AddMoveViewModel'
+class AddMoveViewModel: ObservableObject {
+      ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:358:5: error: expected '}' in class
+    @Published var state: AddMoveState {
+    ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:356:42: note: to match this opening '{'
+class AddMoveViewModel: ObservableObject {
+                                         ^
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveContainer.swift:418:48: error: cannot find type 'TrimmerViewModel' in scope
+    @StateObject private var trimmerViewModel: TrimmerViewModel
+                                               ^~~~~~~~~~~~~~~~
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:12:6: Invalid redeclaration of 'SelectionState'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:20:8: Invalid redeclaration of 'Movie'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:35:6: Invalid redeclaration of 'ImportError'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:54:33: 'SelectionState' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:174:33: 'Movie' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/PhotosImportService.swift:164:10: Main actor-isolated instance method 'cleanupTempArtifacts()' cannot be used to satisfy nonisolated requirement from protocol 'PhotosImportServiceProtocol'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:21:20: Main actor-isolated property 'currentState' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:27:9: Main actor-isolated property 'statePublisher' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:39:10: Main actor-isolated instance method 'transition(to:)' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:49:10: Main actor-isolated instance method 'reset()' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Managers/AddMoveStateManager.swift:58:10: Main actor-isolated instance method 'getStateDescription' cannot be used to satisfy nonisolated requirement from protocol 'AddMoveStateManagerProtocol'; this is an error in the Swift 6 language mode
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:358:5: Expected declaration
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveViewModel.swift:358:5: Expected '}' in class
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/Views/Arsenal/AddMove/AddMoveContainer.swift:418:48: Cannot find type 'TrimmerViewModel' in scope

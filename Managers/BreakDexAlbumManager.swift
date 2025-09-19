@@ -1,6 +1,7 @@
 import Photos
 import SwiftUI
 import Combine
+import OSLog
 
 /// Manages the BreakDex album in the Photos library
 /// This is the single source of truth for all video storage operations
@@ -10,6 +11,7 @@ class BreakDexAlbumManager: ObservableObject {
     
     private let albumName = "BreakDex"
     private let albumIdentifierKey = "BreakDexAlbumIdentifier"
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "BreakDexAlbumManager")
     
     enum AlbumState {
         case unknown
@@ -172,6 +174,18 @@ class BreakDexAlbumManager: ObservableObject {
                 }
             }
         }
+    }
+    
+    /// Save a video to BreakDex album and return its identifier
+    /// - Parameter fileURL: Local file URL of the video
+    /// - Returns: Photos identifier of the saved video
+    func saveVideoToBreakDexAlbum(_ fileURL: URL) async throws -> String {
+        logger.info("💾 ALBUM_MANAGER: Saving video to BreakDex album: \(fileURL.absoluteString)")
+        
+        let asset = try await copyVideoToBreakDex(from: fileURL)
+        logger.info("💾 ALBUM_MANAGER: Video saved to BreakDex album successfully: \(asset.localIdentifier)")
+        
+        return asset.localIdentifier
     }
     
     /// Check if a video exists in BreakDex album by local identifier

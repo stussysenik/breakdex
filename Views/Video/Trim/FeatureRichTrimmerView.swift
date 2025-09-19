@@ -8,12 +8,26 @@ enum HandleType {
     case start, end
 }
 
+// MARK: - Isolated Trimmer Player View
+/// A new, isolated view that ONLY displays the video player.
+/// Its dependencies do not change during a drag, so SwiftUI won't re-render it.
+struct TrimmerPlayerView: View {
+    @ObservedObject var playerViewModel: UnifiedVideoPlayerViewModel
+    @Binding var rotationQuarterTurns: Int
+    
+    var body: some View {
+        CustomVideoPlayerView(viewModel: playerViewModel, rotationQuarterTurns: $rotationQuarterTurns)
+            .frame(height: 300)
+            .cornerRadius(12)
+            .padding(.horizontal)
+    }
+}
+
 // MARK: - Unified Feature-Rich Trimmer View
 struct FeatureRichTrimmerView: View {
     @Bindable var viewModel: AddMoveViewModel
     @State private var playerViewModel: UnifiedVideoPlayerViewModel
     @State private var trimmerViewModel: TrimmerViewModel
-    @State private var rotationQuarterTurns: Int = 0
     
     // MARK: - State
     @State private var isPlayerReady = false
@@ -27,20 +41,29 @@ struct FeatureRichTrimmerView: View {
     init(viewModel: AddMoveViewModel, asset: AVAsset, rotation: Int, playerViewModel: UnifiedVideoPlayerViewModel) {
         self.viewModel = viewModel
         self.asset = asset
-        self._rotationQuarterTurns = State(initialValue: rotation)
         self._playerViewModel = State(initialValue: playerViewModel)
+        // 🚨 FIX: Initialize the trimmer's view model with the correct incoming rotation value.
         self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, rotationQuarterTurns: rotation, playerViewModel: playerViewModel))
+        
+        // Apply the natural rotation to the player so it shows correctly
+        playerViewModel.setRotation(rotation)
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // MARK: - Video Player Section
-            videoPlayerSection
-            
             Spacer()
-            
+            // MARK: - Video Player Section
+            Group {
+                if playerViewModel.isPlayerReady {
+                    TrimmerPlayerView(playerViewModel: playerViewModel, rotationQuarterTurns: $trimmerViewModel.rotationQuarterTurns)
+                } else {
+                    loadingState
+                }
+            }
             // MARK: - Enhanced Trimmer Interface
-            VStack(spacing: 16) {
+            Spacer()
+            VStack(spacing: 8) {
+                Spacer()
                 // Time code display
                 timeCodeDisplay
                 
@@ -49,14 +72,13 @@ struct FeatureRichTrimmerView: View {
                 
                 // Enhanced controls
                 controlSection
-                
+
                 // Minimum duration warning
                 if trimmerViewModel.showMinimumDurationWarning {
                     minimumDurationWarning
                 }
+                Spacer()
             }
-            .padding(.horizontal)
-            .padding(.bottom, 100)
         }
         .background(Color.backgroundPrimary.ignoresSafeArea())
         .onAppear(perform: initializeTrimmer)
@@ -64,25 +86,8 @@ struct FeatureRichTrimmerView: View {
             playerTimeoutTask?.cancel()
             playerTimeoutTask = nil
         }
-        .onChange(of: rotationQuarterTurns) { _ in
-            handleRotationChange()
-        }
         .task {
             await setupTrimmerViewModel()
-        }
-    }
-    
-    // MARK: - Video Player Section
-    private var videoPlayerSection: some View {
-        Group {
-            if playerViewModel.isPlayerReady {
-                CustomVideoPlayerView(viewModel: playerViewModel)
-                    .frame(height: 300)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-            } else {
-                loadingState
-            }
         }
     }
     
@@ -131,11 +136,11 @@ struct FeatureRichTrimmerView: View {
                 )
             }
             
-            // Progress bar visualization
-            TimeProgressBar(
-                currentRange: trimmerViewModel.startTime...trimmerViewModel.endTime,
-                totalDuration: trimmerViewModel.videoDuration
-            )
+            // // Progress bar visualization
+            // TimeProgressBar(
+            //     currentRange: trimmerViewModel.startTime...trimmerViewModel.endTime,
+            //     totalDuration: trimmerViewModel.videoDuration
+            // )
         }
         .font(.ibmPlexMono(size: 12))
     }
@@ -156,7 +161,7 @@ struct FeatureRichTrimmerView: View {
             
             Button(action: {
                 HapticManager.shared.trigger(.frameDetent)
-                rotationQuarterTurns = (rotationQuarterTurns + 1) % 4
+                trimmerViewModel.rotationQuarterTurns = (trimmerViewModel.rotationQuarterTurns + 1) % 4
             }) {
                 Image(systemName: "rotate.right")
             }
@@ -222,12 +227,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
     
-    private func handleRotationChange() {
-        logger.info("🎬 FEATURE_RICH_TRIMMER: 🔄 Rotation changed to \(rotationQuarterTurns)°")
-        trimmerViewModel.rotationQuarterTurns = rotationQuarterTurns
-        playerViewModel.setRotation(rotationQuarterTurns)
-    }
-    
+        
     private func setupTrimmerViewModel() async {
         do {
             try await trimmerViewModel.setupAsync()

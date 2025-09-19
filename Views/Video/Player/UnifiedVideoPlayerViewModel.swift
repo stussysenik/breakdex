@@ -124,8 +124,15 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
 
     public func startPlayback() {
         if case .ready(let player) = state {
-            player.play()
-            self.state = .playing(player: player)
+            // Defensive check: Only attempt to play if the item is actually ready
+            if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
+                player.play()
+                self.state = .playing(player: player)
+            } else {
+                // If not ready, log it. The async loader in NameMoveView should prevent this,
+                // but this makes our ViewModel safer.
+                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): startPlayback() called, but item is not ready (status: \(player.currentItem?.status.rawValue ?? -1)). Waiting for readiness.", metadata: nil)
+            }
         } else if case .playing(let player) = state {
             player.play()
         }
@@ -182,6 +189,39 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
                     player.play()
                 }
             }
+        }
+    }
+    
+    /// Re-primes the player with a given asset if the current state is idle.
+    /// This is used to recover from a premature teardown during view transitions.
+    public func primeWithAsset(_ asset: AVAsset) async {
+        guard case .idle = state else {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): primeWithAsset called, but player is not idle. Skipping.", metadata: ["currentState": "\(state)"])
+            return
+        }
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Re-priming player from idle state.", metadata: ["correlationId": correlationId ?? "unknown"])
+
+        let newPlayerItem = AVPlayerItem(asset: asset)
+        self.player.replaceCurrentItem(with: newPlayerItem)
+        self.playerItem = newPlayerItem
+        
+        // 🚨 FIX: Instead of a simple sleep, we will now explicitly wait for the player item's status
+        // to become .readyToPlay, ensuring the video is actually playable.
+        
+        do {
+            // Wait for the item to be ready, with a 5-second timeout.
+            _ = try await newPlayerItem.waitForStatus(.readyToPlay, timeout: 5.0)
+            
+            // If the above line doesn't throw, the item is ready.
+            self.state = .ready(player: self.player)
+            videoHealthMonitor.startMonitoring(asset: asset)
+            logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player successfully re-primed and item status is ready.", metadata: ["correlationId": correlationId ?? "unknown"])
+            
+        } catch {
+            // If it times out or fails, set an error state.
+            self.state = .error(message: "Failed to make video player ready after re-priming.")
+            logger.error("❌ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player item failed to become ready. Status: \(newPlayerItem.status.rawValue), Error: \(error.localizedDescription)", metadata: ["correlationId": correlationId ?? "unknown"])
         }
     }
     
@@ -411,6 +451,39 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     public func setRotation(_ quarterTurns: Int) {
         // Rotation is handled by the asset transform during initialization
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): setRotation(\(quarterTurns)) called", metadata: ["quarterTurns": quarterTurns])
+    }
+}
+
+// MARK: - AVPlayerItem Extension for Robust Readiness Checking
+
+extension AVPlayerItem {
+    enum AVPlayerItemError: Error {
+        case timedOut
+        case failed
+    }
+
+    func waitForStatus(_ status: AVPlayerItem.Status, timeout: TimeInterval) async throws {
+        var observation: NSKeyValueObservation?
+        
+        return try await withCheckedThrowingContinuation { continuation in
+            let timeoutTask = Task {
+                try await Task.sleep(for: .seconds(timeout))
+                observation?.invalidate()
+                continuation.resume(throwing: AVPlayerItemError.timedOut)
+            }
+            
+            observation = self.observe(\.status, options: [.new, .initial]) { item, _ in
+                if item.status == status {
+                    timeoutTask.cancel()
+                    observation?.invalidate()
+                    continuation.resume()
+                } else if item.status == .failed {
+                    timeoutTask.cancel()
+                    observation?.invalidate()
+                    continuation.resume(throwing: AVPlayerItemError.failed)
+                }
+            }
+        }
     }
 }
 

@@ -91,7 +91,11 @@ public final class AddMoveViewModel {
     
     /// Handles direct video selection from PhotosPicker
     public func handleDirectVideoSelection(_ item: PhotosPickerItem) async {
-        logger.info("🎬 VIEWMODEL: Handling direct video selection")
+        logger.info("🎬 VIEWMODEL: Handling direct video selection for Change button")
+        
+        // Clean up current video player before loading new one
+        logger.info("🎬 VIEWMODEL: Cleaning up current video player before change")
+        cleanupVideoResources()
         
         // Set the selected item and start loading immediately
         selectedItem = item
@@ -102,7 +106,7 @@ public final class AddMoveViewModel {
         } catch let error as NSError where error.domain == "VideoLoadingService" && error.code == -100 {
             logger.error("⏰ VIEWMODEL: Direct video loading timed out")
             state = .error(
-                message: "Download from iCloud timed out", 
+                message: "Download from iCloud timed out",
                 underlyingError: "Please check your network connection and try again."
             )
         } catch {
@@ -130,7 +134,7 @@ public final class AddMoveViewModel {
             } catch let error as NSError where error.domain == "VideoLoadingService" && error.code == -100 {
                 logger.error("⏰ VIEWMODEL: Video loading timed out")
                 state = .error(
-                    message: "Download from iCloud timed out", 
+                    message: "Download from iCloud timed out",
                     underlyingError: "Please check your network connection and try again."
                 )
             } catch {
@@ -141,7 +145,7 @@ public final class AddMoveViewModel {
     }
     
     /// Starts the naming process from previewing state
-    public func startNaming() {
+    public func startNaming() async {
         logger.info("🎬 VIEWMODEL: Starting naming")
         
         guard case .previewing(_, let asset, let photosIdentifier, let rotationQuarterTurns) = state else {
@@ -152,9 +156,8 @@ public final class AddMoveViewModel {
         state = .naming(
             photosIdentifier: photosIdentifier ?? "",
             originalAsset: asset,
-            trimmedAsset: nil,
-            trimStartTime: nil,
-            trimEndTime: nil,
+            trimStartTime: 0,
+            trimEndTime: (try? await asset.load(.duration).seconds) ?? asset.duration.seconds,
             rotationQuarterTurns: rotationQuarterTurns
         )
     }
@@ -164,27 +167,57 @@ public final class AddMoveViewModel {
         state = .error(message: message, underlyingError: underlyingError)
     }
     
+    /// Update trimming state with new rotation (reuses existing playerViewModel)
+    public func updateTrimmingRotation(rotationQuarterTurns: Int) {
+        logger.info("🎬 VIEWMODEL: Updating trimming rotation to \(rotationQuarterTurns)")
+        
+        guard case .trimming(let playerViewModel, let asset, let photosIdentifier, _) = state else {
+            logger.error("🎬 VIEWMODEL: Cannot update rotation - not in trimming state")
+            return
+        }
+        
+        state = .trimming(
+            playerViewModel: playerViewModel,
+            asset: asset,
+            photosIdentifier: photosIdentifier,
+            rotationQuarterTurns: rotationQuarterTurns
+        )
+    }
+    
     /// Set trimming state with new rotation
     public func setTrimmingState(asset: AVAsset, rotationQuarterTurns: Int) {
-        state = .trimming(asset: asset, photosIdentifier: nil, rotationQuarterTurns: rotationQuarterTurns)
+        // Note: This method doesn't have access to the playerViewModel, so it creates a new one
+        // This should be updated or used with caution
+        logger.warning("🎬 VIEWMODEL: setTrimmingState called without playerViewModel - this may cause issues")
+        
+        // Apply the same fix as loadVideo - create player immediately to avoid deadlock
+        let playerItem = AVPlayerItem(asset: asset)
+        let player = AVPlayer(playerItem: playerItem)
+        let playerViewModel = UnifiedVideoPlayerViewModel(
+            player: player,
+            mode: .preview,
+            appContainer: AppContainer.shared
+        )
+        state = .trimming(
+            playerViewModel: playerViewModel,
+            asset: asset,
+            photosIdentifier: nil,
+            rotationQuarterTurns: rotationQuarterTurns
+        )
     }
     
     /// Cancel trimming and return to previewing state
     public func cancelTrimming() {
         logger.info("🎬 VIEWMODEL: Canceling trimming")
-        
-        guard case .trimming(let asset, let photosIdentifier, let rotationQuarterTurns) = state else {
+
+        guard case .trimming(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = state else {
             logger.error("🎬 VIEWMODEL: Cannot cancel trimming - not in trimming state")
             return
         }
         
-        // Return to previewing state
+        // Return to the previewing state, REUSING the same playerViewModel.
         state = .previewing(
-            playerViewModel: UnifiedVideoPlayerViewModel(
-                player: AVPlayer(playerItem: AVPlayerItem(asset: asset)),
-                mode: .preview,
-                appContainer: AppContainer.shared
-            ),
+            playerViewModel: playerViewModel,
             asset: asset,
             photosIdentifier: photosIdentifier,
             rotationQuarterTurns: rotationQuarterTurns
@@ -195,18 +228,27 @@ public final class AddMoveViewModel {
     public func backToTrimming() {
         logger.info("🎬 VIEWMODEL: Going back to trimming")
         
-        guard case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = state else {
+        guard case .naming(let photosIdentifier, let originalAsset, _, _, let rotationQuarterTurns) = state else {
             logger.error("🎬 VIEWMODEL: Cannot go back to trimming - not in naming state")
             return
         }
         
-        guard let asset = originalAsset ?? trimmedAsset else {
-            logger.error("🎬 VIEWMODEL: Cannot go back to trimming - no asset available")
-            return
-        }
+        // Create new playerViewModel for returning to trimming (using the fixed pattern)
+        let playerItem = AVPlayerItem(asset: originalAsset)
+        let player = AVPlayer(playerItem: playerItem)
+        let playerViewModel = UnifiedVideoPlayerViewModel(
+            player: player,
+            mode: .preview,
+            appContainer: AppContainer.shared
+        )
         
-        // Return to trimming state with available asset
-        state = .trimming(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
+        // Return to trimming state with original asset and new playerViewModel
+        state = .trimming(
+            playerViewModel: playerViewModel,
+            asset: originalAsset,
+            photosIdentifier: photosIdentifier,
+            rotationQuarterTurns: rotationQuarterTurns
+        )
     }
     
     // MARK: - Resource Cleanup
@@ -269,19 +311,35 @@ public final class AddMoveViewModel {
             throw NSError(domain: "AddMoveViewModel", code: -3, userInfo: [NSLocalizedDescriptionKey: "Failed to load video asset"])
         }
         
-        // 1. Create the final player with the loaded asset
-        let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+        // 1. Create the player item from the loaded asset
+        logger.info("🎬 VIEWMODEL: Creating player item from loaded asset...")
+        let playerItem = AVPlayerItem(asset: asset)
+
+        // 2. FIX: Create the AVPlayer IMMEDIATELY to kick off the item's readiness process.
+        let player = AVPlayer(playerItem: playerItem)
         
-        // 2. Create the UnifiedVideoPlayerViewModel with the now-ready player
+        // 3. NOW, await the readiness of the player item.
+        logger.info("🎬 VIEWMODEL: Waiting for player item to become ready...")
+        try await waitForPlayerItemReady(playerItem)
+          
+        // 4. Verify the player item is ready.
+        guard playerItem.status == .readyToPlay else {
+            logger.error("🎬 VIEWMODEL: 🚨 PlayerItem failed to become ready. Status: \(playerItem.status.rawValue), Error: \(String(describing: playerItem.error))")
+            throw playerItem.error ?? NSError(domain: "AddMoveViewModel", code: -4, userInfo: [NSLocalizedDescriptionKey: "AVPlayerItem failed to load."])
+        }
+        
+        logger.info("🎬 VIEWMODEL: ✅ Player item is ready! Status: \(playerItem.status.rawValue)")
+        
+        // 5. The player is already created with the now-ready item. Create the ViewModel.
         let playerViewModel = UnifiedVideoPlayerViewModel(
             player: player,
             mode: .preview,
             appContainer: AppContainer.shared
         )
         
-        // 3. Get rotation and transition to previewing state
+        // 6. Get rotation and transition to the previewing state
         let rotation = await asset.rotation()
-        logger.info("🎬 VIEWMODEL: ✅ Video loaded and player created. Transitioning to previewing.")
+        logger.info("🎬 VIEWMODEL: ✅ Video loaded and player item is ready. Transitioning to previewing.")
         
         state = .previewing(
             playerViewModel: playerViewModel,
@@ -308,45 +366,54 @@ public final class AddMoveViewModel {
     // These methods are preserved from the original file but may need review
     // to ensure they work correctly with the new state flow.
     
-    public func startTrimming(rotationQuarterTurns: Int = 0) {
+    public func startTrimming() {
         logger.info("🎬 VIEWMODEL: Starting trimming")
-        guard case .previewing(_, let asset, let photosIdentifier, _) = state else {
+        
+        // 1. Get the current state, which now includes the ready playerViewModel.
+        guard case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = state else {
             logger.error("🎬 VIEWMODEL: Cannot start trimming - not in previewing state")
             return
         }
-        state = .trimming(asset: asset, photosIdentifier: photosIdentifier, rotationQuarterTurns: rotationQuarterTurns)
+        
+        // 2. Pass the EXISTING playerViewModel to the .trimming state to avoid re-initialization.
+        state = .trimming(
+            playerViewModel: playerViewModel,
+            asset: asset,
+            photosIdentifier: photosIdentifier,
+            rotationQuarterTurns: rotationQuarterTurns
+        )
     }
     
     public func finishTrimming(with trimmerViewModel: TrimmerViewModel) {
-        logger.info("🎬 VIEWMODEL: Finishing trimming")
-        guard case .trimming(let asset, let photosIdentifier, _) = state else {
+        logger.info("🎬 VIEWMODEL: Finishing trimming - passing data to naming state.")
+        
+        guard case .trimming(_, let originalAsset, let photosIdentifier, _) = state else {
             logger.error("🎬 VIEWMODEL: Cannot finish trimming - not in trimming state")
             return
         }
         
-        Task {
-            do {
-                let exportedURL = try await trimmerViewModel.exportVideo()
-                let trimmedAsset = AVURLAsset(url: exportedURL)
-                
-                state = .naming(
-                    photosIdentifier: photosIdentifier ?? "",
-                    originalAsset: asset,
-                    trimmedAsset: trimmedAsset,
-                    trimStartTime: trimmerViewModel.startTime.seconds,
-                    trimEndTime: trimmerViewModel.endTime.seconds,
-                    rotationQuarterTurns: trimmerViewModel.rotationQuarterTurns
-                )
-            } catch {
-                logger.error("🎬 VIEWMODEL: Trimming failed: \(error.localizedDescription)")
-                state = .error(message: "Failed to trim video", underlyingError: error.localizedDescription)
-            }
-        }
+        // Add diagnostic logging to track rotation transfer
+        let finalRotation = trimmerViewModel.rotationQuarterTurns
+        logger.info("🎬 VIEWMODEL: Rotation transfer diagnostics:")
+        logger.info("🎬 VIEWMODEL: - TrimmerViewModel rotationQuarterTurns: \(finalRotation)")
+        logger.info("🎬 VIEWMODEL: - Rotation in degrees: \(finalRotation * 90)°")
+        
+        // This is now a PURE data transition. No expensive export is performed.
+        // We pass the ORIGINAL asset along with the NEW trim and rotation data.
+        state = .naming(
+            photosIdentifier: photosIdentifier ?? "",
+            originalAsset: originalAsset,
+            trimStartTime: trimmerViewModel.startTime.seconds,
+            trimEndTime: trimmerViewModel.endTime.seconds,
+            rotationQuarterTurns: finalRotation
+        )
+        
+        logger.info("🎬 VIEWMODEL: ✅ State transition completed to naming with rotation: \(finalRotation * 90)°")
     }
     
     public func saveMove() {
         logger.info("🎬 VIEWMODEL: Saving move")
-        guard case .naming(let photosIdentifier, let originalAsset, let trimmedAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = state else {
+        guard case .naming(_, let originalAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = state else {
             logger.error("🎬 VIEWMODEL: Cannot save - not in naming state")
             return
         }
@@ -360,24 +427,54 @@ public final class AddMoveViewModel {
         
         Task {
             do {
-                guard let assetToSave = trimmedAsset ?? originalAsset, let urlAsset = assetToSave as? AVURLAsset else {
-                    throw NSError(domain: "AddMoveViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "No valid video asset to save."])
-                }
+                logger.info("🎬 VIEWMODEL: Starting video export with rotation: \(rotationQuarterTurns) quarter turns")
                 
+                // Create output URL for exported video
+                let outputURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                    .appendingPathExtension("mov")
+                
+                // Create time range from trim data
+                let timeRange = CMTimeRange(
+                    start: CMTime(seconds: trimStartTime, preferredTimescale: 600),
+                    duration: CMTime(seconds: trimEndTime - trimStartTime, preferredTimescale: 600)
+                )
+                
+                logger.info("🎬 VIEWMODEL: Export parameters - trimRange: \(timeRange.start.seconds)-\(timeRange.end.seconds), rotation: \(rotationQuarterTurns)")
+                
+                // Export video with PROPER rotation applied using existing infrastructure
+                let exportedURL = try await VideoTransformBuilder.exportVideo(
+                    asset: originalAsset,
+                    trimRange: timeRange,
+                    quarterTurns: rotationQuarterTurns,
+                    outputURL: outputURL
+                )
+                
+                logger.info("🎬 VIEWMODEL: Video export completed successfully")
+                
+                // Save to BreakDex album
+                logger.info("🎬 VIEWMODEL: Saving to BreakDex album")
+                let newPhotosIdentifier = try await BreakDexAlbumManager.shared.saveVideoToBreakDexAlbum(exportedURL)
+                
+                logger.info("🎬 VIEWMODEL: Video saved to BreakDex album with identifier: \(newPhotosIdentifier)")
+                
+                // Update Core Data with properly processed video
                 let move = Move(context: viewContext)
                 move.name = moveName
-                move.videoURL = urlAsset.url
-                move.photosIdentifier = photosIdentifier
-                move.trimStartTime = trimStartTime ?? 0
-                move.trimEndTime = trimEndTime ?? assetToSave.duration.seconds
+                move.videoURL = exportedURL // Use the processed video URL
+                move.photosIdentifier = newPhotosIdentifier // Update with new photos identifier
+                move.trimStartTime = trimStartTime
+                move.trimEndTime = trimEndTime
                 move.rotationQuarterTurns = Int16(rotationQuarterTurns)
                 move.createdAt = Date()
                 
                 try viewContext.save()
                 
+                logger.info("🎬 VIEWMODEL: Core Data updated successfully")
+                
                 await MainActor.run {
-                    state = .success(message: "Move saved successfully!")
-                    logger.info("🎬 VIEWMODEL: Move saved successfully")
+                    state = .success(message: "Move saved successfully to BreakDex album!")
+                    logger.info("🎬 VIEWMODEL: Move saved successfully with proper rotation and album integration")
                 }
             } catch {
                 logger.error("🎬 VIEWMODEL: Save failed: \(error.localizedDescription)")
@@ -386,5 +483,34 @@ public final class AddMoveViewModel {
                 }
             }
         }
+    }
+    
+    // MARK: - Player Item Readiness Helpers
+    
+    /// Waits for a player item to become ready with comprehensive KVO observation
+    private func waitForPlayerItemReady(_ playerItem: AVPlayerItem) async throws {
+        
+        // Check if already ready to avoid race condition
+        if playerItem.status == .readyToPlay {
+            logger.info("🎬 VIEWMODEL: ✅ Player item was already ready.")
+            return
+        }
+        if playerItem.status == .failed {
+            logger.error("🎬 VIEWMODEL: 🚨 Player item had already failed.")
+            throw playerItem.error ?? NSError(domain: "AddMoveViewModel", code: -4, userInfo: [NSLocalizedDescriptionKey: "AVPlayerItem failed to load."])
+        }
+        
+        logger.info("🎬 VIEWMODEL: 🔄 Starting robust player item readiness monitoring...")
+        
+        // Use the existing PlayerItemStatusMonitor which is proven to work
+        let monitor = PlayerItemStatusMonitor(playerItem: playerItem)
+        
+        try await monitor.awaitReadyAndBuffered(timeout: 60.0) { progress in
+            // Log progress at key milestones
+            let progressPercent = Int(progress * 100)
+            self.logger.info("🎬 VIEWMODEL: 📈 Buffer progress: \(progressPercent)%")
+        }
+        
+        logger.info("🎬 VIEWMODEL: ✅ Player item readiness monitoring completed successfully!")
     }
 }

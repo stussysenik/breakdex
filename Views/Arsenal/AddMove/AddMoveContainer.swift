@@ -149,18 +149,30 @@ struct AddMoveContainer: View {
                 rotationQuarterTurns: rotationQuarterTurns,
                 selectedTab: $selectedTab
             ))
-        } else if case .trimming(let asset, _, let rotationQuarterTurns) = viewModel.state {
+        } else if case .trimming(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
             content = AnyView(TrimmerViewWrapper(
                 viewModel: viewModel,
                 asset: asset,
                 rotationQuarterTurns: rotationQuarterTurns,
+                playerViewModel: playerViewModel,
                 onError: { message, error in
                     viewModel.setErrorState(message: message, underlyingError: error?.localizedDescription)
                 },
                 onRotate: { newRotation in
-                    viewModel.setTrimmingState(asset: asset, rotationQuarterTurns: newRotation)
+                    viewModel.updateTrimmingRotation(rotationQuarterTurns: newRotation)
                 }
             ))
+        } else if case .exporting(let progress, let status) = viewModel.state {
+            content = AnyView(VStack {
+                Spacer()
+                ProgressView(status)
+                    .progressViewStyle(.circular)
+                Text("\(Int(progress * 100))%")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                Spacer()
+            }
+                .background(Color.black.ignoresSafeArea()))
         } else if case .naming = viewModel.state {
             content = AnyView(NameMoveView(viewModel: viewModel))
         } else if case .saving = viewModel.state {
@@ -246,9 +258,9 @@ struct AddMoveContainer: View {
                 return false
             }
         case .previewing:
-            // From previewing, can go to trimming, naming, selectingVideo, ready, or error
+            // From previewing, can go to trimming, naming, selectingVideo, loading, ready, or error
             switch newState {
-            case .trimming, .naming, .selectingVideo, .ready, .error:
+            case .trimming, .naming, .selectingVideo, .loading, .ready, .error:
                 return true
             default:
                 return false
@@ -262,9 +274,20 @@ struct AddMoveContainer: View {
                 return false
             }
         case .trimming:
-            // From trimming, can go to previewing, naming, or error
+            // From trimming, can go to previewing, exporting, naming, or error
             switch newState {
-            case .previewing, .naming, .error:
+            case .previewing, .exporting, .naming, .error:
+                return true
+            default:
+                return false
+            }
+        case .exporting:
+            // From exporting, can go to naming, error, or stay in exporting (progress updates)
+            switch newState {
+            case .naming, .error:
+                return true
+            case .exporting:
+                // Allow exporting -> exporting transitions for progress updates
                 return true
             default:
                 return false
@@ -406,8 +429,8 @@ struct VideoPickerWrapper: View {
 struct TrimmerViewWrapper: View {
     @Bindable var viewModel: AddMoveViewModel
     
-    @State private var trimmerViewModel: TrimmerViewModel
-    @State private var playerViewModel: UnifiedVideoPlayerViewModel
+    private var trimmerViewModel: TrimmerViewModel
+    private var playerViewModel: UnifiedVideoPlayerViewModel
     
     let asset: AVAsset
     let rotationQuarterTurns: Int
@@ -418,16 +441,15 @@ struct TrimmerViewWrapper: View {
     private let wrapperId = UUID()
     private let constructionTime = Date().timeIntervalSince1970
     
-    init(viewModel: AddMoveViewModel, asset: AVAsset, rotationQuarterTurns: Int, onError: @escaping (String, Error?) -> Void, onRotate: @escaping (Int) -> Void) {
+    init(viewModel: AddMoveViewModel, asset: AVAsset, rotationQuarterTurns: Int, playerViewModel: UnifiedVideoPlayerViewModel, onError: @escaping (String, Error?) -> Void, onRotate: @escaping (Int) -> Void) {
         self.viewModel = viewModel
         self.asset = asset
         self.rotationQuarterTurns = rotationQuarterTurns
+        self.playerViewModel = playerViewModel
         self.onError = onError
         self.onRotate = onRotate
         
-        let playerVM = UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .preview, appContainer: AppContainer.shared)
-        self._playerViewModel = State(initialValue: playerVM)
-        self._trimmerViewModel = State(initialValue: TrimmerViewModel(asset: asset, photosIdentifier: nil, rotationQuarterTurns: rotationQuarterTurns, playerViewModel: playerVM))
+        self.trimmerViewModel = TrimmerViewModel(asset: asset, photosIdentifier: nil, rotationQuarterTurns: rotationQuarterTurns, playerViewModel: playerViewModel)
     }
     
     var body: some View {
@@ -451,6 +473,14 @@ struct TrimmerViewWrapper: View {
             
             // Perform async setup after view is fully constructed to prevent state mutations during construction
             Task {
+                // --- START OF MODIFICATION ---
+                // 🚨 FIX: If the player was torn down during the transition, revive it.
+                if !playerViewModel.isPlayerReady {
+                    logger.warning("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: PlayerViewModel is not ready. Attempting to re-prime.")
+                    await playerViewModel.primeWithAsset(asset)
+                }
+                // --- END OF MODIFICATION ---
+                
                 let taskStartTime = Date().timeIntervalSince1970
                 logger.info("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Starting safe async operations")
                 
@@ -512,9 +542,11 @@ private func getStateDescription(_ state: AddMoveState) -> String {
         return "previewing(id: \(id ?? "nil"), rotation: \(rotation)°)"
     case .selectingVideo(let asset):
         return "selectingVideo(asset: \(asset != nil ? "exists" : "nil"))"
-    case .trimming(_, let id, let rotation):
+    case .trimming(_, _, let id, let rotation):
         return "trimming(id: \(id ?? "nil"), rotation: \(rotation)°)"
-    case .naming(let id, _, _, let start, let end, let rotation):
+    case .exporting(let progress, let status):
+        return "exporting(\(progress), \(status))"
+    case .naming(let id, _, let start, let end, let rotation):
         return "naming(id: \(id), start: \(start ?? -1), end: \(end ?? -1), rotation: \(rotation)°)"
     case .saving:
         return "saving"

@@ -1,6 +1,7 @@
 import SwiftUI
 import AVKit
 import Combine
+import OSLog
 
 // MARK: - HandleType Enum
 public enum TrimmerHandleType {
@@ -24,7 +25,13 @@ public final class TrimmerViewModel {
     public var endTime: CMTime = .zero
     public var videoDuration: CMTime = .zero
     public var isExporting: Bool = false
-    public var rotationQuarterTurns: Int = 0
+    public var rotationQuarterTurns: Int = 0 {
+        didSet {
+            let logger = Logger(subsystem: "com.breakingflashcards", category: "TrimmerViewModel")
+            logger.info("🎬 TRIMMER_VIEW_MODEL: 🔄 Rotation changed to \(self.rotationQuarterTurns * 90)°")
+            self.playerViewModel.setRotation(self.rotationQuarterTurns)
+        }
+    }
     public var showMinimumDurationWarning = false
     public var isDraggingStartHandle: Bool = false
     public var isDraggingEndHandle: Bool = false
