@@ -12,7 +12,7 @@ public enum AddMoveState: Equatable, Hashable {
     case selectingVideo(currentAsset: AVAsset?) // NEW: For video selection mode
     case trimming(playerViewModel: UnifiedVideoPlayerViewModel, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int)
     case exporting(progress: Double, status: String)
-    case naming(photosIdentifier: String, originalAsset: AVAsset, trimStartTime: Double, trimEndTime: Double, rotationQuarterTurns: Int)
+    case naming(photosIdentifier: String, originalAsset: AVAsset, trimStartTime: Double, trimEndTime: Double, rotationQuarterTurns: Int, playerViewModel: UnifiedVideoPlayerViewModel)
     case saving
     case success(message: String)
     case error(message: String, underlyingError: String?)
@@ -39,7 +39,7 @@ public enum AddMoveState: Equatable, Hashable {
             return a1 == a2 && id1 == id2 && rot1 == rot2
         case (let .exporting(p1, s1), let .exporting(p2, s2)):
             return p1 == p2 && s1 == s2
-        case (let .naming(id1, asset1, start1, end1, rot1), let .naming(id2, asset2, start2, end2, rot2)):
+        case (let .naming(id1, asset1, start1, end1, rot1, _), let .naming(id2, asset2, start2, end2, rot2, _)):
             return id1 == id2 && asset1 == asset2 && start1 == start2 && end1 == end2 && rot1 == rot2
         default:
             return false
@@ -82,7 +82,7 @@ public enum AddMoveState: Equatable, Hashable {
             hasher.combine(7)
             hasher.combine(progress)
             hasher.combine(status)
-        case .naming(let photosIdentifier, let originalAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns):
+        case .naming(let photosIdentifier, let originalAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns, _):
             hasher.combine(8)
             hasher.combine(photosIdentifier)
             hasher.combine(ObjectIdentifier(originalAsset))

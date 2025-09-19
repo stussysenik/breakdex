@@ -8,6 +8,7 @@ import Combine
 import AVFoundation
 import Photos
 
+
 // MARK: - Modern AddMove View Model
 @Observable
 @MainActor
@@ -32,6 +33,9 @@ public final class AddMoveViewModel {
     private let loadingService: VideoLoadingService
     private var videoLoadingTask: Task<Void, Error>?
     private var currentVideoPlayerViewModel: (any VideoPlayerViewModelProtocol)?
+    
+    // 💡 SOLUTION: Single, persistent player view model for entire workflow
+    private var unifiedPlayerViewModel: UnifiedVideoPlayerViewModel?
     
     // MARK: - Video Player Access
     var preparedVideoPlayerViewModel: (any VideoPlayerViewModelProtocol)? {
@@ -67,6 +71,9 @@ public final class AddMoveViewModel {
     /// Resets the view model to its initial state.
     public func reset() {
         logger.info("🎬 VIEWMODEL: Resetting state.")
+        
+        // 💡 SOLUTION: Cleanup unified player resources
+        cleanupUnifiedPlayer()
         
         // Cleanup video resources first to prevent memory leaks
         cleanupVideoResources()
@@ -158,7 +165,8 @@ public final class AddMoveViewModel {
             originalAsset: asset,
             trimStartTime: 0,
             trimEndTime: (try? await asset.load(.duration).seconds) ?? asset.duration.seconds,
-            rotationQuarterTurns: rotationQuarterTurns
+            rotationQuarterTurns: rotationQuarterTurns,
+            playerViewModel: unifiedPlayerViewModel ?? UnifiedVideoPlayerViewModel(player: AVPlayer(), mode: .preview, appContainer: AppContainer.shared)
         )
     }
     
@@ -186,24 +194,35 @@ public final class AddMoveViewModel {
     
     /// Set trimming state with new rotation
     public func setTrimmingState(asset: AVAsset, rotationQuarterTurns: Int) {
-        // Note: This method doesn't have access to the playerViewModel, so it creates a new one
-        // This should be updated or used with caution
-        logger.warning("🎬 VIEWMODEL: setTrimmingState called without playerViewModel - this may cause issues")
+        // 💡 SOLUTION: Use unified player if available
+        logger.info("🎬 VIEWMODEL: setTrimmingState called - using unified player")
         
-        // Apply the same fix as loadVideo - create player immediately to avoid deadlock
-        let playerItem = AVPlayerItem(asset: asset)
-        let player = AVPlayer(playerItem: playerItem)
-        let playerViewModel = UnifiedVideoPlayerViewModel(
-            player: player,
-            mode: .preview,
-            appContainer: AppContainer.shared
-        )
-        state = .trimming(
-            playerViewModel: playerViewModel,
-            asset: asset,
-            photosIdentifier: nil,
-            rotationQuarterTurns: rotationQuarterTurns
-        )
+        if let unifiedPlayer = unifiedPlayerViewModel {
+            logger.info("🎬 VIEWMODEL: Using existing unified player for trimming state")
+            state = .trimming(
+                playerViewModel: unifiedPlayer,
+                asset: asset,
+                photosIdentifier: nil,
+                rotationQuarterTurns: rotationQuarterTurns
+            )
+        } else {
+            logger.warning("🎬 VIEWMODEL: No unified player available - creating new one")
+            // Fallback: create new player if unified player not available
+            let playerItem = AVPlayerItem(asset: asset)
+            let player = AVPlayer(playerItem: playerItem)
+            let playerViewModel = UnifiedVideoPlayerViewModel(
+                player: player,
+                mode: .preview,
+                appContainer: AppContainer.shared
+            )
+            self.unifiedPlayerViewModel = playerViewModel
+            state = .trimming(
+                playerViewModel: playerViewModel,
+                asset: asset,
+                photosIdentifier: nil,
+                rotationQuarterTurns: rotationQuarterTurns
+            )
+        }
     }
     
     /// Cancel trimming and return to previewing state
@@ -228,27 +247,40 @@ public final class AddMoveViewModel {
     public func backToTrimming() {
         logger.info("🎬 VIEWMODEL: Going back to trimming")
         
-        guard case .naming(let photosIdentifier, let originalAsset, _, _, let rotationQuarterTurns) = state else {
+        guard case .naming(let photosIdentifier, let originalAsset, _, _, let rotationQuarterTurns, _) = state else {
             logger.error("🎬 VIEWMODEL: Cannot go back to trimming - not in naming state")
             return
         }
         
-        // Create new playerViewModel for returning to trimming (using the fixed pattern)
-        let playerItem = AVPlayerItem(asset: originalAsset)
-        let player = AVPlayer(playerItem: playerItem)
-        let playerViewModel = UnifiedVideoPlayerViewModel(
-            player: player,
-            mode: .preview,
-            appContainer: AppContainer.shared
-        )
-        
-        // Return to trimming state with original asset and new playerViewModel
-        state = .trimming(
-            playerViewModel: playerViewModel,
-            asset: originalAsset,
-            photosIdentifier: photosIdentifier,
-            rotationQuarterTurns: rotationQuarterTurns
-        )
+        // 💡 SOLUTION: Use unified player for returning to trimming
+        if let unifiedPlayer = unifiedPlayerViewModel {
+            logger.info("🎬 VIEWMODEL: Using unified player for returning to trimming")
+            state = .trimming(
+                playerViewModel: unifiedPlayer,
+                asset: originalAsset,
+                photosIdentifier: photosIdentifier,
+                rotationQuarterTurns: rotationQuarterTurns
+            )
+        } else {
+            logger.warning("🎬 VIEWMODEL: No unified player available - creating new one")
+            // Fallback: create new player if unified player not available
+            let playerItem = AVPlayerItem(asset: originalAsset)
+            let player = AVPlayer(playerItem: playerItem)
+            let playerViewModel = UnifiedVideoPlayerViewModel(
+                player: player,
+                mode: .preview,
+                appContainer: AppContainer.shared
+            )
+            self.unifiedPlayerViewModel = playerViewModel
+            
+            // Return to trimming state with original asset and new playerViewModel
+            state = .trimming(
+                playerViewModel: playerViewModel,
+                asset: originalAsset,
+                photosIdentifier: photosIdentifier,
+                rotationQuarterTurns: rotationQuarterTurns
+            )
+        }
     }
     
     // MARK: - Resource Cleanup
@@ -268,6 +300,41 @@ public final class AddMoveViewModel {
         preparedVideoPlayerViewModel = nil
         
         logger.info("🎬 CLEANUP: Video resources cleanup completed")
+    }
+    
+    // 💡 SOLUTION: Cleanup unified player resources
+    private func cleanupUnifiedPlayer() {
+        logger.info("🎬 CLEANUP: Starting unified player cleanup")
+        
+        if let unifiedPlayer = unifiedPlayerViewModel {
+            logger.info("🎬 CLEANUP: Tearing down unified player")
+            unifiedPlayer.teardown()
+            unifiedPlayerViewModel = nil
+        }
+        
+        logger.info("🎬 CLEANUP: Unified player cleanup completed")
+    }
+    
+    // MARK: - Timeout Utility
+    
+    /// Utility function to add timeout to async operations
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        return try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw VideoProcessingError.readinessTimeout
+            }
+            
+            for try await result in group {
+                return result
+            }
+            
+            throw VideoProcessingError.readinessTimeout
+        }
     }
     
     // MARK: - Video Loading - Single Source of Truth
@@ -330,19 +397,22 @@ public final class AddMoveViewModel {
         
         logger.info("🎬 VIEWMODEL: ✅ Player item is ready! Status: \(playerItem.status.rawValue)")
         
-        // 5. The player is already created with the now-ready item. Create the ViewModel.
-        let playerViewModel = UnifiedVideoPlayerViewModel(
+        // 💡 SOLUTION: Create unified player instance for entire workflow
+        let unifiedPlayer = UnifiedVideoPlayerViewModel(
             player: player,
             mode: .preview,
             appContainer: AppContainer.shared
         )
         
+        // Store the unified player for future use
+        self.unifiedPlayerViewModel = unifiedPlayer
+        
         // 6. Get rotation and transition to the previewing state
         let rotation = await asset.rotation()
-        logger.info("🎬 VIEWMODEL: ✅ Video loaded and player item is ready. Transitioning to previewing.")
+        logger.info("🎬 VIEWMODEL: ✅ Video loaded and unified player created. Transitioning to previewing.")
         
         state = .previewing(
-            playerViewModel: playerViewModel,
+            playerViewModel: unifiedPlayer,
             asset: asset,
             photosIdentifier: photosIdentifier,
             rotationQuarterTurns: rotation
@@ -385,7 +455,7 @@ public final class AddMoveViewModel {
     }
     
     public func finishTrimming(with trimmerViewModel: TrimmerViewModel) {
-        logger.info("🎬 VIEWMODEL: Finishing trimming - passing data to naming state.")
+        logger.info("🎬 VIEWMODEL: Finishing trimming - applying trim to unified player.")
         
         guard case .trimming(_, let originalAsset, let photosIdentifier, _) = state else {
             logger.error("🎬 VIEWMODEL: Cannot finish trimming - not in trimming state")
@@ -398,22 +468,87 @@ public final class AddMoveViewModel {
         logger.info("🎬 VIEWMODEL: - TrimmerViewModel rotationQuarterTurns: \(finalRotation)")
         logger.info("🎬 VIEWMODEL: - Rotation in degrees: \(finalRotation * 90)°")
         
-        // This is now a PURE data transition. No expensive export is performed.
-        // We pass the ORIGINAL asset along with the NEW trim and rotation data.
-        state = .naming(
-            photosIdentifier: photosIdentifier ?? "",
-            originalAsset: originalAsset,
-            trimStartTime: trimmerViewModel.startTime.seconds,
-            trimEndTime: trimmerViewModel.endTime.seconds,
-            rotationQuarterTurns: finalRotation
+        // 💡 CRITICAL FIX: Apply trim to unified player BEFORE state transition
+        Task {
+            do {
+                try await applyTrimToUnifiedPlayer(
+                    asset: originalAsset,
+                    startTime: trimmerViewModel.startTime,
+                    endTime: trimmerViewModel.endTime,
+                    rotation: finalRotation
+                )
+                
+                // Only transition to naming AFTER player is ready
+                await MainActor.run {
+                    guard let unifiedPlayer = unifiedPlayerViewModel else {
+                        logger.error("🎬 VIEWMODEL: No unified player available for naming state")
+                        state = .error(
+                            message: "Video player not available. Please try again.",
+                            underlyingError: "Unified player not available"
+                        )
+                        return
+                    }
+                    
+                    state = .naming(
+                        photosIdentifier: photosIdentifier ?? "",
+                        originalAsset: originalAsset,
+                        trimStartTime: trimmerViewModel.startTime.seconds,
+                        trimEndTime: trimmerViewModel.endTime.seconds,
+                        rotationQuarterTurns: finalRotation,
+                        playerViewModel: unifiedPlayer
+                    )
+                    
+                    logger.info("🎬 VIEWMODEL: ✅ State transition completed to naming with rotation: \(finalRotation * 90)°")
+                }
+            } catch {
+                await MainActor.run {
+                    logger.error("🎬 VIEWMODEL: ❌ Failed to apply trim: \(error.localizedDescription)")
+                    state = .error(
+                        message: "Failed to apply trim. Please try again.",
+                        underlyingError: error.localizedDescription
+                    )
+                }
+            }
+        }
+    }
+    
+    // 💡 SOLUTION: Apply trim to unified player with timeout and error handling
+    private func applyTrimToUnifiedPlayer(
+        asset: AVAsset,
+        startTime: CMTime,
+        endTime: CMTime,
+        rotation: Int
+    ) async throws {
+        logger.info("🎬 VIEWMODEL: Applying trim to unified player")
+        
+        guard let unifiedPlayer = unifiedPlayerViewModel else {
+            logger.error("🎬 VIEWMODEL: No unified player available for trim operation")
+            throw VideoProcessingError.playerInitializationFailed
+        }
+        
+        let trimRange = CMTimeRange(start: startTime, end: endTime)
+        logger.info("🎬 VIEWMODEL: Trim range: \(startTime.seconds) - \(endTime.seconds)")
+        
+        // Create trimmed player item using VideoTransformBuilder
+        let trimmedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
+            asset: asset,
+            trimRange: trimRange,
+            quarterTurns: rotation
         )
         
-        logger.info("🎬 VIEWMODEL: ✅ State transition completed to naming with rotation: \(finalRotation * 90)°")
+        logger.info("🎬 VIEWMODEL: Created trimmed player item, replacing on unified player")
+        
+        // Replace the player item and wait for readiness with timeout
+        try await withTimeout(seconds: 10.0) {
+            try await unifiedPlayer.replacePlayerItemAndWaitForReady(trimmedPlayerItem)
+        }
+        
+        logger.info("🎬 VIEWMODEL: ✅ Successfully applied trim to unified player")
     }
     
     public func saveMove() {
         logger.info("🎬 VIEWMODEL: Saving move")
-        guard case .naming(_, let originalAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns) = state else {
+        guard case .naming(_, let originalAsset, let trimStartTime, let trimEndTime, let rotationQuarterTurns, _) = state else {
             logger.error("🎬 VIEWMODEL: Cannot save - not in naming state")
             return
         }

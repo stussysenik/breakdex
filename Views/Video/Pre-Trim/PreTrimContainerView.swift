@@ -9,6 +9,7 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreT
 struct PreTrimContainerView: View {
     @State private var playerViewModel: UnifiedVideoPlayerViewModel
     @State private var showLoadingOverlay = true
+    @StateObject private var unifiedPlayerManager: UnifiedPlayerManager
     let phAsset: PHAsset
     let rotationQuarterTurns: Int
     let onLoadingComplete: () -> Void
@@ -37,6 +38,9 @@ struct PreTrimContainerView: View {
             appContainer: appContainer
         )
         
+        // Initialize unified player manager
+        self._unifiedPlayerManager = StateObject(wrappedValue: UnifiedPlayerManager())
+        
         // Logging moved to onAppear to avoid capturing self during init
     }
     
@@ -53,7 +57,8 @@ struct PreTrimContainerView: View {
                 asset: playerViewModel.playerItem?.asset ?? AVAsset(url: URL(fileURLWithPath: "")), // Fallback remains for safety
                 photosIdentifier: phAsset.localIdentifier,
                 rotationQuarterTurns: rotationQuarterTurns,
-                selectedTab: .constant(.add)
+                selectedTab: .constant(.add),
+                unifiedPlayerManager: unifiedPlayerManager
             )
             .opacity(showLoadingOverlay ? 0 : 1)
             .animation(.linear(duration: 0.1), value: showLoadingOverlay)

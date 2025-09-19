@@ -87,7 +87,7 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
             return "trimming(id: \(id ?? "nil"), rotation: \(rotation)°)"
         case .exporting(let progress, let status):
             return "exporting(\(progress), \(status))"
-        case .naming(let id, _, let start, let end, let rotation):
+        case .naming(let id, _, let start, let end, let rotation, _):
             return "naming(id: \(id), start: \(start ?? -1), end: \(end ?? -1), rotation: \(rotation)°)"
         case .saving:
             return "saving"
@@ -198,7 +198,8 @@ class AddMoveStateManager: AddMoveStateManagerProtocol, ObservableObject {
             originalAsset: originalAsset,
             trimStartTime: trimStartTime,
             trimEndTime: trimEndTime,
-            rotationQuarterTurns: rotationQuarterTurns
+            rotationQuarterTurns: rotationQuarterTurns,
+            playerViewModel: UnifiedVideoPlayerViewModel(player: AVPlayer(), mode: .preview, appContainer: AppContainer.shared)
         )
     }
     

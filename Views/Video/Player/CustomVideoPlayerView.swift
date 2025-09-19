@@ -151,12 +151,12 @@ public struct CustomVideoPlayerView: View {
                         }
                         .onChange(of: isMuted) { _, muted in
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Mute state changed to: \(muted)", metadata: nil)
-                            if let player = observableWrapper.viewModel.avPlayer {
+                            if let player = observableWrapper.avPlayer {
                                 player.isMuted = muted
                             }
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
-                            if let player = observableWrapper.viewModel.avPlayer {
+                            if let player = observableWrapper.avPlayer {
                                 FullscreenVideoPlayer(player: player, isPresented: $showFullscreen, rotationQuarterTurns: rotationQuarterTurns)
                             }
                         }
@@ -182,23 +182,23 @@ public struct CustomVideoPlayerView: View {
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View appeared (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: PlayerView instance count now: \(Self.playerViewInstanceCount)", metadata: nil)
             logMemoryUsage(context: "onAppear")
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel state: \(String(describing: observableWrapper.viewModel.state))", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel state: \(String(describing: observableWrapper.state))", metadata: nil)
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Thread: \(Thread.current.isMainThread ? "Main" : "Background")", metadata: nil)
             
             // Mark view as ready and start playback
             isViewReady = true
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewReady: onAppear", metadata: nil)
-            observableWrapper.viewModel.startPlayback()
+            observableWrapper.startPlayback()
         }
         .onDisappear {
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View disappearing - \(shouldTeardownOnDisappear ? "WILL teardown" : "NOT tearing down") (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
             logMemoryUsage(context: "onDisappear_start")
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: Current state: \(String(describing: observableWrapper.viewModel.state))", metadata: nil)
+            logger.info("🎬 CUSTOM_VIDEO_PLAYER: Current state: \(String(describing: observableWrapper.state))", metadata: nil)
             
             if shouldTeardownOnDisappear {
                 // Full teardown for contexts like Pre-Trim view where view model should be cleaned up
                 logger.info("🎬 CUSTOM_VIDEO_PLAYER: Performing full teardown of view model", metadata: nil)
-                observableWrapper.viewModel.teardown()
+                observableWrapper.teardown()
             } else {
                 // Legacy behavior: only pause playback, don't tear down resources
                 if let player = getPlayerFromState() {
@@ -223,26 +223,12 @@ public struct CustomVideoPlayerView: View {
     
     /// Get the state as a string for type-erased comparison
     private func getStateAsString() -> String {
-        if let state = observableWrapper.viewModel.state as? UnifiedVideoPlayerViewModel.State {
-            switch state {
-            case .idle:
-                return "idle"
-            case .loading:
-                return "loading"
-            case .ready:
-                return "ready"
-            case .playing:
-                return "playing"
-            case .error:
-                return "error"
-            }
-        }
-        return "unknown"
+        return observableWrapper.stateString
     }
     
     /// Extract the player from the state if available
     private func getPlayerFromState() -> AVPlayer? {
-        if let unifiedState = observableWrapper.viewModel.state as? UnifiedVideoPlayerViewModel.State,
+        if let unifiedState = observableWrapper.state as? UnifiedVideoPlayerViewModel.State,
            case .playing(let player) = unifiedState {
             return player
         }
@@ -251,7 +237,7 @@ public struct CustomVideoPlayerView: View {
     
     /// Extract the error message from the state if available
     private func getErrorMessage() -> String? {
-        if let unifiedState = observableWrapper.viewModel.state as? UnifiedVideoPlayerViewModel.State,
+        if let unifiedState = observableWrapper.state as? UnifiedVideoPlayerViewModel.State,
            case .error(let message) = unifiedState {
             return message
         }
@@ -260,22 +246,7 @@ public struct CustomVideoPlayerView: View {
     
     /// Extract the loading progress from the state if available
     private func getLoadingProgress() -> Double? {
-        let state = observableWrapper.viewModel.state
-        let stateString = String(describing: state)
-        
-        if stateString.contains("loading") {
-            // Use reflection to extract the progress value from the state
-            let mirror = Mirror(reflecting: state)
-            
-            // Look for the first associated value which should be the progress
-            if let progressChild = mirror.children.first(where: { $0.label == nil }) {
-                if let progress = progressChild.value as? Double {
-                    return progress
-                }
-            }
-        }
-        
-        return nil
+        return observableWrapper.loadingProgress
     }
     
     private func logViewState() {
@@ -283,7 +254,7 @@ public struct CustomVideoPlayerView: View {
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: State change detected", metadata: nil)
         
         // Use a type-erased approach to handle the associated type
-        let state = observableWrapper.viewModel.state
+        let state = observableWrapper.state
         
         // Since all implementations have the same state structure, we can use a string representation
         let stateString = String(describing: state)
@@ -393,16 +364,117 @@ public struct CustomVideoPlayerView: View {
 /// This wrapper allows us to use a generic VideoPlayerViewModelProtocol as an ObservableObject
 @MainActor
 class ObservableVideoPlayerWrapper: ObservableObject {
-    @Published var viewModel: any VideoPlayerViewModelProtocol
+    // 💡 SOLUTION: Extract only the properties we need to observe to prevent rate limiting
+    @Published var stateString: String = "unknown"
+    @Published var isPlayerReady: Bool = false
+    @Published var shouldPlay: Bool = false
+    @Published var loadingProgress: Double? = nil
+    
+    private var viewModel: any VideoPlayerViewModelProtocol
     private let logger = AppContainer.shared.logger
+    private var cancellables = Set<AnyCancellable>()
+    
+    // MARK: - Public Accessors
+    var avPlayer: AVPlayer? {
+        return viewModel.avPlayer
+    }
+    
+    var state: Any {
+        return viewModel.state
+    }
+    
+    func startPlayback() {
+        viewModel.startPlayback()
+    }
+    
+    func teardown() {
+        viewModel.teardown()
+    }
     
     init(viewModel: any VideoPlayerViewModelProtocol) {
         self.viewModel = viewModel
-        logger.info("🎬 OBSERVABLE_WRAPPER: ✅ INIT - Created wrapper for viewModel", metadata: nil)
+        self.updatePublishedProperties()
+        
+        // 💡 SOLUTION: Observe specific properties instead of the entire view model
+        setupObservation()
+        
+        logger.info("🎬 OBSERVABLE_WRAPPER: ✅ INIT - Created focused wrapper for viewModel", metadata: nil)
     }
     
     deinit {
         logger.info("🎬 OBSERVABLE_WRAPPER: 🗑️ DEINIT - Wrapper being deallocated", metadata: nil)
+        cancellables.removeAll()
+    }
+    
+    // MARK: - Focused Observation Setup
+    
+    private func setupObservation() {
+        // Use timer-based observation for rapidly changing properties
+        Timer.publish(every: 0.1, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.updatePublishedProperties()
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func updatePublishedProperties() {
+        // Extract state as string for comparison
+        let newStateString = getStateString()
+        let newIsPlayerReady = viewModel.isPlayerReady
+        let newShouldPlay = viewModel.shouldPlay
+        let newLoadingProgress = getLoadingProgress()
+        
+        // Only update if values changed to prevent unnecessary publishes
+        if stateString != newStateString {
+            stateString = newStateString
+        }
+        
+        if isPlayerReady != newIsPlayerReady {
+            isPlayerReady = newIsPlayerReady
+        }
+        
+        if shouldPlay != newShouldPlay {
+            shouldPlay = newShouldPlay
+        }
+        
+        if loadingProgress != newLoadingProgress {
+            loadingProgress = newLoadingProgress
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getStateString() -> String {
+        if let state = viewModel.state as? UnifiedVideoPlayerViewModel.State {
+            switch state {
+            case .idle: return "idle"
+            case .loading: return "loading"
+            case .ready: return "ready"
+            case .playing: return "playing"
+            case .error: return "error"
+            }
+        }
+        return "unknown"
+    }
+    
+    private func getLoadingProgress() -> Double? {
+        let state = viewModel.state
+        let stateString = String(describing: state)
+        
+        if stateString.contains("loading") {
+            // Use reflection to extract the progress value from the state
+            let mirror = Mirror(reflecting: state)
+            
+            // Look for the first associated value which should be the progress
+            if let progressChild = mirror.children.first(where: { $0.label == nil }) {
+                if let progress = progressChild.value as? Double {
+                    return progress
+                }
+            }
+        }
+        
+        return nil
     }
 }
 

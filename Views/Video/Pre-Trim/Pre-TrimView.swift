@@ -14,6 +14,7 @@ struct PreTrimView: View {
     let photosIdentifier: String?
     let rotationQuarterTurns: Int
     @Binding var selectedTab: TabSelection
+    let unifiedPlayerManager: UnifiedPlayerManager
     
     // Direct PhotosPicker state
     @State private var showPhotosPicker = false
@@ -23,13 +24,14 @@ struct PreTrimView: View {
     private let viewId = UUID()
     private let constructionTime = Date().timeIntervalSince1970
     
-    init(viewModel: AddMoveViewModel, playerViewModel: UnifiedVideoPlayerViewModel, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int, selectedTab: Binding<TabSelection>) {
+    init(viewModel: AddMoveViewModel, playerViewModel: UnifiedVideoPlayerViewModel, asset: AVAsset, photosIdentifier: String?, rotationQuarterTurns: Int, selectedTab: Binding<TabSelection>, unifiedPlayerManager: UnifiedPlayerManager) {
         self.viewModel = viewModel
         self.playerViewModel = playerViewModel // Assign the received ViewModel
         self.asset = asset
         self.photosIdentifier = photosIdentifier
         self.rotationQuarterTurns = rotationQuarterTurns
         self._selectedTab = selectedTab
+        self.unifiedPlayerManager = unifiedPlayerManager
         
         // Log initialization in onAppear to avoid capturing self during init
     }

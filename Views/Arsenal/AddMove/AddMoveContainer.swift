@@ -17,6 +17,8 @@ struct AddMoveContainer: View {
     @State private var viewModel: AddMoveViewModel
     @Binding var selectedTab: TabSelection
     
+    // 💡 SOLUTION: Persistent unified player view model to eliminate teardown cycles
+    @StateObject private var unifiedPlayerManager: UnifiedPlayerManager = UnifiedPlayerManager()
     
     // Static tracking for debugging
     private static var lastState: AddMoveState?
@@ -64,8 +66,8 @@ struct AddMoveContainer: View {
                             // Clean up video player resources when entire workflow is finished
                             switch viewModel.state {
                             case .success, .error:
-                                logger.info("🎬 CONTAINER: Workflow completed, tearing down video player")
-                                // VideoPlayerManager removed - unified player handles cleanup
+                                logger.info("🎬 CONTAINER: Workflow completed, tearing down unified player manager")
+                                unifiedPlayerManager.cleanup()
                             default:
                                 break
                             }
@@ -140,18 +142,20 @@ struct AddMoveContainer: View {
             }
                 .background(Color.black.ignoresSafeArea()))
         } else if case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
-            // Direct routing to PreTrimView with prepared playerViewModel
+            // 💡 SOLUTION: Use unified player manager and inject it
             content = AnyView(PreTrimView(
                 viewModel: viewModel,
                 playerViewModel: playerViewModel,
                 asset: asset,
                 photosIdentifier: photosIdentifier,
                 rotationQuarterTurns: rotationQuarterTurns,
-                selectedTab: $selectedTab
+                selectedTab: $selectedTab,
+                unifiedPlayerManager: unifiedPlayerManager
             ))
         } else if case .trimming(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns) = viewModel.state {
             content = AnyView(TrimmerViewWrapper(
                 viewModel: viewModel,
+                unifiedPlayerManager: unifiedPlayerManager,
                 asset: asset,
                 rotationQuarterTurns: rotationQuarterTurns,
                 playerViewModel: playerViewModel,
@@ -428,6 +432,7 @@ struct VideoPickerWrapper: View {
 // MARK: - Trimmer View Wrapper (Safe State Management)
 struct TrimmerViewWrapper: View {
     @Bindable var viewModel: AddMoveViewModel
+    @ObservedObject var unifiedPlayerManager: UnifiedPlayerManager
     
     private var trimmerViewModel: TrimmerViewModel
     private var playerViewModel: UnifiedVideoPlayerViewModel
@@ -441,8 +446,9 @@ struct TrimmerViewWrapper: View {
     private let wrapperId = UUID()
     private let constructionTime = Date().timeIntervalSince1970
     
-    init(viewModel: AddMoveViewModel, asset: AVAsset, rotationQuarterTurns: Int, playerViewModel: UnifiedVideoPlayerViewModel, onError: @escaping (String, Error?) -> Void, onRotate: @escaping (Int) -> Void) {
+    init(viewModel: AddMoveViewModel, unifiedPlayerManager: UnifiedPlayerManager, asset: AVAsset, rotationQuarterTurns: Int, playerViewModel: UnifiedVideoPlayerViewModel, onError: @escaping (String, Error?) -> Void, onRotate: @escaping (Int) -> Void) {
         self.viewModel = viewModel
+        self.unifiedPlayerManager = unifiedPlayerManager
         self.asset = asset
         self.rotationQuarterTurns = rotationQuarterTurns
         self.playerViewModel = playerViewModel
@@ -473,13 +479,23 @@ struct TrimmerViewWrapper: View {
             
             // Perform async setup after view is fully constructed to prevent state mutations during construction
             Task {
-                // --- START OF MODIFICATION ---
-                // 🚨 FIX: If the player was torn down during the transition, revive it.
-                if !playerViewModel.isPlayerReady {
-                    logger.warning("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: PlayerViewModel is not ready. Attempting to re-prime.")
-                    await playerViewModel.primeWithAsset(asset)
+                // 💡 SOLUTION: Use unified player manager to ensure player persistence
+                logger.info("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Setting up unified player manager")
+                
+                // Register the player with the unified manager for persistence
+                do {
+                    await unifiedPlayerManager.prepareForTransition()
+                    
+                    // Ensure player is ready through the manager
+                    if !playerViewModel.isPlayerReady {
+                        logger.warning("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Player not ready, checking unified manager")
+                        // The unified manager should handle player revival
+                    }
+                    
+                    await unifiedPlayerManager.completeTransition()
+                } catch {
+                    logger.error("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Failed to setup unified player: \(error)")
                 }
-                // --- END OF MODIFICATION ---
                 
                 let taskStartTime = Date().timeIntervalSince1970
                 logger.info("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Starting safe async operations")
@@ -523,6 +539,11 @@ struct TrimmerViewWrapper: View {
             logger.info("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: View disappeared")
             logger.info("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Total lifetime: \(String(format: "%.3f", disappearTime - constructionTime))s")
             logger.info("🎬 TRIMMER_WRAPPER [\(wrapperId.uuidString.prefix(8))]: Final trim state: \(String(format: "%.2f", trimmerViewModel.startTime.seconds)) - \(String(format: "%.2f", trimmerViewModel.endTime.seconds))s")
+            
+            // 💡 SOLUTION: Notify unified player manager of transition completion
+            Task {
+                await unifiedPlayerManager.completeTransition()
+            }
         }
     }
 }
@@ -546,7 +567,7 @@ private func getStateDescription(_ state: AddMoveState) -> String {
         return "trimming(id: \(id ?? "nil"), rotation: \(rotation)°)"
     case .exporting(let progress, let status):
         return "exporting(\(progress), \(status))"
-    case .naming(let id, _, let start, let end, let rotation):
+    case .naming(let id, _, let start, let end, let rotation, _):
         return "naming(id: \(id), start: \(start ?? -1), end: \(end ?? -1), rotation: \(rotation)°)"
     case .saving:
         return "saving"

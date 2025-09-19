@@ -159,6 +159,34 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() completed", metadata: ["correlationId": correlationId ?? "unknown"])
     }
+    
+    // 💡 SOLUTION: Replace player item and wait for readiness with timeout
+    public func replacePlayerItemAndWaitForReady(_ newItem: AVPlayerItem) async throws {
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Replacing player item and waiting for readiness", metadata: ["correlationId": correlationId ?? "unknown"])
+        
+        // Pause current playback
+        player.pause()
+        
+        // Replace the player item
+        player.replaceCurrentItem(with: newItem)
+        self.playerItem = newItem
+        
+        // Wait for the new item to become ready with timeout
+        let monitor = PlayerItemStatusMonitor(playerItem: newItem)
+        try await monitor.awaitReadyAndBuffered(timeout: 10.0) { [weak self] progress in
+            guard let self = self else { return }
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): Replace buffer progress: \(Int(progress * 100))%", metadata: ["correlationId": self.correlationId ?? "unknown"])
+        }
+        
+        // Update state to ready
+        state = .ready(player: player)
+        
+        // Restart health monitoring with new asset
+        videoHealthMonitor.stopMonitoring()
+        videoHealthMonitor.startMonitoring(asset: newItem.asset)
+        
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Player item replaced and ready", metadata: ["correlationId": correlationId ?? "unknown"])
+    }
 
     public func pauseForTrimming() {
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): pauseForTrimming() called", metadata: nil)
@@ -210,8 +238,11 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         // to become .readyToPlay, ensuring the video is actually playable.
         
         do {
-            // Wait for the item to be ready, with a 5-second timeout.
-            _ = try await newPlayerItem.waitForStatus(.readyToPlay, timeout: 5.0)
+            // Wait for the item to be ready using the robust PlayerItemStatusMonitor.
+            let monitor = PlayerItemStatusMonitor(playerItem: newPlayerItem)
+            try await monitor.awaitReadyAndBuffered(timeout: 5.0) { progress in
+                self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): Re-priming buffer progress: \(Int(progress * 100))%", metadata: ["correlationId": self.correlationId ?? "unknown"])
+            }
             
             // If the above line doesn't throw, the item is ready.
             self.state = .ready(player: self.player)
@@ -454,36 +485,4 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     }
 }
 
-// MARK: - AVPlayerItem Extension for Robust Readiness Checking
-
-extension AVPlayerItem {
-    enum AVPlayerItemError: Error {
-        case timedOut
-        case failed
-    }
-
-    func waitForStatus(_ status: AVPlayerItem.Status, timeout: TimeInterval) async throws {
-        var observation: NSKeyValueObservation?
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            let timeoutTask = Task {
-                try await Task.sleep(for: .seconds(timeout))
-                observation?.invalidate()
-                continuation.resume(throwing: AVPlayerItemError.timedOut)
-            }
-            
-            observation = self.observe(\.status, options: [.new, .initial]) { item, _ in
-                if item.status == status {
-                    timeoutTask.cancel()
-                    observation?.invalidate()
-                    continuation.resume()
-                } else if item.status == .failed {
-                    timeoutTask.cancel()
-                    observation?.invalidate()
-                    continuation.resume(throwing: AVPlayerItemError.failed)
-                }
-            }
-        }
-    }
-}
 
