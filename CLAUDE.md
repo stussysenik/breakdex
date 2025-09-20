@@ -1,5 +1,7 @@
 ## Claude.md — BreakingFlashcards Video App (iOS 18.0)
 
+### what you see is what you get
+
 ### Project Structure
 - **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/`
 - **Main App:** `BreakingFlashcards/` (100+ Swift files)

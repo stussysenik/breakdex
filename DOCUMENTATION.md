@@ -1,9 +1,9 @@
 # BreakingFlashcards App Architecture
 
 ## Overview
-BreakingFlashcards is a video flashcard application for learning and reviewing complex physical movements, built on iOS 18.0 with SwiftUI, following KISS, DRY, and YAGNI principles.
+BreakingFlashcards is a video flashcard application for learning and reviewing complex physical movements, built on iOS 18.0 with SwiftUI, following KISS, DRY, YAGNI and WYSIWYG principles.
 
-**Current State**: 79 Swift files with modern iOS 18.0 patterns, comprehensive state management, and robust video processing pipeline.
+**Current State**: 96 Swift files with modern iOS 18.0 patterns, comprehensive state management, and robust video processing pipeline.
 
 ## Core Architecture
 
@@ -29,14 +29,16 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 ### 1. Add Move Flow (Core Feature)
 
 #### State Management
-- **`AddMoveState.swift`** - Defines all possible states (ready, loading, previewing, trimming, naming, saving, success, error)
-- **`AddMoveContainer.swift`** - Routes to appropriate views based on state transitions
-- **`AddMoveView.swift`** - Entry point wrapper for the Add Move functionality
-
-#### Video Selection & Processing
-- **`AddMoveSelectClipView.swift`** - Initial video selection screen with PhotosPicker integration
-- **`AddMoveReadyView.swift`** - Welcome screen with call-to-action
-- **`VideoPickerWrapper.swift`** - Safe video picker with error handling
+- **`AddMoveState.swift`** - Traditional enum-based state machine for Add Move flow
+- **`AddMoveAppState.swift`** - Modern iOS 18.0 @Observable state management class
+- **`AddMoveContainer.swift`** - State router that manages view transitions (includes inline VideoPickerWrapper and TrimmerViewWrapper)
+- **`AddMoveStateManager.swift`** - Centralized state management for complex Add Move flow transitions (248 lines)
+- **`AddMoveFlowCoordinator.swift`** - Modern flow control coordinator (362 lines)
+- **`AddMoveViewModel.swift`** - View model logic for Add Move flow
+- **`AddMoveVideoLoader.swift`** - Video loading orchestration
+- **`AddMoveVideoOrchestrator.swift`** - Video processing coordination
+- **`AddMovePlayerManager.swift`** - Specialized player management for Add Move workflow
+- **`AddMoveSaveCoordinator.swift`** - Handles all move saving operations, coordinates between video processing and Core Data
 
 #### Video Trimming & Rotation
 - **`TrimmerViewWrapper.swift`** - Safe wrapper for trimming functionality
@@ -60,18 +62,21 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **`Review+CoreDataClass.swift`** - Core Data entity for reviews
 
 #### Views in Add Move Flow
-1. **`AddMoveSelectClipView.swift`** - Video selection from Photos library
-2. **`Pre-TrimView.swift`** - Initial video preview before trimming (located in `/Views/Video/Pre-Trim/`)
-3. **`PreTrimContainerView.swift`** - Container for Pre-Trim with loading states (located in `/Views/Video/Pre-Trim/`)
-4. **`FeatureRichTrimmerView.swift`** - Video trimming and rotation interface (located in `/Views/Video/Trim/`)
-5. **`NameMoveView.swift`** - Move naming and final save confirmation
-6. **`AddMoveErrorView.swift`** - Error handling and retry options
-7. **`LoadingOverlayView.swift`** - Loading state component
-
-#### Additional Views
-8. **`AddMoveView.swift`** - Entry point wrapper for Add Move functionality
-9. **`ImportExportView.swift`** - Import/export functionality
-10. **`VideoPickerWrapper.swift`** - Safe video picker with error handling
+1. **`AddMoveView.swift`** - Entry point wrapper for Add Move functionality
+2. **`AddMoveSelectClipView.swift`** - Video selection from Photos library
+3. **`AddMoveContainer.swift`** - State routing container with inline wrappers
+4. **`Pre-TrimView.swift`** - Initial video preview before trimming (located in `/Views/Video/Pre-Trim/`)
+5. **`PreTrimContainerView.swift`** - Container for Pre-Trim with loading states (located in `/Views/Video/Pre-Trim/`)
+6. **`FeatureRichTrimmerView.swift`** - Video trimming and rotation interface (located in `/Views/Video/Trim/`)
+7. **`TrimmerViewModel.swift`** - Handles video trimming logic, time validation, frame-based seeking
+8. **`NameMoveView.swift`** - Move naming and final save confirmation
+9. **`AddMoveErrorView.swift`** - Error handling and retry options
+10. **`LoadingOverlayView.swift`** - Loading state component
+11. **`ImportExportView.swift`** - Import/export functionality
+12. **`AddMoveVideoLoader.swift`** - Video loading orchestration
+13. **`AddMoveVideoOrchestrator.swift`** - Video processing coordination
+14. **`AddMovePlayerManager.swift`** - Specialized player management
+15. **`AddMoveSaveCoordinator.swift`** - Save operation coordination
 
 ### 2. Arsenal Page
 - **`BreakingArsenalView.swift`** - Main arsenal container
@@ -93,20 +98,23 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 ### 5. Video Player System
 - **`CustomVideoPlayerView.swift`** - Custom video player built on AVPlayerLayer
 - **`AVPlayerViewRepresentable.swift`** - UIViewRepresentable wrapper for AVPlayer
-- **`VideoPlayerManager.swift`** - Player lifecycle management
 - **`UnifiedVideoPlayerViewModel.swift`** - Unified player logic for different contexts
+- **`VideoPlayerManager.swift`** - Player lifecycle management
 - **`VideoPlayerViewModelProtocol.swift`** - Protocol-based design for video players
 - **`AddMovePlayerManager.swift`** - Specialized player manager for Add Move workflow
 - **`VideoPlayerCacheManager.swift`** - Video asset caching and memory optimization
+- **`UnifiedPlayerManager.swift`** - Unified player management system
 - **`VideoRelinkManager.swift`** - Handles video asset re-linking when files are moved/renamed (located in `/Views/Video/Re-link/`)
 - **`VideoRelinkView.swift`** - UI for re-linking broken video assets (located in `/Views/Video/Re-link/`)
+- **`SeekScheduler.swift`** - Video seek operations and latency monitoring
 
 ## Supporting Systems
 
 ### Memory Management
-- **`MemoryMonitor.swift`** - System memory monitoring
+- **`MemoryManager.swift`** - Memory monitoring and cleanup for video operations
 - **`MemoryErrorHandler.swift`** - Handles memory pressure events
 - **`VideoHealthMonitor.swift`** - Monitors video processing health
+- **`VideoHealthStatus.swift`** - Health status tracking for video operations
 
 ### Logging & Debugging
 - **`AppLogger.swift`** - Centralized logging system with multiple loggers
@@ -118,15 +126,17 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **`PhotosPermissionManager.swift`** - Handles Photos permissions
 - **`AlbumSyncManager.swift`** - Syncs Core Data with Photos library
 - **`BreakDexAlbumManager.swift`** - Manages dedicated app album
+- **`PhotosImportService.swift`** - Photo import functionality
+- **`PhotosClient.swift`** - Photos API client abstraction
 - **`VideoRelinkManager.swift`** - Handles broken video links
 
 ### Manager Architecture
-- **`Managers/`** - Centralized service layer with specialized managers:
+- **`Managers/`** - Centralized service layer with 11 specialized managers:
   - **State Managers:** `AddMoveStateManager.swift` (248 lines)
-  - **Video Managers:** `VideoPlayerManager.swift`, `VideoPlayerCacheManager.swift`, `AddMovePlayerManager.swift`
-  - **Album Managers:** `BreakDexAlbumManager.swift`, `AlbumSyncManager.swift`, `PhotosPermissionManager.swift`
-  - **Processing Managers:** (Located in Video/Processing/ directory) `MemoryManager.swift`, `VideoHealthMonitor.swift`, `ContinuationManager.swift`
-  - **Component Managers:** (Located in Video/Processing/Components/) `PlayerStateMonitor.swift`, `PlayerItemStatusMonitor.swift`, `ReadinessMonitor.swift`
+  - **Video Managers:** `VideoPlayerManager.swift`, `VideoPlayerCacheManager.swift`, `AddMovePlayerManager.swift`, `UnifiedPlayerManager.swift`
+  - **Album Managers:** `BreakDexAlbumManager.swift`, `AlbumSyncManager.swift`, `PhotosPermissionManager.swift`, `PhotosImportService.swift`
+  - **Processing Managers:** `MemoryManager.swift`, `VideoHealthMonitor.swift`, `ContinuationManager.swift`
+  - **Utility Managers:** `MovePersistenceService.swift`, `PhotosClient.swift`, `VideoAssetPreparer.swift`, `SeekScheduler.swift`
 
 ### Design System
 - **`DesignSystem.swift`** - App-wide design tokens and styles
@@ -134,6 +144,10 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **`Font+Extensions.swift`** - Custom font extensions
 - **`ButtonStyles.swift`** - Custom button styles
 - **`EnhancedTabView.swift`** - Custom tab bar implementation
+- **`AnimationTester.swift`** - Animation utilities
+- **`MotionCatalog.swift`** - Motion effects catalog
+- **`StatePillView.swift`** - State display component
+- **`TimelineNodeView.swift`** - Timeline visualization component
 
 ## Data Flow
 
@@ -173,22 +187,36 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 
 ### ✅ Strengths
 - **Modern iOS 18.0 Patterns**: @Observable, async/await, PhotosPicker integration
-- **Robust Video Processing**: Comprehensive pipeline with timeout protection
+- **Robust Video Processing**: Comprehensive pipeline with timeout protection and memory management
 - **Comprehensive Logging**: OSLog integration with emoji prefixes for debugging
 - **Protocol-Based Design**: Video player system with proper abstraction
-- **Memory Management**: Proactive monitoring and cleanup
+- **Memory Management**: Proactive monitoring and cleanup with 5-second intervals
 - **Error Handling**: Comprehensive error states and recovery paths
+- **Modular Architecture**: Well-organized feature-based structure with clear separation of concerns
+- **Dependency Injection**: Singleton AppContainer for centralized service management
 
 ### ⚠️ Known Issues
-1. **Dual State Management**: Both `AddMoveState` and `AddMoveAppState` exist simultaneously
+1. **Dual State Management**: Both `AddMoveState` (traditional enum) and `AddMoveAppState` (@Observable class) exist simultaneously
 2. **Pre-Trim State Lifecycle**: Multiple routes to Pre-Trim create inconsistent state contexts
-3. **File Organization**: Some files are in different locations than documented
-4. **Test Coverage**: Gaps in unit test coverage for new architecture components
+3. **File Organization**: Several empty directories suggest incomplete refactoring
+4. **Missing Components**: Some referenced files don't exist (`AddMoveReadyView.swift`, `MemoryMonitor.swift`, `PlayerStateMonitor.swift`, `ReadinessMonitor.swift`)
+5. **Inline vs Separate Files**: `VideoPickerWrapper` and `TrimmerViewWrapper` are inline within `AddMoveContainer.swift`
 
 ### 🔧 Active Development Areas
 - **Pre-Trim Controls**: Back button, change video, and "Use Original" functionality
 - **State Transition Validation**: Ensuring proper cleanup between state changes
 - **Video Player Resource Management**: Proper cleanup during video replacement
+- **Import/Export**: Complete implementation for TestFlight release
+- **Enhanced Spaced Repetition**: Improved algorithm and statistics tracking
+
+### 📊 Codebase Statistics
+- **Total Swift Files**: 96 files
+- **Views**: 39 files (40.6%)
+- **Managers**: 11 files (11.5%)
+- **Video Processing**: 19 files (19.8%)
+- **CoreData**: 9 files (9.4%)
+- **Utils**: 13 files (13.5%)
+- **Other**: 5 files (5.2%)
 
 ## Key Architectural Principles
 
@@ -203,161 +231,77 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 
 ```
 BreakingFlashcards/
-├── AppCore/
+├── AppCore/                 # Application entry and main views (4 files)
 │   ├── BreakingFlashcardsApp.swift
 │   ├── MainView.swift
+│   ├── BreakingArsenalView.swift
 │   └── FeatureFlag.swift
-├── Views/
-│   ├── Arsenal/
-│   │   ├── AddMove/          # Add Move flow (11 files)
-│   │   ├── Moves/           # Move display and management
-│   │   └── Combos/          # Combo creation and display
-│   └── Video/
-│       ├── Player/          # Video player components (5 files)
-│       ├── Pre-Trim/        # Video preview before trimming (2 files)
-│       ├── Trim/            # Video trimming interface (2 files)
-│       ├── Re-link/         # Video re-linking functionality (2 files)
-│       └── Review/          # Review system (2 files)
-├── Video/
-│   └── Processing/          # Video processing pipeline
-│       ├── Components/      # Video processing components (multiple monitors)
-│       ├── VideoState.swift
-│       ├── VideoStateManager.swift
-│       ├── VideoTransformBuilder.swift
-│       ├── MemoryManager.swift
-│       ├── VideoHealthMonitor.swift
-│       └── ContinuationManager.swift
-├── Managers/                # Service layer managers (4 main managers)
+├── Views/                   # UI components organized by feature (39 files)
+│   ├── Arsenal/AddMove/     # Add Move flow (15 files)
+│   ├── Arsenal/Combos/      # Combo creation and display (7 files)
+│   ├── Arsenal/Moves/       # Move display and management (4 files)
+│   ├── Video/Player/        # Video player components (5 files)
+│   ├── Video/Pre-Trim/      # Video preview before trimming (2 files)
+│   ├── Video/Trim/          # Video trimming interface (2 files)
+│   ├── Video/Re-link/       # Video re-linking functionality (2 files)
+│   └── Video/Review/        # Review system (2 files)
+├── Video/                   # Video processing pipeline (19 files)
+│   ├── VideoState.swift
+│   ├── VideoStateManager.swift
+│   ├── VideoProcessor.swift
+│   ├── VideoProcessingPipeline.swift
+│   ├── VideoTransformBuilder.swift
+│   ├── VideoSaver.swift
+│   ├── MemoryManager.swift
+│   ├── VideoHealthMonitor.swift
+│   ├── VideoLoadingService.swift
+│   ├── AppContainer.swift
+│   ├── AppLogger.swift
+│   ├── EnhancedVideoLogger.swift
+│   ├── EnhancedVideoErrorHandler.swift
+│   ├── MemoryErrorHandler.swift
+│   ├── PlayerInitializer.swift
+│   ├── PlayerItemStatusMonitor.swift
+│   ├── ContinuationManager.swift
+│   └── Processing/          # (Empty directory - components moved to root)
+├── Managers/                # Service layer managers (11 files)
 │   ├── AddMoveStateManager.swift
 │   ├── VideoPlayerManager.swift
 │   ├── VideoPlayerCacheManager.swift
 │   ├── AddMovePlayerManager.swift
+│   ├── UnifiedPlayerManager.swift
 │   ├── BreakDexAlbumManager.swift
 │   ├── AlbumSyncManager.swift
-│   └── PhotosPermissionManager.swift
-├── CoreData/               # Data models and persistence
-└── Utils/                   # Utility functions and extensions
+│   ├── PhotosPermissionManager.swift
+│   ├── MovePersistenceService.swift
+│   ├── PhotosImportService.swift
+│   ├── PhotosClient.swift
+│   ├── VideoAssetPreparer.swift
+│   └── SeekScheduler.swift
+├── CoreData/                # Data models and persistence (9 files)
+│   ├── Persistence.swift
+│   ├── Move+CoreDataClass.swift
+│   ├── Move+CoreDataProperties.swift
+│   ├── Combo+CoreDataClass.swift
+│   ├── Combo+CoreDataProperties.swift
+│   ├── ComboMove+CoreDataClass.swift
+│   ├── ComboMove+CoreDataProperties.swift
+│   ├── Review+CoreDataClass.swift
+│   └── Review+CoreDataProperties.swift
+├── Utils/                   # Utility functions and extensions (13 files)
+│   ├── DesignSystem.swift
+│   ├── Color+Extensions.swift
+│   ├── Font+Extensions.swift
+│   ├── ButtonStyles.swift
+│   ├── AVAsset+Extensions.swift
+│   ├── Combine+Extensions.swift
+│   ├── EnhancedTabView.swift
+│   ├── AnimationTester.swift
+│   ├── MotionCatalog.swift
+│   ├── Quantizer.swift
+│   ├── SharedElementNavigation.swift
+│   ├── StatePillView.swift
+│   └── TimelineNodeView.swift
+└── Models/                  # Data type definitions (1 file)
+    └── VideoImportTypes.swift
 ```
-
-Additional:
-
-Complete Video Loading Flow
-
-  Phase 1: Video Data Loading
-
-  // Lines 382-419: Load video data with timeout
-  1. Start two competing tasks:
-    - Loading task: item.loadTransferable(type: Data.self)
-    - Timeout task: 30-second countdown
-  2. First task wins - either gets video data or timeout error
-  3. Progress: Loading 0.3 → (waiting)
-
-  Phase 2: Temporary File Creation
-
-  // Lines 421-432: Create temp file from video data
-  4. Create temp file URL with unique UUID
-  5. Write video data to temporary location
-  6. Progress: Loading 0.3 → 0.7 ("Analyzing video format...")
-
-  Phase 3: Video Asset Validation
-
-  // Lines 441-471: Validate the video asset
-  7. Create AVURLAsset from temp file
-  8. Check if playable: asset.isPlayable
-  9. Load video tracks: Verify visual tracks exist
-  10. Check duration: Must be > 0 seconds
-  11. Validate file size: Must not be empty
-  12. Progress: Loading 0.7 → (validation complete)
-
-  Phase 4: Video Player Creation
-
-  // Lines 478-489: Create video player view model
-  13. Create MainVideoPlayerViewModel:
-  - Passes the validated AVAsset
-  - Sets rotation to 0 (no rotation initially)
-  - Injects AppContainer for dependencies
-  14. Progress: Loading 0.7 → 0.8 ("Preparing video player...")
-
-  Phase 5: Player Initialization
-
-  // Lines 491-515: Wait for player to be ready
-  15. Wait for player readiness: playerViewModel.waitForReady()
-  16. Another timeout race: Player ready vs 30-second timeout
-  17. Progress: Loading 0.8 → 0.9 ("Initializing player...")
-
-  Phase 6: Transition to Preview State
-
-  // Lines 519-531: Final state transition
-  18. Store player reference: currentVideoPlayerViewModel = playerViewModel
-  19. Generate temporary ID: currentPhotosIdentifier = "temp-..."
-  20. Transition to .previewing state with:
-  - playerViewModel: Ready-to-use video player
-  - asset: Validated AVAsset
-  - photosIdentifier: Temporary ID
-  - rotationQuarterTurns: 0
-  21. Success! → User sees video preview
-
-  What Happens Next:
-
-  In AddMoveContainer.swift, the .previewing state maps to:
-  case .previewing(let playerViewModel, let asset, let photosIdentifier, let rotationQuarterTurns):
-      PreTrimView(
-          viewModel: viewModel,
-          playerViewModel: playerViewModel,
-          asset: asset,
-          photosIdentifier: photosIdentifier,
-          rotationQuarterTurns: rotationQuarterTurns,
-          selectedTab: $selectedTab
-      )
-
-  User can now:
-  - Watch the video preview
-  - Start trimming the video
-  - Change video selection
-  - Proceed to naming phase
-
-  Error Handling:
-
-  At any phase, if something fails:
-  - Error state transition: state = .error(message, underlyingError)
-  - User sees: Error view with retry options
-  - No hanging: Timeout mechanism prevents infinite waiting
-
-  This flow ensures robust video loading with proper validation, timeout protection, and clear user feedback at each step.
-
-  ### EXTRA
-    Core Real-Time Files:
-
-  Video Health Monitoring:
-  - Video/Processing/VideoHealthMonitor.swift - 2-second interval health monitoring
-
-  Memory Management:
-  - Video/Processing/MemoryManager.swift - 5-second interval memory monitoring
-  - Utils/MemoryMonitor.swift - Memory pressure utilities
-
-  Player State Monitoring:
-  - Video/Processing/Components/PlayerStateMonitor.swift - AVPlayer status monitoring
-  - Video/Processing/Components/PlayerItemStatusMonitor.swift - AVPlayerItem status tracking
-  - Video/Processing/Components/ReadinessMonitor.swift - Player readiness with timeouts
-
-  Video Loading:
-  - Video/Processing/VideoLoadingService.swift - 30 Hz progress updates for iCloud downloads
-  - Views/Video/Player/UnifiedVideoPlayerViewModel.swift - Real-time player state management
-
-  Data Synchronization:
-  - Managers/Album/AlbumSyncManager.swift - 5-minute periodic sync timer
-
-  Performance & Caching:
-  - Managers/VideoPlayerCacheManager.swift - Real-time LRU cache management
-  - Managers/SeekScheduler.swift - Seek latency monitoring
-
-  Async Operations:
-  - Video/Processing/Components/ContinuationManager.swift - Task continuation management
-
-  State Management:
-  - Managers/AddMoveStateManager.swift - Real-time state transitions
-  - Managers/VideoStateManager.swift - Video state synchronization
-
-  Video Processing:
-  - Video/Processing/Components/UpdatedVideoCoordinator.swift - Processing coordination
-  - Video/Processing/Components/UpdatedVideoAssetLoader.swift - Asset loading management

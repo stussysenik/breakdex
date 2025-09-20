@@ -1,5 +1,29 @@
 import Foundation
 
+// MARK: - Add Move Errors
+public enum AddMoveError: LocalizedError {
+    case videoLoadFailed(underlyingError: Error?)
+    case invalidMoveName
+    
+    public var errorDescription: String? {
+        switch self {
+        case .videoLoadFailed:
+            return "Failed to load video"
+        case .invalidMoveName:
+            return "Invalid move name"
+        }
+    }
+    
+    public var recoverySuggestion: String? {
+        switch self {
+        case .videoLoadFailed:
+            return "Please try selecting a different video"
+        case .invalidMoveName:
+            return "Please enter a valid name for your move"
+        }
+    }
+}
+
 // MARK: - Video Processing Errors
 public enum VideoProcessingError: LocalizedError {
     case memoryLimitExceeded(used: Int64, available: Int64)

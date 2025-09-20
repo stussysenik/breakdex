@@ -1,6 +1,8 @@
 import SwiftUI
 import Foundation
 
+// MARK: - Tab Selection Enum
+
 // Modified wrapper view - now uses AddMoveContainer for proper state routing
 struct AddMoveView: View {
     @Binding var selectedTab: TabSelection

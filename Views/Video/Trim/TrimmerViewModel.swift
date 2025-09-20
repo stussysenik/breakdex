@@ -9,31 +9,46 @@ public enum TrimmerHandleType {
 }
 
 // MARK: - TrimmerViewModel
-@Observable
 @MainActor
-public final class TrimmerViewModel {
+public final class TrimmerViewModel: ObservableObject {
     // MARK: - Core Properties
-    let playerViewModel: VideoPlayerViewModelProtocol
+    let playerViewModel: any VideoPlayerViewModelProtocol
     public let asset: AVAsset
     public let photosIdentifier: String?
 
     public var oneFrameDuration: CMTime = CMTime(value: 1, timescale: 30)
     public let minimumDuration: CMTime = CMTime(seconds: 3.0, preferredTimescale: 600)
 
+    // MARK: - Initialization State
+    private var isSetupComplete = false
+
     // MARK: - Observable State
+    @Published
     public var startTime: CMTime = .zero
+    @Published
     public var endTime: CMTime = .zero
+    @Published
     public var videoDuration: CMTime = .zero
+    @Published
     public var isExporting: Bool = false
+    @Published
     public var rotationQuarterTurns: Int = 0 {
         didSet {
-            let logger = Logger(subsystem: "com.breakingflashcards", category: "TrimmerViewModel")
-            logger.info("🎬 TRIMMER_VIEW_MODEL: 🔄 Rotation changed to \(self.rotationQuarterTurns * 90)°")
-            self.playerViewModel.setRotation(self.rotationQuarterTurns)
+            // 🛑 PREVENT running during initialization - avoid race condition
+            guard isSetupComplete else { return }
+            
+            // This is no longer a simple UI rotation change.
+            // It now triggers real-time asset transformation for true WYSIWYG.
+            Task {
+                await applyRotationToPlayerAsset()
+            }
         }
     }
+    @Published
     public var showMinimumDurationWarning = false
+    @Published
     public var isDraggingStartHandle: Bool = false
+    @Published
     public var isDraggingEndHandle: Bool = false
 
     // MARK: - Coalescing and Chasing Seek State
@@ -41,7 +56,7 @@ public final class TrimmerViewModel {
     private var pendingPreviewTime: CMTime?
 
     // MARK: - Initialization & Deinitialization
-    public init(asset: AVAsset, photosIdentifier: String? = nil, rotationQuarterTurns: Int = 0, playerViewModel: VideoPlayerViewModelProtocol) {
+    public init(asset: AVAsset, photosIdentifier: String? = nil, rotationQuarterTurns: Int = 0, playerViewModel: any VideoPlayerViewModelProtocol) {
         self.asset = asset
         self.photosIdentifier = photosIdentifier
         self.playerViewModel = playerViewModel
@@ -73,6 +88,9 @@ public final class TrimmerViewModel {
         let frameRate = (try? await videoTracks.first?.load(.nominalFrameRate)) ?? 30
         oneFrameDuration = CMTime(value: 1, timescale: CMTimeScale(frameRate))
         endTime = videoDuration
+        
+        // ✅ ARM the rotation logic now that the model is in a valid state.
+        isSetupComplete = true
     }
 
     // MARK: - Coalescing Timer Control
@@ -159,7 +177,43 @@ public final class TrimmerViewModel {
         return startTime >= .zero && endTime <= videoDuration && startTime < endTime
     }
 
-    // MARK: - Export Methods (needed by TrimmerView)
+    // MARK: - Real-time Asset Transformation
+  private func applyRotationToPlayerAsset() async {
+      let logger = Logger(subsystem: "com.breakingflashcards", category: "TrimmerViewModel")
+      logger.info("🎬 TRIMMER_VM: Applying asset-level rotation: \(self.rotationQuarterTurns * 90)°")
+      
+      // 🛡️ DEFENSIVE GUARD: Ensure the time range is valid before processing.
+      guard (self.endTime - self.startTime).seconds > 0 else {
+          logger.warning("🎬 TRIMMER_VM: Skipping asset rotation due to invalid (zero-duration) time range.")
+          return
+      }
+      
+      do {
+          // Use the VideoTransformBuilder to create a new player item with the current trim
+          // and the NEW rotation. This implements true WYSIWYG.
+          let transformedItem = try await VideoTransformBuilder.createPlayerItem(
+              asset: self.asset,
+              trimRange: CMTimeRange(start: self.startTime, end: self.endTime),
+              quarterTurns: self.rotationQuarterTurns
+          )
+          
+          // Hot-swap the player's content. This is a powerful feature of AVFoundation.
+          guard let unifiedPlayer = self.playerViewModel as? UnifiedVideoPlayerViewModel else {
+              logger.error("🎬 TRIMMER_VM: ❌ PlayerViewModel is not UnifiedVideoPlayerViewModel")
+              return
+          }
+          
+          try await unifiedPlayer.replacePlayerItemAndWaitForReady(transformedItem)
+          
+          logger.info("🎬 TRIMMER_VM: ✅ Asset rotation applied successfully.")
+      } catch {
+          logger.error("🎬 TRIMMER_VM: ❌ Failed to apply asset rotation: \(error.localizedDescription)")
+          // Optionally, revert rotationQuarterTurns or show a user-facing error.
+          // For now, we'll log the error and continue with the previous state.
+      }
+  }
+  
+  // MARK: - Export Methods (needed by TrimmerView)
     public func exportVideo() async throws -> URL {
         guard validateTrimRanges() else {
             throw NSError(domain: "TrimmerViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid trim ranges"])
@@ -194,6 +248,15 @@ public final class TrimmerViewModel {
     // MARK: - Haptic Feedback
     public func triggerHapticFeedback(for event: HapticManager.HapticEvent) {
         HapticManager.shared.trigger(event)
+    }
+    
+    // MARK: - Computed Properties
+    public var isValidTrim: Bool {
+        return validateTrimRanges()
+    }
+    
+    public var duration: CMTime {
+        return videoDuration
     }
 }
 

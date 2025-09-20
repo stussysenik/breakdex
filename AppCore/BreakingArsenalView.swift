@@ -6,6 +6,9 @@
 //
 
 import SwiftUI
+import Foundation
+
+// MARK: - Tab Selection Enum
 
 struct BreakingArsenalView: View {
     @Binding var selectedTab: TabSelection

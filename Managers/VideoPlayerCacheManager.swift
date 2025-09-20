@@ -4,10 +4,10 @@ import OSLog
 
 // MARK: - VideoPlayerCacheManager Protocol
 public protocol VideoPlayerCacheManagerProtocol {
-    func cacheVideoPlayerViewModel(_ viewModel: any VideoPlayerViewModelProtocol, for asset: AVAsset, photosIdentifier: String?, rotation: Int)
-    func getCachedPlayerViewModel(asset: AVAsset, photosIdentifier: String?, rotation: Int) -> (any VideoPlayerViewModelProtocol)?
-    func clearCache()
-    func ensureCacheCapacity()
+    func cacheVideoPlayerViewModel(_ viewModel: any VideoPlayerViewModelProtocol, for asset: AVAsset, photosIdentifier: String?, rotation: Int) async
+    func getCachedPlayerViewModel(asset: AVAsset, photosIdentifier: String?, rotation: Int) async -> (any VideoPlayerViewModelProtocol)?
+    func clearCache() async
+    func ensureCacheCapacity() async
 }
 
 // MARK: - Video Player Cache Manager
@@ -27,11 +27,11 @@ class VideoPlayerCacheManager: VideoPlayerCacheManagerProtocol {
     // MARK: - Public API
     
     /// Cache a video player view model for future use
-    func cacheVideoPlayerViewModel(_ viewModel: any VideoPlayerViewModelProtocol, for asset: AVAsset, photosIdentifier: String?, rotation: Int) {
+    func cacheVideoPlayerViewModel(_ viewModel: any VideoPlayerViewModelProtocol, for asset: AVAsset, photosIdentifier: String?, rotation: Int) async {
         let cacheKey = generateCacheKey(asset: asset, photosIdentifier: photosIdentifier, rotation: rotation)
         
         // Ensure cache doesn't exceed maximum size
-        ensureCacheCapacity()
+        await ensureCacheCapacity()
         
         videoPlayerCache[cacheKey] = viewModel
         logger.info("🗄️ VIDEO_CACHE: 📦 Cached view model for key: \(cacheKey.prefix(8))...")
@@ -39,7 +39,7 @@ class VideoPlayerCacheManager: VideoPlayerCacheManagerProtocol {
     }
     
     /// Get cached player view model for the given asset and rotation
-    func getCachedPlayerViewModel(asset: AVAsset, photosIdentifier: String?, rotation: Int) -> (any VideoPlayerViewModelProtocol)? {
+    func getCachedPlayerViewModel(asset: AVAsset, photosIdentifier: String?, rotation: Int) async -> (any VideoPlayerViewModelProtocol)? {
         let cacheKey = generateCacheKey(asset: asset, photosIdentifier: photosIdentifier, rotation: rotation)
         logger.info("🗄️ VIDEO_CACHE: 🔍 Looking for cached player with key: \(cacheKey.prefix(8))...")
         
@@ -55,7 +55,7 @@ class VideoPlayerCacheManager: VideoPlayerCacheManagerProtocol {
     }
     
     /// Clear all cached video player view models
-    func clearCache() {
+    func clearCache() async {
         logger.info("🗄️ VIDEO_CACHE: 🗑️ Clearing all cached video player view models")
         logger.info("🗄️ VIDEO_CACHE: 📊 Removing \(self.videoPlayerCache.count) cached entries")
         self.videoPlayerCache.removeAll()
@@ -63,7 +63,7 @@ class VideoPlayerCacheManager: VideoPlayerCacheManagerProtocol {
     }
     
     /// Ensure cache capacity by removing oldest entries if needed
-    func ensureCacheCapacity() {
+    func ensureCacheCapacity() async {
         guard self.videoPlayerCache.count >= self.maxCacheSize else { 
             logger.info("🗄️ VIDEO_CACHE: 📊 Cache capacity OK (\(self.videoPlayerCache.count)/\(self.maxCacheSize))")
             return 

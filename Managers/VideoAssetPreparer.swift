@@ -59,18 +59,22 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         )
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after creating player VM: \(os_proc_available_memory() / (1024*1024)) MB available")
         
-        // Wait for player to be ready
-        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for UnifiedVideoPlayerViewModel to become ready...")
+        // Wait for player to be ready using robust monitoring
+        logger.info("🎬 VIDEO_PREPARER: ⏳ Robustly waiting for player item to be ready and buffered...")
         let readyStartTime = Date()
-        while !playerViewModel.isPlayerReady {
-            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-            if Task.isCancelled {
-                logger.info("🎬 VIDEO_PREPARER: Video preparation task was cancelled during player readiness wait")
-                throw CancellationError()
-            }
+        
+        // Use the robust monitor to wait for the item's actual status to be .readyToPlay
+        if let playerItem = playerViewModel.playerItem {
+            let monitor = PlayerItemStatusMonitor(playerItem: playerItem)
+            try await monitor.awaitReadyAndBuffered(timeout: 15.0)
+        } else {
+            // Fallback in case the item is nil, though this should not happen in a normal flow
+            logger.warning("🎬 VIDEO_PREPARER: Player item was nil during readiness check. Using a fallback delay.")
+            try await Task.sleep(nanoseconds: 200_000_000)
         }
+        
         let readyTime = Date().timeIntervalSince(readyStartTime)
-        logger.info("🎬 VIDEO_PREPARER: ✅ UnifiedVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
+        logger.info("🎬 VIDEO_PREPARER: ✅ Player item is confirmed ready (took \(String(format: "%.2f", readyTime))s)")
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after player ready: \(os_proc_available_memory() / (1024*1024)) MB available")
         
         let result = PreparedVideoResult(
@@ -99,18 +103,22 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
             appContainer: AppContainer.shared
         )
         
-        // Wait for player to be ready
-        logger.info("🎬 VIDEO_PREPARER: ⏳ Waiting for UnifiedVideoPlayerViewModel to become ready...")
+        // Wait for player to be ready using robust monitoring
+        logger.info("🎬 VIDEO_PREPARER: ⏳ Robustly waiting for player item to be ready and buffered...")
         let readyStartTime = Date()
-        while !playerViewModel.isPlayerReady {
-            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-            if Task.isCancelled {
-                logger.info("🎬 VIDEO_PREPARER: Video preparation task was cancelled during player readiness wait")
-                throw CancellationError()
-            }
+        
+        // Use the robust monitor to wait for the item's actual status to be .readyToPlay
+        if let playerItem = playerViewModel.playerItem {
+            let monitor = PlayerItemStatusMonitor(playerItem: playerItem)
+            try await monitor.awaitReadyAndBuffered(timeout: 15.0)
+        } else {
+            // Fallback in case the item is nil, though this should not happen in a normal flow
+            logger.warning("🎬 VIDEO_PREPARER: Player item was nil during readiness check. Using a fallback delay.")
+            try await Task.sleep(nanoseconds: 200_000_000)
         }
+        
         let readyTime = Date().timeIntervalSince(readyStartTime)
-        logger.info("🎬 VIDEO_PREPARER: ✅ UnifiedVideoPlayerViewModel is ready (took \(String(format: "%.2f", readyTime))s)")
+        logger.info("🎬 VIDEO_PREPARER: ✅ Player item is confirmed ready (took \(String(format: "%.2f", readyTime))s)")
         
         let result = PreparedVideoResult(
             asset: asset,

@@ -1,6 +1,7 @@
 import SwiftUI
 import Foundation
 
+// MARK: - Tab Selection Enum
 enum TabSelection: String, Hashable {
     case arsenal = "ArsenalTab"
     case add = "AddTab"

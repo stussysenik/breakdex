@@ -14,7 +14,7 @@ public enum AddMoveImportState {
 // MARK: - PhotosImportService Protocol
 public protocol PhotosImportServiceProtocol {
     func importVideo(from item: PhotosPickerItem) async throws -> URL
-    func cleanupTempArtifacts()
+    func cleanupTempArtifacts() async
 }
 
 // MARK: - Photos Import Service
@@ -132,7 +132,7 @@ public class PhotosImportService: PhotosImportServiceProtocol {
     }
     
     /// Clean up temporary artifacts
-    public func cleanupTempArtifacts() {
+    public func cleanupTempArtifacts() async {
         logger.info("📥 PHOTOS_IMPORT: Cleaning up temporary artifacts")
         // Clean up any temporary files created during import
         // This could be expanded to clean up specific temp directories

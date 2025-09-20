@@ -103,7 +103,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         } catch {
             logger.error("💾 MOVE_PERSISTENCE: ❌ Failed to save Move entity: \(error.localizedDescription)")
             logger.error("💾 MOVE_PERSISTENCE: ❌ Error type: \(type(of: error))")
-            throw AddMoveError.coreDataSaveFailed(underlyingError: error)
+            throw NSError(domain: "MovePersistenceService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Failed to save move to Core Data", NSUnderlyingErrorKey: error])
         }
     }
     
@@ -118,7 +118,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
     ) async throws {
         logger.info("💾 MOVE_PERSISTENCE: Starting complete save operation")
         logger.info("💾 MOVE_PERSISTENCE: Move name: \(name)")
-        logger.info("💾 MOVE_PERSISTENCE: Asset available: \(asset != nil)")
+        logger.info("💾 MOVE_PERSISTENCE: Asset available: \(true)")
         
         // Use the provided asset
         logger.info("💾 MOVE_PERSISTENCE: Using asset for save: \(asset)")

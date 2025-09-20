@@ -3,10 +3,19 @@ import AVFoundation
 import OSLog
 
 // MARK: - Video Health State
-public enum VideoHealthState {
+public enum VideoHealthState: Equatable {
     case healthy
     case warning(reason: String)
     case critical(reason: String)
+    
+    var isHealthy: Bool {
+        switch self {
+        case .healthy:
+            return true
+        case .warning, .critical:
+            return false
+        }
+    }
     
     var description: String {
         switch self {
@@ -53,7 +62,7 @@ public struct VideoHealthStatusReport {
 }
 
 // MARK: - Video Health Monitor Implementation
-final class VideoHealthMonitorImpl: VideoHealthMonitor {
+public final class VideoHealthMonitorImpl: VideoHealthMonitor {
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "VideoHealthMonitor")
     private let memoryManager: MemoryManager
     private var monitoringTask: Task<Void, Never>?
@@ -61,8 +70,15 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
     private var statusContinuation: AsyncStream<VideoHealthStatusReport>.Continuation?
     private var currentAsset: AVAsset?
     
+    // MARK: - Lifecycle Optimization
+    private var isMonitoringActive = false
+    private var lastHealthCheck: Date = .distantPast
+    private var pauseCount = 0
+    private var resumeCount = 0
+    private let monitoringSessionId = UUID()
+    
     // Monitoring intervals
-    private let healthCheckInterval: TimeInterval = 2.0 // Check every 2 seconds
+    private let healthCheckInterval: TimeInterval = 3.0 // Increased to 3 seconds to reduce overhead
     private let memoryWarningThreshold: Int64 = 150 * 1024 * 1024 // 150MB
     private let memoryCriticalThreshold: Int64 = 50 * 1024 * 1024 // 50MB
     private let cpuWarningThreshold: Float = 80.0 // 80% CPU usage
@@ -73,24 +89,34 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         logger.info("🏥 VideoHealthMonitor initialized")
     }
     
-    func startMonitoring(asset: AVAsset) {
-        logger.info("🏥 Starting video health monitoring")
+    public func startMonitoring(asset: AVAsset) {
+        logger.info("🏥 Starting video health monitoring [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
+        
+        // 💡 OPTIMIZATION: Check if we're already monitoring this asset
+        if isMonitoringActive && currentAsset == asset {
+            logger.info("🏥 Already monitoring this asset - skipping restart")
+            return
+        }
         
         // Stop any existing monitoring
         stopMonitoring()
         
         currentAsset = asset
+        isMonitoringActive = true
+        lastHealthCheck = Date()
         
-        // Start the monitoring task
+        // Start the monitoring task with optimized lifecycle
         monitoringTask = Task {
             await monitorVideoHealth()
         }
         
-        logger.info("🏥 Video health monitoring started")
+        logger.info("🏥 Video health monitoring started successfully [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
     }
     
-    func stopMonitoring() {
-        logger.info("🏥 Stopping video health monitoring")
+    public func stopMonitoring() {
+        logger.info("🏥 Stopping video health monitoring [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
+        
+        isMonitoringActive = false
         
         monitoringTask?.cancel()
         monitoringTask = nil
@@ -100,13 +126,24 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         statusContinuation = nil
         currentAsset = nil
         
-        logger.info("🏥 Video health monitoring stopped")
+        // 💡 OPTIMIZATION: Reset lifecycle tracking
+        lastHealthCheck = .distantPast
+        
+        logger.info("🏥 Video health monitoring stopped [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
     }
     
-    func pauseMonitoring() {
-        logger.info("🏥 Pausing video health monitoring")
+    public func pauseMonitoring() {
+        pauseCount += 1
+        logger.info("🏥 Pausing video health monitoring [Pause #\(self.pauseCount), Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
         logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
         logger.info("🏥 Asset preserved: \(self.currentAsset != nil)")
+        
+        guard isMonitoringActive else {
+            logger.warning("🏥 ⚠️ Attempted to pause monitoring when not active")
+            return
+        }
+        
+        isMonitoringActive = false
         
         self.monitoringTask?.cancel()
         self.monitoringTask = nil
@@ -114,13 +151,19 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         
         logger.info("🏥 📊 Memory after monitoring pause: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
         
-        logger.info("🏥 ✅ Video health monitoring paused")
+        logger.info("🏥 ✅ Video health monitoring paused successfully [Pause #\(self.pauseCount)]")
     }
     
-    func resumeMonitoring() {
-        logger.info("🏥 Resuming video health monitoring")
+    public func resumeMonitoring() {
+        resumeCount += 1
+        logger.info("🏥 Resuming video health monitoring [Resume #\(self.resumeCount), Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
         logger.info("🏥 Current asset available: \(self.currentAsset != nil)")
         logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
+        
+        guard !isMonitoringActive else {
+            logger.warning("🏥 ⚠️ Attempted to resume monitoring when already active")
+            return
+        }
         
         guard self.currentAsset != nil else {
             logger.warning("🏥 ⚠️ Cannot resume monitoring - no asset")
@@ -129,6 +172,15 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         }
         
         let startTime = CFAbsoluteTimeGetCurrent()
+        
+        isMonitoringActive = true
+        lastHealthCheck = Date()
+        
+        // 💡 OPTIMIZATION: Check if enough time has passed since last check to avoid rapid cycling
+        let timeSinceLastCheck = Date().timeIntervalSince(lastHealthCheck)
+        if timeSinceLastCheck < healthCheckInterval {
+            logger.info("🏥 ⏭️ Skipping immediate resume - last check was \(String(format: "%.1f", timeSinceLastCheck))s ago")
+        }
         
         // Restart monitoring with existing asset
         self.monitoringTask = Task {
@@ -140,10 +192,10 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         logger.info("🏥 ⚡ Monitoring resume took \(String(format: "%.2f", resumeTime))ms")
         logger.info("🏥 📊 Memory after monitoring resume: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
         
-        logger.info("🏥 ✅ Video health monitoring resumed successfully")
+        logger.info("🏥 ✅ Video health monitoring resumed successfully [Resume #\(self.resumeCount)]")
     }
     
-    func getCurrentHealth() -> VideoHealthState {
+    public func getCurrentHealth() -> VideoHealthState {
         let availableMemory = memoryManager.getAvailableMemory()
         let cpuUsage = getCurrentCPUUsage()
         
@@ -160,18 +212,18 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         }
     }
     
-    func getCurrentHealthStatus() -> VideoHealthStatus {
+    public func getCurrentHealthStatus() -> VideoHealthStatus {
         let healthState = getCurrentHealth()
         return VideoHealthStatus.from(healthState)
     }
     
-    func getHealthReports() -> AsyncStream<VideoHealthReport> {
+    public func getHealthReports() -> AsyncStream<VideoHealthReport> {
         return AsyncStream { continuation in
             self.continuation = continuation
         }
     }
     
-    func getHealthStatusReports() -> AsyncStream<VideoHealthStatusReport> {
+    public func getHealthStatusReports() -> AsyncStream<VideoHealthStatusReport> {
         return AsyncStream { continuation in
             self.statusContinuation = continuation
         }
@@ -181,25 +233,52 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
     
     private func monitorVideoHealth() async {
         await withTaskCancellationHandler {
+            var consecutiveHealthyChecks = 0
+            let maxConsecutiveHealthyBeforeReducedLogging = 5
+            
             while !Task.isCancelled {
+                guard isMonitoringActive else {
+                    // If monitoring was paused while loop was running, exit gracefully
+                    logger.info("🏥 Monitoring became inactive - stopping health checks")
+                    break
+                }
+                
                 let report = generateHealthReport()
                 let statusReport = generateHealthStatusReport()
                 
-                // Log the health report
-                logHealthReport(report)
+                // 💡 OPTIMIZATION: Reduce logging for consecutive healthy states
+                let shouldLogVerbosely = !report.state.isHealthy || consecutiveHealthyChecks < maxConsecutiveHealthyBeforeReducedLogging
                 
-                // Send the report to the stream
+                if shouldLogVerbosely {
+                    // Log the health report
+                    logHealthReport(report)
+                } else if consecutiveHealthyChecks == maxConsecutiveHealthyBeforeReducedLogging {
+                    logger.info("🏥 📊 System consistently healthy - reducing log frequency")
+                }
+                
+                // Send the report to the stream (always send for downstream consumers)
                 continuation?.yield(report)
                 statusContinuation?.yield(statusReport)
                 
                 // Take action based on health state
                 handleHealthState(report.state)
                 
-                // Wait for the next check
-                try? await Task.sleep(nanoseconds: UInt64(healthCheckInterval * 1_000_000_000))
+                // Track consecutive healthy checks
+                if report.state == .healthy {
+                    consecutiveHealthyChecks += 1
+                } else {
+                    consecutiveHealthyChecks = 0
+                }
+                
+                // Update last health check time
+                lastHealthCheck = Date()
+                
+                // Wait for the next check with adaptive interval
+                let adaptiveInterval = report.state == .healthy ? healthCheckInterval * 1.5 : healthCheckInterval
+                try? await Task.sleep(nanoseconds: UInt64(adaptiveInterval * 1_000_000_000))
             }
         } onCancel: {
-            logger.info("🏥 Video health monitoring cancelled")
+            logger.info("🏥 Video health monitoring cancelled [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
         }
     }
     
@@ -210,18 +289,8 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         
         // Get additional info about the asset
         var additionalInfo: [String: String] = [:]
-        if let asset = currentAsset {
-            additionalInfo["duration"] = String(format: "%.2f", asset.duration.seconds)
-            additionalInfo["tracks"] = "\(asset.tracks.count)"
-            
-            if let videoTrack = asset.tracks(withMediaType: .video).first {
-                let size = videoTrack.naturalSize
-                additionalInfo["videoSize"] = "\(Int(size.width))x\(Int(size.height))"
-                
-                // nominalFrameRate is not optional, so no conditional binding needed
-                let frameRate = videoTrack.nominalFrameRate
-                additionalInfo["frameRate"] = String(format: "%.1f", frameRate)
-            }
+        Task {
+            await getAssetInfo(for: currentAsset, into: &additionalInfo)
         }
         
         return VideoHealthReport(
@@ -241,18 +310,8 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
         
         // Get additional info about the asset
         var additionalInfo: [String: String] = [:]
-        if let asset = currentAsset {
-            additionalInfo["duration"] = String(format: "%.2f", asset.duration.seconds)
-            additionalInfo["tracks"] = "\(asset.tracks.count)"
-            
-            if let videoTrack = asset.tracks(withMediaType: .video).first {
-                let size = videoTrack.naturalSize
-                additionalInfo["videoSize"] = "\(Int(size.width))x\(Int(size.height))"
-                
-                // nominalFrameRate is not optional, so no conditional binding needed
-                let frameRate = videoTrack.nominalFrameRate
-                additionalInfo["frameRate"] = String(format: "%.1f", frameRate)
-            }
+        Task {
+            await getAssetInfo(for: currentAsset, into: &additionalInfo)
         }
         
         return VideoHealthStatusReport(
@@ -263,6 +322,30 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
             playbackStatus: "playing", // This could be updated with actual playback status
             additionalInfo: additionalInfo
         )
+    }
+    
+    // MARK: - Asset Information Helper
+    private func getAssetInfo(for asset: AVAsset?, into additionalInfo: inout [String: String]) async {
+        guard let asset = asset else { return }
+        
+        do {
+            let duration = try await asset.load(.duration)
+            additionalInfo["duration"] = String(format: "%.2f", duration.seconds)
+            
+            let tracks = try await asset.load(.tracks)
+            additionalInfo["tracks"] = "\(tracks.count)"
+            
+            let videoTracks = try await asset.loadTracks(withMediaType: .video)
+            if let videoTrack = videoTracks.first {
+                let naturalSize = try await videoTrack.load(.naturalSize)
+                additionalInfo["videoSize"] = "\(Int(naturalSize.width))x\(Int(naturalSize.height))"
+                
+                let nominalFrameRate = try await videoTrack.load(.nominalFrameRate)
+                additionalInfo["frameRate"] = String(format: "%.1f", nominalFrameRate)
+            }
+        } catch {
+            logger.warning("🏥 Failed to load asset info: \(error.localizedDescription)")
+        }
     }
     
     private func logHealthReport(_ report: VideoHealthReport) {
@@ -325,12 +408,14 @@ final class VideoHealthMonitorImpl: VideoHealthMonitor {
                 var threadInfo = thread_basic_info()
                 var threadInfoCount = mach_msg_type_number_t(THREAD_INFO_MAX)
                 
-                let infoResult = thread_info(
-                    threadList[Int(index)],
-                    thread_flavor_t(THREAD_BASIC_INFO),
-                    UnsafeMutableRawPointer(&threadInfo).assumingMemoryBound(to: integer_t.self),
-                    &threadInfoCount
-                )
+                let infoResult = withUnsafeMutableBytes(of: &threadInfo) { pointer in
+                    thread_info(
+                        threadList[Int(index)],
+                        thread_flavor_t(THREAD_BASIC_INFO),
+                        pointer.baseAddress!.assumingMemoryBound(to: integer_t.self),
+                        &threadInfoCount
+                    )
+                }
                 
                 if infoResult == KERN_SUCCESS {
                     let threadBasicInfo = threadInfo

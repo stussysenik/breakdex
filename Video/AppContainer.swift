@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - App Container
 public final class AppContainer {
-    static let shared = AppContainer()
+    public static let shared = AppContainer()
     
     // MARK: - Core Services
     private(set) lazy var memoryManager: MemoryManager = {

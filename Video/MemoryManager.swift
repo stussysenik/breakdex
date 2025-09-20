@@ -27,7 +27,7 @@ public protocol MemoryManager {
 }
 
 // MARK: - Memory Manager Implementation
-final class MemoryManagerImpl: MemoryManager {
+public final class MemoryManagerImpl: MemoryManager {
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "MemoryManager")
     private let memoryNormalThreshold: Int64 = 200 * 1024 * 1024 // 200MB
     private let memoryWarningThreshold: Int64 = 100 * 1024 * 1024 // 100MB
@@ -37,7 +37,7 @@ final class MemoryManagerImpl: MemoryManager {
     private var lastMemoryState: MemoryState = .normal
     private var memoryPressureObserver: NSObjectProtocol?
     
-    init() {
+    public init() {
         setupMemoryPressureObservation()
         logInitialMemoryState()
     }
@@ -66,7 +66,7 @@ final class MemoryManagerImpl: MemoryManager {
         logger.info("   - Percentage used: \(Double(usedMemory) / Double(totalMemory) * 100)%")
     }
     
-    func monitorMemoryUsage() -> AsyncStream<MemoryState> {
+    public func monitorMemoryUsage() -> AsyncStream<MemoryState> {
         return AsyncStream { continuation in
             self.continuation = continuation
             
@@ -164,7 +164,7 @@ final class MemoryManagerImpl: MemoryManager {
         logger.info("🧠 Warning memory actions completed")
     }
     
-    func handleMemoryWarning() {
+    public func handleMemoryWarning() {
         logger.warning("🧠 Memory warning received from system - taking critical actions")
         
         // Take critical memory actions
@@ -176,7 +176,7 @@ final class MemoryManagerImpl: MemoryManager {
         logger.info("🧠 System memory warning handled")
     }
     
-    func clearCache() {
+    public func clearCache() {
         logger.info("🧠 Clearing video cache")
         
         // Clear video cache
@@ -197,7 +197,7 @@ final class MemoryManagerImpl: MemoryManager {
         logger.info("🧠 Cache clearing completed")
     }
     
-    func getAvailableMemory() -> Int64 {
+    public func getAvailableMemory() -> Int64 {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
         
@@ -219,7 +219,7 @@ final class MemoryManagerImpl: MemoryManager {
         return 0
     }
     
-    func getUsedMemory() -> Int64 {
+    public func getUsedMemory() -> Int64 {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
         

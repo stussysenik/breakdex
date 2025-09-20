@@ -193,4 +193,10 @@ public class PlayerItemStatusMonitor {
         }
     }
     
+    /// Convenience method that waits for readiness without progress reporting
+    @MainActor
+    public func awaitReadyAndBuffered(timeout: TimeInterval = 15.0) async throws {
+        try await awaitReadyAndBuffered(timeout: timeout) { _ in }
+    }
+    
 }
