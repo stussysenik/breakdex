@@ -5,7 +5,7 @@ import OSLog
 import UIKit
 
 // MARK: - Custom Video Player View
-/// UPDATED: Removed rotation binding - rotation now handled at asset level for true WYSIWYG
+/// UPDATED: Restored rotation binding for instant visual feedback while asset-level rotation processes
 public struct CustomVideoPlayerView: View {
     // MARK: - Properties
     @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper
@@ -13,26 +13,45 @@ public struct CustomVideoPlayerView: View {
     @State private var showFullscreen = false
     @State private var isMuted = false
     private let shouldTeardownOnDisappear: Bool
+    private let rotationQuarterTurns: Int
     
     // MARK: - Static Properties
     private static var viewRecomputeCount = 0
     private static var playerViewInstanceCount = 0
     
-    // MARK: - Logger
+    // MARK: - Enhanced Diagnostic Logging
+    private let diagnosticLogger = DiagnosticLoggingHelper(category: "CustomVideoPlayerView")
     private let logger = AppContainer.shared.logger
     
     // MARK: - Haptic Feedback
     private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
     
     // MARK: - Initialization
-    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false) {
+    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false, rotationQuarterTurns: Int = 0) {
+        diagnosticLogger.startTiming("video_player_initialization")
+
+        let initialMemory = diagnosticLogger.getMemoryInfo()
+
         self.observableWrapper = ObservableVideoPlayerWrapper(viewModel: viewModel)
         self.shouldTeardownOnDisappear = shouldTeardownOnDisappear
-        
+        self.rotationQuarterTurns = rotationQuarterTurns
+
+        diagnosticLogger.logInfo("🎬 CustomVideoPlayerView initializing", metadata: [
+            "view_model_type": "\(type(of: viewModel))",
+            "should_teardown": "\(shouldTeardownOnDisappear)",
+            "rotation_quarter_turns": "\(rotationQuarterTurns)",
+            "initial_memory_mb": "\(String(format: "%.1f", initialMemory.used))",
+            "instance_count": "\(Self.playerViewInstanceCount + 1)",
+            "recompute_count": "\(Self.viewRecomputeCount + 1)"
+        ])
+
         // Log the fix for diagnostic purposes
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: ✅ INIT - Using @ObservedObject (corrected from @StateObject)", metadata: nil)
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel type: \(type(of: viewModel))", metadata: nil)
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: Should teardown: \(shouldTeardownOnDisappear)", metadata: nil)
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: Rotation quarter turns: \(rotationQuarterTurns)", metadata: nil)
+
+        diagnosticLogger.stopTiming("video_player_initialization")
     }
     
     // MARK: - Body
@@ -61,7 +80,7 @@ public struct CustomVideoPlayerView: View {
                 
             case "playing":
                 if isViewReady, let player = getPlayerFromState() {
-                    AVPlayerViewRepresentable(player: player)
+                    AVPlayerViewRepresentable(player: player, rotationQuarterTurns: rotationQuarterTurns)
                         .overlay(alignment: Alignment.topTrailing) {
                             HStack {
                                 Button {
@@ -86,22 +105,41 @@ public struct CustomVideoPlayerView: View {
                             .clipShape(Capsule())
                             .padding()
                         }
+                        .onAppear {
+                            logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🔄 DEBUG - AVPlayerViewRepresentable created with rotation: \(rotationQuarterTurns)", metadata: nil)
+                        }
+                        .onChange(of: rotationQuarterTurns) { _, newValue in
+                            logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🔄 DEBUG - Rotation parameter changed to: \(newValue)", metadata: nil)
+                        }
                         .onChange(of: isMuted) { _, muted in
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Mute state changed to: \(muted)", metadata: nil)
                             player.isMuted = muted
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
-                            FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
+                            FullscreenVideoPlayer(player: player, isPresented: $showFullscreen, rotationQuarterTurns: rotationQuarterTurns)
                         }
                         .task {
+                            diagnosticLogger.startTiming("video_render_task")
+
+                            let startMemory = diagnosticLogger.getMemoryInfo()
+                            let startCPU = diagnosticLogger.getCurrentCPUUsage()
+
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: RenderStart: representable", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🔄 AVPlayerViewRepresentable task started (Instance #\(Self.playerViewInstanceCount), Recompute #\(Self.viewRecomputeCount))", metadata: nil)
+
+                            diagnosticLogger.logInfo("🎬 Starting video render task", metadata: [
+                                "instance_count": "\(Self.playerViewInstanceCount)",
+                                "recompute_count": "\(Self.viewRecomputeCount)",
+                                "memory_usage_mb": "\(String(format: "%.1f", startMemory.used))",
+                                "cpu_usage_percent": "\(String(format: "%.1f", startCPU))"
+                            ])
+
                             logMemoryUsage(context: "playing_task_start")
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer status: \(player.status.rawValue)", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer currentItem status: \(player.currentItem?.status.rawValue ?? -1)", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer error: \(String(describing: player.error))", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ✅ USING AVPlayerViewRepresentable - ELIMINATING VideoPlayer CRASHES!", metadata: nil)
-                            
+
                             // Final diagnostic during rendering
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: 📋 DIAGNOSTIC DURING RENDERING (State: playing)", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer exists: ✅", metadata: nil)
@@ -112,10 +150,27 @@ public struct CustomVideoPlayerView: View {
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer currentItem status: \(player.currentItem?.status.rawValue ?? -1) (\(player.currentItem?.status == .readyToPlay ? "readyToPlay" : player.currentItem?.status == .failed ? "failed" : "unknown"))", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer error: \(String(describing: player.error))", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: AVPlayer currentItem error: \(String(describing: player.currentItem?.error))", metadata: nil)
-                            
+
+                            let endMemory = diagnosticLogger.getMemoryInfo()
+                            let endCPU = diagnosticLogger.getCurrentCPUUsage()
+
+                            diagnosticLogger.logInfo("📊 Video render task performance", metadata: [
+                                "memory_before_mb": "\(String(format: "%.1f", startMemory.used))",
+                                "memory_after_mb": "\(String(format: "%.1f", endMemory.used))",
+                                "memory_increase_mb": "\(String(format: "%.1f", endMemory.used - startMemory.used))",
+                                "cpu_before_percent": "\(String(format: "%.1f", startCPU))",
+                                "cpu_after_percent": "\(String(format: "%.1f", endCPU))",
+                                "player_status": "\(player.status.rawValue)",
+                                "player_rate": "\(player.rate)",
+                                "is_muted": "\(player.isMuted)"
+                            ])
+
                             logMemoryUsage(context: "playing_task_end")
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🎬 AVPlayerViewRepresentable should be rendering now! (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Tap gesture handling built into UIViewRepresentable!", metadata: nil)
+
+                            diagnosticLogger.stopTiming("video_render_task")
+                            diagnosticLogger.checkResourceWarnings()
                         }
                 } else {
                     ProgressView()
@@ -156,7 +211,7 @@ public struct CustomVideoPlayerView: View {
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
                             if let player = observableWrapper.avPlayer {
-                                FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
+                                FullscreenVideoPlayer(player: player, isPresented: $showFullscreen, rotationQuarterTurns: rotationQuarterTurns)
                             }
                         }
                 }
@@ -176,45 +231,99 @@ public struct CustomVideoPlayerView: View {
             }
         }
         .onAppear {
+            diagnosticLogger.startTiming("view_appear")
+
+            let appearMemory = diagnosticLogger.getMemoryInfo()
+            let appearCPU = diagnosticLogger.getCurrentCPUUsage()
+
             Self.viewRecomputeCount += 1
             Self.playerViewInstanceCount += 1
+
+            diagnosticLogger.logInfo("👁️ Video player view appeared", metadata: [
+                "recompute_count": "\(Self.viewRecomputeCount)",
+                "instance_count": "\(Self.playerViewInstanceCount)",
+                "memory_usage_mb": "\(String(format: "%.1f", appearMemory.used))",
+                "cpu_usage_percent": "\(String(format: "%.1f", appearCPU))",
+                "thread_main": "\(Thread.current.isMainThread)"
+            ])
+
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View appeared (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: PlayerView instance count now: \(Self.playerViewInstanceCount)", metadata: nil)
             logMemoryUsage(context: "onAppear")
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel state: \(String(describing: observableWrapper.state))", metadata: nil)
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Thread: \(Thread.current.isMainThread ? "Main" : "Background")", metadata: nil)
-            
+
             // Mark view as ready and start playback
             isViewReady = true
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewReady: onAppear", metadata: nil)
             observableWrapper.startPlayback()
+
+            let postAppearMemory = diagnosticLogger.getMemoryInfo()
+            diagnosticLogger.logInfo("✅ View appear completed", metadata: [
+                "memory_after_startup_mb": "\(String(format: "%.1f", postAppearMemory.used))",
+                "memory_increase_mb": "\(String(format: "%.1f", postAppearMemory.used - appearMemory.used))",
+                "view_ready": "\(isViewReady)",
+                "playback_started": "true"
+            ])
+
+            diagnosticLogger.stopTiming("view_appear")
+            diagnosticLogger.checkResourceWarnings()
         }
         .onDisappear {
+            diagnosticLogger.startTiming("view_disappear")
+
+            let disappearMemory = diagnosticLogger.getMemoryInfo()
+            let currentState = String(describing: observableWrapper.state)
+
+            diagnosticLogger.logInfo("👋 Video player view disappearing", metadata: [
+                "will_teardown": "\(shouldTeardownOnDisappear)",
+                "recompute_count": "\(Self.viewRecomputeCount)",
+                "current_state": "\(currentState)",
+                "memory_usage_mb": "\(String(format: "%.1f", disappearMemory.used))",
+                "instance_count": "\(Self.playerViewInstanceCount)"
+            ])
+
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View disappearing - \(shouldTeardownOnDisappear ? "WILL teardown" : "NOT tearing down") (Recompute #\(Self.viewRecomputeCount))", metadata: nil)
             logMemoryUsage(context: "onDisappear_start")
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Current state: \(String(describing: observableWrapper.state))", metadata: nil)
-            
+
             if shouldTeardownOnDisappear {
                 // Full teardown for contexts like Pre-Trim view where view model should be cleaned up
                 logger.info("🎬 CUSTOM_VIDEO_PLAYER: Performing full teardown of view model", metadata: nil)
+                diagnosticLogger.logDebug("🧹 Starting full view model teardown")
                 observableWrapper.teardown()
+                diagnosticLogger.logDebug("✅ View model teardown completed")
             } else {
                 // Legacy behavior: only pause playback, don't tear down resources
                 if let player = getPlayerFromState() {
                     logger.info("🎬 CUSTOM_VIDEO_PLAYER: Pausing playback (no teardown)", metadata: nil)
+                    diagnosticLogger.logDebug("⏸️ Pausing playback (preserving resources)")
                     player.pause()
                 }
             }
-            
+
             // Reset view state only
             isViewReady = false
             showFullscreen = false
             isMuted = false
-            
+
+            Self.playerViewInstanceCount -= 1
+
+            let finalMemory = diagnosticLogger.getMemoryInfo()
+            diagnosticLogger.logInfo("✅ View disappear completed", metadata: [
+                "memory_after_cleanup_mb": "\(String(format: "%.1f", finalMemory.used))",
+                "memory_freed_mb": "\(String(format: "%.1f", disappearMemory.used - finalMemory.used))",
+                "final_instance_count": "\(Self.playerViewInstanceCount)",
+                "view_state_reset": "true",
+                "teardown_performed": "\(shouldTeardownOnDisappear)"
+            ])
+
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View state reset, \(shouldTeardownOnDisappear ? "model torn down" : "player preserved")", metadata: nil)
             logMemoryUsage(context: "onDisappear_end")
-            Self.playerViewInstanceCount -= 1
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: PlayerView instance count now: \(Self.playerViewInstanceCount)", metadata: nil)
+
+            diagnosticLogger.stopTiming("view_disappear")
+            diagnosticLogger.checkResourceWarnings()
         }
     }
     
@@ -250,21 +359,42 @@ public struct CustomVideoPlayerView: View {
     
     private func logViewState() {
         // This function is for debugging state changes
+        diagnosticLogger.logDebug("🔄 State change detected", metadata: [
+            "state_string": "\(String(describing: observableWrapper.state))",
+            "is_view_ready": "\(isViewReady)",
+            "is_muted": "\(isMuted)",
+            "rotation_quarter_turns": "\(rotationQuarterTurns)"
+        ])
+
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: State change detected", metadata: nil)
-        
+
         // Use a type-erased approach to handle the associated type
         let state = observableWrapper.state
-        
-        // Since all implementations have the same state structure, we can use a string representation
         let stateString = String(describing: state)
-        
+
         if stateString.contains("loading") {
+            diagnosticLogger.logInfo("📥 View rendering loading state", metadata: [
+                "loading_progress": "\(getLoadingProgress() ?? 0.0)",
+                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
+            ])
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View rendering loading state", metadata: nil)
             logMemoryUsage(context: "render_loading")
         } else if stateString.contains("playing") {
+            diagnosticLogger.logInfo("▶️ View rendering playing state", metadata: [
+                "view_ready": "\(isViewReady)",
+                "is_muted": "\(isMuted)",
+                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
+            ])
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View rendering playing state", metadata: nil)
             // Extract player information if available
             if let player = getPlayerFromState() {
+                diagnosticLogger.logInfo("🎵 Player details", metadata: [
+                    "player_status": "\(player.status.rawValue)",
+                    "player_rate": "\(player.rate)",
+                    "current_time_seconds": "\(player.currentTime().seconds)",
+                    "is_muted": "\(player.isMuted)",
+                    "time_control_status": "\(player.timeControlStatus.rawValue)"
+                ])
                 logger.info("🎬 CUSTOM_VIDEO_PLAYER: Player status: \(player.status.rawValue)", metadata: nil)
                 logger.info("🎬 CUSTOM_VIDEO_PLAYER: Player rate: \(player.rate)", metadata: nil)
                 logger.info("🎬 CUSTOM_VIDEO_PLAYER: Current time: \(String(describing: player.currentTime().seconds))", metadata: nil)
@@ -272,6 +402,11 @@ public struct CustomVideoPlayerView: View {
             }
             logMemoryUsage(context: "render_playing")
         } else if stateString.contains("error") {
+            diagnosticLogger.logError("View rendering error state", metadata: [
+                "error_message": "\(getErrorMessage() ?? "unknown")",
+                "state_string": "\(stateString)",
+                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
+            ])
             logger.error("🎬 CUSTOM_VIDEO_PLAYER: View rendering error state: \(stateString)", metadata: nil)
             logMemoryUsage(context: "render_error")
         }
@@ -284,16 +419,24 @@ public struct CustomVideoPlayerView: View {
     }
     
     private func logMemoryUsage(context: String) {
-        // Get memory information
-        let memoryInfo = getMemoryInfo()
-        
-        // Log memory usage with context
-        logger.info("🎬 CUSTOM_VIDEO_PLAYER: Memory Usage (\(context)) - Used: \(memoryInfo.usedMB)MB, Free: \(memoryInfo.freeMB)MB, Total: \(memoryInfo.totalMB)MB", metadata: nil)
-        
-        // Log CPU usage if available
-        if let cpuUsage = getCPUUsage() {
-            logger.info("🎬 CUSTOM_VIDEO_PLAYER: CPU Usage (\(context)): \(String(format: "%.1f", cpuUsage))%", metadata: nil)
-        }
+        // Use DiagnosticLoggingHelper for comprehensive resource monitoring
+        let memoryInfo = diagnosticLogger.getMemoryInfo()
+        let cpuUsage = diagnosticLogger.getCurrentCPUUsage()
+
+        diagnosticLogger.logInfo("💾 Resource usage", metadata: [
+            "context": context,
+            "memory_used_mb": "\(String(format: "%.1f", memoryInfo.used))",
+            "memory_free_mb": "\(String(format: "%.1f", memoryInfo.free))",
+            "memory_total_mb": "\(String(format: "%.1f", memoryInfo.total))",
+            "memory_percent": "\(String(format: "%.1f", memoryInfo.percentage))",
+            "cpu_usage_percent": "\(String(format: "%.1f", cpuUsage))"
+        ])
+
+        // Log memory usage with context (keep for backward compatibility)
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: Memory Usage (\(context)) - Used: \(String(format: "%.1f", memoryInfo.used))MB, Free: \(String(format: "%.1f", memoryInfo.free))MB, Total: \(String(format: "%.1f", memoryInfo.total))MB", metadata: nil)
+
+        // Log CPU usage (keep for backward compatibility)
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: CPU Usage (\(context)): \(String(format: "%.1f", cpuUsage))%", metadata: nil)
     }
     
     private func getMemoryInfo() -> (usedMB: Int, freeMB: Int, totalMB: Int) {
@@ -324,20 +467,40 @@ public struct CustomVideoPlayerView: View {
     private struct FullscreenVideoPlayer: View {
         let player: AVPlayer
         @Binding var isPresented: Bool
+        let rotationQuarterTurns: Int
+        private let diagnosticLogger = DiagnosticLoggingHelper(category: "FullscreenVideoPlayer")
         private let logger = AppContainer.shared.logger
         private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
-        
+
         var body: some View {
+            diagnosticLogger.startTiming("fullscreen_render")
+
+            let startMemory = diagnosticLogger.getMemoryInfo()
+            let startCPU = diagnosticLogger.getCurrentCPUUsage()
+
+            diagnosticLogger.logInfo("🎬 Rendering fullscreen player", metadata: [
+                "player_status": "\(player.status.rawValue)",
+                "player_rate": "\(player.rate)",
+                "rotation_quarter_turns": "\(rotationQuarterTurns)",
+                "memory_usage_mb": "\(String(format: "%.1f", startMemory.used))",
+                "cpu_usage_percent": "\(String(format: "%.1f", startCPU))"
+            ])
+
             logger.info("🎬 FULLSCREEN_PLAYER: Rendering fullscreen player", metadata: nil)
             logger.info("🎬 FULLSCREEN_PLAYER: Player status: \(player.status.rawValue)", metadata: nil)
             logger.info("🎬 FULLSCREEN_PLAYER: Player rate: \(player.rate)", metadata: nil)
-            
+
             return ZStack(alignment: Alignment.topLeading) {
                 AVPlayerViewRepresentable(player: player)
+                    .id(rotationQuarterTurns)
                     .edgesIgnoringSafeArea(.all)
-                
+
                 Button {
                     impactGenerator.impactOccurred()
+                    diagnosticLogger.logUserInteraction("fullscreen_close_button", metadata: [
+                        "player_status": "\(player.status.rawValue)",
+                        "rotation_quarter_turns": "\(rotationQuarterTurns)"
+                    ])
                     logger.info("🎬 FULLSCREEN_PLAYER: Close button tapped", metadata: nil)
                     isPresented = false
                 } label: {
@@ -349,10 +512,38 @@ public struct CustomVideoPlayerView: View {
                 .padding()
             }
             .onAppear {
+                let appearMemory = diagnosticLogger.getMemoryInfo()
+                diagnosticLogger.logInfo("👁️ Fullscreen player appeared", metadata: [
+                    "memory_usage_mb": "\(String(format: "%.1f", appearMemory.used))",
+                    "player_ready": "\(player.status == .readyToPlay)",
+                    "rotation_quarter_turns": "\(rotationQuarterTurns)"
+                ])
                 logger.info("🎬 FULLSCREEN_PLAYER: Fullscreen player appeared", metadata: nil)
             }
             .onDisappear {
+                let disappearMemory = diagnosticLogger.getMemoryInfo()
+                diagnosticLogger.logInfo("👋 Fullscreen player disappeared", metadata: [
+                    "memory_usage_mb": "\(String(format: "%.1f", disappearMemory.used))",
+                    "session_duration": "measured",
+                    "rotation_quarter_turns": "\(rotationQuarterTurns)"
+                ])
                 logger.info("🎬 FULLSCREEN_PLAYER: Fullscreen player disappeared", metadata: nil)
+            }
+            .task {
+                let renderMemory = diagnosticLogger.getMemoryInfo()
+                let renderCPU = diagnosticLogger.getCurrentCPUUsage()
+
+                diagnosticLogger.logInfo("📊 Fullscreen player rendering performance", metadata: [
+                    "memory_before_mb": "\(String(format: "%.1f", startMemory.used))",
+                    "memory_after_mb": "\(String(format: "%.1f", renderMemory.used))",
+                    "memory_increase_mb": "\(String(format: "%.1f", renderMemory.used - startMemory.used))",
+                    "cpu_before_percent": "\(String(format: "%.1f", startCPU))",
+                    "cpu_after_percent": "\(String(format: "%.1f", renderCPU))",
+                    "rotation_quarter_turns": "\(rotationQuarterTurns)"
+                ])
+
+                diagnosticLogger.stopTiming("fullscreen_render")
+                diagnosticLogger.checkResourceWarnings()
             }
         }
     }
@@ -408,7 +599,8 @@ class ObservableVideoPlayerWrapper: ObservableObject {
     
     private func setupObservation() {
         // Use timer-based observation for rapidly changing properties
-        Timer.publish(every: 0.1, on: .main, in: .common)
+        // Increased interval to reduce logging frequency and prevent rate limiting
+        Timer.publish(every: 0.5, on: .main, in: .common) // Changed from 0.1 to 0.5 seconds
             .autoconnect()
             .sink { [weak self] _ in
                 self?.updatePublishedProperties()

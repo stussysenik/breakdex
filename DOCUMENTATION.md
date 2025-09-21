@@ -3,7 +3,7 @@
 ## Overview
 BreakingFlashcards is a video flashcard application for learning and reviewing complex physical movements, built on iOS 18.0 with SwiftUI, following KISS, DRY, YAGNI and WYSIWYG principles.
 
-**Current State**: 96 Swift files with modern iOS 18.0 patterns, comprehensive state management, and robust video processing pipeline.
+**Current State**: 89 Swift files with modern iOS 18.0 patterns, comprehensive state management, and robust video processing pipeline.
 
 ## Core Architecture
 
@@ -210,13 +210,14 @@ BreakingFlashcards is a video flashcard application for learning and reviewing c
 - **Enhanced Spaced Repetition**: Improved algorithm and statistics tracking
 
 ### 📊 Codebase Statistics
-- **Total Swift Files**: 96 files
-- **Views**: 39 files (40.6%)
-- **Managers**: 11 files (11.5%)
-- **Video Processing**: 19 files (19.8%)
-- **CoreData**: 9 files (9.4%)
-- **Utils**: 13 files (13.5%)
-- **Other**: 5 files (5.2%)
+- **Total Swift Files**: 89 files
+- **Views**: 33 files (37.1%)
+- **Managers**: 10 files (11.2%)
+- **Video Processing**: 30 files (33.7%)
+- **CoreData**: 9 files (10.1%)
+- **Utils**: 13 files (14.6%)
+- **Models**: 1 file (1.1%)
+- **Other**: 3 files (3.4%)
 
 ## Key Architectural Principles
 
@@ -236,16 +237,16 @@ BreakingFlashcards/
 │   ├── MainView.swift
 │   ├── BreakingArsenalView.swift
 │   └── FeatureFlag.swift
-├── Views/                   # UI components organized by feature (39 files)
-│   ├── Arsenal/AddMove/     # Add Move flow (15 files)
-│   ├── Arsenal/Combos/      # Combo creation and display (7 files)
-│   ├── Arsenal/Moves/       # Move display and management (4 files)
-│   ├── Video/Player/        # Video player components (5 files)
+├── Views/                   # UI components organized by feature (33 files)
+│   ├── Arsenal/AddMove/     # Add Move flow (12 files)
+│   ├── Arsenal/Combos/      # Combo creation and display (6 files)
+│   ├── Arsenal/Moves/       # Move display and management (3 files)
+│   ├── Video/Player/        # Video player components (4 files)
 │   ├── Video/Pre-Trim/      # Video preview before trimming (2 files)
 │   ├── Video/Trim/          # Video trimming interface (2 files)
 │   ├── Video/Re-link/       # Video re-linking functionality (2 files)
 │   └── Video/Review/        # Review system (2 files)
-├── Video/                   # Video processing pipeline (19 files)
+├── Video/                   # Video processing pipeline (30 files)
 │   ├── VideoState.swift
 │   ├── VideoStateManager.swift
 │   ├── VideoProcessor.swift
@@ -263,8 +264,19 @@ BreakingFlashcards/
 │   ├── PlayerInitializer.swift
 │   ├── PlayerItemStatusMonitor.swift
 │   ├── ContinuationManager.swift
+│   ├── UnifiedVideoPlayerViewModel.swift
+│   ├── VideoPlayerManager.swift
+│   ├── AVPlayerViewRepresentable.swift
+│   ├── CustomVideoPlayerView.swift
+│   ├── VideoPlayerViewModelProtocol.swift
+│   ├── VideoPlayerCacheManager.swift
+│   ├── UnifiedPlayerManager.swift
+│   ├── AddMovePlayerManager.swift
+│   ├── VideoRelinkManager.swift
+│   ├── VideoRelinkView.swift
+│   ├── SeekScheduler.swift
 │   └── Processing/          # (Empty directory - components moved to root)
-├── Managers/                # Service layer managers (11 files)
+├── Managers/                # Service layer managers (10 files)
 │   ├── AddMoveStateManager.swift
 │   ├── VideoPlayerManager.swift
 │   ├── VideoPlayerCacheManager.swift

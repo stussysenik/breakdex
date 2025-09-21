@@ -27,6 +27,15 @@ public class UnifiedPlayerManager: ObservableObject {
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Initialized")
     }
     
+    // MARK: - Internal State Management
+    
+    /// Updates the current asset (for internal use by AddMoveUnifiedState)
+    internal func updateAsset(_ asset: AVAsset?, photosIdentifier: String?) {
+        self.currentAsset = asset
+        self.currentPhotosIdentifier = photosIdentifier
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Asset updated (asset: \(asset != nil), photosID: \(photosIdentifier ?? "nil"))")
+    }
+    
     // MARK: - Public API
     
     /// Creates or updates the unified player with the specified asset
@@ -130,11 +139,18 @@ public class UnifiedPlayerManager: ObservableObject {
             // Don't teardown - preserve for potential cache reuse
         }
         
-        // Set the new player
+        // Set the new player and extract asset information
         currentPlayer = player
+        let playerAsset = player.avPlayer?.currentItem?.asset
+        if playerAsset != nil {
+            currentAsset = playerAsset
+            // 🎯 CRITICAL FIX: Preserve existing rotation instead of resetting to 0
+            // This prevents loss of rotation state when setting pre-created players
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Asset extracted from player, rotation preserved: \(self.currentRotation)")
+        }
         isInitialized = true
         
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player set successfully")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player set successfully (asset: \(self.currentAsset != nil))")
     }
     
     /// Applies trim to the current player

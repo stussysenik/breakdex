@@ -32,6 +32,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         case loading(progress: Double, etaSeconds: TimeInterval?, status: String)
         case ready(player: AVPlayer)
         case playing(player: AVPlayer)
+        case paused(player: AVPlayer)
         case error(message: String)
     }
 
@@ -70,10 +71,19 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
 
     public var isPlayerReady: Bool {
         switch state {
-        case .ready, .playing:
+        case .ready, .playing, .paused:
             return true
         default:
             return false
+        }
+    }
+
+    public var currentTime: CMTime? {
+        switch state {
+        case .ready(let player), .playing(let player), .paused(let player):
+            return player.currentTime()
+        default:
+            return nil
         }
     }
 
@@ -190,15 +200,26 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
 
     public func pauseForTrimming() {
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): pauseForTrimming() called", metadata: nil)
-        
+
         Task { @MainActor in
-            if case .playing(let player) = state {
+            switch state {
+            case .playing(let player):
                 player.pause()
                 videoHealthMonitor.pauseMonitoring()
                 if mode == .preview {
                     memoryCheckTimer?.invalidate()
                     memoryCheckTimer = nil
                 }
+                state = .paused(player: player)
+            case .ready(let player):
+                player.pause()
+                videoHealthMonitor.pauseMonitoring()
+                state = .paused(player: player)
+            case .paused(_):
+                // Already paused, do nothing
+                break
+            default:
+                break
             }
         }
         shouldPlay = false

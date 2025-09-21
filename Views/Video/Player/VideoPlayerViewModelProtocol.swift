@@ -24,6 +24,7 @@ public protocol VideoPlayerViewModelProtocol: ObservableObject, Equatable, Hasha
     // MARK: - Public Accessors
     var avPlayer: AVPlayer? { get }
     var isPlayerReady: Bool { get }
+    var currentTime: CMTime? { get }
     
     // MARK: - Public Methods
     func loadVideo(from source: VideoSource, quarterTurns: Int) async throws

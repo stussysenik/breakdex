@@ -122,15 +122,12 @@ struct AddMoveContainer: View {
                 
             case .loading(let progress, let status):
                 LoadingView(progress: progress, status: status)
-                
+
             case .previewing:
-                PreTrimViewUnified(
-                    unifiedState: unifiedState,
-                    selectedTab: $selectedTab
-                )
-                
+                EmptyView() // Preview state is skipped in new flow
+
             case .trimming:
-                TrimmerViewUnified(
+                FeatureRichTrimmerView(
                     unifiedState: unifiedState
                 )
                 
@@ -181,17 +178,12 @@ struct AddMoveContainer: View {
             return false
         case .loading:
             switch newState {
-            case .loading, .previewing, .error: return true // ✅ ALLOW loading -> loading for progress updates
-            default: return false
-            }
-        case .previewing:
-            switch newState {
-            case .trimming, .ready, .error: return true
+            case .loading, .trimming, .error: return true // ✅ ALLOW loading -> loading for progress updates
             default: return false
             }
         case .trimming:
             switch newState {
-            case .previewing, .naming, .error: return true
+            case .ready, .previewing, .naming, .error: return true
             default: return false
             }
         case .naming:

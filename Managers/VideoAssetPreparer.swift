@@ -52,11 +52,17 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         
         // Create player view model
         logger.info("🎬 VIDEO_PREPARER: Creating UnifiedVideoPlayerViewModel synchronously")
+
+        // 🎯 CRITICAL FIX: Add diagnostic logging to track health monitor coordination
+        logger.info("🎬 VIDEO_PREPARER: 🏥 Health monitor coordination - preparing player creation")
+
         let playerViewModel = UnifiedVideoPlayerViewModel(
             player: AVPlayer(playerItem: AVPlayerItem(asset: loaderResult.asset)),
             mode: .main,
             appContainer: AppContainer.shared
         )
+
+        logger.info("🎬 VIDEO_PREPARER: 🏥 Health monitor coordination - player created successfully")
         logger.info("🎬 VIDEO_PREPARER: 📊 Memory after creating player VM: \(os_proc_available_memory() / (1024*1024)) MB available")
         
         // Wait for player to be ready using robust monitoring
