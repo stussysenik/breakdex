@@ -109,7 +109,9 @@ struct AddMoveContainer: View {
         // Validate state transitions
         if !isValidFlowStateTransition(from: oldState, to: newState) {
             logger.error("🎬 CONTAINER: ❌ INVALID FLOW STATE TRANSITION!")
-            unifiedState.setError(message: "Invalid state transition detected")
+            Task {
+                await unifiedState.setError(message: "Invalid state transition detected")
+            }
         }
     }
     
@@ -126,6 +128,9 @@ struct AddMoveContainer: View {
             case .previewing:
                 EmptyView() // Preview state is skipped in new flow
 
+            case .trimming_setup:
+                LoadingView(progress: 1.0, status: "Finalizing setup...")
+
             case .trimming:
                 FeatureRichTrimmerView(
                     unifiedState: unifiedState
@@ -139,15 +144,23 @@ struct AddMoveContainer: View {
                 
             case .success(let message):
                 SuccessView(message: message) {
-                    unifiedState.reset()
+                    Task {
+                        await unifiedState.reset()
+                    }
                 }
                 
             case .error(let message, _):
                 ErrorView(
                     message: message,
-                    onRetry: { unifiedState.clearError() },
-                    onCancel: { 
-                        unifiedState.reset()
+                    onRetry: {
+                        Task {
+                            await unifiedState.clearError()
+                        }
+                    },
+                    onCancel: {
+                        Task {
+                            await unifiedState.reset()
+                        }
                         selectedTab = .arsenal
                     }
                 )
@@ -178,7 +191,12 @@ struct AddMoveContainer: View {
             return false
         case .loading:
             switch newState {
-            case .loading, .trimming, .error: return true // ✅ ALLOW loading -> loading for progress updates
+            case .loading, .trimming_setup, .error: return true // ✅ ALLOW loading -> loading for progress updates
+            default: return false
+            }
+        case .trimming_setup:
+            switch newState {
+            case .trimming, .error: return true
             default: return false
             }
         case .trimming:
@@ -238,32 +256,36 @@ struct AddMoveContainer: View {
 /// State-driven video selection view
 struct AddMoveSelectClipViewUnified: View {
     @ObservedObject var unifiedState: AddMoveUnifiedState
-    
+    @State private var showPhotosPicker = false
+    @State private var tempSelection: PhotosUI.PhotosPickerItem?
+
     var body: some View {
         VStack {
             Spacer()
-            
-            PhotosPicker(
-                selection: Binding(
-                    get: { unifiedState.selectedVideoItem },
-                    set: { newItem in
-                        if let newItem = newItem {
-                            unifiedState.didSelectVideo(newItem)
-                        }
-                    }
-                ),
-                matching: .videos,
-                preferredItemEncoding: .current,
-                photoLibrary: .shared()
-            ) {
-                Text("Select Video")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(.blue)
+
+            Button("Select Video") {
+                showPhotosPicker = true
             }
-            
+            .font(.custom("IBMPlexMono-Regular", size: 18))
+            .buttonStyle(.appAccent(size: .large))
+
             Spacer()
         }
         .background(Color.black.ignoresSafeArea())
+        .photosPicker(
+            isPresented: $showPhotosPicker,
+            selection: $tempSelection,
+            matching: .videos,
+            preferredItemEncoding: .current,
+            photoLibrary: .shared()
+        )
+        .onChange(of: tempSelection) { _, newItem in
+            if let newItem = newItem {
+                let customItem = PhotosPickerItem(item: newItem)
+                unifiedState.didSelectVideo(customItem)
+                tempSelection = nil
+            }
+        }
     }
 }
 

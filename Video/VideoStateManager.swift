@@ -24,7 +24,7 @@ final class VideoStateManagerImpl: VideoStateManager {
         
         // Check if transition is valid
         guard canTransition(to: newState) else {
-            let error = VideoProcessingError.invalidStateTransition(from: currentState, to: newState)
+            let error = VideoProcessingError.invalidStateTransition(from: currentState.rawValue, to: newState.rawValue)
             logger.error("🎮 Invalid state transition: \(error.localizedDescription)")
             throw error
         }

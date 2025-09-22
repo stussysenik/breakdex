@@ -7,7 +7,6 @@ import AVFoundation
 // MARK: - Diagnostic Logging Helper
 /// Comprehensive logging utility for enhanced diagnostics, performance monitoring, and debugging
 /// Provides structured logging with timing, resource monitoring, and contextual metadata
-@MainActor
 public class DiagnosticLoggingHelper {
     
     // MARK: - Properties
@@ -332,15 +331,73 @@ public class DiagnosticLoggingHelper {
     }
     
     // MARK: - State Change Logging
-    
+
     /// Logs state changes with before/after context
     public func logStateChange<T: Equatable>(_ operation: String, from: T, to: T, metadata: [String: String] = [:]) {
         var enhancedMetadata = metadata
         enhancedMetadata["from_state"] = "\(from)"
         enhancedMetadata["to_state"] = "\(to)"
         enhancedMetadata["state_change"] = from != to ? "changed" : "unchanged"
-        
+
         logInfo("🔄 State Change: \(operation)", metadata: enhancedMetadata)
+    }
+
+    // MARK: - Animation Logging
+
+    /// Logs animation events with detailed timing and context
+    public func logAnimation(_ animationType: String, metadata: [String: String] = [:]) {
+        var enhancedMetadata = metadata
+        enhancedMetadata["animation_timestamp"] = "\(Date())"
+
+        if enableResourceMonitoring {
+            let memoryInfo = getMemoryInfo()
+            let cpuUsage = getCurrentCPUUsage()
+            enhancedMetadata["memory_usage_mb"] = "\(String(format: "%.1f", memoryInfo.used))"
+            enhancedMetadata["cpu_usage_percent"] = "\(String(format: "%.1f", cpuUsage))"
+        }
+
+        logDebug("🎬 Animation: \(animationType)", metadata: enhancedMetadata)
+    }
+
+    /// Logs animation warnings and potential conflicts
+    public func logAnimationWarning(_ warningType: String, metadata: [String: String] = [:]) {
+        var enhancedMetadata = metadata
+        enhancedMetadata["warning_timestamp"] = "\(Date())"
+        enhancedMetadata["animation_warning_type"] = warningType
+
+        if enableResourceMonitoring {
+            let memoryInfo = getMemoryInfo()
+            let cpuUsage = getCurrentCPUUsage()
+            enhancedMetadata["memory_usage_mb"] = "\(String(format: "%.1f", memoryInfo.used))"
+            enhancedMetadata["cpu_usage_percent"] = "\(String(format: "%.1f", cpuUsage))"
+        }
+
+        logWarning("⚠️ Animation Warning: \(warningType)", metadata: enhancedMetadata)
+    }
+
+    /// Logs animation performance metrics
+    public func logAnimationPerformance(_ performanceType: String, metadata: [String: String] = [:]) {
+        var enhancedMetadata = metadata
+        enhancedMetadata["performance_timestamp"] = "\(Date())"
+
+        if enableResourceMonitoring {
+            let memoryInfo = getMemoryInfo()
+            let cpuUsage = getCurrentCPUUsage()
+            enhancedMetadata["memory_usage_mb"] = "\(String(format: "%.1f", memoryInfo.used))"
+            enhancedMetadata["cpu_usage_percent"] = "\(String(format: "%.1f", cpuUsage))"
+        }
+
+        logInfo("📊 Animation Performance: \(performanceType)", metadata: enhancedMetadata)
+    }
+
+    /// Logs SwiftUI animation lifecycle events
+    public func logSwiftUIAnimationLifecycle(_ lifecycleEvent: String, viewName: String, metadata: [String: String] = [:]) {
+        var enhancedMetadata = metadata
+        enhancedMetadata["lifecycle_event"] = lifecycleEvent
+        enhancedMetadata["view_name"] = viewName
+        enhancedMetadata["swiftui_version"] = "5.0"
+
+        logDebug("🔄 SwiftUI Animation Lifecycle: \(lifecycleEvent) on \(viewName)", metadata: enhancedMetadata)
     }
     
     // MARK: - Resource Warning Monitoring
@@ -383,9 +440,13 @@ public class DiagnosticLoggingHelper {
     
     // MARK: - Deinitialization
     deinit {
-        Task { @MainActor in
-            logInfo("🗑️ DiagnosticLoggingHelper deinitialized for category: \(category)")
-            logPerformanceSummary()
+        // Perform synchronous cleanup to avoid retain cycles
+        let activeTimersCount = activeTimers.count
+        if !activeTimers.isEmpty {
+            // Use a simple logger for deinit messages to avoid any complex operations
+            let categoryCopy = self.category
+            let deinitLogger = Logger(subsystem: "BreakingFlashcards", category: "DiagnosticLoggingHelper")
+            deinitLogger.info("🗑️ DiagnosticLoggingHelper deinitialized for category: \(categoryCopy) - cleaned up \(activeTimersCount) active timers")
         }
     }
 }

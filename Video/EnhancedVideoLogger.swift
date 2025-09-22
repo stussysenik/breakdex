@@ -1,6 +1,12 @@
 import Foundation
 import AVFoundation
 import OSLog
+import CoreMedia
+
+// Use MemoryHelper for memory information
+private func getAvailableMemoryMB() -> Double {
+    return MemoryHelper.getDetailedMemoryInfo().available
+}
 
 // MARK: - Enhanced Video Logger
 public class EnhancedVideoLogger {
@@ -25,7 +31,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "source": source,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -37,7 +43,7 @@ public class EnhancedVideoLogger {
         var metadata = assetInfo
         metadata["correlationID"] = correlationID
         metadata["timestamp"] = Date().timeIntervalSince1970
-        metadata["availableMemoryMB"] = os_proc_available_memory() / (1024 * 1024)
+        metadata["availableMemoryMB"] = getAvailableMemoryMB()
         
         appLogger.info(message, metadata: metadata)
         logger.info("🎬 VIDEO_LOADING: [\(correlationID)] \(message)")
@@ -60,8 +66,14 @@ public class EnhancedVideoLogger {
             }
             
             if track.mediaType == .audio {
-                info["channels"] = (track.formatDescriptions as? [AVAudioFormatDescription])?.first?.channelCount ?? 0
-                info["sampleRate"] = (track.formatDescriptions as? [AVAudioFormatDescription])?.first?.sampleRate ?? 0
+                if let formatDescs = track.formatDescriptions as? [Any],
+                   let firstDesc = formatDescs.first {
+                    let audioFormat = CMAudioFormatDescriptionGetStreamBasicDescription(firstDesc as! CMAudioFormatDescription)
+                    if let basicDescription = audioFormat?.pointee {
+                        info["channels"] = basicDescription.mChannelsPerFrame
+                        info["sampleRate"] = basicDescription.mSampleRate
+                    }
+                }
             }
             
             trackInfo.append(info)
@@ -74,7 +86,7 @@ public class EnhancedVideoLogger {
             "trackCount": tracks.count,
             "trackInfo": trackInfo,
             "loadTime": loadTime,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -88,7 +100,7 @@ public class EnhancedVideoLogger {
             "error": error.localizedDescription,
             "context": context,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.error(message, metadata: metadata)
@@ -103,7 +115,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "rotationQuarterTurns": rotationQuarterTurns,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -117,7 +129,7 @@ public class EnhancedVideoLogger {
             "playerStatus": player.status.rawValue,
             "initTime": initTime,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -130,7 +142,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "error": error.localizedDescription,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.error(message, metadata: metadata)
@@ -144,7 +156,7 @@ public class EnhancedVideoLogger {
         let metadata = [
             "correlationID": correlationID,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -157,7 +169,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "waitTime": waitTime,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -170,7 +182,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "timeout": timeout,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.error(message, metadata: metadata)
@@ -186,7 +198,7 @@ public class EnhancedVideoLogger {
             "playerStatus": player.status.rawValue,
             "rate": player.rate,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -200,7 +212,7 @@ public class EnhancedVideoLogger {
             "playerStatus": player.status.rawValue,
             "rate": player.rate,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -214,7 +226,7 @@ public class EnhancedVideoLogger {
             "playerStatus": player.status.rawValue,
             "rate": player.rate,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -229,7 +241,7 @@ public class EnhancedVideoLogger {
             "rate": player.rate,
             "error": error.localizedDescription,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.error(message, metadata: metadata)
@@ -244,7 +256,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "assetDuration": asset.duration.seconds,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -256,7 +268,7 @@ public class EnhancedVideoLogger {
         let metadata = [
             "correlationID": correlationID,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -273,7 +285,7 @@ public class EnhancedVideoLogger {
             "playbackStatus": report.playbackStatus,
             "additionalInfo": report.additionalInfo,
             "timestamp": report.timestamp.timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         switch report.state {
@@ -298,7 +310,7 @@ public class EnhancedVideoLogger {
             "error": error.localizedDescription,
             "severity": severity,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.error(message, metadata: metadata)
@@ -312,7 +324,7 @@ public class EnhancedVideoLogger {
             "attempt": attempt,
             "maxAttempts": maxAttempts,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -326,7 +338,7 @@ public class EnhancedVideoLogger {
             "recoveryMessage": recoveryMessage,
             "recoveryTime": recoveryTime,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -339,7 +351,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "failureMessage": failureMessage,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.error(message, metadata: metadata)
@@ -349,8 +361,7 @@ public class EnhancedVideoLogger {
     // MARK: - Memory Logging
     
     public func logMemoryUsage(correlationID: String, context: String) {
-        let availableMemory = os_proc_available_memory()
-        let availableMemoryMB = Double(availableMemory) / (1024 * 1024)
+        let availableMemoryMB = getAvailableMemoryMB()
         
         let message = "Memory usage in context: \(context)"
         let metadata = [
@@ -365,7 +376,7 @@ public class EnhancedVideoLogger {
     }
     
     public func logMemoryWarning(correlationID: String, context: String, availableMemory: Int64) {
-        let availableMemoryMB = Double(availableMemory) / (1024 * 1024)
+        let availableMemoryMB = getAvailableMemoryMB()
         
         let message = "Memory warning in context: \(context)"
         let metadata = [
@@ -380,7 +391,7 @@ public class EnhancedVideoLogger {
     }
     
     public func logMemoryCritical(correlationID: String, context: String, availableMemory: Int64) {
-        let availableMemoryMB = Double(availableMemory) / (1024 * 1024)
+        let availableMemoryMB = getAvailableMemoryMB()
         
         let message = "Critical memory in context: \(context)"
         let metadata = [
@@ -401,7 +412,7 @@ public class EnhancedVideoLogger {
         let metadata = [
             "correlationID": correlationID,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)
@@ -414,7 +425,7 @@ public class EnhancedVideoLogger {
             "correlationID": correlationID,
             "cleanupActions": cleanupActions,
             "timestamp": Date().timeIntervalSince1970,
-            "availableMemoryMB": os_proc_available_memory() / (1024 * 1024)
+            "availableMemoryMB": getAvailableMemoryMB()
         ] as [String : Any]
         
         appLogger.info(message, metadata: metadata)

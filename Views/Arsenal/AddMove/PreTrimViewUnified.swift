@@ -13,7 +13,7 @@ struct PreTrimViewUnified: View {
     
     // MARK: - State
     @State private var showPhotosPicker = false
-    @State private var tempSelection: PhotosPickerItem?
+    @State private var tempSelection: PhotosUI.PhotosPickerItem?
     
     // MARK: - Initialization
     init(unifiedState: AddMoveUnifiedState, selectedTab: Binding<TabSelection>) {
@@ -41,7 +41,10 @@ struct PreTrimViewUnified: View {
         }
         .photosPicker(
             isPresented: $showPhotosPicker,
-            selection: $tempSelection,
+            selection: Binding(
+                get: { tempSelection },
+                set: { tempSelection = $0 }
+            ),
             matching: .videos,
             preferredItemEncoding: .automatic,
             photoLibrary: .shared()
@@ -109,7 +112,9 @@ struct PreTrimViewUnified: View {
     private func renderActionButtons() -> some View {
         VStack(spacing: 20) {
             Button(action: {
-                handleTrimAndEdit()
+                Task {
+                    await handleTrimAndEdit()
+                }
             }) {
                 Text("Trim & Edit")
                     .frame(maxWidth: 275)
@@ -118,7 +123,9 @@ struct PreTrimViewUnified: View {
             .disabled(!unifiedState.canProceed)
 
             Button(action: {
-                handleUseFullVideo()
+                Task {
+                    await handleUseFullVideo()
+                }
             }) {
                 Text("Use Full Video")
                     .frame(maxWidth: 275)
@@ -139,8 +146,16 @@ struct PreTrimViewUnified: View {
         .background(Color.black.ignoresSafeArea())
     }
     
+    // MARK: - Helper Methods
+
+    /// Converts the SwiftUI PhotosPickerItem to our custom PhotosPickerItem wrapper
+    private func convertToCustomPhotosPickerItem(_ item: PhotosUI.PhotosPickerItem) -> PhotosPickerItem {
+        // Create a custom PhotosPickerItem wrapper from the SwiftUI PhotosPickerItem
+        return PhotosPickerItem(item: item)
+    }
+
     // MARK: - Action Handlers
-    
+
     private func handleBackButton() {
         logger.info("🎬 PRE_TRIM_UNIFIED: Back button tapped - resetting to ready state")
         
@@ -154,43 +169,44 @@ struct PreTrimViewUnified: View {
         selectedTab = .add
     }
     
-    private func handleVideoSelection(_ item: PhotosPickerItem) {
+    private func handleVideoSelection(_ item: PhotosUI.PhotosPickerItem) {
         logger.info("🎬 PRE_TRIM_UNIFIED: New video selected - \(item.itemIdentifier ?? "unknown")")
-        
+
+        // Convert the SwiftUI PhotosPickerItem to our custom type for unified state
+        let customItem = convertToCustomPhotosPickerItem(item)
+
         // Update unified state with new selection
-        unifiedState.didSelectVideo(item)
+        unifiedState.didSelectVideo(customItem)
     }
     
-    private func handleTrimAndEdit() {
+    private func handleTrimAndEdit() async {
         logger.info("🎬 PRE_TRIM_UNIFIED: Trim & Edit button tapped")
-        
+
         // Transition to trimming state
-        unifiedState.transitionTo(.trimming)
+        await unifiedState.transitionTo(.trimming)
     }
     
-    private func handleUseFullVideo() {
+    private func handleUseFullVideo() async {
         logger.info("🎬 PRE_TRIM_UNIFIED: Use Full Video button tapped")
-        
+
         // Set trim range to full video
         guard let asset = unifiedState.videoAsset else {
-            unifiedState.setError(message: "No video asset available")
+            await unifiedState.setError(message: "No video asset available")
             return
         }
-        
-        Task {
-            do {
-                // Apply full video trim (no actual trimming needed)
-                try await unifiedState.applyTrimSettings(
-                    startTime: 0.0,
-                    endTime: asset.duration.seconds,
-                    rotation: unifiedState.rotationQuarterTurns
-                )
-                
-                // Transition to naming state
-                unifiedState.transitionTo(.naming)
-            } catch {
-                unifiedState.setError(message: "Failed to prepare video", underlying: error.localizedDescription)
-            }
+
+        do {
+            // Apply full video trim (no actual trimming needed)
+            try await unifiedState.applyTrimSettings(
+                startTime: 0.0,
+                endTime: asset.duration.seconds,
+                rotation: unifiedState.rotationQuarterTurns
+            )
+
+            // Transition to naming state
+            await unifiedState.transitionTo(.naming)
+        } catch {
+            await unifiedState.setError(message: "Failed to prepare video", underlying: error.localizedDescription)
         }
     }
 }

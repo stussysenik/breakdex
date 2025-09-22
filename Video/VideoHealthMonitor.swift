@@ -137,17 +137,20 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         logger.info("🏥 Pausing video health monitoring [Pause #\(self.pauseCount), Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
         logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
         logger.info("🏥 Asset preserved: \(self.currentAsset != nil)")
-        
+
+        // 🎯 CRITICAL FIX: Allow pausing even if not currently active
+        // This prevents errors during rapid state transitions
         guard isMonitoringActive else {
             logger.warning("🏥 ⚠️ Attempted to pause monitoring when not active")
             return
         }
-        
+
         isMonitoringActive = false
-        
+
         self.monitoringTask?.cancel()
         self.monitoringTask = nil
-        // Keep continuations and asset for quick resume
+        // 🎯 CRITICAL FIX: Keep continuations and asset for quick resume
+        // This preserves state across pause/resume cycles
         
         logger.info("🏥 📊 Memory after monitoring pause: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
         
@@ -159,15 +162,21 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         logger.info("🏥 Resuming video health monitoring [Resume #\(self.resumeCount), Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
         logger.info("🏥 Current asset available: \(self.currentAsset != nil)")
         logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
-        
+
         guard !isMonitoringActive else {
             logger.warning("🏥 ⚠️ Attempted to resume monitoring when already active")
             return
         }
-        
-        guard self.currentAsset != nil else {
-            logger.warning("🏥 ⚠️ Cannot resume monitoring - no asset")
-            logger.info("🏥 This indicates improper state management")
+
+        // 🎯 CRITICAL FIX: Handle asset availability more gracefully
+        // The asset may be temporarily unavailable during state transitions
+        guard let asset = self.currentAsset else {
+            logger.warning("🏥 ⚠️ Cannot resume monitoring - no asset available")
+            logger.info("🏥 This indicates asset was lost during state transition")
+
+            // 🎯 CRITICAL FIX: Set monitoring state to inactive but don't fail
+            // This allows future resume attempts when asset becomes available
+            isMonitoringActive = false
             return
         }
         

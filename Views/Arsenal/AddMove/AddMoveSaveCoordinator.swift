@@ -33,7 +33,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
     }
     
     // MARK: - Public API
-    
+
     /// Save move with video processing
     public func saveMove(
         name: String,
@@ -44,86 +44,43 @@ public class AddMoveSaveCoordinator: ObservableObject {
         rotationQuarterTurns: Int = 0
     ) async throws -> SavedMoveResult {
         logger.info("🎬 SAVE_COORDINATOR: Starting save operation for move: \(name)", metadata: nil)
-        
-        guard !name.isEmpty else {
-            throw AddMoveError.invalidMoveName
-        }
-        
+
+        // Validate input parameters before proceeding
+        try validateSaveParameters(
+            name: name,
+            asset: asset,
+            trimStartTime: trimStartTime,
+            trimEndTime: trimEndTime
+        )
+
         isSaving = true
         saveProgress = 0.0
         saveStatus = .processing
-        
-        defer {
-            Task {
-                await MainActor.run {
-                    self.isSaving = false
-                    self.saveProgress = 1.0
-                }
-            }
-        }
-        
-        do {
-            // Step 1: Process video (trim if needed)
-            let processedAsset: AVAsset
-            if let startTime = trimStartTime, let endTime = trimEndTime {
-                logger.info("🎬 SAVE_COORDINATOR: Processing trimmed video", metadata: nil)
-                saveProgress = 0.2
-                
-                processedAsset = try await processTrimmedVideo(
-                    asset: asset,
-                    startTime: startTime,
-                    endTime: endTime
-                )
-            } else {
-                logger.info("🎬 SAVE_COORDINATOR: Using original video (no trim)", metadata: nil)
-                processedAsset = asset
-                saveProgress = 0.3
-            }
-            
-            // Step 2: Save video to Photos library
-            logger.info("🎬 SAVE_COORDINATOR: Saving video to Photos", metadata: nil)
-            saveProgress = 0.5
-            
-            let savedVideoURL = try await movePersistenceService.saveVideoToPhotos(
-                asset: processedAsset,
-                moveName: name
-            )
-            
-            // Step 3: Create Move entity in Core Data
-            logger.info("🎬 SAVE_COORDINATOR: Creating Move entity", metadata: nil)
-            saveProgress = 0.7
-            
-            let move = try await movePersistenceService.createMoveEntity(
+
+        // Create save task for proper cancellation handling
+        saveTask = Task {
+            await processSaveOperation(
                 name: name,
-                videoURL: savedVideoURL,
-                originalPhotosIdentifier: photosIdentifier,
-                trimStartTime: trimStartTime ?? 0.0,
-                trimEndTime: trimEndTime ?? processedAsset.duration.seconds,
+                asset: asset,
+                photosIdentifier: photosIdentifier,
+                trimStartTime: trimStartTime,
+                trimEndTime: trimEndTime,
                 rotationQuarterTurns: rotationQuarterTurns
             )
-            
-            // Step 4: Finalize and return result
-            saveProgress = 1.0
-            saveStatus = .completed
-            
-            let result = SavedMoveResult(
-                move: move,
-                videoURL: savedVideoURL,
-                asset: processedAsset,
-                wasTrimmed: trimStartTime != nil && trimEndTime != nil
-            )
-            
+        }
+
+        do {
+            let result = try await saveTask!.value
             logger.info("🎬 SAVE_COORDINATOR: ✅ Save completed successfully", metadata: nil)
             return result
-            
         } catch {
             logger.error("🎬 SAVE_COORDINATOR: ❌ Save failed: \(error.localizedDescription)", metadata: nil)
-            
+
             await MainActor.run {
                 self.saveStatus = .error(error.localizedDescription)
                 self.saveProgress = 0.0
             }
-            
+
             throw error
         }
     }
@@ -232,40 +189,262 @@ public class AddMoveSaveCoordinator: ObservableObject {
     }
     
     // MARK: - Private Methods
-    
+
+    /// Main save operation processing with proper async handling
+    private func processSaveOperation(
+        name: String,
+        asset: AVAsset,
+        photosIdentifier: String,
+        trimStartTime: Double?,
+        trimEndTime: Double?,
+        rotationQuarterTurns: Int
+    ) async throws -> SavedMoveResult {
+
+        defer {
+            Task {
+                await MainActor.run {
+                    self.isSaving = false
+                    self.saveProgress = 1.0
+                }
+            }
+        }
+
+        do {
+            // Step 1: Verify asset is ready and loadable
+            logger.info("🎬 SAVE_COORDINATOR: Verifying asset readiness", metadata: nil)
+            let readyAsset = try await verifyAssetReadiness(asset)
+            await updateProgress(0.1)
+
+            // Step 2: Process video (trim if needed)
+            let processedAsset: AVAsset
+            if let startTime = trimStartTime, let endTime = trimEndTime {
+                logger.info("🎬 SAVE_COORDINATOR: Processing trimmed video", metadata: nil)
+                await updateProgress(0.2)
+
+                processedAsset = try await processTrimmedVideo(
+                    asset: readyAsset,
+                    startTime: startTime,
+                    endTime: endTime
+                )
+            } else {
+                logger.info("🎬 SAVE_COORDINATOR: Using original video (no trim)", metadata: nil)
+                processedAsset = readyAsset
+                await updateProgress(0.3)
+            }
+
+            // Step 3: Verify processed asset is ready for saving
+            let finalAsset = try await verifyAssetReadiness(processedAsset)
+            await updateProgress(0.4)
+
+            // Step 4: Save video to Photos library
+            logger.info("🎬 SAVE_COORDINATOR: Saving video to Photos", metadata: nil)
+            await updateProgress(0.5)
+
+            let savedVideoURL = try await movePersistenceService.saveVideoToPhotos(
+                asset: finalAsset,
+                moveName: name
+            )
+
+            // Step 5: Create Move entity in Core Data
+            logger.info("🎬 SAVE_COORDINATOR: Creating Move entity", metadata: nil)
+            await updateProgress(0.7)
+
+            let move = try await movePersistenceService.createMoveEntity(
+                name: name,
+                videoURL: savedVideoURL,
+                originalPhotosIdentifier: photosIdentifier,
+                trimStartTime: trimStartTime ?? 0.0,
+                trimEndTime: trimEndTime ?? finalAsset.duration.seconds,
+                rotationQuarterTurns: rotationQuarterTurns
+            )
+
+            // Step 6: Finalize and return result
+            await MainActor.run {
+                self.saveProgress = 1.0
+                self.saveStatus = .completed
+            }
+
+            let result = SavedMoveResult(
+                move: move,
+                videoURL: savedVideoURL,
+                asset: finalAsset,
+                wasTrimmed: trimStartTime != nil && trimEndTime != nil
+            )
+
+            return result
+
+        } catch {
+            logger.error("🎬 SAVE_COORDINATOR: Save operation failed: \(error.localizedDescription)", metadata: nil)
+            await MainActor.run {
+                self.saveStatus = .error(error.localizedDescription)
+                self.saveProgress = 0.0
+            }
+            throw error
+        }
+    }
+
+    /// Verify asset is ready and can be processed
+    private func verifyAssetReadiness(_ asset: AVAsset) async throws -> AVAsset {
+        logger.info("🎬 SAVE_COORDINATOR: Verifying asset readiness", metadata: [
+            "duration": "\(asset.duration.seconds)",
+            "is_playable": "\(asset.isPlayable)"
+        ])
+
+        // Check if asset is already loaded and playable
+        guard asset.isPlayable else {
+            logger.error("🎬 SAVE_COORDINATOR: Asset is not playable", metadata: nil)
+            throw AddMoveSaveError.assetNotReady
+        }
+
+        guard asset.duration.seconds > 0 else {
+            logger.error("🎬 SAVE_COORDINATOR: Asset has invalid duration", metadata: [
+                "duration": "\(asset.duration.seconds)"
+            ])
+            throw AddMoveSaveError.invalidAssetDuration
+        }
+
+        // Load tracks to ensure asset is properly initialized
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        guard !tracks.isEmpty else {
+            logger.error("🎬 SAVE_COORDINATOR: Asset has no video tracks", metadata: nil)
+            throw AddMoveSaveError.invalidAssetFormat
+        }
+
+        // Load duration to ensure it's accurate
+        let duration = try await asset.load(.duration)
+        guard duration.seconds > 0 else {
+            logger.error("🎬 SAVE_COORDINATOR: Asset duration after load is invalid", metadata: [
+                "duration": "\(duration.seconds)"
+            ])
+            throw AddMoveSaveError.invalidAssetDuration
+        }
+
+        logger.info("🎬 SAVE_COORDINATOR: ✅ Asset verified as ready", metadata: [
+            "duration": "\(duration.seconds)",
+            "track_count": "\(tracks.count)"
+        ])
+
+        return asset
+    }
+
     private func processTrimmedVideo(
         asset: AVAsset,
         startTime: Double,
         endTime: Double
     ) async throws -> AVAsset {
         logger.info("🎬 SAVE_COORDINATOR: Processing trimmed video (\(startTime)s - \(endTime)s)", metadata: nil)
-        
+
+        // Verify asset before processing
+        let readyAsset = try await verifyAssetReadiness(asset)
+
         // Create temporary output URL
         let tempDir = FileManager.default.temporaryDirectory
         let outputURL = tempDir.appendingPathComponent(UUID().uuidString).appendingPathExtension("mov")
-        
+
         // Create trim range
         let timeRange = CMTimeRange(
             start: CMTime(seconds: startTime, preferredTimescale: 600),
             duration: CMTime(seconds: endTime - startTime, preferredTimescale: 600)
         )
-        
+
         let exportedURL = try await VideoTransformBuilder.exportVideo(
-            asset: asset,
+            asset: readyAsset,
             trimRange: timeRange,
             quarterTurns: 0, // No rotation for save operation
             outputURL: outputURL
         )
-        
-        return AVURLAsset(url: exportedURL)
+
+        // Create new asset from exported URL
+        let trimmedAsset = AVURLAsset(url: exportedURL)
+
+        // Verify the trimmed asset is ready
+        return try await verifyAssetReadiness(trimmedAsset)
     }
-    
-    private func updateProgress(_ progress: Double) {
-        Task {
-            await MainActor.run {
-                self.saveProgress = progress
-            }
+
+    private func updateProgress(_ progress: Double) async {
+        await MainActor.run {
+            self.saveProgress = progress
         }
+    }
+}
+
+// MARK: - State Validation Methods
+
+private extension AddMoveSaveCoordinator {
+
+    func validateSaveParameters(
+        name: String,
+        asset: AVAsset,
+        trimStartTime: Double?,
+        trimEndTime: Double?
+    ) throws {
+        // Validate move name
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
+            logger.warning("🎬 SAVE_COORDINATOR: Invalid move name provided", metadata: [
+                "name": "\(name)"
+            ])
+            throw AddMoveSaveError.invalidMoveName
+        }
+
+        // Validate asset
+        guard asset.duration.seconds > 0 else {
+            logger.warning("🎬 SAVE_COORDINATOR: Invalid asset duration", metadata: [
+                "asset_duration": "\(asset.duration.seconds)"
+            ])
+            throw AddMoveSaveError.videoProcessingFailed(underlyingError: nil)
+        }
+
+        // Validate trim parameters if provided
+        if let startTime = trimStartTime, let endTime = trimEndTime {
+            try validateTrimParameters(startTime: startTime, endTime: endTime, assetDuration: asset.duration.seconds)
+        }
+    }
+
+    func validateTrimParameters(startTime: Double, endTime: Double, assetDuration: Double) throws {
+        // Ensure start time is not negative
+        guard startTime >= 0 else {
+            logger.warning("🎬 SAVE_COORDINATOR: Invalid start time (negative)", metadata: [
+                "start_time": "\(startTime)",
+                "asset_duration": "\(assetDuration)"
+            ])
+            throw AddMoveSaveError.videoProcessingFailed(underlyingError: nil)
+        }
+
+        // Ensure end time is within asset bounds
+        guard endTime <= assetDuration else {
+            logger.warning("🎬 SAVE_COORDINATOR: End time exceeds asset duration", metadata: [
+                "end_time": "\(endTime)",
+                "asset_duration": "\(assetDuration)"
+            ])
+            throw AddMoveSaveError.videoProcessingFailed(underlyingError: nil)
+        }
+
+        // Ensure start time is before end time
+        guard startTime < endTime else {
+            logger.warning("🎬 SAVE_COORDINATOR: Start time must be before end time", metadata: [
+                "start_time": "\(startTime)",
+                "end_time": "\(endTime)"
+            ])
+            throw AddMoveSaveError.videoProcessingFailed(underlyingError: nil)
+        }
+
+        // Ensure minimum duration requirement
+        let duration = endTime - startTime
+        let minimumDuration = 3.0 // 3 seconds minimum
+        guard duration >= minimumDuration else {
+            logger.warning("🎬 SAVE_COORDINATOR: Duration too short", metadata: [
+                "duration": "\(duration)",
+                "minimum_duration": "\(minimumDuration)"
+            ])
+            throw AddMoveSaveError.videoProcessingFailed(underlyingError: nil)
+        }
+
+        logger.info("🎬 SAVE_COORDINATOR: ✅ Trim parameters validated", metadata: [
+            "start_time": "\(startTime)",
+            "end_time": "\(endTime)",
+            "duration": "\(duration)",
+            "asset_duration": "\(assetDuration)"
+        ])
     }
 }
 
@@ -340,7 +519,11 @@ public enum AddMoveSaveError: LocalizedError {
     case videoProcessingFailed(underlyingError: Error?)
     case photosSaveFailed(underlyingError: Error?)
     case coreDataSaveFailed(underlyingError: Error?)
-    
+    case assetNotReady
+    case invalidAssetDuration
+    case invalidAssetFormat
+    case operationCancelled
+
     public var errorDescription: String? {
         switch self {
         case .invalidMoveName:
@@ -351,6 +534,14 @@ public enum AddMoveSaveError: LocalizedError {
             return "Failed to save video to Photos. " + (error?.localizedDescription ?? "")
         case .coreDataSaveFailed(let error):
             return "Failed to save move data. " + (error?.localizedDescription ?? "")
+        case .assetNotReady:
+            return "Video asset is not ready for processing. Please try again."
+        case .invalidAssetDuration:
+            return "Invalid video duration detected. Please select a different video."
+        case .invalidAssetFormat:
+            return "Unsupported video format. Please select a valid video file."
+        case .operationCancelled:
+            return "Save operation was cancelled."
         }
     }
 }

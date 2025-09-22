@@ -2,10 +2,40 @@ import SwiftUI
 import AVKit
 import Combine
 import OSLog
+import Foundation
+
+// MemoryHelper is available as a static utility - no import needed
 
 // MARK: - HandleType Enum
 public enum TrimmerHandleType {
     case start, end
+}
+
+// MARK: - Constraint Severity Enum
+public enum ConstraintSeverity: String {
+    case none = "none"
+    case soft = "soft"
+    case hard = "hard"
+}
+
+// MARK: - Validation Result Struct
+public struct ValidationResult {
+    public let validatedTime: CMTime
+    public let didHitLimit: Bool
+    public let boundaryType: String
+    public let constraintSeverity: ConstraintSeverity
+    public let minimumDuration: CMTime
+
+    public var isAtBoundary: Bool {
+        return didHitLimit && constraintSeverity == .hard
+    }
+
+    public var boundaryDescription: String {
+        if isAtBoundary {
+            return "Hit \(boundaryType) boundary at \(minimumDuration.seconds)s"
+        }
+        return "No constraint violation"
+    }
 }
 
 // MARK: - TrimmerViewModel
@@ -21,10 +51,32 @@ public final class TrimmerViewModel: ObservableObject {
     
     // MARK: - Initialization State
     private var isSetupComplete = false
-    public var isReady: Bool { isSetupComplete }
+    @Published public var isReady: Bool = false {
+        didSet {
+            // 🎯 ENHANCED LOGGING: Track when isReady changes
+            diagnosticLogger.logStateChange("is_ready", from: oldValue, to: isReady, metadata: [
+                "setup_complete": "\(isSetupComplete)",
+                "video_duration": "\(videoDuration.seconds)",
+                "timestamp": "\(Date())"
+            ])
+        }
+    }
     
     // MARK: - Enhanced Diagnostic Logging
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "TrimmerViewModel")
+
+    // MARK: - Animation State Tracking
+    private var animationState = TrimmerAnimationState()
+
+    private struct TrimmerAnimationState {
+        var lastStateSyncTime: Date = .distantPast
+        var lastRotationTime: Date = .distantPast
+        var stateSyncCount: Int = 0
+        var rotationCount: Int = 0
+        var averageStateSyncDuration: Double = 0
+        var animationConflicts: Int = 0
+        var lastMemoryUsage: Double = 0
+    }
     
     // MARK: - Observable State
     @Published
@@ -40,17 +92,54 @@ public final class TrimmerViewModel: ObservableObject {
         didSet {
             // 🛑 PREVENT running during initialization - avoid race condition
             guard isSetupComplete else { return }
-            
+
             // This is no longer a simple UI rotation change.
             // It now triggers real-time asset transformation for true WYSIWYG.
-            diagnosticLogger.logStateChange("rotation_quarter_turns", from: oldValue, to: rotationQuarterTurns)
+            let rotationStartTime = Date()
+            let timeSinceLastRotation = rotationStartTime.timeIntervalSince(animationState.lastRotationTime)
+            let rotationDelta = abs(rotationQuarterTurns - oldValue)
+
+            diagnosticLogger.logAnimation("rotation_change_start", metadata: [
+                "old_rotation": "\(oldValue)",
+                "new_rotation": "\(rotationQuarterTurns)",
+                "rotation_delta": "\(rotationDelta)",
+                "time_since_last_rotation_ms": "\(timeSinceLastRotation * 1000)",
+                "rotation_count": "\(animationState.rotationCount)",
+                "setup_complete": "\(isSetupComplete)",
+                "memory_usage_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
+            ])
+
+            // Force state synchronization to ensure UI consistency
+            synchronizeStateAfterExternalChange()
+
             Task {
                 await applyRotationToPlayerAsset()
+
+                // Log rotation completion
+                let rotationDuration = Date().timeIntervalSince(rotationStartTime)
+                await MainActor.run {
+                    self.updateAnimationState(syncDuration: rotationDuration, type: "asset_rotation")
+
+                    diagnosticLogger.logAnimation("rotation_change_complete", metadata: [
+                        "rotation_duration_ms": "\(rotationDuration * 1000)",
+                        "total_rotations": "\(animationState.rotationCount)",
+                        "avg_rotation_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+                        "final_rotation": "\(rotationQuarterTurns)"
+                    ])
+                }
             }
         }
     }
     @Published
-    public var showMinimumDurationWarning = false
+    public var showMinimumDurationWarning = false {
+        didSet {
+            // Ensure warning state changes trigger UI updates
+            if oldValue != showMinimumDurationWarning {
+                diagnosticLogger.logStateChange("minimum_duration_warning", from: oldValue, to: showMinimumDurationWarning)
+                notifyWarningStateChange()
+            }
+        }
+    }
     @Published
     public var isDraggingStartHandle: Bool = false
     @Published
@@ -59,6 +148,9 @@ public final class TrimmerViewModel: ObservableObject {
     // MARK: - Coalescing and Chasing Seek State
     private var displayLink: CADisplayLink?
     private var pendingPreviewTime: CMTime?
+
+    // MARK: - State Synchronization
+    private var stateChangeCallbacks: [(Bool) -> Void] = []
     
     // MARK: - Initialization & Deinitialization
     public init(asset: AVAsset, photosIdentifier: String? = nil, rotationQuarterTurns: Int = 0, playerViewModel: any VideoPlayerViewModelProtocol) {
@@ -66,33 +158,37 @@ public final class TrimmerViewModel: ObservableObject {
         self.photosIdentifier = photosIdentifier
         self.playerViewModel = playerViewModel
         self.rotationQuarterTurns = rotationQuarterTurns
-        
-        // Initialize with sensible defaults to avoid race conditions
-        // These will be refined by the async setup if needed
+
+        // 🎯 CRITICAL FIX: Initialize with zero values to avoid race conditions
+        // These will be properly set by async setup, preventing incorrect duration display
         self.startTime = .zero
-        self.endTime = CMTime(seconds: 5.0, preferredTimescale: 600) // Default 5 seconds
-        self.videoDuration = CMTime(seconds: 5.0, preferredTimescale: 600) // Default 5 seconds
+        self.endTime = .zero
+        self.videoDuration = .zero
         self.oneFrameDuration = CMTime(value: 1, timescale: 30) // Default 30 FPS
-        
+
         Task { @MainActor in
             diagnosticLogger.logInfo("🎬 TrimmerViewModel initialized", metadata: [
                 "initial_rotation": "\(rotationQuarterTurns)",
                 "photos_identifier": "\(photosIdentifier ?? "nil")",
-                "video_duration_set": "\(self.videoDuration.seconds)"
+                "video_duration_set": "\(self.videoDuration.seconds)",
+                "setup_complete": "\(self.isSetupComplete)"
             ])
         }
-        
-        Task {
-            do {
-                try await setupAsync()
-            } catch {
-                diagnosticLogger.logError("Initialization failed", error: error)
-            }
-        }
+
+        // 🎯 CRITICAL FIX: Don't start setup immediately - let the caller coordinate timing
+        // This prevents race conditions during component initialization
     }
     
     deinit {
         Task { @MainActor in
+            diagnosticLogger.logAnimation("trimmer_viewmodel_deinitialized", metadata: [
+                "total_syncs": "\(animationState.stateSyncCount)",
+                "total_rotations": "\(animationState.rotationCount)",
+                "animation_conflicts": "\(animationState.animationConflicts)",
+                "avg_sync_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+                "final_memory_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
+            ])
+
             diagnosticLogger.logInfo("🗑️ TrimmerViewModel deinitialized")
         }
         // Schedule cleanup on main thread to avoid actor isolation issues
@@ -100,10 +196,109 @@ public final class TrimmerViewModel: ObservableObject {
             await MainActor.run {
                 guard let self = self else { return }
                 self.stopCoalescing()
+                // stopFrameAnimation() removed - no longer needed with simplified animation system
             }
         }
     }
-    
+
+    // MARK: - State Synchronization Methods
+
+    /// Registers a callback for state changes
+    public func onStateChange(_ callback: @escaping (Bool) -> Void) {
+        stateChangeCallbacks.append(callback)
+    }
+
+  
+    /// Validates and updates minimum duration warning state
+    private func validateCurrentDurationWarning() {
+        let currentDuration = endTime - startTime
+        let shouldBeWarning = currentDuration <= minimumDuration
+
+        if showMinimumDurationWarning != shouldBeWarning {
+            showMinimumDurationWarning = shouldBeWarning
+            diagnosticLogger.logDebug("🔧 Validated and updated minimum duration warning", metadata: [
+                "current_duration": "\(currentDuration.seconds)",
+                "minimum_duration": "\(minimumDuration.seconds)",
+                "new_warning_state": "\(shouldBeWarning)"
+            ])
+        }
+    }
+
+    /// Notifies external components of warning state changes
+    private func notifyWarningStateChange() {
+        // This method can be called by UI components to respond to warning changes
+        diagnosticLogger.logDebug("📢 Notifying warning state change", metadata: [
+            "warning_state": "\(showMinimumDurationWarning)"
+        ])
+
+        // Animation updates removed - SwiftUI handles updates naturally
+    }
+
+    // MARK: - External Synchronization
+    /// Forces complete state validation for external synchronization
+    public func forceStateValidation() {
+        let validationStartTime = Date()
+
+        diagnosticLogger.logAnimation("state_validation_start", metadata: [
+            "warning_state_before": "\(showMinimumDurationWarning)",
+            "current_start_before": "\(startTime.seconds)",
+            "current_end_before": "\(endTime.seconds)",
+            "memory_usage_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)",
+            "validation_count": "\(animationState.stateSyncCount)"
+        ])
+
+        // Force warning validation
+        validateCurrentDurationWarning()
+
+        // Notify all callbacks of state change
+        notifyWarningStateChange()
+
+        // Time display updates removed - SwiftUI handles updates naturally
+
+        let validationDuration = Date().timeIntervalSince(validationStartTime)
+
+        diagnosticLogger.logAnimation("state_validation_complete", metadata: [
+            "validation_duration_ms": "\(validationDuration * 1000)",
+            "warning_state_after": "\(showMinimumDurationWarning)",
+            "current_start_after": "\(startTime.seconds)",
+            "current_end_after": "\(endTime.seconds)",
+            "validation_successful": validationDuration < 0.1 ? "yes" : "slow"
+        ])
+    }
+
+    /// Synchronizes state after external changes (like rotation)
+    private func synchronizeStateAfterExternalChange() {
+        let syncStartTime = Date()
+        let timeSinceLastSync = syncStartTime.timeIntervalSince(animationState.lastStateSyncTime)
+        let currentMemory = MemoryHelper.getDetailedMemoryInfo().used
+        let memoryDelta = currentMemory - animationState.lastMemoryUsage
+
+        // Log detailed synchronization context
+        diagnosticLogger.logAnimation("state_synchronization_start", metadata: [
+            "sync_type": "external_change",
+            "time_since_last_sync_ms": "\(timeSinceLastSync * 1000)",
+            "previous_sync_count": "\(animationState.stateSyncCount)",
+            "current_memory_mb": "\(currentMemory)",
+            "memory_delta_mb": "\(memoryDelta)",
+            "animation_conflict_risk": timeSinceLastSync < 0.1 ? "high" : "normal"
+        ])
+
+        // Force complete validation cycle
+        forceStateValidation()
+
+        let syncDuration = Date().timeIntervalSince(syncStartTime)
+        updateAnimationState(syncDuration: syncDuration, type: "state_synchronization")
+
+        diagnosticLogger.logAnimation("state_synchronization_complete", metadata: [
+            "sync_duration_ms": "\(syncDuration * 1000)",
+            "total_syncs": "\(animationState.stateSyncCount)",
+            "avg_sync_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+            "memory_after_sync_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
+        ])
+
+        // objectWillChange.send() removed - SwiftUI handles state updates naturally
+    }
+
     // MARK: - Public Setup
     public func setupAsync() async throws {
         // Prevent multiple setup calls
@@ -111,35 +306,67 @@ public final class TrimmerViewModel: ObservableObject {
             diagnosticLogger.logDebug("⚠️ Setup already completed, skipping duplicate call")
             return
         }
-        
+
         diagnosticLogger.startTiming("trimmer_setup")
-        
-        let loadedDuration = try await asset.load(.duration)
-        let videoTracks = try await asset.loadTracks(withMediaType: .video)
-        let frameRate = (try? await videoTracks.first?.load(.nominalFrameRate)) ?? 30
-        
-        // Only update if significantly different from defaults
-        if abs(loadedDuration.seconds - videoDuration.seconds) > 0.1 {
-            videoDuration = loadedDuration
-            endTime = loadedDuration
-            diagnosticLogger.logDebug("📏 Updated video duration from asset", metadata: [
-                "new_duration": "\(loadedDuration.seconds)"
-            ])
-        }
-        
-        oneFrameDuration = CMTime(value: 1, timescale: CMTimeScale(frameRate))
-        
-        // ✅ ARM the rotation logic now that the model is in a valid state.
-        isSetupComplete = true
-        
-        diagnosticLogger.logInfo("✅ Trimmer setup completed", metadata: [
-            "video_duration_seconds": "\(videoDuration.seconds)",
-            "frame_rate": "\(frameRate)",
-            "video_tracks": "\(videoTracks.count)",
-            "one_frame_duration": "\(oneFrameDuration.seconds)"
+
+        diagnosticLogger.logInfo("🚀 Starting async setup", metadata: [
+            "asset_duration_before_load": "\(asset.duration.seconds)",
+            "is_ready_before": "\(isReady)",
+            "setup_complete_before": "\(isSetupComplete)"
         ])
-        
-        diagnosticLogger.stopTiming("trimmer_setup")
+
+        do {
+            let loadedDuration = try await asset.load(.duration)
+            diagnosticLogger.logInfo("📊 Asset duration loaded successfully", metadata: [
+                "loaded_duration": "\(loadedDuration.seconds)",
+                "asset_timescale": "\(loadedDuration.timescale)",
+                "asset_value": "\(loadedDuration.value)"
+            ])
+
+            let videoTracks = try await asset.loadTracks(withMediaType: .video)
+            let frameRate = (try? await videoTracks.first?.load(.nominalFrameRate)) ?? 30
+
+            diagnosticLogger.logInfo("📊 Video tracks loaded", metadata: [
+                "track_count": "\(videoTracks.count)",
+                "frame_rate": "\(frameRate)"
+            ])
+
+            // 🎯 CRITICAL FIX: Update all properties atomically to prevent race conditions
+            await MainActor.run {
+                videoDuration = loadedDuration
+                endTime = loadedDuration
+                oneFrameDuration = CMTime(value: 1, timescale: CMTimeScale(frameRate))
+
+                diagnosticLogger.logDebug("📏 Updated video duration from asset", metadata: [
+                    "new_duration": "\(loadedDuration.seconds)",
+                    "end_time_set": "\(endTime.seconds)",
+                    "video_duration_set": "\(videoDuration.seconds)"
+                ])
+            }
+
+            // ✅ ARM the rotation logic now that the model is in a valid state
+            isSetupComplete = true
+            isReady = true
+
+            diagnosticLogger.logInfo("✅ Trimmer setup completed", metadata: [
+                "video_duration_seconds": "\(videoDuration.seconds)",
+                "frame_rate": "\(frameRate)",
+                "video_tracks": "\(videoTracks.count)",
+                "one_frame_duration": "\(oneFrameDuration.seconds)",
+                "setup_complete": "\(isSetupComplete)",
+                "is_ready": "\(isReady)"
+            ])
+
+            diagnosticLogger.stopTiming("trimmer_setup")
+
+        } catch {
+            diagnosticLogger.logError("❌ Trimmer setup failed during asset loading", error: error, metadata: [
+                "asset_duration_before_error": "\(asset.duration.seconds)",
+                "is_ready_after_error": "\(isReady)",
+                "setup_complete_after_error": "\(isSetupComplete)"
+            ])
+            throw error
+        }
     }
     
     // MARK: - Coalescing Timer Control
@@ -177,74 +404,209 @@ public final class TrimmerViewModel: ObservableObject {
     
     // MARK: - Time Proposal and Committing
     public func proposeTime(_ proposedTime: CMTime, for handle: TrimmerHandleType) {
-        let validatedTime = validate(proposedTime, for: handle)
-        
+        let snappedTime = snapToFrame(proposedTime)
+        let validatedTime = validate(snappedTime, for: handle)
+
         // Track state change for logging
         let oldStartTime = startTime
         let oldEndTime = endTime
-        
+        let newStartTime = handle == .start ? validatedTime : startTime
+        let newEndTime = handle == .end ? validatedTime : endTime
+        let oldDuration = endTime - startTime
+        let newDuration = newEndTime - newStartTime
+
+        // Enhanced logging for duration calculations
+        let durationDelta = abs(newDuration.seconds - oldDuration.seconds)
+        let frameNumber = getFrameNumber(for: validatedTime)
+        let frameDelta = abs(frameNumber - getFrameNumber(for: handle == .start ? startTime : endTime))
+
         switch handle {
         case .start:
             if startTime != validatedTime {
                 startTime = validatedTime
-                // Only log significant time changes during proposal
-                if abs(validatedTime.seconds - oldStartTime.seconds) > 0.1 {
-                    diagnosticLogger.logStateChange("propose_start_time", from: oldStartTime.seconds, to: validatedTime.seconds)
-                }
+                // Enhanced logging with duration impact
+                diagnosticLogger.logDebug("🎯 Start time proposal processed", metadata: [
+                    "old_time": "\(oldStartTime.seconds)",
+                    "new_time": "\(validatedTime.seconds)",
+                    "old_formatted": "\(formatTimeWithMs(oldStartTime))",
+                    "new_formatted": "\(formatTimeWithMs(validatedTime))",
+                    "old_duration": "\(oldDuration.seconds)",
+                    "new_duration": "\(newDuration.seconds)",
+                    "duration_delta": "\(durationDelta)",
+                    "frame_number": "\(frameNumber)",
+                    "frame_delta": "\(frameDelta)",
+                    "validation_result": "\(validatedTime == proposedTime ? "accepted" : "constrained")",
+                    "handle_dragging": "\(isDraggingStartHandle)"
+                ])
             }
         case .end:
             if endTime != validatedTime {
                 endTime = validatedTime
-                // Only log significant time changes during proposal
-                if abs(validatedTime.seconds - oldEndTime.seconds) > 0.1 {
-                    diagnosticLogger.logStateChange("propose_end_time", from: oldEndTime.seconds, to: validatedTime.seconds)
-                }
+                // Enhanced logging with duration impact
+                diagnosticLogger.logDebug("🎯 End time proposal processed", metadata: [
+                    "old_time": "\(oldEndTime.seconds)",
+                    "new_time": "\(validatedTime.seconds)",
+                    "old_formatted": "\(formatTimeWithMs(oldEndTime))",
+                    "new_formatted": "\(formatTimeWithMs(validatedTime))",
+                    "old_duration": "\(oldDuration.seconds)",
+                    "new_duration": "\(newDuration.seconds)",
+                    "duration_delta": "\(durationDelta)",
+                    "frame_number": "\(frameNumber)",
+                    "frame_delta": "\(frameDelta)",
+                    "validation_result": "\(validatedTime == proposedTime ? "accepted" : "constrained")",
+                    "handle_dragging": "\(isDraggingEndHandle)"
+                ])
             }
         }
-        
+
         self.pendingPreviewTime = validatedTime
-        
+
+        // Trigger frame-synchronized haptic feedback
+        triggerFrameSynchronizedHaptic(at: validatedTime)
+
+        // Enhanced duration calculation logging
+        let currentDuration = endTime - startTime
+        let minimumThreshold = minimumDuration
+        let durationWarning = currentDuration <= minimumThreshold
+        let durationRatio = currentDuration.seconds / minimumThreshold.seconds
+
         // Show while duration <= minimum during drag
-        let atOrBelowMin = (endTime - startTime) <= minimumDuration
+        let atOrBelowMin = durationWarning
         let wasBelowMin = showMinimumDurationWarning
-        showMinimumDurationWarning = atOrBelowMin
-        
+
+        // Always update warning state to ensure consistency
         if wasBelowMin != atOrBelowMin {
-            diagnosticLogger.logStateChange("minimum_duration_warning", from: wasBelowMin, to: atOrBelowMin)
+            showMinimumDurationWarning = atOrBelowMin
+            diagnosticLogger.logDebug("⚠️ Duration warning state changed", metadata: [
+                "current_duration": "\(currentDuration.seconds)",
+                "current_formatted": "\(formatTimeWithMs(currentDuration))",
+                "minimum_threshold": "\(minimumThreshold.seconds)",
+                "minimum_formatted": "\(formatTimeWithMs(minimumThreshold))",
+                "duration_ratio": "\(String(format: "%.2f", durationRatio))",
+                "was_below_min": "\(wasBelowMin)",
+                "now_below_min": "\(atOrBelowMin)",
+                "breach_amount": "\(max(0, minimumThreshold.seconds - currentDuration.seconds))",
+                "handle": "\(handle)"
+            ])
+
+            // Trigger boundary haptic when hitting minimum duration limit
+            if atOrBelowMin {
+                triggerBoundaryHaptic()
+            }
+
+            // Force immediate UI update for warning state changes
+            notifyWarningStateChange()
+
+            // 🎯 NEW: Trigger external synchronization for robust state management
+            // This ensures normal trim operations have the same synchronization as rotation
+            synchronizeStateAfterExternalChange()
+        } else if atOrBelowMin {
+            // Ensure warning state is properly maintained even if unchanged
+            validateCurrentDurationWarning()
         }
     }
     
     public func commitTime(_ time: CMTime, for handle: TrimmerHandleType) {
-        let validatedTime = validate(time, for: handle)
-        
+        let snappedTime = snapToFrame(time)
+        let validatedTime = validate(snappedTime, for: handle)
+
         // Track state change for logging
         let oldStartTime = startTime
         let oldEndTime = endTime
-        
+        let newStartTime = handle == .start ? validatedTime : startTime
+        let newEndTime = handle == .end ? validatedTime : endTime
+        let oldDuration = endTime - startTime
+        let newDuration = newEndTime - newStartTime
+        let durationDelta = abs(newDuration.seconds - oldDuration.seconds)
+
         switch handle {
         case .start:
             startTime = validatedTime
-            diagnosticLogger.logStateChange("commit_start_time", from: oldStartTime.seconds, to: validatedTime.seconds)
+            diagnosticLogger.logDebug("🎯 Start time committed", metadata: [
+                "committed_time": "\(validatedTime.seconds)",
+                "formatted_time": "\(formatTimeWithMs(validatedTime))",
+                "previous_time": "\(oldStartTime.seconds)",
+                "previous_formatted": "\(formatTimeWithMs(oldStartTime))",
+                "old_duration": "\(oldDuration.seconds)",
+                "new_duration": "\(newDuration.seconds)",
+                "duration_delta": "\(durationDelta)",
+                "committed_frame": "\(getFrameNumber(for: validatedTime))",
+                "validation_result": "\(validatedTime == time ? "accepted" : "constrained")",
+                "handle_was_dragging": "\(isDraggingStartHandle)"
+            ])
         case .end:
             endTime = validatedTime
-            diagnosticLogger.logStateChange("commit_end_time", from: oldEndTime.seconds, to: validatedTime.seconds)
+            diagnosticLogger.logDebug("🎯 End time committed", metadata: [
+                "committed_time": "\(validatedTime.seconds)",
+                "formatted_time": "\(formatTimeWithMs(validatedTime))",
+                "previous_time": "\(oldEndTime.seconds)",
+                "previous_formatted": "\(formatTimeWithMs(oldEndTime))",
+                "old_duration": "\(oldDuration.seconds)",
+                "new_duration": "\(newDuration.seconds)",
+                "duration_delta": "\(durationDelta)",
+                "committed_frame": "\(getFrameNumber(for: validatedTime))",
+                "validation_result": "\(validatedTime == time ? "accepted" : "constrained")",
+                "handle_was_dragging": "\(isDraggingEndHandle)"
+            ])
         }
-        
+
         // Keep warning consistent with the final committed range
         let wasBelowMin = showMinimumDurationWarning
-        showMinimumDurationWarning = (endTime - startTime) <= minimumDuration
-        
-        diagnosticLogger.logUserInteraction("Time committed", metadata: [
+        let shouldBeWarning = (endTime - startTime) <= minimumDuration
+        let finalDuration = endTime - startTime
+        let durationRatio = finalDuration.seconds / minimumDuration.seconds
+
+        // Always update warning state to ensure consistency
+        if wasBelowMin != shouldBeWarning {
+            showMinimumDurationWarning = shouldBeWarning
+            diagnosticLogger.logDebug("⚠️ Duration warning state updated after commit", metadata: [
+                "final_duration": "\(finalDuration.seconds)",
+                "final_formatted": "\(formatTimeWithMs(finalDuration))",
+                "minimum_duration": "\(minimumDuration.seconds)",
+                "minimum_formatted": "\(formatTimeWithMs(minimumDuration))",
+                "duration_ratio": "\(String(format: "%.2f", durationRatio))",
+                "was_below_min": "\(wasBelowMin)",
+                "now_below_min": "\(shouldBeWarning)",
+                "breach_amount": "\(max(0, minimumDuration.seconds - finalDuration.seconds))",
+                "safety_margin": "\(shouldBeWarning ? "none" : "\(finalDuration.seconds - minimumDuration.seconds)s")"
+            ])
+        }
+
+        // Force validation after commit to ensure state consistency
+        validateCurrentDurationWarning()
+
+        // 🎯 NEW: Trigger external synchronization for robust state management
+        // This ensures normal trim operations have the same synchronization as rotation
+        Task {
+            await MainActor.run {
+                synchronizeStateAfterExternalChange()
+            }
+        }
+
+        // Final animation update removed - SwiftUI handles updates naturally
+
+        // Trigger completion haptic
+        triggerHapticFeedback(for: .dragEnd)
+
+        diagnosticLogger.logUserInteraction("Time commit completed", metadata: [
             "handle": "\(handle)",
             "committed_time": "\(validatedTime.seconds)",
-            "duration_warning": "\(showMinimumDurationWarning)"
+            "formatted_time": "\(formatTimeWithMs(validatedTime))",
+            "committed_frame": "\(getFrameNumber(for: validatedTime))",
+            "final_duration": "\(finalDuration.seconds)",
+            "final_formatted": "\(formatTimeWithMs(finalDuration))",
+            "duration_warning": "\(showMinimumDurationWarning)",
+            "trim_frame_count": "\(currentTrimFrameCount)",
+            "validation_success": "\(validateTrimRanges())",
+            "memory_usage_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
         ])
     }
     
     private func validate(_ proposedTime: CMTime, for handle: TrimmerHandleType) -> CMTime {
         var validatedTime = max(.zero, min(proposedTime, videoDuration))
         var didHitLimit = false
-        
+        var boundaryType = ""
+
         switch handle {
         case .start:
             let limit = endTime - minimumDuration
@@ -252,6 +614,7 @@ public final class TrimmerViewModel: ObservableObject {
                 validatedTime = limit
                 showMinimumDurationWarning = true
                 didHitLimit = true
+                boundaryType = "minimum_duration"
             }
         case .end:
             let limit = startTime + minimumDuration
@@ -259,30 +622,87 @@ public final class TrimmerViewModel: ObservableObject {
                 validatedTime = limit
                 showMinimumDurationWarning = true
                 didHitLimit = true
+                boundaryType = "minimum_duration"
             }
         }
-        
+
         if didHitLimit {
             diagnosticLogger.logDebug("🛑 Time validation hit limit", metadata: [
                 "handle": "\(handle)",
                 "proposed_time": "\(proposedTime.seconds)",
                 "validated_time": "\(validatedTime.seconds)",
-                "minimum_duration_seconds": "\(minimumDuration.seconds)"
+                "minimum_duration_seconds": "\(minimumDuration.seconds)",
+                "boundary_type": "\(boundaryType)"
             ])
         }
-        
-        if oneFrameDuration.seconds > 0 {
+
+        // Apply frame snapping only if not at boundary for smoother constraint experience
+        if oneFrameDuration.seconds > 0 && !didHitLimit {
             let frameNumber = round(validatedTime.seconds / oneFrameDuration.seconds)
             validatedTime = CMTime(seconds: frameNumber * oneFrameDuration.seconds, preferredTimescale: validatedTime.timescale)
         }
-        
+
         return validatedTime
+    }
+
+    // Enhanced validation with handle state awareness
+    private func validateWithHandleState(_ proposedTime: CMTime, for handle: TrimmerHandleType) -> ValidationResult {
+        var validatedTime = max(.zero, min(proposedTime, videoDuration))
+        var didHitLimit = false
+        var boundaryType = ""
+        var constraintSeverity = ConstraintSeverity.none
+
+        switch handle {
+        case .start:
+            let limit = endTime - minimumDuration
+            if validatedTime > limit {
+                validatedTime = limit
+                showMinimumDurationWarning = true
+                didHitLimit = true
+                boundaryType = "minimum_duration"
+                constraintSeverity = .hard
+            }
+        case .end:
+            let limit = startTime + minimumDuration
+            if validatedTime < limit {
+                validatedTime = limit
+                showMinimumDurationWarning = true
+                didHitLimit = true
+                boundaryType = "minimum_duration"
+                constraintSeverity = .hard
+            }
+        }
+
+        if didHitLimit {
+            diagnosticLogger.logDebug("🛑 Enhanced validation hit limit", metadata: [
+                "handle": "\(handle)",
+                "proposed_time": "\(proposedTime.seconds)",
+                "validated_time": "\(validatedTime.seconds)",
+                "minimum_duration_seconds": "\(minimumDuration.seconds)",
+                "boundary_type": "\(boundaryType)",
+                "constraint_severity": "\(constraintSeverity)"
+            ])
+        }
+
+        // Apply frame snapping only if not at boundary
+        if oneFrameDuration.seconds > 0 && !didHitLimit {
+            let frameNumber = round(validatedTime.seconds / oneFrameDuration.seconds)
+            validatedTime = CMTime(seconds: frameNumber * oneFrameDuration.seconds, preferredTimescale: validatedTime.timescale)
+        }
+
+        return ValidationResult(
+            validatedTime: validatedTime,
+            didHitLimit: didHitLimit,
+            boundaryType: boundaryType,
+            constraintSeverity: constraintSeverity,
+            minimumDuration: minimumDuration
+        )
     }
     
     // MARK: - Validation Methods
     public func validateTrimRanges() -> Bool {
         let isValid = startTime >= .zero && endTime <= videoDuration && startTime < endTime
-        
+
         diagnosticLogger.logDebug("🔍 Validating trim ranges", metadata: [
             "is_valid": "\(isValid)",
             "start_time_seconds": "\(startTime.seconds)",
@@ -290,10 +710,11 @@ public final class TrimmerViewModel: ObservableObject {
             "video_duration_seconds": "\(videoDuration.seconds)",
             "start_before_end": "\(startTime < endTime)"
         ])
-        
+
         return isValid
     }
-    
+
+      
     // MARK: - Real-time Asset Transformation
     private func applyRotationToPlayerAsset() async {
         diagnosticLogger.startTiming("asset_rotation")
@@ -385,6 +806,46 @@ public final class TrimmerViewModel: ObservableObject {
         playerViewModel.seek(to: time)
     }
     
+    // MARK: - Frame-Accurate Timing Methods
+    public func getFrameNumber(for time: CMTime) -> Int {
+        guard oneFrameDuration.seconds > 0 else { return 0 }
+        return Int(time.seconds / oneFrameDuration.seconds)
+    }
+
+    public func getTimeForFrame(_ frameNumber: Int) -> CMTime {
+        return CMTime(seconds: Double(frameNumber) * oneFrameDuration.seconds, preferredTimescale: oneFrameDuration.timescale)
+    }
+
+    public func snapToFrame(_ time: CMTime) -> CMTime {
+        let frameNumber = getFrameNumber(for: time)
+        return getTimeForFrame(frameNumber)
+    }
+
+    public func getFrameRate() -> Double {
+        return 1.0 / oneFrameDuration.seconds
+    }
+
+    // MARK: - Time Formatting Utilities
+    private func formatTimeWithMs(_ time: CMTime) -> String {
+        let seconds = time.seconds
+        let minutes = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        let milliseconds = Int((seconds - Double(Int(seconds))) * 1000)
+        return String(format: "%02d:%02d.%03d", minutes, secs, milliseconds)
+    }
+
+    // MARK: - Simplified Animation Properties (Removed - SwiftUI handles updates naturally)
+
+    // MARK: - Enhanced Haptic Feedback
+    public func triggerFrameSynchronizedHaptic(at time: CMTime) {
+        // Simplified haptic feedback - trigger based on time changes
+        triggerHapticFeedback(for: .frameDetent)
+    }
+
+    public func triggerBoundaryHaptic() {
+        triggerHapticFeedback(for: .dragEnd)
+    }
+
     // MARK: - Haptic Feedback
     public func triggerHapticFeedback(for event: HapticManager.HapticEvent) {
         diagnosticLogger.logDebug("📳 Triggering haptic feedback", metadata: [
@@ -392,14 +853,89 @@ public final class TrimmerViewModel: ObservableObject {
         ])
         HapticManager.shared.trigger(event)
     }
-    
+
+    // MARK: - Animation State Management
+    private func updateAnimationState(syncDuration: Double, type: String) {
+        let now = Date()
+        let timeSinceLastSync = now.timeIntervalSince(animationState.lastStateSyncTime)
+        let currentMemory = MemoryHelper.getDetailedMemoryInfo().used
+        let memoryDelta = currentMemory - animationState.lastMemoryUsage
+
+        // Detect potential animation conflicts
+        if timeSinceLastSync < 0.05 && animationState.stateSyncCount > 0 {
+            animationState.animationConflicts += 1
+            diagnosticLogger.logAnimationWarning("trimmer_animation_conflict", metadata: [
+                "time_since_last_sync_ms": "\(timeSinceLastSync * 1000)",
+                "sync_type": "\(type)",
+                "sync_duration_ms": "\(syncDuration * 1000)",
+                "total_conflicts": "\(animationState.animationConflicts)",
+                "conflict_rate": "\(Double(animationState.animationConflicts) / Double(max(1, animationState.stateSyncCount)))",
+                "memory_delta_mb": "\(memoryDelta)",
+                "current_sync_count": "\(animationState.stateSyncCount)"
+            ])
+        }
+
+        // Update state tracking
+        animationState.lastStateSyncTime = now
+        animationState.stateSyncCount += 1
+        animationState.lastMemoryUsage = currentMemory
+
+        // Calculate rolling average for sync duration
+        animationState.averageStateSyncDuration =
+            (animationState.averageStateSyncDuration * Double(animationState.stateSyncCount - 1) + syncDuration) / Double(animationState.stateSyncCount)
+
+        // Update rotation-specific tracking
+        if type.contains("rotation") {
+            animationState.lastRotationTime = now
+            animationState.rotationCount += 1
+        }
+
+        // Periodic performance logging
+        if animationState.stateSyncCount % 5 == 0 {
+            diagnosticLogger.logAnimationPerformance("trimmer_periodic_stats", metadata: [
+                "total_syncs": "\(animationState.stateSyncCount)",
+                "total_rotations": "\(animationState.rotationCount)",
+                "avg_sync_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+                "conflict_count": "\(animationState.animationConflicts)",
+                "conflict_rate": "\(Double(animationState.animationConflicts) / Double(max(1, animationState.stateSyncCount)))",
+                "current_memory_mb": "\(currentMemory)",
+                "memory_delta_from_baseline_mb": "\(memoryDelta)"
+            ])
+        }
+    }
+
+    // MARK: - Animation Diagnostics
+    public func getAnimationDiagnostics() -> [String: String] {
+        return [
+            "total_syncs": "\(animationState.stateSyncCount)",
+            "total_rotations": "\(animationState.rotationCount)",
+            "animation_conflicts": "\(animationState.animationConflicts)",
+            "avg_sync_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+            "last_sync_duration_ms": "\(animationState.lastStateSyncTime.timeIntervalSinceNow.magnitude * 1000)",
+            "current_memory_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)",
+            "conflict_rate": "\(Double(animationState.animationConflicts) / Double(max(1, animationState.stateSyncCount)))"
+        ]
+    }
+
     // MARK: - Computed Properties
     public var isValidTrim: Bool {
         return validateTrimRanges()
     }
-    
+
     public var duration: CMTime {
         return videoDuration
+    }
+
+    public var currentFrameRate: Double {
+        return getFrameRate()
+    }
+
+    public var totalFrames: Int {
+        return getFrameNumber(for: videoDuration)
+    }
+
+    public var currentTrimFrameCount: Int {
+        return getFrameNumber(for: endTime - startTime)
     }
 }
 

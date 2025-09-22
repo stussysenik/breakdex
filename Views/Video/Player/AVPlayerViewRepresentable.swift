@@ -23,9 +23,8 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
     let player: AVPlayer
     let metadata: [AVMetadataItem]?
-    let rotationQuarterTurns: Int
 
-    init(player: AVPlayer, metadata: [AVMetadataItem]? = nil, rotationQuarterTurns: Int = 0) {
+    init(player: AVPlayer, metadata: [AVMetadataItem]? = nil) {
         diagnosticLogger.startTiming("representable_initialization")
 
         let initMemory = diagnosticLogger.getMemoryInfo()
@@ -33,13 +32,11 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
         self.player = player
         self.metadata = metadata
-        self.rotationQuarterTurns = rotationQuarterTurns
 
         diagnosticLogger.logInfo("🎬 AVPlayerViewRepresentable initializing", metadata: [
             "player_status": "\(player.status.rawValue)",
             "player_item_exists": "\(player.currentItem != nil)",
             "metadata_provided": "\(metadata != nil)",
-            "rotation_quarter_turns": "\(rotationQuarterTurns)",
             "memory_usage_mb": "\(String(format: "%.1f", initMemory.used))",
             "cpu_usage_percent": "\(String(format: "%.1f", initCPU))"
         ])
@@ -48,7 +45,6 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         logger.info("🎬 AV_PLAYER_VIEW: AVPlayer status: \(player.status.rawValue)")
         logger.info("🎬 AV_PLAYER_VIEW: AVPlayer currentItem exists: \(player.currentItem != nil)")
         logger.info("🎬 AV_PLAYER_VIEW: Metadata provided: \(metadata != nil)")
-        logger.info("🎬 AV_PLAYER_VIEW: ✅ RECEIVED rotation quarter turns: \(rotationQuarterTurns)")
         if let item = player.currentItem {
             logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem status: \(item.status.rawValue)")
             logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem duration: \(item.duration.seconds)")
@@ -72,8 +68,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
             "memory_usage_mb": "\(String(format: "%.1f", makeMemory.used))",
             "cpu_usage_percent": "\(String(format: "%.1f", makeCPU))",
             "player_status": "\(player.status.rawValue)",
-            "player_ready": "\(player.status == .readyToPlay)",
-            "rotation_quarter_turns": "\(rotationQuarterTurns)"
+            "player_ready": "\(player.status == .readyToPlay)"
         ])
 
         logger.info("🎬 AV_PLAYER_VIEW: makeUIView called")
@@ -87,15 +82,6 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         diagnosticLogger.logDebug("⚙️ Player layer configured", metadata: [
             "video_gravity": "resizeAspect",
             "player_assigned": "true"
-        ])
-
-        // Apply rotation for immediate visual feedback
-        playerView.setRotation(rotationQuarterTurns)
-        logger.info("🎬 AV_PLAYER_VIEW: Applied rotation: \(rotationQuarterTurns) quarter turns")
-
-        diagnosticLogger.logDebug("🔄 Rotation applied", metadata: [
-            "quarter_turns": "\(rotationQuarterTurns)",
-            "rotation_angle_radians": "\(CGFloat(rotationQuarterTurns) * .pi / 2)"
         ])
 
         logger.info("🎬 AV_PLAYER_VIEW: PlayerView created successfully")
@@ -133,7 +119,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
         diagnosticLogger.logInfo("🔄 Updating UIView for AVPlayer", metadata: [
             "memory_usage_mb": "\(String(format: "%.1f", updateMemory.used))",
-            "current_rotation": "\(rotationQuarterTurns)",
+            "current_rotation": "0",
             "player_status": "\(player.status.rawValue)",
             "player_assigned": "\(uiView.playerLayer.player !== player ? "needs_update" : "current")"
         ])
@@ -151,16 +137,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
             diagnosticLogger.logDebug("✅ Player reference updated successfully")
         }
 
-        // Update rotation for immediate visual feedback
-        logger.info("🎬 AV_PLAYER_VIEW: 🔄 UPDATING rotation to: \(rotationQuarterTurns) quarter turns")
-        uiView.setRotation(rotationQuarterTurns)
-        logger.info("🎬 AV_PLAYER_VIEW: ✅ UPDATED rotation to: \(rotationQuarterTurns) quarter turns")
-
-        diagnosticLogger.logDebug("🔄 Rotation update completed", metadata: [
-            "quarter_turns": "\(rotationQuarterTurns)",
-            "rotation_angle_radians": "\(CGFloat(rotationQuarterTurns) * .pi / 2)",
-            "transform_applied": "true"
-        ])
+        // Rotation update removed - now handled only at asset level
 
         let postUpdateMemory = diagnosticLogger.getMemoryInfo()
         diagnosticLogger.logInfo("✅ UIView update completed", metadata: [
@@ -188,43 +165,9 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
             return layer as! AVPlayerLayer
         }
 
-        // MARK: - Rotation Support
-        func setRotation(_ quarterTurns: Int) {
-            diagnosticLogger.startTiming("set_rotation")
-
-            let rotationMemory = diagnosticLogger.getMemoryInfo()
-
-            diagnosticLogger.logInfo("🔄 Setting rotation transform", metadata: [
-                "quarter_turns": "\(quarterTurns)",
-                "current_transform": "\(self.transform)",
-                "memory_usage_mb": "\(String(format: "%.1f", rotationMemory.used))"
-            ])
-
-            logger.info("🎬 PLAYER_VIEW: 🔄 RECEIVED rotation request for \(quarterTurns) quarter turns")
-
-            // Calculate rotation angle in radians
-            let rotationAngle = CGFloat(quarterTurns) * .pi / 2
-
-            diagnosticLogger.logDebug("📐 Rotation calculation", metadata: [
-                "quarter_turns": "\(quarterTurns)",
-                "rotation_angle_radians": "\(rotationAngle)",
-                "rotation_angle_degrees": "\(rotationAngle * 180 / .pi)"
-            ])
-
-            // Apply rotation transform
-            self.transform = CGAffineTransform(rotationAngle: rotationAngle)
-
-            logger.info("🎬 PLAYER_VIEW: ✅ APPLIED transform with angle: \(rotationAngle)")
-
-            let postRotationMemory = diagnosticLogger.getMemoryInfo()
-            diagnosticLogger.logInfo("✅ Rotation transform applied", metadata: [
-                "final_transform": "\(self.transform)",
-                "memory_after_mb": "\(String(format: "%.1f", postRotationMemory.used))",
-                "memory_change_mb": "\(String(format: "%.1f", postRotationMemory.used - rotationMemory.used))"
-            ])
-
-            diagnosticLogger.stopTiming("set_rotation")
-        }
+        // MARK: - Rotation Support Removed
+        // Rotation is now handled only at the asset level in VideoTransformBuilder
+        // to prevent double-rotation issues where UI + asset rotation = 2x intended rotation
         
         override init(frame: CGRect) {
             diagnosticLogger.startTiming("player_view_init")
