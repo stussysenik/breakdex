@@ -1,6 +1,8 @@
 import Foundation
+import CoreData
 
 // MARK: - App Container
+@MainActor
 public final class AppContainer {
     public static let shared = AppContainer()
     
@@ -51,6 +53,11 @@ public final class AppContainer {
     private(set) lazy var videoHealthMonitor: VideoHealthMonitor = {
         return VideoHealthMonitorImpl(memoryManager: memoryManager)
     }()
+
+    // MARK: - Persistence Services
+    private(set) lazy var movePersistenceService: MovePersistenceService = {
+        return MovePersistenceService(viewContext: PersistenceController.shared.container.viewContext)
+    }()
     
     // MARK: - Memory Management
     func setupMemoryMonitoring() {
@@ -99,6 +106,8 @@ public final class AppContainer {
     }
     
     deinit {
-        cleanup()
+        Task { @MainActor in
+            cleanup()
+        }
     }
 }

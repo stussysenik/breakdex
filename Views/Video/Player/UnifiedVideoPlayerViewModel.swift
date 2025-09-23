@@ -41,12 +41,13 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     public private(set) var state: State = .idle
     public var shouldPlay: Bool = false
     public private(set) var healthStatus: VideoHealthStatus = .unknown
-    
+
     public var playerItem: AVPlayerItem?
 
     // MARK: - Private Properties
 
     private let player: AVPlayer
+    private var isPlaybackPending = false
     private var cancellables = Set<AnyCancellable>()
     private let logger: AppLogger
     private let videoHealthMonitor: VideoHealthMonitor
@@ -56,6 +57,11 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     private let mode: PlayerMode
     private var memoryCheckTimer: Timer?
     private var healthMonitorTask: Task<Void, Never>?
+
+    // MARK: - Race Condition Fix Properties
+
+    /// 🔧 KVO observer for persistent player item status monitoring to prevent race conditions
+    private var itemStatusObserver: NSKeyValueObservation?
 
     // MARK: - Public Accessors
 
@@ -118,6 +124,11 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         if mode == .preview {
             startMemoryChecks()
         }
+
+        // 🔧 CRITICAL: Setup persistent observers for initial player item to prevent race conditions
+        if let initialPlayerItem = player.currentItem {
+            setupObservers(for: initialPlayerItem)
+        }
     }
     
 
@@ -138,23 +149,75 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
                 player.play()
                 self.state = .playing(player: player)
+                isPlaybackPending = false
             } else {
-                // If not ready, log it. The async loader in NameMoveView should prevent this,
-                // but this makes our ViewModel safer.
-                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): startPlayback() called, but item is not ready (status: \(player.currentItem?.status.rawValue ?? -1)). Waiting for readiness.", metadata: nil)
+                // If not ready, set pending flag and observe for readiness
+                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): startPlayback() called, but item is not ready (status: \(player.currentItem?.status.rawValue ?? -1)). Setting playback pending flag.", metadata: nil)
+                isPlaybackPending = true
+                observePlayerItemReadiness()
             }
         } else if case .playing(let player) = state {
             player.play()
         }
     }
 
+    /// 🔧 Observe player item status and trigger playback when ready
+    /// Note: This method uses Combine publishers which may be cleared during player item replacement.
+    /// The persistent KVO observer in `setupObservers(for:)` provides additional race condition protection.
+    private func observePlayerItemReadiness() {
+        guard let currentItem = player.currentItem else {
+            logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ observePlayerItemReadiness() called but no current item", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+            return
+        }
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Setting up Combine publishers for player item readiness", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "item_status": "\(currentItem.status.rawValue)",
+            "is_playback_pending": "\(isPlaybackPending)"
+        ])
+
+        // Observe status changes
+        currentItem.publisher(for: \.status)
+            .combineLatest(currentItem.publisher(for: \.isPlaybackLikelyToKeepUp))
+            .sink { [weak self] status, isLikelyToKeepUp in
+                guard let self = self else { return }
+
+                Task { @MainActor in
+                    self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📡 Combine status update", metadata: [
+                        "correlationId": self.correlationId ?? "unknown",
+                        "status": "\(status.rawValue)",
+                        "is_playback_likely_to_keep_up": "\(isLikelyToKeepUp)",
+                        "is_playback_pending": "\(self.isPlaybackPending)"
+                    ])
+
+                    if status == .readyToPlay && self.isPlaybackPending {
+                        self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 🎯 Combine-based playback triggered", metadata: [
+                            "correlationId": self.correlationId ?? "unknown"
+                        ])
+                        self.isPlaybackPending = false
+                        self.startPlayback()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+
     public func teardown() {
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() called", metadata: ["correlationId": correlationId ?? "unknown"])
-        
+
         // Cancel the health monitor task to break retain cycle
         healthMonitorTask?.cancel()
         healthMonitorTask = nil
-        
+
+        // Cancel observation subscriptions
+        cancellables.removeAll()
+
+        // 🔧 CRITICAL: Cleanup KVO observer to prevent memory leaks
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+
         player.pause()
         player.replaceCurrentItem(with: nil)
         videoHealthMonitor.stopMonitoring()
@@ -165,37 +228,282 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         }
         state = .idle
         shouldPlay = false
+        isPlaybackPending = false
         healthStatus = .unknown
-        
+
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() completed", metadata: ["correlationId": correlationId ?? "unknown"])
     }
     
-    // 💡 SOLUTION: Replace player item and wait for readiness with timeout
+    // 💡 SOLUTION: Enhanced replace player item and wait for readiness with comprehensive race condition prevention
     public func replacePlayerItemAndWaitForReady(_ newItem: AVPlayerItem) async throws {
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Replacing player item and waiting for readiness", metadata: ["correlationId": correlationId ?? "unknown"])
-        
-        // Pause current playback
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Starting enhanced player item replacement with race condition prevention", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "new_item_status": "\(newItem.status.rawValue)",
+            "current_state": "\(state)",
+            "is_playback_pending": "\(isPlaybackPending)"
+        ])
+
+        // 💡 ENHANCEMENT: Validate preconditions before replacement
+        guard newItem.asset != player.currentItem?.asset || newItem != player.currentItem else {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏭️ Skip replacement - identical item already loaded", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+            return
+        }
+
+        // 💡 ENHANCEMENT: Pause current playback and cancel any pending operations
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏸️ Pausing current playback and canceling pending operations", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
+
         player.pause()
-        
-        // Replace the player item
+        isPlaybackPending = false
+
+        // 💡 ENHANCEMENT: Clear any existing observation subscriptions to prevent race conditions
+        cancellables.removeAll()
+
+        // 💡 ENHANCEMENT: Replace the player item with detailed logging
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Replacing player item", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "old_item_duration": "\(player.currentItem?.asset.duration.seconds ?? 0)",
+            "new_item_duration": "\(newItem.asset.duration.seconds)"
+        ])
+
+        player.replaceCurrentItem(with: nil) // Clear first to prevent reference cycles
         player.replaceCurrentItem(with: newItem)
         self.playerItem = newItem
-        
-        // Wait for the new item to become ready with timeout
+
+        // 💡 ENHANCEMENT: Wait for the new item to become ready with enhanced timeout and progress monitoring
         let monitor = PlayerItemStatusMonitor(playerItem: newItem)
-        try await monitor.awaitReadyAndBuffered(timeout: 10.0) { [weak self] progress in
-            guard let self = self else { return }
-            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): Replace buffer progress: \(Int(progress * 100))%", metadata: ["correlationId": self.correlationId ?? "unknown"])
+
+        do {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏳ Starting readiness monitoring with timeout protection", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "timeout_seconds": "10.0",
+                "required_buffer_duration": "2.0"
+            ])
+
+            try await monitor.awaitReadyAndBuffered(timeout: 10.0) { [weak self] progress in
+                guard let self = self else { return }
+
+                // 💡 ENHANCEMENT: Detailed progress logging with memory and performance metrics
+                let memoryInfo = self.diagnosticLogger.getMemoryInfo()
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📈 Readiness progress: \(Int(progress * 100))%", metadata: [
+                    "correlationId": self.correlationId ?? "unknown",
+                    "progress": "\(progress)",
+                    "memory_usage_mb": "\(String(format: "%.1f", memoryInfo.used))",
+                    "item_status": "\(newItem.status.rawValue)",
+                    "loaded_ranges": "\(newItem.loadedTimeRanges.count)",
+                    "is_playback_likely_to_keep_up": "\(newItem.isPlaybackLikelyToKeepUp)",
+                    "is_playback_buffer_full": "\(newItem.isPlaybackBufferFull)"
+                ])
+
+                // 💡 ENHANCEMENT: Update state to reflect progress
+                if progress < 1.0 {
+                    self.state = .loading(progress: progress, etaSeconds: nil, status: "Preparing video player...")
+                }
+            }
+
+            // 💡 ENHANCEMENT: Comprehensive post-readiness validation
+            guard newItem.status == .readyToPlay else {
+                let errorMessage = "Player item status is \(newItem.status.rawValue) after readiness monitoring completed"
+                logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ❌ \(errorMessage)", metadata: [
+                    "correlationId": correlationId ?? "unknown",
+                    "item_status": "\(newItem.status.rawValue)",
+                    "item_error": "\(newItem.error?.localizedDescription ?? "none")"
+                ])
+                throw VideoProcessingError.playerInitializationFailed
+            }
+
+            // 💡 ENHANCEMENT: Check buffering status but continue anyway as this is not a blocking condition
+            if !newItem.isPlaybackLikelyToKeepUp && !newItem.isPlaybackBufferFull {
+                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ Player item ready but buffering incomplete", metadata: [
+                    "correlationId": correlationId ?? "unknown",
+                    "is_playback_likely_to_keep_up": "\(newItem.isPlaybackLikelyToKeepUp)",
+                    "is_playback_buffer_full": "\(newItem.isPlaybackBufferFull)",
+                    "loaded_ranges": "\(newItem.loadedTimeRanges.count)"
+                ])
+            }
+
+            // 💡 ENHANCEMENT: Update state to ready with comprehensive logging
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Player item readiness validated, updating state", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "final_status": "\(newItem.status.rawValue)",
+                "final_duration": "\(newItem.asset.duration.seconds)",
+                "is_playback_likely_to_keep_up": "\(newItem.isPlaybackLikelyToKeepUp)",
+                "is_playback_buffer_full": "\(newItem.isPlaybackBufferFull)"
+            ])
+
+            state = .ready(player: player)
+
+            // 💡 ENHANCEMENT: Restart health monitoring with new asset and detailed logging
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Restarting health monitoring with new asset", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "asset_duration": "\(newItem.asset.duration.seconds)",
+                "is_playable": "\(newItem.asset.isPlayable)"
+            ])
+
+            videoHealthMonitor.stopMonitoring()
+            videoHealthMonitor.startMonitoring(asset: newItem.asset)
+
+            // 💡 ENHANCEMENT: Setup new persistent KVO observers for the replaced item to prevent future race conditions
+            setupObservers(for: newItem)
+
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🎉 Enhanced player item replacement completed successfully", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "total_operation_time": "measured_by_monitor",
+                "final_state": "\(state)"
+            ])
+
+        } catch {
+            // 💡 ENHANCEMENT: Enhanced error handling with detailed diagnostics
+            logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ❌ Player item replacement failed", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "error": "\(error.localizedDescription)",
+                "item_status": "\(newItem.status.rawValue)",
+                "item_error": "\(newItem.error?.localizedDescription ?? "none")",
+                "loaded_ranges": "\(newItem.loadedTimeRanges.count)"
+            ])
+
+            // Attempt recovery by restoring previous state if possible
+            if let previousItem = playerItem {
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Attempting recovery by restoring previous player item", metadata: [
+                    "correlationId": correlationId ?? "unknown"
+                ])
+                player.replaceCurrentItem(with: previousItem)
+            }
+
+            throw error
         }
-        
-        // Update state to ready
-        state = .ready(player: player)
-        
-        // Restart health monitoring with new asset
-        videoHealthMonitor.stopMonitoring()
-        videoHealthMonitor.startMonitoring(asset: newItem.asset)
-        
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Player item replaced and ready", metadata: ["correlationId": correlationId ?? "unknown"])
+    }
+
+    // 💡 ENHANCEMENT: New method to setup observers for player item to prevent race conditions
+    private func setupPlayerItemObservers(_ item: AVPlayerItem) {
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔧 Setting up player item observers", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
+
+        // Observe status changes for real-time monitoring
+        item.publisher(for: \.status)
+            .combineLatest(item.publisher(for: \.isPlaybackLikelyToKeepUp))
+            .sink { [weak self] status, isLikelyToKeepUp in
+                guard let self = self else { return }
+
+                Task { @MainActor in
+                    self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📊 Player item status update", metadata: [
+                        "correlationId": self.correlationId ?? "unknown",
+                        "status": "\(status.rawValue)",
+                        "is_playback_likely_to_keep_up": "\(isLikelyToKeepUp)",
+                        "current_state": "\(self.state)"
+                    ])
+
+                    // Handle status changes that might indicate race conditions
+                    if case .failed = status {
+                        self.logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 🚨 Player item failed after replacement", metadata: [
+                            "correlationId": self.correlationId ?? "unknown",
+                            "error": "\(item.error?.localizedDescription ?? "unknown")"
+                        ])
+                        self.state = .error(message: "Player item failed: \(item.error?.localizedDescription ?? "Unknown error")")
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        // Observe loaded time ranges for buffer monitoring
+        item.publisher(for: \.loadedTimeRanges)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                Task { @MainActor in
+                    let rangeCount = item.loadedTimeRanges.count
+                    if let firstRange = item.loadedTimeRanges.first?.timeRangeValue {
+                        let duration = CMTimeGetSeconds(firstRange.duration)
+                        self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📊 Buffer update - \(rangeCount) ranges, first: \(String(format: "%.2f", duration))s", metadata: [
+                            "correlationId": self.correlationId ?? "unknown"
+                        ])
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Race Condition Fix Implementation
+
+    /// 🔧 Sets up persistent KVO observers for player item status to prevent race conditions
+    /// This ensures that when `isPlaybackPending` is true, we don't miss the .readyToPlay event
+    /// during SwiftUI view reconfiguration or player item status flickering
+    private func setupObservers(for item: AVPlayerItem) {
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Setting up persistent KVO observers for race condition prevention", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "item_status": "\(item.status.rawValue)",
+            "is_playback_pending": "\(isPlaybackPending)"
+        ])
+
+        // 🔧 CRITICAL: Invalidate any existing observer to prevent multiple observers on the same item
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+
+        // 🔧 CRITICAL: Set up persistent KVO observer that survives Combine cancellable removal
+        itemStatusObserver = item.observe(\.status, options: [.initial, .new]) { [weak self] observedItem, change in
+            guard let self = self else { return }
+
+            // 🚨 CRITICAL: Always dispatch to main thread for UI updates and state changes
+            DispatchQueue.main.async {
+                let newStatus = observedItem.status
+                self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📡 KVO status change detected", metadata: [
+                    "correlationId": self.correlationId ?? "unknown",
+                    "old_status": "\(change.oldValue?.rawValue ?? -1)",
+                    "new_status": "\(newStatus.rawValue)",
+                    "is_playback_pending": "\(self.isPlaybackPending)",
+                    "current_state": "\(self.state)"
+                ])
+
+                // 🔧 CRITICAL: Handle the race condition - if playback is pending and item becomes ready, trigger playback
+                if newStatus == .readyToPlay && self.isPlaybackPending {
+                    self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 🎯 RACE CONDITION PREVENTED - Status became ready with pending playback", metadata: [
+                        "correlationId": self.correlationId ?? "unknown",
+                        "item_status": "\(newStatus.rawValue)"
+                    ])
+
+                    // Reset pending flag to prevent multiple triggers
+                    self.isPlaybackPending = false
+
+                    // Trigger playback on main thread
+                    self.startPlayback()
+                }
+
+                // 🔧 ENHANCEMENT: Handle status transitions that might indicate issues
+                switch newStatus {
+                case .readyToPlay:
+                    self.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): ✅ Player item is ready to play", metadata: [
+                        "correlationId": self.correlationId ?? "unknown"
+                    ])
+                case .failed:
+                    self.logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): ❌ Player item failed", metadata: [
+                        "correlationId": self.correlationId ?? "unknown",
+                        "error": "\(observedItem.error?.localizedDescription ?? "unknown")"
+                    ])
+                    // Don't update state here, let the existing error handling deal with it
+                case .unknown:
+                    self.logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): ⚠️ Player item status flickered to unknown", metadata: [
+                        "correlationId": self.correlationId ?? "unknown"
+                    ])
+                @unknown default:
+                    self.logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): ⚠️ Unknown player item status: \(newStatus.rawValue)", metadata: [
+                        "correlationId": self.correlationId ?? "unknown"
+                    ])
+                }
+            }
+        }
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Persistent KVO observers setup completed", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
+    }
+
+    // 💡 ENHANCEMENT: Add diagnostic logger property for enhanced logging
+    private var diagnosticLogger: DiagnosticLoggingHelper {
+        return DiagnosticLoggingHelper(category: "UnifiedVideoPlayerViewModel-\(mode)")
     }
 
     public func pauseForTrimming() {
@@ -268,6 +576,10 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             // If the above line doesn't throw, the item is ready.
             self.state = .ready(player: self.player)
             videoHealthMonitor.startMonitoring(asset: asset)
+
+            // 🔧 CRITICAL: Setup persistent observers for race condition prevention
+            self.setupObservers(for: newPlayerItem)
+
             logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player successfully re-primed and item status is ready.", metadata: ["correlationId": correlationId ?? "unknown"])
             
         } catch {

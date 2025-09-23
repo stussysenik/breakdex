@@ -15,8 +15,8 @@ import OSLog
 /// UIViewRepresentable wrapper for AVPlayer using AVPlayerLayer
 /// Single Responsibility: Display AVPlayer content reliably in SwiftUI
 /// Eliminates SwiftUI VideoPlayer crashes while maintaining identical UX
-/// UPDATED: Restored UI-level rotation for immediate visual feedback
-/// Provides instant rotation feedback while asset-level rotation processes
+/// FIXED: Removed UI-level rotation to prevent conflicts with data-layer rotation
+/// Rotation is now handled exclusively by VideoTransformBuilder at the asset level
 struct AVPlayerViewRepresentable: UIViewRepresentable {
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "AVPlayerViewRepresentable")
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "AVPlayerView")
@@ -103,8 +103,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         diagnosticLogger.logInfo("✅ UIView creation completed", metadata: [
             "memory_after_mb": "\(String(format: "%.1f", postMakeMemory.used))",
             "memory_increase_mb": "\(String(format: "%.1f", postMakeMemory.used - makeMemory.used))",
-            "player_view_ready": "true",
-            "rotation_applied": "true"
+            "player_view_ready": "true"
         ])
 
         diagnosticLogger.stopTiming("make_uiview")
@@ -119,7 +118,6 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
         diagnosticLogger.logInfo("🔄 Updating UIView for AVPlayer", metadata: [
             "memory_usage_mb": "\(String(format: "%.1f", updateMemory.used))",
-            "current_rotation": "0",
             "player_status": "\(player.status.rawValue)",
             "player_assigned": "\(uiView.playerLayer.player !== player ? "needs_update" : "current")"
         ])
@@ -137,13 +135,10 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
             diagnosticLogger.logDebug("✅ Player reference updated successfully")
         }
 
-        // Rotation update removed - now handled only at asset level
-
         let postUpdateMemory = diagnosticLogger.getMemoryInfo()
         diagnosticLogger.logInfo("✅ UIView update completed", metadata: [
             "memory_after_mb": "\(String(format: "%.1f", postUpdateMemory.used))",
             "memory_change_mb": "\(String(format: "%.1f", postUpdateMemory.used - updateMemory.used))",
-            "rotation_updated": "true",
             "player_sync": "\(uiView.playerLayer.player === player)"
         ])
 
@@ -166,8 +161,8 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         }
 
         // MARK: - Rotation Support Removed
-        // Rotation is now handled only at the asset level in VideoTransformBuilder
-        // to prevent double-rotation issues where UI + asset rotation = 2x intended rotation
+        // Rotation is now handled exclusively at the asset level by VideoTransformBuilder
+        // This prevents conflicts between view-layer and data-layer transformations
         
         override init(frame: CGRect) {
             diagnosticLogger.startTiming("player_view_init")

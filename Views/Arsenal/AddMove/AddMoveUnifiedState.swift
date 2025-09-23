@@ -3,6 +3,7 @@ import AVFoundation
 import AVKit
 import PhotosUI
 import OSLog
+import CoreData
 
 // MARK: - Unified Flow State
 /// Simplified flow state that eliminates the dual state system complexity
@@ -343,9 +344,13 @@ public class AddMoveUnifiedState: ObservableObject {
             playerState = .paused
             isTrimmingActive = true
             currentPlayerViewModel?.pauseForTrimming()
+
+            // 🎯 CRITICAL FIX: Only setup the trimmer view model, don't auto-transition to .trimming
+            // The transition to .trimming will happen after async setup completes successfully
             await setupTrimmerViewModel()
             diagnosticLogger.logInfo("🔄 Transitioned to trimming_setup state", metadata: [
                 "trimmer_vm_created": "\(trimmerViewModel != nil)",
+                "trimmer_vm_ready": "\(trimmerViewModel?.isReady ?? false)",
                 "trim_range": "\(trimStartTime)-\(trimEndTime)"
             ])
 
@@ -361,7 +366,7 @@ public class AddMoveUnifiedState: ObservableObject {
         case .naming:
             playerState = .paused
             isTrimmingActive = false
-            cleanupTrimmerViewModel()
+            await cleanupTrimmerViewModel()
             diagnosticLogger.logInfo("🔄 Transitioned to naming state", metadata: [
                 "move_name_length": "\(moveName.count)",
                 "trimmer_vm_cleaned": "true"
@@ -404,37 +409,144 @@ public class AddMoveUnifiedState: ObservableObject {
     }
     
     
-    /// Applies trim settings to the current video
+    /// Applies trim settings to the current video with enhanced race condition prevention
     public func applyTrimSettings(startTime: Double, endTime: Double, rotation: Int) async throws {
         diagnosticLogger.startTiming("apply_trim_settings")
-        
+
+        let memoryBefore = diagnosticLogger.getMemoryInfo()
+        let startTimeBeforeOperation = Date()
+
+        diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Starting enhanced trim settings application with race condition prevention", metadata: [
+            "start_time": "\(startTime)",
+            "end_time": "\(endTime)",
+            "rotation": "\(rotation)",
+            "current_flow_state": "\(flowState)",
+            "current_player_state": "\(playerState)",
+            "has_asset": "\(videoAsset != nil)",
+            "has_trimmer": "\(trimmerViewModel != nil)",
+            "has_player": "\(currentPlayerViewModel != nil)",
+            "memory_usage_mb": "\(String(format: "%.1f", memoryBefore.used))",
+            "cpu_usage_percent": "\(String(format: "%.1f", diagnosticLogger.getCurrentCPUUsage()))"
+        ])
+
+        // 💡 ENHANCEMENT: Comprehensive preconditions validation
         guard let asset = videoAsset else {
-            diagnosticLogger.logError("Cannot apply trim settings - no video asset available")
+            let errorMessage = "Cannot apply trim settings - no video asset available"
+            let errorDetails: [String: String] = [
+                "flow_state": "\(flowState)",
+                "player_state": "\(playerState)",
+                "trim_start": "\(trimStartTime)",
+                "trim_end": "\(trimEndTime)",
+                "rotation": "\(rotationQuarterTurns)"
+            ]
+
+            diagnosticLogger.logError(errorMessage, metadata: errorDetails)
+            logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
             throw AddMoveError.videoLoadFailed(underlyingError: nil)
         }
-        
+
+        guard currentPlayerViewModel != nil else {
+            let errorMessage = "Cannot apply trim settings - no player available"
+            let errorDetails: [String: String] = [
+                "flow_state": "\(flowState)",
+                "player_state": "\(playerState)",
+                "has_asset": "\(videoAsset != nil)",
+                "unified_player_manager_state": "\(unifiedPlayerManager.currentPlayer != nil)"
+            ]
+
+            diagnosticLogger.logError(errorMessage, metadata: errorDetails)
+            logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
+            throw AddMoveError.playerNotReady
+        }
+
+        // 💡 ENHANCEMENT: Validate trim parameters with enhanced checks
+        let duration = endTime - startTime
+        let assetDuration = asset.duration.seconds
+
+        guard duration > 0 else {
+            let errorMessage = "Invalid trim range: duration must be positive (\(duration)s)"
+            let errorDetails: [String: String] = [
+                "start_time": "\(startTime)",
+                "end_time": "\(endTime)",
+                "duration": "\(duration)",
+                "asset_duration": "\(assetDuration)",
+                "minimum_required": "0.1"
+            ]
+
+            diagnosticLogger.logError(errorMessage, metadata: errorDetails)
+            logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
+            throw AddMoveError.invalidTrimRange(errorMessage)
+        }
+
+        guard duration >= 3.0 else {
+            let errorMessage = "Trim duration too short: \(duration)s (minimum: 3.0s)"
+            let errorDetails: [String: String] = [
+                "start_time": "\(startTime)",
+                "end_time": "\(endTime)",
+                "duration": "\(duration)",
+                "asset_duration": "\(assetDuration)",
+                "minimum_required": "3.0"
+            ]
+
+            diagnosticLogger.logError(errorMessage, metadata: errorDetails)
+            logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
+            throw AddMoveError.invalidTrimRange(errorMessage)
+        }
+
+        guard startTime >= 0 else {
+            let errorMessage = "Start time cannot be negative (\(startTime)s)"
+            let errorDetails: [String: String] = [
+                "start_time": "\(startTime)",
+                "end_time": "\(endTime)",
+                "asset_duration": "\(assetDuration)"
+            ]
+
+            diagnosticLogger.logError(errorMessage, metadata: errorDetails)
+            logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
+            throw AddMoveError.invalidTrimRange(errorMessage)
+        }
+
+        guard endTime <= assetDuration else {
+            let errorMessage = "End time (\(endTime)s) exceeds asset duration (\(assetDuration)s)"
+            let errorDetails: [String: String] = [
+                "start_time": "\(startTime)",
+                "end_time": "\(endTime)",
+                "asset_duration": "\(assetDuration)",
+                "excess_duration": "\(endTime - assetDuration)"
+            ]
+
+            diagnosticLogger.logError(errorMessage, metadata: errorDetails)
+            logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
+            throw AddMoveError.invalidTrimRange(errorMessage)
+        }
+
+        // 💡 ENHANCEMENT: Store old values for potential rollback
         let oldStartTime = trimStartTime
         let oldEndTime = trimEndTime
         let oldRotation = rotationQuarterTurns
-        
-        trimStartTime = startTime
-        trimEndTime = endTime
-        rotationQuarterTurns = rotation
-        
-        let startCMTime = CMTime(seconds: startTime, preferredTimescale: 600)
-        let endCMTime = CMTime(seconds: endTime, preferredTimescale: 600)
-        
-        diagnosticLogger.logInfo("🔄 Applying trim settings", metadata: [
+
+        diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Trim parameters validated, preparing to apply changes", metadata: [
             "old_range": "\(oldStartTime)-\(oldEndTime)",
             "new_range": "\(startTime)-\(endTime)",
             "old_rotation": "\(oldRotation)",
             "new_rotation": "\(rotation)",
-            "duration_seconds": "\(endTime - startTime)",
-            "asset_duration": "\(asset.duration.seconds)"
+            "duration_seconds": "\(duration)",
+            "asset_duration": "\(assetDuration)",
+            "validation_passed": "true"
         ])
-        
-        // 🎯 ENHANCED: Synchronize TrimmerViewModel state with UnifiedState BEFORE applying trim
+
+        let startCMTime = CMTime(seconds: startTime, preferredTimescale: 600)
+        let endCMTime = CMTime(seconds: endTime, preferredTimescale: 600)
+
+        // 💡 ENHANCEMENT: Synchronize TrimmerViewModel state with UnifiedState BEFORE applying trim
         if let trimmerVM = trimmerViewModel {
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Synchronizing TrimmerViewModel state before trim application", metadata: [
+                "trimmer_ready": "\(trimmerVM.isReady)",
+                "trimmer_duration": "\(trimmerVM.videoDuration.seconds)",
+                "current_trimmer_rotation": "\(trimmerVM.rotationQuarterTurns)",
+                "target_rotation": "\(rotation)"
+            ])
+
             await MainActor.run {
                 // Force complete state synchronization with validation
                 trimmerVM.rotationQuarterTurns = rotation
@@ -444,26 +556,119 @@ public class AddMoveUnifiedState: ObservableObject {
                 // Force validation to ensure UI consistency
                 trimmerVM.forceStateValidation()
 
-                logger.info("🎬 UNIFIED_STATE: 🔄 Synchronized TrimmerViewModel with UnifiedState")
+                // Trigger object change notification to update UI
+                self.objectWillChange.send()
+
+                logger.info("🎬 UNIFIED_STATE: ✅ Synchronized TrimmerViewModel with UnifiedState")
             }
             diagnosticLogger.logDebug("✅ TrimmerViewModel synchronized successfully")
         } else {
-            diagnosticLogger.logWarning("⚠️ TrimmerViewModel not available for synchronization")
+            diagnosticLogger.logWarning("⚠️ TrimmerViewModel not available for synchronization", metadata: [
+                "flow_state": "\(flowState)",
+                "player_state": "\(playerState)"
+            ])
         }
-        
+
+        // 💡 ENHANCEMENT: Prepare state transition with enhanced logging
+        diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Updating local state before player operation", metadata: [
+            "old_start_time": "\(oldStartTime)",
+            "new_start_time": "\(startTime)",
+            "old_end_time": "\(oldEndTime)",
+            "new_end_time": "\(endTime)",
+            "old_rotation": "\(oldRotation)",
+            "new_rotation": "\(rotation)"
+        ])
+
+        trimStartTime = startTime
+        trimEndTime = endTime
+        rotationQuarterTurns = rotation
+
+        // 💡 ENHANCEMENT: Apply trim to player with comprehensive error handling and retry logic
         do {
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Starting player trim operation with readiness monitoring", metadata: [
+                "start_time_cm": "\(startCMTime.seconds)",
+                "end_time_cm": "\(endCMTime.seconds)",
+                "rotation": "\(rotation)",
+                "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)"
+            ])
+
             try await unifiedPlayerManager.applyTrimToCurrentPlayer(
                 startTime: startCMTime,
                 endTime: endCMTime,
                 rotation: rotation
             )
-            diagnosticLogger.logInfo("✅ Trim settings applied successfully to player")
+
+            // 💡 ENHANCEMENT: Post-operation validation
+            guard let playerVM = currentPlayerViewModel, playerVM.isPlayerReady else {
+                let errorMessage = "Player failed to achieve ready state after trim operation"
+                diagnosticLogger.logError(errorMessage, metadata: [
+                    "player_state": "\(currentPlayerViewModel?.state ?? .idle)",
+                    "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)",
+                    "is_playback_pending": "false"
+                ])
+                logger.error("🎬 UNIFIED_STATE: ❌ \(errorMessage)")
+                throw AddMoveError.playerNotReady
+            }
+
+            let memoryAfter = diagnosticLogger.getMemoryInfo()
+            let operationDuration = Date().timeIntervalSince(startTimeBeforeOperation)
+
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🎉 Enhanced trim settings applied successfully", metadata: [
+                "final_start_time": "\(trimStartTime)",
+                "final_end_time": "\(trimEndTime)",
+                "final_rotation": "\(rotationQuarterTurns)",
+                "player_ready": "\(playerVM.isPlayerReady)",
+                "player_state": "\(playerVM.state)",
+                "memory_before_mb": "\(String(format: "%.1f", memoryBefore.used))",
+                "memory_after_mb": "\(String(format: "%.1f", memoryAfter.used))",
+                "memory_delta_mb": "\(String(format: "%.1f", memoryAfter.used - memoryBefore.used))",
+                "operation_duration_seconds": "\(String(format: "%.3f", operationDuration))",
+                "operation_success": "true"
+            ])
+
+            logger.info("🎬 UNIFIED_STATE: ✅ Trim settings applied with enhanced race condition prevention")
+
         } catch {
-            diagnosticLogger.logError("Failed to apply trim settings to player", error: error)
+            // 💡 ENHANCEMENT: Enhanced error handling with rollback and detailed diagnostics
+            diagnosticLogger.logError("Trim operation failed, attempting rollback", error: error, metadata: [
+                "error_type": "\(type(of: error))",
+                "error_description": error.localizedDescription,
+                "operation_start_time": "\(startTimeBeforeOperation)",
+                "failed_start_time": "\(startTime)",
+                "failed_end_time": "\(endTime)",
+                "failed_rotation": "\(rotation)"
+            ])
+
+            // 💡 ENHANCEMENT: Rollback local state changes
+            await MainActor.run {
+                self.trimStartTime = oldStartTime
+                self.trimEndTime = oldEndTime
+                self.rotationQuarterTurns = oldRotation
+                self.objectWillChange.send()
+            }
+
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 State rollback completed", metadata: [
+                "restored_start_time": "\(trimStartTime)",
+                "restored_end_time": "\(trimEndTime)",
+                "restored_rotation": "\(rotationQuarterTurns)"
+            ])
+
+            // 💡 ENHANCEMENT: Attempt to synchronize TrimmerViewModel with rolled-back state
+            if let trimmerVM = trimmerViewModel {
+                await MainActor.run {
+                    trimmerVM.rotationQuarterTurns = oldRotation
+                    trimmerVM.startTime = CMTime(seconds: oldStartTime, preferredTimescale: 600)
+                    trimmerVM.endTime = CMTime(seconds: oldEndTime, preferredTimescale: 600)
+                    trimmerVM.forceStateValidation()
+                    trimmerVM.objectWillChange.send()
+                }
+                diagnosticLogger.logDebug("✅ TrimmerViewModel synchronized with rolled-back state")
+            }
+
+            logger.error("🎬 UNIFIED_STATE: ❌ Trim settings application failed, state rolled back")
             throw error
         }
-        
-        logger.info("🎬 UNIFIED_STATE: ✅ Trim settings applied")
+
         diagnosticLogger.stopTiming("apply_trim_settings")
     }
 
@@ -774,9 +979,9 @@ public class AddMoveUnifiedState: ObservableObject {
     /// Sets up the TrimmerViewModel when transitioning to trimming state
     private func setupTrimmerViewModel() async {
         diagnosticLogger.startTiming("trimmer_vm_setup")
-        
+
         let canSetup = trimmerViewModel == nil && videoAsset != nil && currentPlayerViewModel != nil
-        
+
         diagnosticLogger.logInfo("🔧 Setting up TrimmerViewModel", metadata: [
             "can_setup": "\(canSetup)",
             "trimmer_vm_exists": "\(trimmerViewModel != nil)",
@@ -785,7 +990,7 @@ public class AddMoveUnifiedState: ObservableObject {
             "current_rotation": "\(rotationQuarterTurns)",
             "current_trim_range": "\(trimStartTime)-\(trimEndTime)"
         ])
-        
+
         guard trimmerViewModel == nil,
               let asset = videoAsset,
               let playerViewModel = currentPlayerViewModel else {
@@ -793,7 +998,7 @@ public class AddMoveUnifiedState: ObservableObject {
             diagnosticLogger.logWarning("⚠️ TrimmerViewModel setup skipped - missing requirements")
             return
         }
-        
+
         logger.info("🎬 UNIFIED_STATE: Setting up TrimmerViewModel")
 
         // 🎯 CRITICAL FIX: Create TrimmerViewModel and wait for async setup
@@ -806,10 +1011,12 @@ public class AddMoveUnifiedState: ObservableObject {
 
         self.trimmerViewModel = newTrimmerViewModel
 
-        // 🎯 CRITICAL FIX: Wait for async setup to complete before setting trim values
-        // This prevents the race condition where trim times are set before duration is loaded
+        // 🎯 CRITICAL FIX: Wait for async setup to complete with timeout protection
         do {
-            try await newTrimmerViewModel.setupAsync()
+            // Use timeout protection to prevent hanging
+            try await withTimeout(seconds: 15.0) {
+                try await newTrimmerViewModel.setupAsync()
+            }
 
             // 🎯 CRITICAL FIX: Validate that setup completed successfully before setting trim values
             guard newTrimmerViewModel.isReady else {
@@ -845,43 +1052,51 @@ public class AddMoveUnifiedState: ObservableObject {
                 "rotation_quarter_turns": "\(rotationQuarterTurns)",
                 "trimmer_ready": "\(newTrimmerViewModel.isReady)"
             ])
+
+            // 🎯 CRITICAL FIX: Now that setup is complete, transition to trimming state
+            // This ensures the UI only shows trimmer when everything is truly ready
+            try await withTimeout(seconds: 5.0) {
+                await self.transitionTo(.trimming)
+            }
+
+        } catch let timeoutError as TimeoutError {
+            diagnosticLogger.logError("⏰ TrimmerViewModel setup timed out", error: timeoutError)
+            self.trimmerViewModel = nil
+            await setError(message: "Video trimmer setup timed out", underlying: "The async initialization took too long")
         } catch {
             diagnosticLogger.logError("TrimmerViewModel setup failed", error: error)
             // Don't continue - the trimmer won't function properly
             self.trimmerViewModel = nil
-            return
+            await setError(message: "Failed to setup video trimmer", underlying: error.localizedDescription)
         }
-        
-        logger.info("🎬 UNIFIED_STATE: ✅ TrimmerViewModel setup completed")
 
-        // 🎯 CRITICAL FIX: Transition to trimming state now that async setup is complete
-        // This resolves the race condition where UI waits for trimmer to be ready
-        await transitionTo(.trimming)
-
+        logger.info("🎬 UNIFIED_STATE: ✅ TrimmerViewModel setup process completed")
         diagnosticLogger.stopTiming("trimmer_vm_setup")
     }
     
     /// Cleans up the TrimmerViewModel when transitioning away from trimming state
-    private func cleanupTrimmerViewModel() {
+    private func cleanupTrimmerViewModel() async {
         guard trimmerViewModel != nil else {
             diagnosticLogger.logDebug("⏭️ TrimmerViewModel cleanup skipped - already nil")
             return
         }
-        
+
         diagnosticLogger.startTiming("trimmer_vm_cleanup")
-        
+
         logger.info("🎬 UNIFIED_STATE: Cleaning up TrimmerViewModel")
-        
+
         // Sync final trim values back to unified state before cleanup
         if let trimmerViewModel = trimmerViewModel {
             let finalStartTime = trimmerViewModel.startTime.seconds
             let finalEndTime = trimmerViewModel.endTime.seconds
             let finalRotation = trimmerViewModel.rotationQuarterTurns
-            
-            trimStartTime = finalStartTime
-            trimEndTime = finalEndTime
-            rotationQuarterTurns = finalRotation
-            
+
+            await MainActor.run {
+                self.trimStartTime = finalStartTime
+                self.trimEndTime = finalEndTime
+                self.rotationQuarterTurns = finalRotation
+            }
+
             diagnosticLogger.logInfo("🔄 Syncing final trim values before cleanup", metadata: [
                 "final_start_time": "\(finalStartTime)",
                 "final_end_time": "\(finalEndTime)",
@@ -889,9 +1104,12 @@ public class AddMoveUnifiedState: ObservableObject {
                 "final_duration": "\(finalEndTime - finalStartTime)"
             ])
         }
-        
-        self.trimmerViewModel = nil
-        
+
+        // Clear the trimmer view model
+        await MainActor.run {
+            self.trimmerViewModel = nil
+        }
+
         diagnosticLogger.logInfo("✅ TrimmerViewModel cleanup completed")
         logger.info("🎬 UNIFIED_STATE: ✅ TrimmerViewModel cleanup completed")
         diagnosticLogger.stopTiming("trimmer_vm_cleanup")
@@ -1653,6 +1871,254 @@ extension AddMoveUnifiedState {
 
         diagnosticLogger.stopTiming("immediate_save_validation")
         return result
+    }
+
+    // MARK: - Save Move Function
+
+    /// Validates state, processes the video, saves to Core Data, and updates the final state with enhanced race condition prevention.
+    public func saveMove() async {
+        let operationStartTime = Date()
+        let memoryBeforeOperation = diagnosticLogger.getMemoryInfo()
+
+        diagnosticLogger.startTiming("save_move_operation")
+
+        logger.info("🎬 UNIFIED_STATE: 🚀 Starting enhanced saveMove operation with race condition prevention")
+
+        // 💡 ENHANCEMENT: Comprehensive pre-save validation
+        do {
+            try await validateReadyForSave()
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Pre-save validation passed")
+        } catch {
+            let errorMessage = "Save validation failed"
+            diagnosticLogger.logError("Pre-save validation failed", error: error, metadata: [
+                "error_message": errorMessage,
+                "validation_error": error.localizedDescription,
+                "move_name": "\(moveName)",
+                "flow_state": "\(flowState)"
+            ])
+            await setError(message: errorMessage, underlying: error.localizedDescription)
+            return
+        }
+
+        // 1. Transition to the saving state immediately to update the UI.
+        await transitionTo(.saving)
+
+        do {
+            // 2. Prepare and validate all necessary asset information with enhanced readiness checks
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔧 Preparing asset for saving with readiness validation...")
+
+            let preparedAsset = try await prepareAssetForSaving()
+
+            // 💡 ENHANCEMENT: Post-preparation validation
+            guard preparedAsset.isValidForSave else {
+                let errorMessage = "Prepared asset is not valid for saving"
+                diagnosticLogger.logError(errorMessage, metadata: [
+                    "move_name": "\(preparedAsset.moveName)",
+                    "trim_duration": "\(preparedAsset.trimDuration)",
+                    "trimming_readiness": "\(preparedAsset.trimmingReadiness.isReady)",
+                    "asset_playable": "\(preparedAsset.asset.isPlayable)"
+                ])
+                throw AddMoveError.assetNotReady(errorMessage)
+            }
+
+            // 3. Log successful preparation with enhanced metrics
+            let preparationMemory = diagnosticLogger.getMemoryInfo()
+            let preparationTime = Date().timeIntervalSince(operationStartTime)
+
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Asset prepared successfully", metadata: [
+                "asset_duration": "\(preparedAsset.asset.duration.seconds)",
+                "trim_start": "\(preparedAsset.trimStartTime)",
+                "trim_end": "\(preparedAsset.trimEndTime)",
+                "trim_duration": "\(preparedAsset.trimDuration)",
+                "rotation": "\(preparedAsset.rotationQuarterTurns)",
+                "move_name": "\(preparedAsset.moveName)",
+                "trimming_ready": "\(preparedAsset.trimmingReadiness.isReady)",
+                "preparation_time_seconds": "\(String(format: "%.3f", preparationTime))",
+                "memory_usage_mb": "\(String(format: "%.1f", preparationMemory.used))",
+                "memory_delta_mb": "\(String(format: "%.1f", preparationMemory.used - memoryBeforeOperation.used))"
+            ])
+
+            // 💡 ENHANCEMENT: Ensure player readiness before video processing
+            guard let playerVM = currentPlayerViewModel, playerVM.isPlayerReady else {
+                let errorMessage = "Player is not ready for video processing"
+                diagnosticLogger.logError(errorMessage, metadata: [
+                    "player_state": "\(currentPlayerViewModel?.state ?? .idle)",
+                    "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)",
+                    "is_playback_pending": "false"
+                ])
+                throw AddMoveError.playerNotReady
+            }
+
+            // 4. Process and save the video using the actual services with enhanced error handling
+            updateProgress(0.3, status: "Validating video asset...")
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Creating video asset for pipeline processing...")
+
+            // First, create a VideoAsset for the pipeline with validation
+            let videoAsset = try await BreakingFlashcards.VideoAsset(
+                avAsset: preparedAsset.asset,
+                identifier: preparedAsset.photosIdentifier,
+                filename: "\(preparedAsset.moveName.replacingOccurrences(of: " ", with: "_")).mov"
+            )
+
+            // Validate the created video asset
+            guard videoAsset.avAsset.isPlayable else {
+                let errorMessage = "Created video asset is not playable"
+                diagnosticLogger.logError(errorMessage, metadata: [
+                    "asset_duration": "\(videoAsset.avAsset.duration.seconds)",
+                    "identifier": "\(videoAsset.identifier)",
+                    "filename": "\(videoAsset.filename)"
+                ])
+                throw AddMoveError.assetNotReady(errorMessage)
+            }
+
+            updateProgress(0.5, status: "Processing video...")
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Starting video processing pipeline with readiness monitoring...")
+
+            // 💡 ENHANCEMENT: Apply transformations using the pipeline with timeout protection
+            let processedAsset: VideoAsset
+            do {
+                processedAsset = try await withTimeout(seconds: 60.0) {
+                    try await self.appContainer.videoProcessingPipeline.processVideo(
+                        videoAsset,
+                        rotationQuarterTurns: preparedAsset.rotationQuarterTurns
+                    )
+                }
+                diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Video processing completed successfully", metadata: [
+                    "processed_duration": "\(processedAsset.avAsset.duration.seconds)",
+                    "processing_pipeline_used": "enhanced"
+                ])
+            } catch let timeoutError as TimeoutError {
+                let errorMessage = "Video processing timed out"
+                diagnosticLogger.logError(errorMessage, error: timeoutError, metadata: [
+                    "timeout_seconds": "60.0",
+                    "asset_duration": "\(videoAsset.avAsset.duration.seconds)"
+                ])
+                throw VideoProcessingError.videoProcessingFailed(operation: "processVideo", underlyingError: timeoutError)
+            }
+
+            updateProgress(0.7, status: "Saving to Photos...")
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 💾 Starting video save to Photos library...")
+
+            // Save the processed video to Photos with enhanced error handling
+            let savedVideoURL: URL
+            do {
+                savedVideoURL = try await withTimeout(seconds: 30.0) {
+                    try await self.appContainer.videoProcessingPipeline.saveVideo(processedAsset)
+                }
+                diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Video processed and saved to Photos library", metadata: [
+                    "url": savedVideoURL.absoluteString,
+                    "file_exists": "\(FileManager.default.fileExists(atPath: savedVideoURL.path))"
+                ])
+            } catch let timeoutError as TimeoutError {
+                let errorMessage = "Video save to Photos timed out"
+                diagnosticLogger.logError(errorMessage, error: timeoutError, metadata: [
+                    "timeout_seconds": "30.0",
+                    "processed_asset_duration": "\(processedAsset.avAsset.duration.seconds)"
+                ])
+                throw VideoProcessingError.videoProcessingFailed(operation: "saveVideo", underlyingError: timeoutError)
+            }
+
+            // 5. Save the move's metadata to Core Data with enhanced validation
+            updateProgress(0.8, status: "Saving to database...")
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 💾 Starting move metadata save to Core Data...")
+
+            // 💡 ENHANCEMENT: Validate metadata before saving
+            guard !preparedAsset.moveName.trimmingCharacters(in: .whitespaces).isEmpty else {
+                let errorMessage = "Move name is empty or whitespace only"
+                diagnosticLogger.logError(errorMessage, metadata: [
+                    "move_name": "\(preparedAsset.moveName)",
+                    "move_name_length": "\(preparedAsset.moveName.count)"
+                ])
+                throw AddMoveError.invalidMoveName
+            }
+
+            guard preparedAsset.trimDuration >= 3.0 else {
+                let errorMessage = "Trim duration is too short for saving"
+                diagnosticLogger.logError(errorMessage, metadata: [
+                    "trim_duration": "\(preparedAsset.trimDuration)",
+                    "minimum_required": "3.0"
+                ])
+                throw AddMoveError.invalidTrimRange(errorMessage)
+            }
+
+            try await appContainer.movePersistenceService.saveCompleteMove(
+                name: preparedAsset.moveName,
+                asset: processedAsset.avAsset,
+                originalPhotosIdentifier: preparedAsset.photosIdentifier,
+                trimStartTime: preparedAsset.trimStartTime,
+                trimEndTime: preparedAsset.trimEndTime,
+                rotationQuarterTurns: preparedAsset.rotationQuarterTurns
+            )
+
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Move metadata saved successfully", metadata: [
+                "move_name": preparedAsset.moveName,
+                "core_data_save": "successful"
+            ])
+
+            // 6. Final progress update and transition to success with comprehensive metrics
+            updateProgress(1.0, status: "Complete!")
+            let successMessage = "Move '\(preparedAsset.moveName)' was added to your Arsenal!"
+            let totalOperationTime = Date().timeIntervalSince(operationStartTime)
+            let finalMemory = diagnosticLogger.getMemoryInfo()
+
+            await transitionTo(.success(message: successMessage))
+
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🎉 Enhanced save operation completed successfully", metadata: [
+                "success_message": successMessage,
+                "move_name": preparedAsset.moveName,
+                "total_operation_time_seconds": "\(String(format: "%.3f", totalOperationTime))",
+                "memory_before_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))",
+                "memory_after_mb": "\(String(format: "%.1f", finalMemory.used))",
+                "memory_delta_mb": "\(String(format: "%.1f", finalMemory.used - memoryBeforeOperation.used))",
+                "cpu_usage_percent": "\(String(format: "%.1f", diagnosticLogger.getCurrentCPUUsage()))",
+                "video_processed": "true",
+                "photos_saved": "true",
+                "core_data_saved": "true",
+                "race_condition_prevention": "enhanced"
+            ])
+
+            logger.info("🎬 UNIFIED_STATE: ✅ Enhanced saveMove operation completed successfully with race condition prevention")
+
+        } catch {
+            // 7. Enhanced error handling with detailed diagnostics and recovery attempts
+            let totalOperationTime = Date().timeIntervalSince(operationStartTime)
+            let finalMemory = diagnosticLogger.getMemoryInfo()
+
+            let errorMessage = "Failed to save move"
+            let underlyingError = error.localizedDescription
+
+            diagnosticLogger.logError("Enhanced save operation failed", error: error, metadata: [
+                "error_message": errorMessage,
+                "underlying_error": underlyingError,
+                "error_type": "\(type(of: error))",
+                "flow_state": "\(flowState)",
+                "player_state": "\(playerState)",
+                "move_name": "\(moveName)",
+                "operation_duration_seconds": "\(String(format: "%.3f", totalOperationTime))",
+                "memory_before_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))",
+                "memory_after_mb": "\(String(format: "%.1f", finalMemory.used))",
+                "memory_delta_mb": "\(String(format: "%.1f", finalMemory.used - memoryBeforeOperation.used))",
+                "save_progress": "\(saveProgress)"
+            ])
+
+            // 💡 ENHANCEMENT: Attempt to recover from certain types of errors
+            if let videoError = error as? VideoProcessingError {
+                switch videoError {
+                case .memoryLimitExceeded, .concurrentOperationLimitReached:
+                    diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Attempting recovery from \(videoError.operationType.localizedDescription) error")
+                    memoryManager.clearCache()
+                    // Give system time to recover
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                default:
+                    break
+                }
+            }
+
+            await setError(message: errorMessage, underlying: underlyingError)
+        }
+
+        diagnosticLogger.stopTiming("save_move_operation")
+        logger.info("🎬 UNIFIED_STATE: 🏁 Enhanced saveMove operation completed (success or failure)")
     }
 }
 

@@ -5,7 +5,7 @@ import OSLog
 import UIKit
 
 // MARK: - Custom Video Player View
-/// Rotation handling removed - now handled only at asset level to prevent double rotation
+/// Fixed: Rotation is now handled exclusively at the asset level
 public struct CustomVideoPlayerView: View {
     // MARK: - Properties
     @ObservedObject private var observableWrapper: ObservableVideoPlayerWrapper
@@ -465,8 +465,7 @@ public struct CustomVideoPlayerView: View {
         diagnosticLogger.logDebug("🔄 State change detected", metadata: [
             "state_string": "\(String(describing: observableWrapper.state))",
             "is_view_ready": "\(isViewReady)",
-            "is_muted": "\(isMuted)",
-            "rotation_quarter_turns": "0"
+            "is_muted": "\(isMuted)"
         ])
 
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: State change detected", metadata: nil)
@@ -576,6 +575,11 @@ public struct CustomVideoPlayerView: View {
 
         // Memory tracking for fullscreen player
         @State private var appearMemory: (used: Double, free: Double, total: Double, percentage: Double)?
+
+        init(player: AVPlayer, isPresented: Binding<Bool>) {
+            self.player = player
+            self._isPresented = isPresented
+        }
 
         var body: some View {
             diagnosticLogger.startTiming("fullscreen_render")

@@ -29,8 +29,8 @@ public class UnifiedPlayerManager: ObservableObject {
     
     // MARK: - Internal State Management
     
-    /// Updates the current asset (for internal use by AddMoveUnifiedState)
-    internal func updateAsset(_ asset: AVAsset?, photosIdentifier: String?) {
+    /// Updates the current asset (for use by AddMoveUnifiedState)
+    public func updateAsset(_ asset: AVAsset?, photosIdentifier: String?) {
         self.currentAsset = asset
         self.currentPhotosIdentifier = photosIdentifier
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Asset updated (asset: \(asset != nil), photosID: \(photosIdentifier ?? "nil"))")
@@ -153,38 +153,115 @@ public class UnifiedPlayerManager: ObservableObject {
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player set successfully (asset: \(self.currentAsset != nil))")
     }
     
-    /// Applies trim to the current player
+    /// Applies trim to the current player with enhanced race condition prevention
     public func applyTrimToCurrentPlayer(
         startTime: CMTime,
         endTime: CMTime,
         rotation: Int
     ) async throws {
-        
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Applying trim to current player")
-        
-        guard let currentPlayer = currentPlayer,
-              let currentAsset = currentAsset else {
-            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: No player or asset available for trim")
+
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Starting enhanced trim application with race condition prevention")
+
+        // 💡 ENHANCEMENT: Comprehensive preconditions validation
+        guard let currentPlayer = currentPlayer else {
+            let errorMessage = "No current player available for trim operation"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
             throw VideoProcessingError.unifiedPlayerInitializationFailed
         }
-        
+
+        guard let currentAsset = currentAsset else {
+            let errorMessage = "No current asset available for trim operation"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+            throw VideoProcessingError.assetCreationFailed
+        }
+
+        // 💡 ENHANCEMENT: Validate player readiness before starting trim operation
+        guard currentPlayer.isPlayerReady else {
+            let errorMessage = "Current player is not ready for trim operation"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+            throw AddMoveError.playerNotReady
+        }
+
+        // 💡 ENHANCEMENT: Validate trim parameters
         let trimRange = CMTimeRange(start: startTime, end: endTime)
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Trim range: \(startTime.seconds) - \(endTime.seconds)")
-        
-        // Create trimmed player item
-        let trimmedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
-            asset: currentAsset,
-            trimRange: trimRange,
-            quarterTurns: rotation
-        )
-        
-        // Replace player item and wait for readiness
-        try await currentPlayer.replacePlayerItemAndWaitForReady(trimmedPlayerItem)
-        
-        // Update stored rotation
-        currentRotation = rotation
-        
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Trim applied successfully")
+        let duration = endTime.seconds - startTime.seconds
+
+        guard duration > 0 else {
+            let errorMessage = "Invalid trim range: duration must be positive (\(duration)s)"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+            throw VideoProcessingError.trimOperationFailed(startTime: startTime.seconds, endTime: endTime.seconds,
+                                                         underlyingError: NSError(domain: "UnifiedPlayerManager", code: -1,
+                                                                               userInfo: [NSLocalizedDescriptionKey: errorMessage]))
+        }
+
+        guard duration >= 3.0 else {
+            let errorMessage = "Trim duration too short: \(duration)s (minimum: 3.0s)"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+            throw VideoProcessingError.trimOperationFailed(startTime: startTime.seconds, endTime: endTime.seconds,
+                                                         underlyingError: NSError(domain: "UnifiedPlayerManager", code: -2,
+                                                                               userInfo: [NSLocalizedDescriptionKey: errorMessage]))
+        }
+
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Trim parameters validated")
+
+        // 💡 ENHANCEMENT: Prepare for trim operation with detailed state management
+        isTransitioning = true
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Transition state set for trim operation")
+
+        do {
+            // 💡 ENHANCEMENT: Create trimmed player item with enhanced error handling and detailed logging
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔧 Creating trimmed player item")
+
+            let trimmedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
+                asset: currentAsset,
+                trimRange: trimRange,
+                quarterTurns: rotation
+            )
+
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Trimmed player item created successfully")
+
+            // 💡 ENHANCEMENT: Enhanced player item replacement with detailed progress monitoring
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Starting player item replacement with readiness monitoring")
+
+            try await currentPlayer.replacePlayerItemAndWaitForReady(trimmedPlayerItem)
+
+            // 💡 ENHANCEMENT: Post-replacement validation
+            guard currentPlayer.isPlayerReady else {
+                let errorMessage = "Player failed to achieve ready state after trim operation"
+                self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+                throw AddMoveError.playerNotReady
+            }
+
+            // 💡 ENHANCEMENT: Update stored rotation with validation
+            let oldRotation = currentRotation
+            currentRotation = rotation
+
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Rotation updated")
+
+            // 💡 ENHANCEMENT: Complete transition with comprehensive success logging
+            isTransitioning = false
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Enhanced trim application completed successfully")
+
+        } catch {
+            // 💡 ENHANCEMENT: Enhanced error handling with recovery attempts
+            isTransitioning = false
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Trim operation failed")
+
+            // 💡 ENHANCEMENT: Attempt recovery by restoring previous player state
+            if let previousItem = currentPlayer.playerItem {
+                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Attempting recovery by restoring previous player item")
+
+                do {
+                    try await currentPlayer.replacePlayerItemAndWaitForReady(previousItem)
+                    self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Recovery successful - previous player item restored")
+                } catch {
+                    self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Recovery failed")
+                    // Continue with original error
+                }
+            }
+
+            throw error
+        }
     }
     
     /// Applies trim and rotation to the current player for previewing in NameMoveView

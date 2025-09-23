@@ -54,7 +54,7 @@ struct TrimmerPlayerView: View {
             viewModel: unifiedState.currentPlayerViewModel!
         )
         .onAppear {
-            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state)"
+            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state), rotation: \(unifiedState.rotationQuarterTurns)"
             logger.info("\(message)")
         }
     }
@@ -936,57 +936,60 @@ struct FeatureRichTrimmerView: View {
     
     private func validateAndContinue() async {
         diagnosticLogger.startTiming("validate_and_continue")
-        
-        // Use withCheckedContinuation for proper async coordination
-        await withCheckedContinuation { continuation in
-            Task { @MainActor in
-                // Final validation before proceeding
-                if !isReadyToContinue() {
-                    diagnosticLogger.logError("❌ Continue validation failed", metadata: [
-                        "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
-                        "trimmer_ready": "\(viewModel.isReady)",
-                        "combined_ready": "\(isReadyToShowTrimmer)"
-                    ])
-                    continuation.resume()
-                    return
-                }
-                
-                let trimmerVM = viewModel
-                
-                // Apply final trim settings to ensure everything is synchronized
-                do {
-                    diagnosticLogger.logInfo("🎯 Applying final trim settings before continuation", metadata: [
-                        "start_time": "\(trimmerVM.startTime.seconds)",
-                        "end_time": "\(trimmerVM.endTime.seconds)",
-                        "rotation": "\(trimmerVM.rotationQuarterTurns)"
-                    ])
-                    
-                    try await unifiedState.applyTrimSettings(
-                        startTime: trimmerVM.startTime.seconds,
-                        endTime: trimmerVM.endTime.seconds,
-                        rotation: trimmerVM.rotationQuarterTurns
-                    )
-                    
-                    // Log successful inheritance
-                    diagnosticLogger.logInfo("✅ All modifications successfully inherited", metadata: [
-                        "inherited_trim_range": "\(trimmerVM.startTime.seconds)-\(trimmerVM.endTime.seconds)",
-                        "inherited_rotation": "\(trimmerVM.rotationQuarterTurns)",
-                        "inherited_duration": "\((trimmerVM.endTime - trimmerVM.startTime).seconds)"
-                    ])
-                    
-                    // Transition to naming view
-                    await unifiedState.transitionTo(.naming)
-                    
-                    diagnosticLogger.stopTiming("validate_and_continue")
-                    diagnosticLogger.logInfo("🎉 Successfully continued to naming view")
-                    
-                } catch {
-                    diagnosticLogger.logError("❌ Failed to apply final trim settings", error: error)
-                    await unifiedState.setError(message: "Failed to save trim settings", underlying: error.localizedDescription)
-                }
-                
-                continuation.resume()
+
+        // Final validation before proceeding
+        guard isReadyToContinue() else {
+            diagnosticLogger.logError("❌ Continue validation failed", metadata: [
+                "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
+                "trimmer_ready": "\(viewModel.isReady)",
+                "combined_ready": "\(isReadyToShowTrimmer)"
+            ])
+            diagnosticLogger.stopTiming("validate_and_continue")
+            return
+        }
+
+        let trimmerVM = viewModel
+
+        // Apply final trim settings to ensure everything is synchronized
+        do {
+            diagnosticLogger.logInfo("🎯 Applying final trim settings before continuation", metadata: [
+                "start_time": "\(trimmerVM.startTime.seconds)",
+                "end_time": "\(trimmerVM.endTime.seconds)",
+                "rotation": "\(trimmerVM.rotationQuarterTurns)"
+            ])
+
+            // Apply trim settings with timeout protection
+            try await withTimeout(seconds: 10.0) {
+                try await unifiedState.applyTrimSettings(
+                    startTime: trimmerVM.startTime.seconds,
+                    endTime: trimmerVM.endTime.seconds,
+                    rotation: trimmerVM.rotationQuarterTurns
+                )
             }
+
+            // Log successful inheritance
+            diagnosticLogger.logInfo("✅ All modifications successfully inherited", metadata: [
+                "inherited_trim_range": "\(trimmerVM.startTime.seconds)-\(trimmerVM.endTime.seconds)",
+                "inherited_rotation": "\(trimmerVM.rotationQuarterTurns)",
+                "inherited_duration": "\((trimmerVM.endTime - trimmerVM.startTime).seconds)"
+            ])
+
+            // Transition to naming view with timeout protection
+            try await withTimeout(seconds: 5.0) {
+                await unifiedState.transitionTo(.naming)
+            }
+
+            diagnosticLogger.stopTiming("validate_and_continue")
+            diagnosticLogger.logInfo("🎉 Successfully continued to naming view")
+
+        } catch let timeoutError as TimeoutError {
+            diagnosticLogger.logError("⏰ Continue operation timed out", error: timeoutError)
+            await unifiedState.setError(message: "Operation timed out", underlying: "The continue operation took too long to complete")
+            diagnosticLogger.stopTiming("validate_and_continue")
+        } catch {
+            diagnosticLogger.logError("❌ Failed to apply final trim settings", error: error)
+            await unifiedState.setError(message: "Failed to save trim settings", underlying: error.localizedDescription)
+            diagnosticLogger.stopTiming("validate_and_continue")
         }
     }
 }

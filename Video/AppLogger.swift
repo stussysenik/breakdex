@@ -344,11 +344,13 @@ final class MemoryLoggerImpl: MemoryLogger {
 
 // MARK: - Centralized Memory Logging System
 public final class CentralizedMemoryLogger {
+    @MainActor
     public static let shared = CentralizedMemoryLogger()
     
     private let memoryLogger: MemoryLogger
     private var correlationIds: [String: String] = [:]
     
+    @MainActor
     private init() {
         // Initialize with the shared memory manager from AppContainer
         let memoryManager = AppContainer.shared.memoryManager
