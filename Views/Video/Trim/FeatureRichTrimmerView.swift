@@ -9,16 +9,6 @@ enum HandleType {
     case start, end
 }
 
-// MARK: - Private Extension for Time Formatting
-private extension HybridPreciseTrimmerView {
-    func formatTimeWithMs(_ time: CMTime) -> String {
-        let seconds = time.seconds
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        let milliseconds = Int((seconds - Double(Int(seconds))) * 1000)
-        return String(format: "%02d:%02d.%03d", minutes, secs, milliseconds)
-    }
-}
 
 // MARK: - Isolated Trimmer Player View
 /// A stable view that handles both video player display and loading state.
@@ -64,7 +54,7 @@ struct TrimmerPlayerView: View {
             viewModel: unifiedState.currentPlayerViewModel!
         )
         .onAppear {
-            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state), trimmerReady: \(unifiedState.trimmerViewModel?.isReady ?? false)"
+            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state)"
             logger.info("\(message)")
         }
     }
@@ -82,7 +72,7 @@ struct TrimmerPlayerView: View {
         .frame(height: 300)
         .background(Color.black.ignoresSafeArea())
         .onAppear {
-            let logMessage = "🎬 TRIMMER_PLAYER_VIEW: Showing Finalizing placeholder - isReady: \(isReady), flowState: \(unifiedState.flowState), playerVM: \(unifiedState.currentPlayerViewModel != nil), trimmerVM: \(unifiedState.trimmerViewModel != nil), trimmerReady: \(unifiedState.trimmerViewModel?.isReady ?? false)"
+            let logMessage = "🎬 TRIMMER_PLAYER_VIEW: Showing Finalizing placeholder - isReady: \(isReady), flowState: \(unifiedState.flowState), playerVM: \(unifiedState.currentPlayerViewModel != nil)"
             logger.info("\(logMessage)")
         }
     }
@@ -90,7 +80,8 @@ struct TrimmerPlayerView: View {
 
 // MARK: - Unified Feature-Rich Trimmer View
 struct FeatureRichTrimmerView: View {
-    @ObservedObject var unifiedState: AddMoveUnifiedState
+    @ObservedObject var viewModel: TrimmerViewModel
+    let unifiedState: AddMoveUnifiedState // No longer observed, just for actions
     
     // MARK: - Video Replacement State
     @State private var showPhotosPicker = false
@@ -126,9 +117,9 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Performance Memoization
     private var rotationBinding: Binding<Int> {
         Binding(
-            get: { unifiedState.trimmerViewModel?.rotationQuarterTurns ?? 0 },
+            get: { viewModel.rotationQuarterTurns },
             set: { newValue in
-                unifiedState.trimmerViewModel?.rotationQuarterTurns = newValue
+                viewModel.rotationQuarterTurns = newValue
                 localRotation = newValue
             }
         )
@@ -153,42 +144,41 @@ struct FeatureRichTrimmerView: View {
         return isReady
     }
     
-    // MARK: - Enhanced Time Code Display with Reactive Components
+    // MARK: - Enhanced Time Code Display with Direct Text Views
     private var timeCodeRow: some View {
         Group {
-            if let trimmerVM = unifiedState.trimmerViewModel {
-                // 🎯 FIXED: Use direct ViewModel bindings for real-time responsiveness
-                // SwiftUI will automatically update when ViewModel properties change
-                HStack {
-                    ReactiveTimeCodeComponent.startTime(
-                        trimmerVM.startTime,
-                        isActive: trimmerVM.isDraggingStartHandle,
-                        frameRate: trimmerVM.currentFrameRate
-                    )
+            let trimmerVM = viewModel
+            HStack {
+                    // START TIME
+                    Text(TimecodeFormatter.format(time: trimmerVM.startTime))
+                        .font(.ibmPlexMono(size: 12, weight: trimmerVM.isDraggingStartHandle ? .medium : .regular))
+                        .foregroundColor(trimmerVM.isDraggingStartHandle ? .accent : .textPrimary)
+                        .contentTransition(.numericText())
+                        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: trimmerVM.isDraggingStartHandle)
+                        .animation(.default, value: trimmerVM.startTime)
 
                     Spacer()
 
-                    ReactiveTimeCodeComponent.duration(
-                        trimmerVM.endTime - trimmerVM.startTime,
-                        minimumDuration: trimmerVM.minimumDuration,
-                        showWarning: trimmerVM.showMinimumDurationWarning,
-                        frameRate: trimmerVM.currentFrameRate
-                    )
+                    // DURATION
+                    Text(TimecodeFormatter.format(time: trimmerVM.endTime - trimmerVM.startTime))
+                        .font(.ibmPlexMono(size: 12, weight: trimmerVM.showMinimumDurationWarning ? .medium : .regular))
+                        .foregroundColor(trimmerVM.showMinimumDurationWarning ? .buttonHard : .textPrimary)
+                        .contentTransition(.numericText())
+                        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: trimmerVM.showMinimumDurationWarning)
+                        .animation(.default, value: trimmerVM.startTime)
+                        .animation(.default, value: trimmerVM.endTime)
 
                     Spacer()
 
-                    ReactiveTimeCodeComponent.endTime(
-                        trimmerVM.endTime,
-                        isActive: trimmerVM.isDraggingEndHandle,
-                        frameRate: trimmerVM.currentFrameRate
-                    )
+                    // END TIME
+                    Text(TimecodeFormatter.format(time: trimmerVM.endTime))
+                        .font(.ibmPlexMono(size: 12, weight: trimmerVM.isDraggingEndHandle ? .medium : .regular))
+                        .foregroundColor(trimmerVM.isDraggingEndHandle ? .accent : .textPrimary)
+                        .contentTransition(.numericText())
+                        .animation(.spring(response: 0.2, dampingFraction: 0.8), value: trimmerVM.isDraggingEndHandle)
+                        .animation(.default, value: trimmerVM.endTime)
                 }
-                .animation(.easeInOut(duration: 0.1), value: trimmerVM.isDraggingStartHandle)
-                .animation(.easeInOut(duration: 0.1), value: trimmerVM.isDraggingEndHandle)
-            } else {
-                placeholderTimeCodeRow
             }
-        }
     }
 
     // MARK: - Timecode Display Components
@@ -217,18 +207,17 @@ struct FeatureRichTrimmerView: View {
 
     // MARK: - Legacy Force Synchronization Methods (Removed - SwiftUI handles updates naturally)
     
-    init(unifiedState: AddMoveUnifiedState) {
+    init(unifiedState: AddMoveUnifiedState, viewModel: TrimmerViewModel) {
         self.unifiedState = unifiedState
-        
+        self.viewModel = viewModel
+
         // 🎯 CRITICAL FIX: Only log initialization once
         // SwiftUI may recreate views during state changes, but we only want one initialization log
         let logger = DiagnosticLoggingHelper(category: "FeatureRichTrimmerView")
         logger.logInfo("🎬 FeatureRichTrimmerView initialized successfully", metadata: [
-            "has_player_vm": "\(unifiedState.currentPlayerViewModel != nil)",
-            "has_trimmer_vm": "\(unifiedState.trimmerViewModel != nil)",
-            "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
-            "trimmer_ready": "\(unifiedState.trimmerViewModel?.isReady ?? false)",
-            "player_state": "\(unifiedState.currentPlayerViewModel?.state ?? .idle)"
+            "player_ready": "\(viewModel.playerViewModel.isPlayerReady)",
+            "trimmer_ready": "\(viewModel.isReady)",
+            "player_state": "\(viewModel.playerViewModel.state)"
         ])
     }
     
@@ -253,7 +242,7 @@ struct FeatureRichTrimmerView: View {
             VStack(spacing: 8) {
                 Spacer()
                 // Minimum duration warning (positioned above timecode for better visibility)
-                if unifiedState.trimmerViewModel?.showMinimumDurationWarning == true {
+                if viewModel.showMinimumDurationWarning == true {
                     minimumDurationWarning
                 }
 
@@ -272,9 +261,9 @@ struct FeatureRichTrimmerView: View {
         .background(Color.backgroundPrimary.ignoresSafeArea())
         .onAppear {
             diagnosticLogger.logInfo("🎬 Body appeared", metadata: [
-                "trimmer_vm_available": "\(unifiedState.trimmerViewModel != nil)",
-                "trimmer_vm_ready": "\(unifiedState.trimmerViewModel?.isReady ?? false)",
-                "show_warning": "\(unifiedState.trimmerViewModel?.showMinimumDurationWarning ?? false)",
+                "trimmer_vm_available": "true",
+                "trimmer_vm_ready": "\(viewModel.isReady)",
+                "show_warning": "\(viewModel.showMinimumDurationWarning)",
                 "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
                 "combined_ready": "\(isReadyToShowTrimmer)"
             ])
@@ -308,6 +297,23 @@ struct FeatureRichTrimmerView: View {
         } message: {
             Text("You have unsaved trim changes. Changing videos will discard these changes.")
         }
+
+        // MARK: - NEW: State-Driven Alert
+        // Add this modifier to the main VStack or parent container.
+        .alert("Minimum Duration", isPresented: Binding(
+            get: { viewModel.showMinDurationAlert },
+            set: { newValue in
+                if !newValue {
+                    // Allow the user to dismiss the alert.
+                    viewModel.showMinDurationAlert = false
+                }
+            }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            // Precise and clear messaging.
+            Text("The minimum video duration is 3.000 seconds.")
+        }
     }
     
     
@@ -321,19 +327,19 @@ struct FeatureRichTrimmerView: View {
     }
     
     private func onTimeCodeDisplayAppear() {
-        let trimmerVM = unifiedState.trimmerViewModel
+        let trimmerVM = viewModel
         diagnosticLogger.logInfo("⏰ Time code display appeared", metadata: [
-            "start_time_seconds": "\(CMTimeGetSeconds(trimmerVM?.startTime ?? .zero))",
-            "end_time_seconds": "\(CMTimeGetSeconds(trimmerVM?.endTime ?? .zero))",
-            "show_warning": "\(trimmerVM?.showMinimumDurationWarning ?? false)"
+            "start_time_seconds": "\(CMTimeGetSeconds(trimmerVM.startTime))",
+            "end_time_seconds": "\(CMTimeGetSeconds(trimmerVM.endTime))",
+            "show_warning": "\(trimmerVM.showMinimumDurationWarning)"
         ])
     }
     
     // MARK: - Optimized Control Section
     private var controlSection: some View {
-        let trimmerVM = unifiedState.trimmerViewModel
-        let currentRotation = trimmerVM?.rotationQuarterTurns ?? 0
-        let isExporting = trimmerVM?.isExporting ?? false
+        let trimmerVM = viewModel
+        let currentRotation = trimmerVM.rotationQuarterTurns
+        let isExporting = trimmerVM.isExporting
         
         return HStack(spacing: 20) {
             Button("Change Video") {
@@ -354,8 +360,8 @@ struct FeatureRichTrimmerView: View {
                     do {
                         let newRotation = (currentRotation + 1) % 4
                         try await unifiedState.applyTrimSettings(
-                            startTime: trimmerVM?.startTime.seconds ?? 0,
-                            endTime: trimmerVM?.endTime.seconds ?? 0,
+                            startTime: trimmerVM.startTime.seconds,
+                            endTime: trimmerVM.endTime.seconds,
                             rotation: newRotation
                         )
                     } catch {
@@ -434,15 +440,14 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Main Trimmer Section
     private var mainTrimmerSection: some View {
         Group {
-            if let trimmerViewModel = unifiedState.trimmerViewModel {
+            let trimmerViewModel = viewModel
                 HybridPreciseTrimmerView.shoe(viewModel: trimmerViewModel)
                     .onAppear(perform: onMainTrimmerAppear)
             }
-        }
     }
     
     private func onMainTrimmerAppear() {
-        let videoDuration = unifiedState.trimmerViewModel?.videoDuration ?? .zero
+        let videoDuration = viewModel.videoDuration
         diagnosticLogger.logInfo("🎚 Main trimmer section appeared", metadata: [
             "video_duration_seconds": "\(CMTimeGetSeconds(videoDuration))",
             "cpu_usage_percent": "\(String(format: "%.1f", diagnosticLogger.getCurrentCPUUsage()))"
@@ -467,14 +472,13 @@ struct FeatureRichTrimmerView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.buttonHard)
 
-                    if let trimmerViewModel = unifiedState.trimmerViewModel {
-                        let duration = trimmerViewModel.endTime - trimmerViewModel.startTime
-                        let minimum = trimmerViewModel.minimumDuration
+                    let trimmerViewModel = viewModel
+                    let duration = trimmerViewModel.endTime - trimmerViewModel.startTime
+                    let minimum = trimmerViewModel.minimumDuration
 
-                        Text("Current: \(String(format: "%.1f", duration.seconds))s • Minimum: \(String(format: "%.1f", minimum.seconds))s")
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundColor(.textSecondary)
-                    }
+                    Text("Current: \(String(format: "%.1f", duration.seconds))s • Minimum: \(String(format: "%.1f", minimum.seconds))s")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(.textSecondary)
                 }
 
                 Spacer()
@@ -492,7 +496,7 @@ struct FeatureRichTrimmerView: View {
         )
         .shadow(color: Color.buttonHard.opacity(0.1), radius: 4, x: 0, y: 2)
         .onAppear {
-            guard let trimmerViewModel = unifiedState.trimmerViewModel else { return }
+            let trimmerViewModel = viewModel
             let duration = trimmerViewModel.endTime - trimmerViewModel.startTime
             let minimum = trimmerViewModel.minimumDuration
             let durationSeconds = duration.seconds
@@ -604,7 +608,7 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Enhanced Video Replacement Methods
     
     private func hasUnsavedChanges() -> Bool {
-        guard let trimmerVM = unifiedState.trimmerViewModel else { return false }
+        let trimmerVM = viewModel
         
         // Check if trim ranges have been modified from defaults
         let hasTrimChanges = trimmerVM.startTime.seconds > 0 ||
@@ -619,7 +623,7 @@ struct FeatureRichTrimmerView: View {
     private func startVideoReplacement() {
         diagnosticLogger.logUserInteraction("Video replacement initiated", metadata: [
             "has_unsaved_changes": "\(hasUnsavedChanges())",
-            "current_video_duration": "\(unifiedState.trimmerViewModel?.videoDuration.seconds ?? 0)",
+            "current_video_duration": "\(viewModel.videoDuration.seconds)",
             "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
         ])
         
@@ -744,11 +748,10 @@ struct FeatureRichTrimmerView: View {
         while Date().timeIntervalSince(startTime) < timeout {
             // Check if video is ready
             if unifiedState.flowState == .trimming &&
-                unifiedState.currentPlayerViewModel != nil &&
-                unifiedState.trimmerViewModel != nil {
+                unifiedState.currentPlayerViewModel != nil {
                 
                 let isPlayerReady = unifiedState.currentPlayerViewModel?.isPlayerReady ?? false
-                let isTrimmerReady = unifiedState.trimmerViewModel?.isReady ?? false
+                let isTrimmerReady = viewModel.isReady
                 
                 if isPlayerReady && isTrimmerReady {
                     diagnosticLogger.logInfo("✅ Video ready after replacement")
@@ -768,8 +771,8 @@ struct FeatureRichTrimmerView: View {
         videoReplacementState = .finalizing(progress: 0.5, status: "Applying default trim settings...")
         
         // Apply default trim settings for new video
-        if let trimmerVM = unifiedState.trimmerViewModel {
-            do {
+        let trimmerVM = viewModel
+        do {
                 try await unifiedState.applyTrimSettings(
                     startTime: 0.0,
                     endTime: trimmerVM.videoDuration.seconds,
@@ -780,17 +783,15 @@ struct FeatureRichTrimmerView: View {
                     "error_message": error.localizedDescription
                 ])
             }
-        }
-        
+
         // Reset local state
         await MainActor.run {
             isRotationButtonPressed = false
             localRotation = 0
+            videoReplacementState = .finalizing(progress: 1.0, status: "Replacement complete!")
         }
-        
-        videoReplacementState = .finalizing(progress: 1.0, status: "Replacement complete!")
     }
-    
+
     private func handleVideoReplacementError(_ error: Error) async {
         let errorMessage = error.localizedDescription
         
@@ -850,9 +851,7 @@ struct FeatureRichTrimmerView: View {
     }
     
     private func getCurrentTrimSettings() -> (startTime: Double, endTime: Double, rotation: Int) {
-        guard let trimmerVM = unifiedState.trimmerViewModel else {
-            return (0.0, 0.0, 0)
-        }
+        let trimmerVM = viewModel
         
         return (
             startTime: trimmerVM.startTime.seconds,
@@ -873,10 +872,7 @@ struct FeatureRichTrimmerView: View {
     
     // MARK: - Continue Button Methods
     private func isReadyToContinue() -> Bool {
-        guard let trimmerVM = unifiedState.trimmerViewModel else {
-            diagnosticLogger.logWarning("⚠️ Cannot continue - no trimmer view model")
-            return false
-        }
+        let trimmerVM = viewModel
         
         // Check if we have valid duration first
         let hasValidDuration = trimmerVM.videoDuration.seconds > 0
@@ -948,18 +944,14 @@ struct FeatureRichTrimmerView: View {
                 if !isReadyToContinue() {
                     diagnosticLogger.logError("❌ Continue validation failed", metadata: [
                         "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
-                        "trimmer_ready": "\(unifiedState.trimmerViewModel?.isReady ?? false)",
+                        "trimmer_ready": "\(viewModel.isReady)",
                         "combined_ready": "\(isReadyToShowTrimmer)"
                     ])
                     continuation.resume()
                     return
                 }
                 
-                guard let trimmerVM = unifiedState.trimmerViewModel else {
-                    diagnosticLogger.logError("❌ No trimmer view model available for continuation")
-                    continuation.resume()
-                    return
-                }
+                let trimmerVM = viewModel
                 
                 // Apply final trim settings to ensure everything is synchronized
                 do {
@@ -1279,7 +1271,7 @@ struct HybridPreciseTrimmerView: View {
                         "track_width": "\(trackWidth)",
                         "handle_type": "start",
                         "current_time": "\(viewModel.startTime.seconds)",
-                        "formatted_time": "\(formatTimeWithMs(viewModel.startTime))",
+                        "formatted_time": "\(TimecodeFormatter.format(time: viewModel.startTime))",
                         "video_duration": "\(viewModel.videoDuration.seconds)",
                         "minimum_duration": "\(viewModel.minimumDuration.seconds)",
                         "is_dragging_end": "\(viewModel.isDraggingEndHandle)",
@@ -1296,7 +1288,7 @@ struct HybridPreciseTrimmerView: View {
                         "track_width": "\(trackWidth)",
                         "handle_type": "end",
                         "current_time": "\(viewModel.endTime.seconds)",
-                        "formatted_time": "\(formatTimeWithMs(viewModel.endTime))",
+                        "formatted_time": "\(TimecodeFormatter.format(time: viewModel.endTime))",
                         "video_duration": "\(viewModel.videoDuration.seconds)",
                         "minimum_duration": "\(viewModel.minimumDuration.seconds)",
                         "is_dragging_start": "\(viewModel.isDraggingStartHandle)",
@@ -1390,7 +1382,7 @@ struct HybridPreciseTrimmerView: View {
                         "frame_delta": "\(frameDelta)",
                         "time_delta_ms": "\(timeDelta * 1000)",
                         "current_time": "\(snappedTime.seconds)",
-                        "formatted_time": "\(formatTimeWithMs(snappedTime))",
+                        "formatted_time": "\(TimecodeFormatter.format(time: snappedTime))",
                         "current_duration": "\(currentDuration.seconds)",
                         "new_duration": "\(newDuration.seconds)",
                         "duration_delta_ms": "\(durationDelta * 1000)",
@@ -1447,7 +1439,7 @@ struct HybridPreciseTrimmerView: View {
                     "final_position": "\(xLeft)",
                     "final_frame": "\(finalFrame)",
                     "final_time": "\(snappedTime.seconds)",
-                    "formatted_time": "\(formatTimeWithMs(snappedTime))",
+                    "formatted_time": "\(TimecodeFormatter.format(time: snappedTime))",
                     "start_time_before": "\(startTimeBefore.seconds)",
                     "end_time_before": "\(endTimeBefore.seconds)",
                     "start_time_after": "\(viewModel.startTime.seconds)",
@@ -1489,7 +1481,7 @@ struct HybridPreciseTrimmerView: View {
                 "time_since_last_ms": "\(timeSinceLastHaptic * 1000)",
                 "handle": "\(handle)",
                 "current_time": "\(time.seconds)",
-                "formatted_time": "\(formatTimeWithMs(time))",
+                "formatted_time": "\(TimecodeFormatter.format(time: time))",
                 "current_duration": "\(currentDuration.seconds)",
                 "haptic_counter": "\(hapticFrameCounter)",
                 "frame_rate": "\(viewModel.currentFrameRate)",

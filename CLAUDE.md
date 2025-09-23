@@ -53,3 +53,39 @@ Develop a high-performance, iOS 18.0-compliant video flashcard application for l
 ### Feature Flags
 * Use `FeatureFlag` enum for controlled feature rollout and A/B testing capabilities
 * All new features should be gated behind feature flags for controlled deployment
+
+### Syntax Validation & Code Quality
+* **Pre-Commit Checks:** Always run `swiftc -parse` on modified files before committing
+* **Build Verification:** Execute `xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards build` to verify compilation
+* **Scope Management:** Use IDE code folding to verify struct/class/function boundaries - extra closing braces are a common source of "initializers may only be declared within a type" errors
+* **Optional Safety:** Only use optional chaining (`?.`) on truly optional types; avoid unnecessary nil-coalescing (`??`) on non-optional values
+* **Component Dependencies:** Ensure child components have access to required dependencies through proper property injection
+* **Brace Matching:** Pay special attention to computed properties and complex view bodies to prevent premature struct/class termination
+
+### Common Syntax Pitfalls to Avoid
+1. **Extra Closing Braces:** Most common cause of "initializers may only be declared within a type" and "extraneous '}' at top level" errors
+2. **Missing Function Closures:** Leads to "expressions are not allowed at the top level" errors
+3. **Incorrect Optional Chaining:** Using `?.` on non-optional types generates unnecessary warnings
+4. **Out-of-Scope References:** Accessing properties/methods not available in current context
+5. **Async Function Boundaries:** Ensure proper async/await usage and MainActor isolation
+
+### Error Resolution Protocol
+When encountering compilation errors:
+1. **Start with the first error** - subsequent errors may be cascading
+2. **Check scope boundaries** using IDE tools or manual brace counting
+3. **Validate dependency injection** for component communication
+4. **Review type annotations** for optional vs non-optional usage
+5. **Test incrementally** - fix one error, recompile, repeat
+
+### Build Verification Commands
+```bash
+# Syntax validation for single file
+swiftc -parse BreakingFlashcards/Views/Video/Trim/FeatureRichTrimmerView.swift
+
+# Full project build
+xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Clean build verification
+xcodebuild clean -project BreakingFlashcards.xcodeproj
+xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+```

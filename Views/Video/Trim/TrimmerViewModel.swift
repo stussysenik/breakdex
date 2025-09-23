@@ -3,6 +3,7 @@ import AVKit
 import Combine
 import OSLog
 import Foundation
+import BreakingFlashcards // Import the module to access TimecodeFormatter
 
 // MemoryHelper is available as a static utility - no import needed
 
@@ -144,6 +145,22 @@ public final class TrimmerViewModel: ObservableObject {
     public var isDraggingStartHandle: Bool = false
     @Published
     public var isDraggingEndHandle: Bool = false
+
+    // MARK: - NEW: State for Minimum Duration Alert
+    /// Drives the one-time alert when the 3-second boundary is first hit.
+    @Published public var showMinDurationAlert: Bool = false {
+        didSet {
+            if oldValue != showMinDurationAlert {
+                diagnosticLogger.logStateChange("minimum_duration_alert", from: oldValue, to: showMinDurationAlert, metadata: [
+                    "alert_triggered_this_session": "\(hasShownAlertThisDragSession)",
+                    "current_duration": "\((endTime - startTime).seconds)"
+                ])
+            }
+        }
+    }
+
+    /// Internal state to ensure the alert only appears once per drag session.
+    private var hasShownAlertThisDragSession: Bool = false
     
     // MARK: - Coalescing and Chasing Seek State
     private var displayLink: CADisplayLink?
@@ -405,7 +422,10 @@ public final class TrimmerViewModel: ObservableObject {
     // MARK: - Time Proposal and Committing
     public func proposeTime(_ proposedTime: CMTime, for handle: TrimmerHandleType) {
         let snappedTime = snapToFrame(proposedTime)
-        let validatedTime = validate(snappedTime, for: handle)
+
+        // Use the enhanced validation method that returns state information.
+        let validation = validateWithHandleState(snappedTime, for: handle)
+        let validatedTime = validation.validatedTime
 
         // Track state change for logging
         let oldStartTime = startTime
@@ -428,15 +448,17 @@ public final class TrimmerViewModel: ObservableObject {
                 diagnosticLogger.logDebug("🎯 Start time proposal processed", metadata: [
                     "old_time": "\(oldStartTime.seconds)",
                     "new_time": "\(validatedTime.seconds)",
-                    "old_formatted": "\(formatTimeWithMs(oldStartTime))",
-                    "new_formatted": "\(formatTimeWithMs(validatedTime))",
+                    "old_formatted": "\(TimecodeFormatter.format(time: oldStartTime))",
+                    "new_formatted": "\(TimecodeFormatter.format(time: validatedTime))",
                     "old_duration": "\(oldDuration.seconds)",
                     "new_duration": "\(newDuration.seconds)",
                     "duration_delta": "\(durationDelta)",
                     "frame_number": "\(frameNumber)",
                     "frame_delta": "\(frameDelta)",
                     "validation_result": "\(validatedTime == proposedTime ? "accepted" : "constrained")",
-                    "handle_dragging": "\(isDraggingStartHandle)"
+                    "handle_dragging": "\(isDraggingStartHandle)",
+                    "hit_boundary": "\(validation.didHitLimit)",
+                    "boundary_type": "\(validation.boundaryType)"
                 ])
             }
         case .end:
@@ -446,15 +468,17 @@ public final class TrimmerViewModel: ObservableObject {
                 diagnosticLogger.logDebug("🎯 End time proposal processed", metadata: [
                     "old_time": "\(oldEndTime.seconds)",
                     "new_time": "\(validatedTime.seconds)",
-                    "old_formatted": "\(formatTimeWithMs(oldEndTime))",
-                    "new_formatted": "\(formatTimeWithMs(validatedTime))",
+                    "old_formatted": "\(TimecodeFormatter.format(time: oldEndTime))",
+                    "new_formatted": "\(TimecodeFormatter.format(time: validatedTime))",
                     "old_duration": "\(oldDuration.seconds)",
                     "new_duration": "\(newDuration.seconds)",
                     "duration_delta": "\(durationDelta)",
                     "frame_number": "\(frameNumber)",
                     "frame_delta": "\(frameDelta)",
                     "validation_result": "\(validatedTime == proposedTime ? "accepted" : "constrained")",
-                    "handle_dragging": "\(isDraggingEndHandle)"
+                    "handle_dragging": "\(isDraggingEndHandle)",
+                    "hit_boundary": "\(validation.didHitLimit)",
+                    "boundary_type": "\(validation.boundaryType)"
                 ])
             }
         }
@@ -464,45 +488,48 @@ public final class TrimmerViewModel: ObservableObject {
         // Trigger frame-synchronized haptic feedback
         triggerFrameSynchronizedHaptic(at: validatedTime)
 
-        // Enhanced duration calculation logging
-        let currentDuration = endTime - startTime
-        let minimumThreshold = minimumDuration
-        let durationWarning = currentDuration <= minimumThreshold
-        let durationRatio = currentDuration.seconds / minimumThreshold.seconds
+        // Update the persistent warning banner state. It should be visible
+        // whenever the duration is less than or equal to the minimum.
+        let currentDuration = self.endTime - self.startTime
+        let shouldShowWarning = currentDuration.seconds <= minimumDuration.seconds
 
-        // Show while duration <= minimum during drag
-        let atOrBelowMin = durationWarning
-        let wasBelowMin = showMinimumDurationWarning
-
-        // Always update warning state to ensure consistency
-        if wasBelowMin != atOrBelowMin {
-            showMinimumDurationWarning = atOrBelowMin
-            diagnosticLogger.logDebug("⚠️ Duration warning state changed", metadata: [
+        if showMinimumDurationWarning != shouldShowWarning {
+            showMinimumDurationWarning = shouldShowWarning
+            diagnosticLogger.logDebug("⚠️ Duration warning state updated", metadata: [
                 "current_duration": "\(currentDuration.seconds)",
-                "current_formatted": "\(formatTimeWithMs(currentDuration))",
-                "minimum_threshold": "\(minimumThreshold.seconds)",
-                "minimum_formatted": "\(formatTimeWithMs(minimumThreshold))",
-                "duration_ratio": "\(String(format: "%.2f", durationRatio))",
-                "was_below_min": "\(wasBelowMin)",
-                "now_below_min": "\(atOrBelowMin)",
-                "breach_amount": "\(max(0, minimumThreshold.seconds - currentDuration.seconds))",
+                "current_formatted": "\(TimecodeFormatter.format(time: currentDuration))",
+                "minimum_threshold": "\(minimumDuration.seconds)",
+                "minimum_formatted": "\(TimecodeFormatter.format(time: minimumDuration))",
+                "showing_warning": "\(shouldShowWarning)",
+                "duration_ratio": "\(String(format: "%.2f", currentDuration.seconds / minimumDuration.seconds))",
                 "handle": "\(handle)"
             ])
+        }
 
-            // Trigger boundary haptic when hitting minimum duration limit
-            if atOrBelowMin {
-                triggerBoundaryHaptic()
-            }
+        // MARK: - NEW: Alert Trigger Logic
+        // If the handle hit the hard boundary AND we haven't shown the alert during this drag...
+        if validation.didHitLimit && validation.constraintSeverity == .hard && !hasShownAlertThisDragSession {
+            // ...trigger the alert and set the flag so it doesn't show again.
+            showMinDurationAlert = true
+            hasShownAlertThisDragSession = true
+            triggerBoundaryHaptic() // Provide a strong haptic bump at the boundary.
 
-            // Force immediate UI update for warning state changes
-            notifyWarningStateChange()
+            diagnosticLogger.logDebug("🚨 Minimum duration boundary hit - triggering alert", metadata: [
+                "current_duration": "\(currentDuration.seconds)",
+                "minimum_duration": "\(minimumDuration.seconds)",
+                "handle": "\(handle)",
+                "boundary_type": "\(validation.boundaryType)",
+                "first_hit_this_session": "\(hasShownAlertThisDragSession)"
+            ])
+        }
 
-            // 🎯 NEW: Trigger external synchronization for robust state management
-            // This ensures normal trim operations have the same synchronization as rotation
-            synchronizeStateAfterExternalChange()
-        } else if atOrBelowMin {
-            // Ensure warning state is properly maintained even if unchanged
-            validateCurrentDurationWarning()
+        // If the user drags away from the boundary, reset the alert flag for the next drag session.
+        if !showMinimumDurationWarning {
+            hasShownAlertThisDragSession = false
+            diagnosticLogger.logDebug("🔄 Alert flag reset - user moved away from boundary", metadata: [
+                "current_duration": "\(currentDuration.seconds)",
+                "minimum_duration": "\(minimumDuration.seconds)"
+            ])
         }
     }
     
@@ -524,9 +551,9 @@ public final class TrimmerViewModel: ObservableObject {
             startTime = validatedTime
             diagnosticLogger.logDebug("🎯 Start time committed", metadata: [
                 "committed_time": "\(validatedTime.seconds)",
-                "formatted_time": "\(formatTimeWithMs(validatedTime))",
+                "formatted_time": "\(TimecodeFormatter.format(time: validatedTime))",
                 "previous_time": "\(oldStartTime.seconds)",
-                "previous_formatted": "\(formatTimeWithMs(oldStartTime))",
+                "previous_formatted": "\(TimecodeFormatter.format(time: oldStartTime))",
                 "old_duration": "\(oldDuration.seconds)",
                 "new_duration": "\(newDuration.seconds)",
                 "duration_delta": "\(durationDelta)",
@@ -538,9 +565,9 @@ public final class TrimmerViewModel: ObservableObject {
             endTime = validatedTime
             diagnosticLogger.logDebug("🎯 End time committed", metadata: [
                 "committed_time": "\(validatedTime.seconds)",
-                "formatted_time": "\(formatTimeWithMs(validatedTime))",
+                "formatted_time": "\(TimecodeFormatter.format(time: validatedTime))",
                 "previous_time": "\(oldEndTime.seconds)",
-                "previous_formatted": "\(formatTimeWithMs(oldEndTime))",
+                "previous_formatted": "\(TimecodeFormatter.format(time: oldEndTime))",
                 "old_duration": "\(oldDuration.seconds)",
                 "new_duration": "\(newDuration.seconds)",
                 "duration_delta": "\(durationDelta)",
@@ -561,9 +588,9 @@ public final class TrimmerViewModel: ObservableObject {
             showMinimumDurationWarning = shouldBeWarning
             diagnosticLogger.logDebug("⚠️ Duration warning state updated after commit", metadata: [
                 "final_duration": "\(finalDuration.seconds)",
-                "final_formatted": "\(formatTimeWithMs(finalDuration))",
+                "final_formatted": "\(TimecodeFormatter.format(time: finalDuration))",
                 "minimum_duration": "\(minimumDuration.seconds)",
-                "minimum_formatted": "\(formatTimeWithMs(minimumDuration))",
+                "minimum_formatted": "\(TimecodeFormatter.format(time: minimumDuration))",
                 "duration_ratio": "\(String(format: "%.2f", durationRatio))",
                 "was_below_min": "\(wasBelowMin)",
                 "now_below_min": "\(shouldBeWarning)",
@@ -585,16 +612,20 @@ public final class TrimmerViewModel: ObservableObject {
 
         // Final animation update removed - SwiftUI handles updates naturally
 
+        // MARK: - NEW: Reset Alert State on Drag End
+        // Reset the alert flag so it's ready for the next interaction.
+        hasShownAlertThisDragSession = false
+
         // Trigger completion haptic
         triggerHapticFeedback(for: .dragEnd)
 
         diagnosticLogger.logUserInteraction("Time commit completed", metadata: [
             "handle": "\(handle)",
             "committed_time": "\(validatedTime.seconds)",
-            "formatted_time": "\(formatTimeWithMs(validatedTime))",
+            "formatted_time": "\(TimecodeFormatter.format(time: validatedTime))",
             "committed_frame": "\(getFrameNumber(for: validatedTime))",
             "final_duration": "\(finalDuration.seconds)",
-            "final_formatted": "\(formatTimeWithMs(finalDuration))",
+            "final_formatted": "\(TimecodeFormatter.format(time: finalDuration))",
             "duration_warning": "\(showMinimumDurationWarning)",
             "trim_frame_count": "\(currentTrimFrameCount)",
             "validation_success": "\(validateTrimRanges())",
@@ -826,13 +857,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     // MARK: - Time Formatting Utilities
-    private func formatTimeWithMs(_ time: CMTime) -> String {
-        let seconds = time.seconds
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        let milliseconds = Int((seconds - Double(Int(seconds))) * 1000)
-        return String(format: "%02d:%02d.%03d", minutes, secs, milliseconds)
-    }
+    // formatTimeWithMs function removed - use TimecodeFormatter.format(time:) instead
 
     // MARK: - Simplified Animation Properties (Removed - SwiftUI handles updates naturally)
 
@@ -843,7 +868,13 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     public func triggerBoundaryHaptic() {
-        triggerHapticFeedback(for: .dragEnd)
+        // Provide a distinctive haptic feedback for boundary hits
+        diagnosticLogger.logDebug("🛑 Triggering boundary haptic feedback", metadata: [
+            "boundary_type": "minimum_duration",
+            "current_duration": "\((endTime - startTime).seconds)",
+            "minimum_duration": "\(minimumDuration.seconds)"
+        ])
+        HapticManager.shared.trigger(.heavyImpact)
     }
 
     // MARK: - Haptic Feedback
@@ -949,6 +980,7 @@ public final class HapticManager {
         case dragStart
         case dragEnd
         case frameDetent
+        case heavyImpact
     }
     
     private init() {
@@ -961,6 +993,8 @@ public final class HapticManager {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         case .frameDetent:
             selectionFeedback.selectionChanged()
+        case .heavyImpact:
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
         }
     }
 }

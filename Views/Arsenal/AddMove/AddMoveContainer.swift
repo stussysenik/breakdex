@@ -132,9 +132,12 @@ struct AddMoveContainer: View {
                 LoadingView(progress: 1.0, status: "Finalizing setup...")
 
             case .trimming:
-                FeatureRichTrimmerView(
-                    unifiedState: unifiedState
-                )
+                if let viewModel = unifiedState.trimmerViewModel {
+                    FeatureRichTrimmerView(unifiedState: unifiedState, viewModel: viewModel)
+                        .id(unifiedState.photosIdentifier ?? UUID().uuidString)
+                } else {
+                    LoadingView(progress: 1.0, status: "Initializing Trimmer...")
+                }
                 
             case .naming:
                 NameMoveViewUnified(unifiedState: unifiedState)

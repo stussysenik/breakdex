@@ -1880,3 +1880,205 @@ BreakingFlashcards/
 └── Models/                  # Data type definitions (1 file)
     └── VideoImportTypes.swift
 ```
+
+## 🛡️ Code Quality & Syntax Validation
+
+### Syntax Validation Best Practices
+
+#### Pre-Compilation Checks
+**Automated Validation Pipeline:**
+```bash
+# Swift syntax validation
+swiftc -parse path/to/file.swift
+
+# Full build verification
+xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Syntax linting with SwiftLint
+swiftc lint path/to/file.swift
+```
+
+#### Common Syntax Pitfalls & Prevention
+
+**1. Struct/Class Scope Management**
+- **Issue:** Extra closing braces prematurely terminating type definitions
+- **Prevention:** Use IDE code folding to verify scope boundaries
+- **Example:**
+  ```swift
+  // ❌ Incorrect - extra brace closes struct prematurely
+  struct MyView: View {
+      var body: some View {
+          Text("Hello")
+      }
+  }  // ← Extra brace - causes "initializers may only be declared within a type"
+
+  // ✅ Correct - proper scope management
+  struct MyView: View {
+      var body: some View {
+          Text("Hello")
+      }
+  }
+  ```
+
+**2. Function Boundary Integrity**
+- **Issue:** Missing closing braces causing top-level expression errors
+- **Prevention:** Consistent indentation and brace matching
+- **Example:**
+  ```swift
+  // ❌ Incorrect - missing function closure
+  private func myFunction() async {
+      await someAsyncOperation()
+      // Missing closing brace - next code becomes top-level
+  Task { @MainActor in  // ← "Expressions are not allowed at the top level"
+      resetState()
+  }
+
+  // ✅ Correct - complete function scope
+  private func myFunction() async {
+      await someAsyncOperation()
+
+      Task { @MainActor in
+          resetState()
+      }
+  }
+  ```
+
+**3. Optional Type Safety**
+- **Issue:** Unnecessary optional chaining on non-optional types
+- **Prevention:** Review type declarations and use compiler warnings
+- **Example:**
+  ```swift
+  // ❌ Incorrect - unnecessary optional chaining
+  let rotation = viewModel.rotationQuarterTurns ?? 0  // Non-optional type
+  let isReady = viewModel.isReady ?? false             // Non-optional type
+
+  // ✅ Correct - direct property access
+  let rotation = viewModel.rotationQuarterTurns
+  let isReady = viewModel.isReady
+  ```
+
+**4. Component Dependency Management**
+- **Issue:** Child components accessing out-of-scope dependencies
+- **Prevention:** Explicit dependency injection through properties
+- **Example:**
+  ```swift
+  // ❌ Incorrect - accessing undefined viewModel
+  struct TrimmerPlayerView: View {
+      @ObservedObject var unifiedState: AddMoveUnifiedState
+
+      var body: some View {
+          Text("Player")
+              .onAppear {
+                  let message = "Ready: \(viewModel.isReady)"  // ← viewModel not in scope
+              }
+      }
+  }
+
+  // ✅ Correct - using available dependencies
+  struct TrimmerPlayerView: View {
+      @ObservedObject var unifiedState: AddMoveUnifiedState
+
+      var body: some View {
+          Text("Player")
+              .onAppear {
+                  let message = "Ready: \(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)"
+              }
+      }
+  }
+  ```
+
+#### Code Review Checklist
+
+**Pre-Commit Validation:**
+- [ ] Run `swiftc -parse` on all modified Swift files
+- [ ] Execute full project build: `xcodebuild build`
+- [ ] Verify brace matching with IDE tools
+- [ ] Check optional chaining usage necessity
+- [ ] Validate component dependency scope
+- [ ] Test compilation with clean build folder
+
+**Runtime Validation:**
+- [ ] App launches without crashes
+- [ ] All view transitions work correctly
+- [ ] State management functions properly
+- [ ] Memory usage remains stable
+- [ ] No console compilation warnings
+
+#### Error Resolution Workflow
+
+**When Compilation Errors Occur:**
+1. **Isolate the Error:** Focus on the first error message - subsequent errors may be cascading
+2. **Check Scope Boundaries:** Verify struct/class/function brace matching
+3. **Validate Dependencies:** Ensure all required properties are in scope
+4. **Review Type Annotations:** Confirm optional vs non-optional usage
+5. **Test Incrementally:** Fix one error at a time and recompile
+
+**Documentation Maintenance:**
+- Record all compilation errors with resolution steps
+- Update prevention guidelines based on lessons learned
+- Share common pitfalls with team members
+- Review and update documentation quarterly
+
+#### Automated Quality Assurance
+
+**CI/CD Pipeline Integration:**
+```yaml
+# Example GitHub Actions workflow
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Build Project
+        run: |
+          xcodebuild -project BreakingFlashcards.xcodeproj \
+                    -scheme BreakingFlashcards \
+                    -destination 'platform=iOS Simulator,name=iPhone 16' \
+                    build
+      - name: Run Syntax Validation
+        run: |
+          find . -name "*.swift" -exec swiftc -parse {} \;
+      - name: Execute Tests
+        run: |
+          xcodebuild test \
+                    -project BreakingFlashcards.xcodeproj \
+                    -scheme BreakingFlashcards \
+                    -destination 'platform=iOS Simulator,name=iPhone 16'
+```
+
+**Pre-commit Hooks:**
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+# Swift syntax validation
+swiftc -parse "${@}"
+
+# Build verification
+xcodebuild -project BreakingFlashcards.xcodeproj \
+           -scheme BreakingFlashcards \
+           -destination 'platform=iOS Simulator,name=iPhone 16' \
+           build >/dev/null 2>&1
+
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed - please fix compilation errors before committing"
+    exit 1
+fi
+
+echo "✅ Syntax validation passed"
+exit 0
+```
+
+#### Performance Metrics
+
+**Quality Indicators:**
+- **Compilation Time:** < 30 seconds for full clean build
+- **Syntax Errors:** 0 in production builds
+- **Warning Count:** < 10 (mostly informational)
+- **Test Coverage:** > 80% for critical components
+- **Code Review Pass Rate:** > 95% first-time approval
+
+**Continuous Improvement:**
+- Monthly code quality retrospectives
+- Quarterly documentation updates
+- Annual toolchain and process evaluation
+- Team training on new Swift features and best practices
