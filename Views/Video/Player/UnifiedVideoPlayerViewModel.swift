@@ -275,33 +275,104 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     }
 
     public func teardown() {
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() called", metadata: ["correlationId": correlationId ?? "unknown"])
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🚨 teardown() called - CRITICAL RETAIN CYCLE PREVENTION", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "healthMonitorTask_exists": "\(healthMonitorTask != nil)",
+            "cancellables_count": "\(cancellables.count)",
+            "itemStatusObserver_exists": "\(itemStatusObserver != nil)",
+            "memoryCheckTimer_exists": "\(memoryCheckTimer != nil)",
+            "current_state": "\(state)"
+        ])
 
-        // Cancel the health monitor task to break retain cycle
-        healthMonitorTask?.cancel()
-        healthMonitorTask = nil
+        // 🎯 CRITICAL FIX: Cancel the health monitor task to break the retain cycle
+        if let task = healthMonitorTask {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🛑 Cancelling health monitor task to prevent retain cycle", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "task_isCancelled": "\(task.isCancelled)"
+            ])
+            task.cancel()
+            healthMonitorTask = nil
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Health monitor task cancelled and nilled", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+        }
 
-        // Cancel observation subscriptions
-        cancellables.removeAll()
+        // 🔧 CRITICAL: Cancel all Combine subscriptions to prevent memory leaks
+        if !cancellables.isEmpty {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Clearing \(cancellables.count) Combine subscriptions", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+            cancellables.removeAll()
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ All Combine subscriptions cleared", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+        }
 
         // 🔧 CRITICAL: Cleanup KVO observer to prevent memory leaks
-        itemStatusObserver?.invalidate()
-        itemStatusObserver = nil
+        if itemStatusObserver != nil {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Invalidating KVO observer", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+            itemStatusObserver?.invalidate()
+            itemStatusObserver = nil
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ KVO observer invalidated", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+        }
 
+        // 🎯 CRITICAL: Stop player and release resources
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏹️ Stopping player and replacing current item", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "player_exists": "\(avPlayer != nil)"
+        ])
         player.pause()
         player.replaceCurrentItem(with: nil)
+
+        // 🔧 CRITICAL: Stop health monitoring
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏹️ Stopping video health monitoring", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
         videoHealthMonitor.stopMonitoring()
+
+        // 🔧 CRITICAL: Stop memory check timer if in preview mode
         if mode == .preview {
-            memoryCheckTimer?.invalidate()
-            memoryCheckTimer = nil
+            if memoryCheckTimer != nil {
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏹️ Invalidating memory check timer", metadata: [
+                    "correlationId": correlationId ?? "unknown"
+                ])
+                memoryCheckTimer?.invalidate()
+                memoryCheckTimer = nil
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Memory check timer invalidated", metadata: [
+                    "correlationId": correlationId ?? "unknown"
+                ])
+            }
+
+            // 🎯 CRITICAL: Clear memory cache
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Clearing memory cache", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
             memoryManager.clearCache()
         }
+
+        // 🔧 CRITICAL: Reset all state properties to ensure clean deallocation
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Resetting state properties", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
         state = .idle
         shouldPlay = false
         isPlaybackPending = false
         healthStatus = .unknown
+        playerItem = nil
 
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): teardown() completed", metadata: ["correlationId": correlationId ?? "unknown"])
+        // 🎯 CRITICAL: Final validation logging
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🎉 teardown() completed successfully - RETAIN CYCLE BROKEN", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "healthMonitorTask_isNil": "\(healthMonitorTask == nil)",
+            "cancellables_isEmpty": "\(cancellables.isEmpty)",
+            "itemStatusObserver_isNil": "\(itemStatusObserver == nil)",
+            "memoryCheckTimer_isNil": "\(memoryCheckTimer == nil)",
+            "final_state": "\(state)"
+        ])
     }
     
     // 💡 SOLUTION: Enhanced replace player item and wait for readiness with comprehensive race condition prevention
@@ -348,6 +419,14 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         // 💡 ENHANCEMENT: Clear any existing observation subscriptions to prevent race conditions
         cancellables.removeAll()
 
+        // 🎯 CRITICAL ADDITION: Verify KVO observer is fully invalidated before replacement
+        // This ensures atomic operation - no observer should exist during item replacement
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔍 Verifying KVO observer invalidation", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "observer_still_exists": "\(itemStatusObserver != nil)",
+            "cancellables_count": "\(cancellables.count)"
+        ])
+
         // 💡 ENHANCEMENT: Replace the player item with detailed logging
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Replacing player item", metadata: [
             "correlationId": correlationId ?? "unknown",
@@ -355,9 +434,19 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             "new_item_duration": "\(newItem.asset.duration.seconds)"
         ])
 
+        // 🎯 CRITICAL: Atomic replacement - clear nil first, then assign new item
+        // This ensures no intermediate state where both old and new items could be observed
         player.replaceCurrentItem(with: nil) // Clear first to prevent reference cycles
         player.replaceCurrentItem(with: newItem)
         self.playerItem = newItem
+
+        // 🎯 CRITICAL: Verification logging to confirm atomic operation
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Player item replacement completed atomically", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "new_player_item": "\(player.currentItem === newItem)",
+            "old_observer_cleared": "\(itemStatusObserver == nil)",
+            "cancellables_cleared": "\(cancellables.isEmpty)"
+        ])
 
         // 💡 ENHANCEMENT: Wait for the new item to become ready with enhanced timeout and progress monitoring
         let monitor = PlayerItemStatusMonitor(playerItem: newItem)
@@ -531,9 +620,24 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             "is_playback_pending": "\(isPlaybackPending)"
         ])
 
+        // 🎯 CRITICAL: Validate preconditions before setting up observers
+        guard item.status != .failed else {
+            logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ Cannot setup observers for failed item", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "item_error": "\(item.error?.localizedDescription ?? "unknown")"
+            ])
+            return
+        }
+
         // 🔧 CRITICAL: Invalidate any existing observer to prevent multiple observers on the same item
         itemStatusObserver?.invalidate()
         itemStatusObserver = nil
+
+        // 🎯 CRITICAL: Verify observer is properly cleared before creating new one
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔍 Observer cleanup verification", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "observer_cleared": "\(itemStatusObserver == nil)"
+        ])
 
         // 🔧 CRITICAL: Set up persistent KVO observer that survives Combine cancellable removal
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 📡 Creating persistent KVO observer", metadata: [

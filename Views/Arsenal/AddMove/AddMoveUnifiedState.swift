@@ -814,10 +814,18 @@ public class AddMoveUnifiedState: ObservableObject {
         // Stop health monitoring
         healthMonitor.stopMonitoring()
         diagnosticLogger.logDebug("⏹️ Health monitoring stopped")
-        
-        // Cleanup player manager
+
+        // 🎯 CRITICAL FIX: Cleanup player manager to prevent retain cycles
+        diagnosticLogger.logInfo("🚨 Starting player manager cleanup - RETAIN CYCLE PREVENTION", metadata: [
+            "currentPlayer_exists": "\(currentPlayerViewModel != nil)",
+            "playerManager_hasPlayer": "\(unifiedPlayerManager.currentPlayer != nil)",
+            "flowState": "\(flowState)"
+        ])
         unifiedPlayerManager.cleanup()
-        diagnosticLogger.logDebug("🧹 Player manager cleaned up")
+        diagnosticLogger.logInfo("✅ Player manager cleanup completed - RETAIN CYCLE BROKEN", metadata: [
+            "currentPlayer_exists_after": "\(currentPlayerViewModel != nil)",
+            "playerManager_hasPlayer_after": "\(unifiedPlayerManager.currentPlayer != nil)"
+        ])
         
         // Reset all properties
         flowState = .ready

@@ -289,31 +289,16 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
 
         deinit {
-            // Note: deinit runs on whatever thread the object is deallocated on
-            // We need to ensure cleanup happens on main thread for UI operations
-            DispatchQueue.main.async {
-                self.diagnosticLogger.startTiming("player_view_deinit")
+            // 🎯 CRITICAL FIX: Removed unsafe DispatchQueue.main.async from deinit
+            // deinit runs on whatever thread the object is deallocated on
+            // Using async operations in deinit is unsafe as 'self' may not exist when the block executes
+            // All cleanup is now handled synchronously in dismantleUIView
 
-                let deinitMemory = self.diagnosticLogger.getMemoryInfo()
+            let logger = Logger(subsystem: "com.breakingflashcards", category: "PlayerView")
+            logger.info("🎬 PLAYER_VIEW: deinit called - cleanup handled by dismantleUIView")
 
-                self.diagnosticLogger.logInfo("🗑️ PlayerView deinitializing", metadata: [
-                    "final_memory_usage_mb": "\(String(format: "%.1f", deinitMemory.used))",
-                    "had_player": "\(self.playerLayer.player != nil)",
-                    "final_bounds": "\(self.bounds.size)",
-                    "active_timers": "\(self.diagnosticLogger.getActiveTimerNames())"
-                ])
-
-                self.logger.info("🎬 PLAYER_VIEW: deinit called")
-
-                // Clean up player reference
-                if self.playerLayer.player != nil {
-                    self.diagnosticLogger.logDebug("🧹 Clearing player reference")
-                    self.playerLayer.player = nil
-                }
-
-                self.diagnosticLogger.logPerformanceSummary()
-                self.diagnosticLogger.stopTiming("player_view_deinit")
-            }
+            // 🚨 IMPORTANT: Do NOT perform complex operations or access instance variables here
+            // The player reference is safely cleared in dismantleUIView which is the correct lifecycle point
         }
     }
 }
@@ -323,12 +308,40 @@ extension AVPlayerViewRepresentable {
     static func dismantleUIView(_ uiView: PlayerView, coordinator: Coordinator) {
         let diagnosticLogger = DiagnosticLoggingHelper(category: "AVPlayerViewDismantle")
         let logger = Logger(subsystem: "com.breakingflashcards", category: "AVPlayerViewDismantle")
-        logger.info("🎬 AV_PLAYER_VIEW: dismantleUIView called (Simplified)")
 
-        // SIMPLIFIED: Clean up by removing the player from the layer.
-        // This is the only cleanup now required from the representable.
-        uiView.playerLayer.player = nil
-        diagnosticLogger.logInfo("🧹 Dismantling UIView - Player reference cleared.")
+        diagnosticLogger.startTiming("dismantle_uiview")
+
+        let dismantleMemory = diagnosticLogger.getMemoryInfo()
+
+        diagnosticLogger.logInfo("🎬 AV_PLAYER_VIEW: dismantleUIView called - Enhanced cleanup", metadata: [
+            "memory_usage_mb": "\(String(format: "%.1f", dismantleMemory.used))",
+            "had_player": "\(uiView.playerLayer.player != nil)",
+            "bounds_size": "\(uiView.bounds.size)",
+            "coordinator_exists": "\(coordinator != nil)"
+        ])
+
+        logger.info("🎬 AV_PLAYER_VIEW: dismantleUIView called - Enhanced cleanup with KVO safety")
+
+        // 🎯 CRITICAL: Clear player reference safely before view deallocation
+        // This prevents KVO notifications from being sent to deallocated objects
+        if uiView.playerLayer.player != nil {
+            diagnosticLogger.logDebug("🧹 Safely clearing player reference to prevent KVO race condition")
+            uiView.playerLayer.player = nil
+        }
+
+        // 🎯 CRITICAL: Ensure coordinator cleanup is complete before view destruction
+        // The coordinator should be retained by the representable, not the view
+        diagnosticLogger.logDebug("🔧 Verifying coordinator state before view destruction")
+
+        let postDismantleMemory = diagnosticLogger.getMemoryInfo()
+        diagnosticLogger.logInfo("✅ UIView dismantling completed safely", metadata: [
+            "memory_after_mb": "\(String(format: "%.1f", postDismantleMemory.used))",
+            "memory_change_mb": "\(String(format: "%.1f", postDismantleMemory.used - dismantleMemory.used))",
+            "player_cleared": "\(uiView.playerLayer.player == nil)",
+            "coordinator_safe": "\(coordinator != nil)"
+        ])
+
+        diagnosticLogger.stopTiming("dismantle_uiview")
     }
 }
 

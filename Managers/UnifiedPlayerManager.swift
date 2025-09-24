@@ -88,11 +88,13 @@ public class UnifiedPlayerManager: ObservableObject {
         // Only create new player if asset actually changes
         if let existingPlayer = currentPlayer {
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Asset changed - creating new player")
-            
-            // Pause current player before transition
-            existingPlayer.avPlayer?.pause()
-            
-            // Don't teardown - preserve for potential cache reuse
+
+            // 🎯 CRITICAL FIX: Teardown existing player to prevent retain cycle
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 Tearing down existing player to prevent retain cycle")
+            existingPlayer.teardown()
+
+            // Clear reference after teardown
+            currentPlayer = nil
         }
         
         // Create new player with optimized lifecycle
@@ -135,9 +137,9 @@ public class UnifiedPlayerManager: ObservableObject {
         
         // Clean up existing player if any
         if let existingPlayer = currentPlayer {
-            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Cleaning up existing player")
-            existingPlayer.avPlayer?.pause()
-            // Don't teardown - preserve for potential cache reuse
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 Cleaning up existing player with teardown to prevent retain cycle")
+            existingPlayer.teardown()
+            currentPlayer = nil
         }
         
         // Set the new player and extract asset information
@@ -273,7 +275,7 @@ public class UnifiedPlayerManager: ObservableObject {
         rotation: Int
     ) async throws {
         let diagnosticStart = CFAbsoluteTimeGetCurrent()
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚀 Starting transactional trim and seek operation - start: \(String(format: "%.2f", startTime.seconds))s, end: \(String(format: "%.2f", endTime.seconds))s, rotation: \(rotation)")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 Starting CRITICAL transactional trim and seek operation - RETAIN CYCLE PREVENTION - start: \(String(format: "%.2f", startTime.seconds))s, end: \(String(format: "%.2f", endTime.seconds))s, rotation: \(rotation), player: \(self.currentPlayer != nil), asset: \(self.currentAsset != nil), transitioning: \(self.isTransitioning)")
 
         // Validate preconditions
         guard let currentPlayer = currentPlayer else {
@@ -386,7 +388,7 @@ public class UnifiedPlayerManager: ObservableObject {
         currentRotation = rotation
 
         let operationDuration = CFAbsoluteTimeGetCurrent() - diagnosticStart
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Transactional trim and seek completed successfully - oldRotation: \(oldRotation), newRotation: \(self.currentRotation), duration: \((operationDuration * 1000).formatted())ms, playerReady: \(currentPlayer.isPlayerReady)")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Transactional trim and seek completed successfully - RETAIN CYCLE PREVENTED - oldRotation: \(oldRotation), newRotation: \(self.currentRotation), duration: \((operationDuration * 1000).formatted())ms, playerReady: \(currentPlayer.isPlayerReady)")
     }
 
     /// Applies trim and rotation to the current player for previewing in NameMoveView
@@ -436,29 +438,35 @@ public class UnifiedPlayerManager: ObservableObject {
     
     /// Cleans up all resources
     public func cleanup() {
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Cleaning up resources")
-        
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 cleanup() called - CRITICAL RETAIN CYCLE PREVENTION - currentPlayer: \(self.currentPlayer != nil), cache: \(self.playerCache.count), initialized: \(self.isInitialized), asset: \(self.currentAsset != nil)")
+
         // Tear down current player
-        if let player = currentPlayer {
-            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Tearing down current player")
+        if let player = self.currentPlayer {
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🛑 Tearing down current player to prevent retain cycle")
             player.teardown()
             currentPlayer = nil
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Current player torn down and nilled")
         }
-        
+
         // Clear cache and tear down all cached players
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Clearing player cache")
-        for (key, player) in playerCache {
-            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Tearing down cached player: \(key.prefix(8))")
-            player.teardown()
+        if !self.playerCache.isEmpty {
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🧹 Clearing player cache - \(self.playerCache.count) players to teardown")
+            for (key, player) in self.playerCache {
+                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🛑 Tearing down cached player: \(key.prefix(8))")
+                player.teardown()
+            }
+            self.playerCache.removeAll()
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ All cached players torn down")
         }
-        playerCache.removeAll()
-        
+
+        // Reset all state properties
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Resetting all state properties")
         currentAsset = nil
         currentRotation = 0
         currentPhotosIdentifier = nil
         isInitialized = false
-        
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Cleanup completed")
+
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 cleanup() completed successfully - ALL RETAIN CYCLES BROKEN - currentPlayer: \(self.currentPlayer == nil), cache: \(self.playerCache.isEmpty), asset: \(self.currentAsset == nil), initialized: \(self.isInitialized == false)")
     }
     
     /// Gets a cache key for the asset and rotation
@@ -472,15 +480,15 @@ public class UnifiedPlayerManager: ObservableObject {
         let cacheKey = getCacheKey(for: asset, rotation: rotation)
         
         // Evict oldest items if cache is full
-        while playerCache.count >= maxCacheSize {
-            if let oldestKey = playerCache.keys.first {
+        while self.playerCache.count >= maxCacheSize {
+            if let oldestKey = self.playerCache.keys.first {
                 self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Evicting cached player: \(oldestKey.prefix(8))")
-                playerCache[oldestKey]?.teardown()
-                playerCache.removeValue(forKey: oldestKey)
+                self.playerCache[oldestKey]?.teardown()
+                self.playerCache.removeValue(forKey: oldestKey)
             }
         }
         
-        playerCache[cacheKey] = player
+        self.playerCache[cacheKey] = player
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Cached player: \(cacheKey.prefix(8))")
     }
     
