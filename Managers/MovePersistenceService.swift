@@ -5,11 +5,10 @@ import OSLog
 
 // MARK: - MovePersistenceService Protocol
 public protocol MovePersistenceServiceProtocol {
-    func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> URL
+    func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> String // ✅ FIXED: Returns localIdentifier
     func createMoveEntity(
         name: String,
-        videoURL: URL,
-        originalPhotosIdentifier: String,
+        originalPhotosIdentifier: String, // ✅ FIXED: This is the single source of truth
         trimStartTime: Double?,
         trimEndTime: Double?,
         rotationQuarterTurns: Int
@@ -27,41 +26,40 @@ public protocol MovePersistenceServiceProtocol {
 // MARK: - Move Persistence Service
 @MainActor
 class MovePersistenceService: MovePersistenceServiceProtocol {
-    
+
     // MARK: - Properties
     private let viewContext: NSManagedObjectContext
+    private let videoSaver: VideoSaver
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "MovePersistenceService")
-    
+
     // MARK: - Initialization
-    init(viewContext: NSManagedObjectContext) {
+    init(viewContext: NSManagedObjectContext, videoSaver: VideoSaver) {
         self.viewContext = viewContext
+        self.videoSaver = videoSaver
         logger.info("💾 MOVE_PERSISTENCE: Initialized")
     }
     
     // MARK: - Public API
     
     /// Save video to Photos library
-    func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> URL {
+    /// 🎯 FIXED: Now returns the Photos library localIdentifier
+    func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> String {
         logger.info("💾 MOVE_PERSISTENCE: Saving video to Photos library")
         logger.info("💾 MOVE_PERSISTENCE: Move name: \(moveName)")
-        
-        guard let urlAsset = asset as? AVURLAsset else {
-            let error = NSError(domain: "MovePersistenceService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Asset is not a URL asset"])
-            logger.error("💾 MOVE_PERSISTENCE: ❌ Asset is not a URL asset")
-            throw VideoProcessingError.videoLoadingFailed(identifier: "unknown", underlyingError: error)
-        }
-        
-        // For now, return the existing URL (in production, you'd save to Photos library)
-        // This is a placeholder - actual Photos library saving would use PHPhotoLibrary
-        logger.info("💾 MOVE_PERSISTENCE: Returning existing URL for asset: \(urlAsset.url.absoluteString)")
-        return urlAsset.url
+
+        // ✅ USE: VideoSaver to save to Photos library and get the localIdentifier
+        let localIdentifier = try await videoSaver.saveToPhotosLibrary(asset)
+
+        logger.info("💾 MOVE_PERSISTENCE: ✅ Video saved to Photos library with identifier: \(localIdentifier), move name: \(moveName)")
+
+        return localIdentifier
     }
     
     /// Create Move entity in Core Data
+    /// 🎯 FIXED: Removed videoURL parameter, uses photosIdentifier as single source of truth
     func createMoveEntity(
         name: String,
-        videoURL: URL,
-        originalPhotosIdentifier: String,
+        originalPhotosIdentifier: String, // This is the single source of truth for the video
         trimStartTime: Double?,
         trimEndTime: Double?,
         rotationQuarterTurns: Int
@@ -84,16 +82,23 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         move.rotationQuarterTurns = Int16(rotationQuarterTurns)
         move.createdAt = Date()
         
-        // Store video URL as Data in videoReference
-        if let videoData = try? Data(contentsOf: videoURL) {
-            logger.info("💾 MOVE_PERSISTENCE: 📊 Video data size: \(videoData.count) bytes")
-            move.videoReference = videoData
-            logger.info("💾 MOVE_PERSISTENCE: ✅ Video data stored successfully")
-        } else {
-            // Fallback: store URL path as string in tags or log error
-            logger.warning("💾 MOVE_PERSISTENCE: ⚠️ Could not convert video URL to data, storing path in tags")
-            move.tags = videoURL.path
-        }
+        // 🎯 FIXED: Removed binary video storage from Core Data - architectural violation
+        // 🗑️ REMOVED: Storing entire video files as binary Data in Core Data causes performance issues
+        // if let videoData = try? Data(contentsOf: videoURL) {
+        //     logger.info("💾 MOVE_PERSISTENCE: 📊 Video data size: \(videoData.count) bytes")
+        //     move.videoReference = videoData
+        //     logger.info("💾 MOVE_PERSISTENCE: ✅ Video data stored successfully")
+        // } else {
+        //     // Fallback: store URL path as string in tags or log error
+        //     logger.warning("💾 MOVE_PERSISTENCE: ⚠️ Could not convert video URL to data, storing path in tags")
+        //     move.tags = videoURL.path
+        // }
+
+        // ✅ CORRECT: Only store the Photos identifier - video is saved in Photos library
+        // The photosIdentifier field already contains the reference to the video in Photos
+        logger.info("💾 MOVE_PERSISTENCE: ✅ Using Photos-only storage architecture")
+        logger.info("💾 MOVE_PERSISTENCE: Photos identifier: \(originalPhotosIdentifier)")
+        logger.info("💾 MOVE_PERSISTENCE: Binary storage removed, using photos library reference approach")
         
         do {
             try context.save()
@@ -119,21 +124,20 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         logger.info("💾 MOVE_PERSISTENCE: Starting complete save operation")
         logger.info("💾 MOVE_PERSISTENCE: Move name: \(name)")
         logger.info("💾 MOVE_PERSISTENCE: Asset available: \(true)")
-        
+
         // Use the provided asset
         logger.info("💾 MOVE_PERSISTENCE: Using asset for save: \(asset)")
-        
-        // Save to Photos library
+
+        // Step 1: Save to Photos library and get the new localIdentifier
         logger.info("💾 MOVE_PERSISTENCE: Step 1: Saving video to Photos library")
-        let savedVideoURL = try await saveVideoToPhotos(asset: asset, moveName: name)
-        logger.info("💾 MOVE_PERSISTENCE: ✅ Video saved to Photos at: \(savedVideoURL)")
-        
-        // Create Move entity in Core Data
-        logger.info("💾 MOVE_PERSISTENCE: Step 2: Creating Move entity")
+        let finalPhotosIdentifier = try await saveVideoToPhotos(asset: asset, moveName: name)
+        logger.info("💾 MOVE_PERSISTENCE: ✅ Video saved to Photos with identifier: \(finalPhotosIdentifier)")
+
+        // Step 2: Create Move entity in Core Data using the NEW identifier
+        logger.info("💾 MOVE_PERSISTENCE: Step 2: Creating Move entity with new Photos identifier")
         let move = try await createMoveEntity(
             name: name,
-            videoURL: savedVideoURL,
-            originalPhotosIdentifier: originalPhotosIdentifier,
+            originalPhotosIdentifier: finalPhotosIdentifier, // ✅ USE: The new identifier from Photos library
             trimStartTime: trimStartTime,
             trimEndTime: trimEndTime,
             rotationQuarterTurns: rotationQuarterTurns

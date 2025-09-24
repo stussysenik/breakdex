@@ -56,7 +56,19 @@ public final class AppContainer {
 
     // MARK: - Persistence Services
     private(set) lazy var movePersistenceService: MovePersistenceService = {
-        return MovePersistenceService(viewContext: PersistenceController.shared.container.viewContext)
+        return MovePersistenceService(
+            viewContext: PersistenceController.shared.container.viewContext,
+            videoSaver: videoSaver
+        )
+    }()
+
+    // MARK: - Add Move Services
+    private(set) lazy var addMoveSaveCoordinator: AddMoveSaveCoordinator = {
+        return AddMoveSaveCoordinator(
+            movePersistenceService: movePersistenceService,
+            videoProcessingPipeline: videoProcessingPipeline,
+            logger: logger
+        )
     }()
     
     // MARK: - Memory Management

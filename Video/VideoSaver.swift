@@ -105,16 +105,22 @@ final class VideoSaverImpl: VideoSaver {
             )
         }
         
-        // Save the video to Photos library
+        // Save the video to Photos library and get the actual local identifier
         return try await withCheckedThrowingContinuation { continuation in
+            var placeholder: PHObjectPlaceholder?
+
             PHPhotoLibrary.shared().performChanges({
-                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
+                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
+                placeholder = request?.placeholderForCreatedAsset
             }) { success, error in
-                if success {
-                    // Generate a unique identifier for the saved video
-                    let identifier = "photos-\(UUID().uuidString)"
-                    self.logger.info("✅ Video saved to Photos library successfully", metadata: ["identifier": identifier])
-                    continuation.resume(returning: identifier)
+                if success, let localIdentifier = placeholder?.localIdentifier {
+                    // 🎯 FIXED: Return the actual Photos library local identifier
+                    self.logger.info("✅ Video saved to Photos library successfully", metadata: [
+                        "identifier": localIdentifier,
+                        "identifier_type": "photos_local_identifier",
+                        "identifier_length": "\(localIdentifier.count)"
+                    ])
+                    continuation.resume(returning: localIdentifier)
                 } else {
                     let error = error ?? NSError(domain: "Photos", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving to Photos library"])
                     self.logger.error("❌ Failed to save video to Photos library: \(error.localizedDescription)", metadata: nil)

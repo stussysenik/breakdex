@@ -19,7 +19,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
     private let logger: AppLogger
     
     // MARK: - Private State
-    private var saveTask: Task<Void, Never>?
+    private var saveTask: Task<SavedMoveResult, Error>?
     
     // MARK: - Initialization
     public init(
@@ -58,8 +58,8 @@ public class AddMoveSaveCoordinator: ObservableObject {
         saveStatus = .processing
 
         // Create save task for proper cancellation handling
-        saveTask = Task {
-            await processSaveOperation(
+        saveTask = Task<SavedMoveResult, Error> {
+            return try await processSaveOperation(
                 name: name,
                 asset: asset,
                 photosIdentifier: photosIdentifier,
@@ -236,23 +236,22 @@ public class AddMoveSaveCoordinator: ObservableObject {
             let finalAsset = try await verifyAssetReadiness(processedAsset)
             await updateProgress(0.4)
 
-            // Step 4: Save video to Photos library
-            logger.info("🎬 SAVE_COORDINATOR: Saving video to Photos", metadata: nil)
+            // Step 4: Save video to Photos library and get the new localIdentifier
+            logger.info("🎬 SAVE_COORDINATOR: Saving video to Photos library", metadata: nil)
             await updateProgress(0.5)
 
-            let savedVideoURL = try await movePersistenceService.saveVideoToPhotos(
+            let finalPhotosIdentifier = try await movePersistenceService.saveVideoToPhotos(
                 asset: finalAsset,
                 moveName: name
             )
 
-            // Step 5: Create Move entity in Core Data
-            logger.info("🎬 SAVE_COORDINATOR: Creating Move entity", metadata: nil)
+            // Step 5: Create Move entity in Core Data using the NEW identifier
+            logger.info("🎬 SAVE_COORDINATOR: Creating Move entity with new Photos identifier", metadata: nil)
             await updateProgress(0.7)
 
             let move = try await movePersistenceService.createMoveEntity(
                 name: name,
-                videoURL: savedVideoURL,
-                originalPhotosIdentifier: photosIdentifier,
+                originalPhotosIdentifier: finalPhotosIdentifier, // ✅ USE: The new identifier from Photos library
                 trimStartTime: trimStartTime ?? 0.0,
                 trimEndTime: trimEndTime ?? finalAsset.duration.seconds,
                 rotationQuarterTurns: rotationQuarterTurns
@@ -266,7 +265,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
 
             let result = SavedMoveResult(
                 move: move,
-                videoURL: savedVideoURL,
+                photosIdentifier: finalPhotosIdentifier, // ✅ USE: The new Photos identifier
                 asset: finalAsset,
                 wasTrimmed: trimStartTime != nil && trimEndTime != nil
             )
@@ -462,18 +461,18 @@ public enum SaveStatus {
 // MARK: - Saved Move Result
 public struct SavedMoveResult {
     public let move: Move
-    public let videoURL: URL
+    public let photosIdentifier: String // ✅ FIXED: Uses Photos identifier instead of local URL
     public let asset: AVAsset
     public let wasTrimmed: Bool
-    
+
     public init(
         move: Move,
-        videoURL: URL,
+        photosIdentifier: String, // ✅ FIXED: Uses Photos identifier instead of local URL
         asset: AVAsset,
         wasTrimmed: Bool
     ) {
         self.move = move
-        self.videoURL = videoURL
+        self.photosIdentifier = photosIdentifier
         self.asset = asset
         self.wasTrimmed = wasTrimmed
     }

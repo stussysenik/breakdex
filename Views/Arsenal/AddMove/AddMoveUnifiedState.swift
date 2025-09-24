@@ -1415,42 +1415,76 @@ extension AddMoveUnifiedState {
         return errors
     }
 
-    /// Validates trim parameters for saving
+    /// Validates trim parameters for saving using persistent state properties
+    /// 🎯 FIXED: Removes dependency on deallocated TrimmerViewModel
     public func validateTrimParametersForSave() throws {
-        guard let trimmerVM = trimmerViewModel else {
-            throw AddMoveError.trimmerNotAvailable
-        }
+        // 🗑️ REMOVED: Dependency on trimmerViewModel which is deallocated during state transition
+        // guard let trimmerVM = trimmerViewModel else {
+        //     throw AddMoveError.trimmerNotAvailable
+        // }
 
-        let startTime = trimmerVM.startTime.seconds
-        let endTime = trimmerVM.endTime.seconds
+        diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔧 Validating trim parameters using persistent state properties")
+
+        // ✅ USE: Direct properties from unified state that persist after trimming
+        let startTime = self.trimStartTime
+        let endTime = self.trimEndTime
         let assetDuration = videoAsset?.duration.seconds ?? 0
+
+        // Log the validation source for debugging
+        diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 📊 Trim validation data source", metadata: [
+            "source": "persistent_state_properties",
+            "trim_start_time": "\(startTime)",
+            "trim_end_time": "\(endTime)",
+            "asset_duration": "\(assetDuration)",
+            "rotation_quarter_turns": "\(rotationQuarterTurns)"
+        ])
 
         // Validate start time
         guard startTime >= 0 else {
-            throw AddMoveError.invalidTrimRange("Start time cannot be negative")
+            let error = AddMoveError.invalidTrimRange("Start time cannot be negative")
+            diagnosticLogger.logError("Trim validation failed: negative start time", error: error)
+            throw error
         }
 
         // Validate end time
         guard endTime <= assetDuration else {
-            throw AddMoveError.invalidTrimRange("End time cannot exceed video duration")
+            let error = AddMoveError.invalidTrimRange("End time cannot exceed video duration")
+            diagnosticLogger.logError("Trim validation failed: end time exceeds duration", error: error, metadata: [
+                "end_time": "\(endTime)",
+                "asset_duration": "\(assetDuration)"
+            ])
+            throw error
         }
 
         // Validate time order
         guard startTime < endTime else {
-            throw AddMoveError.invalidTrimRange("Start time must be before end time")
+            let error = AddMoveError.invalidTrimRange("Start time must be before end time")
+            diagnosticLogger.logError("Trim validation failed: invalid time order", error: error, metadata: [
+                "start_time": "\(startTime)",
+                "end_time": "\(endTime)"
+            ])
+            throw error
         }
 
         // Validate minimum duration
         let duration = endTime - startTime
         guard duration >= 3.0 else {
-            throw AddMoveError.invalidTrimRange("Video duration must be at least 3 seconds")
+            let error = AddMoveError.invalidTrimRange("Video duration must be at least 3 seconds")
+            diagnosticLogger.logError("Trim validation failed: duration too short", error: error, metadata: [
+                "duration": "\(duration)",
+                "minimum_required": "3.0"
+            ])
+            throw error
         }
 
-        diagnosticLogger.logInfo("✅ Trim parameters validated for save", metadata: [
+        // 🎯 SUCCESS: Trim parameters are valid - log comprehensive diagnostics
+        diagnosticLogger.logInfo("✅ Trim parameters validated for save using persistent state", metadata: [
             "start_time": "\(startTime)",
             "end_time": "\(endTime)",
             "duration": "\(duration)",
-            "asset_duration": "\(assetDuration)"
+            "asset_duration": "\(assetDuration)",
+            "validation_source": "unified_state_properties",
+            "trimmer_viewmodel_dependency": "removed"
         ])
     }
 
@@ -1616,47 +1650,45 @@ extension AddMoveUnifiedState {
         }
     }
 
-    /// Verifies that trimming state is ready for saving
+    /// Verifies that trimming state is ready for saving using persistent state properties
+    /// 🎯 FIXED: Removes dependency on deallocated TrimmerViewModel
     public func verifyTrimmingReadiness() async throws -> TrimmingReadinessResult {
         diagnosticLogger.startTiming("trimming_readiness_verification")
 
         diagnosticLogger.logInfo("🔍 Starting trimming readiness verification", metadata: [
             "flow_state": "\(flowState)",
             "has_trimmer": "\(trimmerViewModel != nil)",
-            "has_player": "\(currentPlayerViewModel != nil)"
+            "has_player": "\(currentPlayerViewModel != nil)",
+            "validation_source": "persistent_state_properties"
         ])
 
         var readinessIssues: [TrimmingReadinessIssue] = []
 
-        // Check trimmer view model
-        guard let trimmerVM = trimmerViewModel else {
-            readinessIssues.append(.trimmerNotAvailable)
-            throw AddMoveError.trimmerNotAvailable
+        // ✅ USE: Persistent state properties instead of trimmerViewModel
+        let startTime = self.trimStartTime ?? 0.0
+        let endTime = self.trimEndTime ?? (videoAsset?.duration.seconds ?? 0.0)
+        let duration = endTime - startTime
+        let assetDuration = videoAsset?.duration.seconds ?? 0.0
+
+        // Verify asset is available
+        guard let asset = videoAsset else {
+            readinessIssues.append(.assetNotReady("Video asset not available"))
+            throw AddMoveError.assetNotReady("Video asset not available")
         }
 
-        // Verify trimmer is ready
-        guard trimmerVM.isReady else {
-            readinessIssues.append(.trimmerNotReady)
-            throw AddMoveError.trimmerNotReady
-        }
-
-        // Verify trimmer has valid duration
-        guard trimmerVM.videoDuration.seconds > 0 else {
+        // Verify asset duration is valid
+        guard assetDuration > 0 else {
             readinessIssues.append(.invalidTrimmerDuration)
             throw AddMoveError.invalidAssetDuration
         }
 
         // Verify trim times are valid
-        let startTime = trimmerVM.startTime.seconds
-        let endTime = trimmerVM.endTime.seconds
-        let duration = endTime - startTime
-
         if startTime < 0 {
             readinessIssues.append(.invalidStartTime(startTime))
         }
 
-        if endTime > trimmerVM.videoDuration.seconds {
-            readinessIssues.append(.endTimeExceedsAsset(endTime, trimmerVM.videoDuration.seconds))
+        if endTime > assetDuration {
+            readinessIssues.append(.endTimeExceedsAsset(endTime, assetDuration))
         }
 
         if startTime >= endTime {
@@ -1675,24 +1707,28 @@ extension AddMoveUnifiedState {
             throw error
         }
 
-        // Verify player is ready
-        guard let playerVM = currentPlayerViewModel, playerVM.isPlayerReady else {
+        // Verify player is ready (if available)
+        if let playerVM = currentPlayerViewModel, !playerVM.isPlayerReady {
             readinessIssues.append(.playerNotReady)
             throw AddMoveError.playerNotReady
         }
 
+        // Create a lightweight result without trimmerViewModel dependency
         let result = TrimmingReadinessResult(
             isReady: readinessIssues.isEmpty,
             issues: readinessIssues,
-            trimmerViewModel: trimmerVM,
-            videoAsset: videoAsset!,
-            playerViewModel: playerVM
+            trimmerViewModel: nil, // ✅ REMOVED: No longer depends on deallocated VM
+            videoAsset: asset,
+            playerViewModel: currentPlayerViewModel
         )
 
         diagnosticLogger.logInfo("✅ Trimming readiness verification completed", metadata: [
             "is_ready": "\(result.isReady)",
             "issue_count": "\(readinessIssues.count)",
-            "duration_seconds": "\(duration)"
+            "duration_seconds": "\(duration)",
+            "start_time": "\(startTime)",
+            "end_time": "\(endTime)",
+            "asset_duration": "\(assetDuration)"
         ])
 
         diagnosticLogger.stopTiming("trimming_readiness_verification")
@@ -1730,10 +1766,10 @@ extension AddMoveUnifiedState {
             throw AddMoveError.photosIdentifierNotAvailable
         }
 
-        // Calculate final trim parameters
-        let finalStartTime = trimmingResult.trimmerViewModel.startTime.seconds
-        let finalEndTime = trimmingResult.trimmerViewModel.endTime.seconds
-        let finalRotation = trimmingResult.trimmerViewModel.rotationQuarterTurns
+        // ✅ FIXED: Calculate final trim parameters from persistent state properties
+        let finalStartTime = self.trimStartTime ?? 0.0
+        let finalEndTime = self.trimEndTime ?? (readyAsset.duration.seconds)
+        let finalRotation = self.rotationQuarterTurns
 
         // Create prepared asset result
         let result = PreparedAssetResult(
@@ -2073,15 +2109,14 @@ extension AddMoveUnifiedState {
     // MARK: - Save Move Function
 
     /// Validates state, processes the video, saves to Core Data, and updates the final state with enhanced race condition prevention.
+    /// 🎯 REFACTORED: Eliminates TrimmerViewModel dependency and uses dedicated coordinator
     public func saveMove() async {
         let operationStartTime = Date()
         let memoryBeforeOperation = diagnosticLogger.getMemoryInfo()
-
         diagnosticLogger.startTiming("save_move_operation")
+        logger.info("🎬 UNIFIED_STATE: 🚀 Starting FINAL saveMove operation with TrimmerViewModel decoupling...")
 
-        logger.info("🎬 UNIFIED_STATE: 🚀 Starting enhanced saveMove operation with race condition prevention")
-
-        // 💡 ENHANCEMENT: Comprehensive pre-save validation
+        // 💡 ENHANCEMENT: Comprehensive pre-save validation using persistent state
         do {
             try await validateReadyForSave()
             diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Pre-save validation passed")
@@ -2097,194 +2132,67 @@ extension AddMoveUnifiedState {
             return
         }
 
-        // 1. Transition to the saving state immediately to update the UI.
+        // 1. Transition to the saving state immediately to update the UI
         await transitionTo(.saving)
 
         do {
-            // 2. Prepare and validate all necessary asset information with enhanced readiness checks
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔧 Preparing asset for saving with readiness validation...")
-
-            let preparedAsset = try await prepareAssetForSaving()
-
-            // 💡 ENHANCEMENT: Post-preparation validation
-            guard preparedAsset.isValidForSave else {
-                let errorMessage = "Prepared asset is not valid for saving"
+            // ✅ CRITICAL FIX: Directly use persistent state properties, NOT prepareAssetForSaving
+            guard let assetToProcess = self.videoAsset else {
+                let errorMessage = "Asset not found for processing"
                 diagnosticLogger.logError(errorMessage, metadata: [
-                    "move_name": "\(preparedAsset.moveName)",
-                    "trim_duration": "\(preparedAsset.trimDuration)",
-                    "trimming_readiness": "\(preparedAsset.trimmingReadiness.isReady)",
-                    "asset_playable": "\(preparedAsset.asset.isPlayable)"
+                    "flow_state": "\(flowState)",
+                    "move_name": "\(moveName)"
                 ])
                 throw AddMoveError.assetNotReady(errorMessage)
             }
 
-            // 3. Log successful preparation with enhanced metrics
-            let preparationMemory = diagnosticLogger.getMemoryInfo()
-            let preparationTime = Date().timeIntervalSince(operationStartTime)
-
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Asset prepared successfully", metadata: [
-                "asset_duration": "\(preparedAsset.asset.duration.seconds)",
-                "trim_start": "\(preparedAsset.trimStartTime)",
-                "trim_end": "\(preparedAsset.trimEndTime)",
-                "trim_duration": "\(preparedAsset.trimDuration)",
-                "rotation": "\(preparedAsset.rotationQuarterTurns)",
-                "move_name": "\(preparedAsset.moveName)",
-                "trimming_ready": "\(preparedAsset.trimmingReadiness.isReady)",
-                "preparation_time_seconds": "\(String(format: "%.3f", preparationTime))",
-                "memory_usage_mb": "\(String(format: "%.1f", preparationMemory.used))",
-                "memory_delta_mb": "\(String(format: "%.1f", preparationMemory.used - memoryBeforeOperation.used))"
+            // 2. Delegate the entire operation to the dedicated coordinator
+            let coordinator = self.appContainer.addMoveSaveCoordinator
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Delegating save operation to AddMoveSaveCoordinator", metadata: [
+                "asset_duration": "\(try await assetToProcess.load(.duration).seconds)",
+                "move_name": "\(moveName)",
+                "trim_start": "\(trimStartTime)",
+                "trim_end": "\(trimEndTime)",
+                "rotation": "\(rotationQuarterTurns)"
             ])
 
-            // 💡 ENHANCEMENT: Ensure player readiness before video processing
-            guard let playerVM = currentPlayerViewModel, playerVM.isPlayerReady else {
-                let errorMessage = "Player is not ready for video processing"
-                diagnosticLogger.logError(errorMessage, metadata: [
-                    "player_state": "\(currentPlayerViewModel?.state ?? .idle)",
-                    "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)",
-                    "is_playback_pending": "false"
-                ])
-                throw AddMoveError.playerNotReady
-            }
-
-            // 4. Process and save the video using the actual services with enhanced error handling
-            updateProgress(0.3, status: "Validating video asset...")
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Creating video asset for pipeline processing...")
-
-            // First, create a VideoAsset for the pipeline with validation
-            let videoAsset = try await BreakingFlashcards.VideoAsset(
-                avAsset: preparedAsset.asset,
-                identifier: preparedAsset.photosIdentifier,
-                filename: "\(preparedAsset.moveName.replacingOccurrences(of: " ", with: "_")).mov"
+            // 3. Execute the save operation with parameters from persistent state
+            let result = try await coordinator.saveMove(
+                name: self.moveName,
+                asset: assetToProcess,
+                photosIdentifier: self.photosIdentifier ?? "",
+                trimStartTime: self.trimStartTime,
+                trimEndTime: self.trimEndTime,
+                rotationQuarterTurns: self.rotationQuarterTurns
             )
 
-            // Validate the created video asset
-            guard videoAsset.avAsset.isPlayable else {
-                let errorMessage = "Created video asset is not playable"
-                diagnosticLogger.logError(errorMessage, metadata: [
-                    "asset_duration": "\(videoAsset.avAsset.duration.seconds)",
-                    "identifier": "\(videoAsset.identifier)",
-                    "filename": "\(videoAsset.filename)"
-                ])
-                throw AddMoveError.assetNotReady(errorMessage)
-            }
-
-            updateProgress(0.5, status: "Processing video...")
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Starting video processing pipeline with readiness monitoring...")
-
-            // 💡 ENHANCEMENT: Apply transformations using the pipeline with timeout protection
-            let processedAsset: VideoAsset
-            do {
-                processedAsset = try await withTimeout(seconds: 60.0) {
-                    try await self.appContainer.videoProcessingPipeline.processVideo(
-                        videoAsset,
-                        rotationQuarterTurns: preparedAsset.rotationQuarterTurns
-                    )
-                }
-                diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Video processing completed successfully", metadata: [
-                    "processed_duration": "\(processedAsset.avAsset.duration.seconds)",
-                    "processing_pipeline_used": "enhanced"
-                ])
-            } catch let timeoutError as TimeoutError {
-                let errorMessage = "Video processing timed out"
-                diagnosticLogger.logError(errorMessage, error: timeoutError, metadata: [
-                    "timeout_seconds": "60.0",
-                    "asset_duration": "\(videoAsset.avAsset.duration.seconds)"
-                ])
-                throw VideoProcessingError.videoProcessingFailed(operation: "processVideo", underlyingError: timeoutError)
-            }
-
-            updateProgress(0.7, status: "Saving to Photos...")
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 💾 Starting video save to Photos library...")
-
-            // Save the processed video to Photos with enhanced error handling
-            let savedVideoURL: URL
-            do {
-                savedVideoURL = try await withTimeout(seconds: 30.0) {
-                    try await self.appContainer.videoProcessingPipeline.saveVideo(processedAsset)
-                }
-                diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Video processed and saved to Photos library", metadata: [
-                    "url": savedVideoURL.absoluteString,
-                    "file_exists": "\(FileManager.default.fileExists(atPath: savedVideoURL.path))"
-                ])
-            } catch let timeoutError as TimeoutError {
-                let errorMessage = "Video save to Photos timed out"
-                diagnosticLogger.logError(errorMessage, error: timeoutError, metadata: [
-                    "timeout_seconds": "30.0",
-                    "processed_asset_duration": "\(processedAsset.avAsset.duration.seconds)"
-                ])
-                throw VideoProcessingError.videoProcessingFailed(operation: "saveVideo", underlyingError: timeoutError)
-            }
-
-            // 5. Save the move's metadata to Core Data with enhanced validation
-            updateProgress(0.8, status: "Saving to database...")
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 💾 Starting move metadata save to Core Data...")
-
-            // 💡 ENHANCEMENT: Validate metadata before saving
-            guard !preparedAsset.moveName.trimmingCharacters(in: .whitespaces).isEmpty else {
-                let errorMessage = "Move name is empty or whitespace only"
-                diagnosticLogger.logError(errorMessage, metadata: [
-                    "move_name": "\(preparedAsset.moveName)",
-                    "move_name_length": "\(preparedAsset.moveName.count)"
-                ])
-                throw AddMoveError.invalidMoveName
-            }
-
-            guard preparedAsset.trimDuration >= 3.0 else {
-                let errorMessage = "Trim duration is too short for saving"
-                diagnosticLogger.logError(errorMessage, metadata: [
-                    "trim_duration": "\(preparedAsset.trimDuration)",
-                    "minimum_required": "3.0"
-                ])
-                throw AddMoveError.invalidTrimRange(errorMessage)
-            }
-
-            try await appContainer.movePersistenceService.saveCompleteMove(
-                name: preparedAsset.moveName,
-                asset: processedAsset.avAsset,
-                originalPhotosIdentifier: preparedAsset.photosIdentifier,
-                trimStartTime: preparedAsset.trimStartTime,
-                trimEndTime: preparedAsset.trimEndTime,
-                rotationQuarterTurns: preparedAsset.rotationQuarterTurns
-            )
-
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Move metadata saved successfully", metadata: [
-                "move_name": preparedAsset.moveName,
-                "core_data_save": "successful"
-            ])
-
-            // 6. Final progress update and transition to success with comprehensive metrics
-            updateProgress(1.0, status: "Complete!")
-            let successMessage = "Move '\(preparedAsset.moveName)' was added to your Arsenal!"
+            // 4. Log successful save operation with comprehensive metrics
             let totalOperationTime = Date().timeIntervalSince(operationStartTime)
             let finalMemory = diagnosticLogger.getMemoryInfo()
 
-            await transitionTo(.success(message: successMessage))
-
-            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🎉 Enhanced save operation completed successfully", metadata: [
-                "success_message": successMessage,
-                "move_name": preparedAsset.moveName,
+            diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ✅ Save operation completed successfully", metadata: [
+                "move_name": result.move.name ?? "Unknown Move",
+                "photos_identifier": result.photosIdentifier,
                 "total_operation_time_seconds": "\(String(format: "%.3f", totalOperationTime))",
                 "memory_before_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))",
                 "memory_after_mb": "\(String(format: "%.1f", finalMemory.used))",
                 "memory_delta_mb": "\(String(format: "%.1f", finalMemory.used - memoryBeforeOperation.used))",
-                "cpu_usage_percent": "\(String(format: "%.1f", diagnosticLogger.getCurrentCPUUsage()))",
-                "video_processed": "true",
-                "photos_saved": "true",
-                "core_data_saved": "true",
-                "race_condition_prevention": "enhanced"
+                "coordinator_used": "true",
+                "trimmer_viewmodel_dependency": "removed"
             ])
 
-            logger.info("🎬 UNIFIED_STATE: ✅ Enhanced saveMove operation completed successfully with race condition prevention")
+            // 5. Transition to success state
+            let successMessage = "Move '\(result.move.name ?? "Unknown Move")' was added to your Arsenal!"
+            await transitionTo(.success(message: successMessage))
 
         } catch {
-            // 7. Enhanced error handling with detailed diagnostics and recovery attempts
+            // 6. Enhanced error handling with detailed diagnostics
             let totalOperationTime = Date().timeIntervalSince(operationStartTime)
             let finalMemory = diagnosticLogger.getMemoryInfo()
-
             let errorMessage = "Failed to save move"
             let underlyingError = error.localizedDescription
 
-            diagnosticLogger.logError("Enhanced save operation failed", error: error, metadata: [
+            diagnosticLogger.logError("Final save operation failed", error: error, metadata: [
                 "error_message": errorMessage,
                 "underlying_error": underlyingError,
                 "error_type": "\(type(of: error))",
@@ -2295,27 +2203,16 @@ extension AddMoveUnifiedState {
                 "memory_before_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))",
                 "memory_after_mb": "\(String(format: "%.1f", finalMemory.used))",
                 "memory_delta_mb": "\(String(format: "%.1f", finalMemory.used - memoryBeforeOperation.used))",
-                "save_progress": "\(saveProgress)"
+                "save_progress": "\(saveProgress)",
+                "coordinator_used": "true",
+                "architecture_fixed": "decoupled_from_trimmer_viewmodel"
             ])
-
-            // 💡 ENHANCEMENT: Attempt to recover from certain types of errors
-            if let videoError = error as? VideoProcessingError {
-                switch videoError {
-                case .memoryLimitExceeded, .concurrentOperationLimitReached:
-                    diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Attempting recovery from \(videoError.operationType.localizedDescription) error")
-                    memoryManager.clearCache()
-                    // Give system time to recover
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                default:
-                    break
-                }
-            }
 
             await setError(message: errorMessage, underlying: underlyingError)
         }
 
         diagnosticLogger.stopTiming("save_move_operation")
-        logger.info("🎬 UNIFIED_STATE: 🏁 Enhanced saveMove operation completed (success or failure)")
+        logger.info("🎬 UNIFIED_STATE: 🏁 FINAL saveMove operation completed (success or failure)")
     }
 }
 
@@ -2505,9 +2402,9 @@ public enum TrimmingReadinessIssue {
 public struct TrimmingReadinessResult {
     public let isReady: Bool
     public let issues: [TrimmingReadinessIssue]
-    public let trimmerViewModel: TrimmerViewModel
+    public let trimmerViewModel: TrimmerViewModel? // ✅ MADE OPTIONAL: No longer required for save operations
     public let videoAsset: AVAsset
-    public let playerViewModel: UnifiedVideoPlayerViewModel
+    public let playerViewModel: UnifiedVideoPlayerViewModel?
 
     public var hasIssues: Bool {
         !issues.isEmpty
