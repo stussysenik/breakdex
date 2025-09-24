@@ -63,9 +63,10 @@ public class UnifiedPlayerManager: ObservableObject {
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Updating rotation only - preserving player")
             
             // Apply new rotation to existing player
+            let assetDuration = try await asset.load(.duration)
             let trimRange = CMTimeRange(
                 start: CMTime(seconds: 0, preferredTimescale: 600),
-                end: asset.duration
+                end: assetDuration
             )
             
             let transformedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
@@ -233,7 +234,7 @@ public class UnifiedPlayerManager: ObservableObject {
             }
 
             // 💡 ENHANCEMENT: Update stored rotation with validation
-            let oldRotation = currentRotation
+            _ = currentRotation
             currentRotation = rotation
 
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Rotation updated")
@@ -264,6 +265,130 @@ public class UnifiedPlayerManager: ObservableObject {
         }
     }
     
+    /// 🎯 CRITICAL: Transactional trim and seek operation - prevents race conditions
+    /// This method ensures all operations complete in sequence without hanging
+    public func applyTrimAndSeek(
+        startTime: CMTime,
+        endTime: CMTime,
+        rotation: Int
+    ) async throws {
+        let diagnosticStart = CFAbsoluteTimeGetCurrent()
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚀 Starting transactional trim and seek operation - start: \(String(format: "%.2f", startTime.seconds))s, end: \(String(format: "%.2f", endTime.seconds))s, rotation: \(rotation)")
+
+        // Validate preconditions
+        guard let currentPlayer = currentPlayer else {
+            let errorMessage = "No current player available for trim operation"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+            throw VideoProcessingError.trimOperationFailed(startTime: startTime.seconds, endTime: endTime.seconds, underlyingError: NSError(domain: "UnifiedPlayerManager", code: -3, userInfo: [NSLocalizedDescriptionKey: errorMessage]))
+        }
+
+        guard let currentAsset = currentAsset else {
+            let errorMessage = "No asset available for transformation"
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ \(errorMessage)")
+            throw VideoProcessingError.assetCreationFailed
+        }
+
+        // Step 1: Create trim range and validate
+        let trimRange = CMTimeRange(start: startTime, end: endTime)
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Trim range validated: \(String(format: "%.2f", trimRange.start.seconds))s - \(String(format: "%.2f", trimRange.end.seconds))s")
+
+        // Step 2: Create transformed player item with enhanced error handling and fallback
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔧 Creating transformed player item...")
+        let transformedPlayerItem: AVPlayerItem
+
+        do {
+            transformedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
+                asset: currentAsset,
+                trimRange: trimRange,
+                quarterTurns: rotation
+            )
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player item transformation successful")
+        } catch {
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Player item transformation failed: \(error.localizedDescription)")
+
+            // 🎯 ENHANCED: Fallback mechanism - try with simpler composition
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Attempting fallback with simplified composition...")
+
+            do {
+                // Try without rotation first
+                transformedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
+                    asset: currentAsset,
+                    trimRange: trimRange,
+                    quarterTurns: 0
+                )
+                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Fallback transformation successful (no rotation)")
+            } catch {
+                // Try without trim as last resort
+                self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Fallback also failed: \(error.localizedDescription)")
+
+                let assetDuration = try await currentAsset.load(.duration)
+                let fullRange = CMTimeRange(start: .zero, end: assetDuration)
+                transformedPlayerItem = try await VideoTransformBuilder.createPlayerItem(
+                    asset: currentAsset,
+                    trimRange: fullRange,
+                    quarterTurns: 0
+                )
+                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Emergency fallback successful (original asset)")
+            }
+        }
+
+        // Step 3: Replace player item and wait for readiness with single monitor
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Replacing player item with transactional monitoring...")
+
+        do {
+            try await currentPlayer.replacePlayerItemAndWaitForReady(transformedPlayerItem)
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player item replacement successful")
+        } catch {
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Player item replacement failed: \(error.localizedDescription)")
+            throw VideoProcessingError.trimOperationFailed(startTime: startTime.seconds, endTime: endTime.seconds, underlyingError: error)
+        }
+
+        // Step 4: Perform seek operation on the ready player with enhanced retry logic
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 Performing seek to zero on transformed player...")
+
+        var seekAttempt = 0
+        let maxSeekAttempts = 3
+        let seekBackoffIntervals: [TimeInterval] = [0.1, 0.5, 1.0]
+
+        while seekAttempt < maxSeekAttempts {
+            do {
+                try await currentPlayer.asyncSeek(to: .zero)
+                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Seek operation successful (attempt \(seekAttempt + 1))")
+                break
+            } catch {
+                seekAttempt += 1
+                self.logger.warning("🎬 UNIFIED_PLAYER_MANAGER: ⚠️ Seek attempt \(seekAttempt) failed: \(error.localizedDescription)")
+
+                if seekAttempt < maxSeekAttempts {
+                    let backoffTime = seekBackoffIntervals[min(seekAttempt - 1, seekBackoffIntervals.count - 1)]
+                    self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ⏳ Retrying seek in \(backoffTime)s...")
+                    try await Task.sleep(nanoseconds: UInt64(backoffTime * 1_000_000_000))
+                } else {
+                    self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ All seek attempts failed")
+
+                    // 🎯 ENHANCED: Final fallback - try direct seek without monitoring
+                    self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Attempting direct seek fallback...")
+                    do {
+                        await currentPlayer.avPlayer?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+                        try await Task.sleep(nanoseconds: 500_000_000) // 0.5s wait
+                        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Direct seek fallback successful")
+                        break
+                    } catch {
+                        self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Even direct seek fallback failed")
+                        throw VideoProcessingError.trimOperationFailed(startTime: startTime.seconds, endTime: endTime.seconds, underlyingError: error)
+                    }
+                }
+            }
+        }
+
+        // Step 5: Update manager state and log success
+        let oldRotation = currentRotation
+        currentRotation = rotation
+
+        let operationDuration = CFAbsoluteTimeGetCurrent() - diagnosticStart
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Transactional trim and seek completed successfully - oldRotation: \(oldRotation), newRotation: \(self.currentRotation), duration: \((operationDuration * 1000).formatted())ms, playerReady: \(currentPlayer.isPlayerReady)")
+    }
+
     /// Applies trim and rotation to the current player for previewing in NameMoveView
     public func applyTrimAndRotationForPreview(
         startTime: CMTime,

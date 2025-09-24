@@ -51,7 +51,8 @@ struct TrimmerPlayerView: View {
     
     private var videoPlayerWithContent: some View {
         CustomVideoPlayerView(
-            viewModel: unifiedState.currentPlayerViewModel!
+            viewModel: unifiedState.currentPlayerViewModel!,
+            shouldAutoplay: false
         )
         .onAppear {
             let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state), rotation: \(unifiedState.rotationQuarterTurns)"
@@ -110,7 +111,10 @@ struct FeatureRichTrimmerView: View {
     @State private var localRotation: Int = 0
     @State private var cachedTimeCodeRow: (startTime: CMTime, endTime: CMTime, isDraggingStart: Bool, isDraggingEnd: Bool)?
     @State private var isRotationButtonPressed: Bool = false
-    
+
+    // MARK: - Local Loading State for Deadlock Prevention
+    @State private var isFinalizing = false
+
     // MARK: - Enhanced Diagnostic Logging
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "FeatureRichTrimmer")
     
@@ -222,27 +226,28 @@ struct FeatureRichTrimmerView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            // MARK: - Video Player Section with Replacement Support
-            Group {
-                if isVideoReplacementInProgress {
-                    videoReplacementView
-                } else {
-                    // TrimmerPlayerView is now created unconditionally to give it a stable identity.
-                    // The loading logic is moved inside it.
-                    TrimmerPlayerView(
-                        unifiedState: unifiedState,
-                        isReady: isReadyToShowTrimmer
-                    )
-                }
-            }
-            // MARK: - Enhanced Trimmer Interface
-            Spacer()
-            VStack(spacing: 8) {
+        ZStack {
+            VStack(spacing: 0) {
                 Spacer()
-                // Minimum duration warning (positioned above timecode for better visibility)
-                if viewModel.showMinimumDurationWarning == true {
+                // MARK: - Video Player Section with Replacement Support
+                Group {
+                    if isVideoReplacementInProgress {
+                        videoReplacementView
+                    } else {
+                        // TrimmerPlayerView is now created unconditionally to give it a stable identity.
+                        // The loading logic is moved inside it.
+                        TrimmerPlayerView(
+                            unifiedState: unifiedState,
+                            isReady: isReadyToShowTrimmer
+                        )
+                    }
+                }
+                // MARK: - Enhanced Trimmer Interface
+                Spacer()
+                VStack(spacing: 8) {
+                    Spacer()
+                    // Minimum duration warning (positioned above timecode for better visibility)
+                    if viewModel.showMinimumDurationWarning == true {
                     minimumDurationWarning
                 }
 
@@ -268,9 +273,14 @@ struct FeatureRichTrimmerView: View {
                 "combined_ready": "\(isReadyToShowTrimmer)"
             ])
         }
-        .onDisappear {
-            diagnosticLogger.logInfo("🧹 Body disappeared")
-            diagnosticLogger.logInfo("🧹 Cleanup completed")
+            .onDisappear {
+                diagnosticLogger.logInfo("🧹 Body disappeared; cleanup completed")
+            }
+
+            // 🎯 CRITICAL: Local loading overlay preserves render layer during async operations
+            if isFinalizing {
+                LoadingOverlayView(progress: 0.9, status: "Preparing Trimmed Video...")
+            }
         }
         .photosPicker(
             isPresented: $showPhotosPicker,
@@ -950,46 +960,47 @@ struct FeatureRichTrimmerView: View {
 
         let trimmerVM = viewModel
 
-        // Apply final trim settings to ensure everything is synchronized
+        // 🎯 CRITICAL: Show local loading overlay to preserve render layer
+        await MainActor.run {
+            isFinalizing = true
+        }
+
+        // 🎯 FIX: The view's only responsibility is to trigger the state transition.
+        // The unifiedState will now handle getting the final trim values and processing the asset.
+        // We REMOVE the applyTrimSettings call from here.
         do {
-            diagnosticLogger.logInfo("🎯 Applying final trim settings before continuation", metadata: [
-                "start_time": "\(trimmerVM.startTime.seconds)",
-                "end_time": "\(trimmerVM.endTime.seconds)",
-                "rotation": "\(trimmerVM.rotationQuarterTurns)"
+            diagnosticLogger.logInfo("🔄 Triggering state transition via proceedToNextState()", metadata: [
+                "current_flow_state": "\(unifiedState.flowState)",
+                "target_state": "naming",
+                "race_condition_prevention": "enabled",
+                "local_overlay_active": "\(isFinalizing)"
             ])
 
-            // Apply trim settings with timeout protection
-            try await withTimeout(seconds: 10.0) {
-                try await unifiedState.applyTrimSettings(
-                    startTime: trimmerVM.startTime.seconds,
-                    endTime: trimmerVM.endTime.seconds,
-                    rotation: trimmerVM.rotationQuarterTurns
-                )
-            }
-
-            // Log successful inheritance
-            diagnosticLogger.logInfo("✅ All modifications successfully inherited", metadata: [
-                "inherited_trim_range": "\(trimmerVM.startTime.seconds)-\(trimmerVM.endTime.seconds)",
-                "inherited_rotation": "\(trimmerVM.rotationQuarterTurns)",
-                "inherited_duration": "\((trimmerVM.endTime - trimmerVM.startTime).seconds)"
-            ])
-
-            // Transition to naming view with timeout protection
-            try await withTimeout(seconds: 5.0) {
-                await unifiedState.transitionTo(.naming)
+            // This is now the ONLY call we need to make.
+            try await withTimeout(seconds: 15.0) {
+                try await unifiedState.proceedToNextState()
             }
 
             diagnosticLogger.stopTiming("validate_and_continue")
-            diagnosticLogger.logInfo("🎉 Successfully continued to naming view")
+            diagnosticLogger.logInfo("🎉 Successfully continued to naming view via proper state transition", metadata: [
+                "final_flow_state": "\(unifiedState.flowState)",
+                "transition_method": "proceedToNextState",
+                "race_condition_prevention": "verified"
+            ])
 
         } catch let timeoutError as TimeoutError {
             diagnosticLogger.logError("⏰ Continue operation timed out", error: timeoutError)
             await unifiedState.setError(message: "Operation timed out", underlying: "The continue operation took too long to complete")
             diagnosticLogger.stopTiming("validate_and_continue")
         } catch {
-            diagnosticLogger.logError("❌ Failed to apply final trim settings", error: error)
-            await unifiedState.setError(message: "Failed to save trim settings", underlying: error.localizedDescription)
+            diagnosticLogger.logError("❌ Failed during proceedToNextState", error: error)
+            await unifiedState.setError(message: "Failed to prepare the video", underlying: error.localizedDescription)
             diagnosticLogger.stopTiming("validate_and_continue")
+        }
+
+        // 🎯 CRITICAL: Hide local loading overlay when done
+        await MainActor.run {
+            isFinalizing = false
         }
     }
 }

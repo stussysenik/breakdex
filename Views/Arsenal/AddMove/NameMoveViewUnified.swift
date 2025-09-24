@@ -1,5 +1,6 @@
 import SwiftUI
 import OSLog
+import AVKit
 
 private let logger = Logger(subsystem: "com.breakingflashcards", category: "NameMoveViewUnified")
 
@@ -32,48 +33,79 @@ struct NameMoveViewUnified: View {
     
     // MARK: - Body
     var body: some View {
-        mainContentView
-            .onAppear {
-                logger.info("🎬 NAME_MOVE_UNIFIED: View appeared")
-                setupInitialState()
+        // 🎯 DEFENSIVE FIX: Ensure the player view model is available before rendering.
+        // This makes the view more robust against unexpected state inconsistencies.
+        Group {
+            if unifiedState.currentPlayerViewModel != nil {
+                mainContentView
+                    .onAppear {
+                        logger.info("🎬 NAME_MOVE_UNIFIED: View appeared - player available: \(unifiedState.currentPlayerViewModel != nil)")
+                        setupInitialState()
+
+                        // 🎯 CRITICAL FIX: Integrate with state lifecycle hooks
+                        // This ensures proper cleanup and prevents race conditions
+                        unifiedState.completeTransition()
+
+                        // 🎯 CRITICAL FIX: Start save readiness monitoring for real-time validation
+                        unifiedState.startSaveReadinessMonitoring()
+
+                        // 🎯 CRITICAL FIX: Player is already pre-configured with trimmed asset
+                        // No seek operation needed - AVComposition starts at CMTime.zero
+                        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Player is pre-configured with trimmed asset. No seek needed.")
+                        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ State lifecycle integration completed")
+                    }
+                    .onDisappear {
+                        logger.info("🎬 NAME_MOVE_UNIFIED: View disappeared - preparing for transition")
+
+                        // 🎯 CRITICAL FIX: Stop save readiness monitoring to prevent memory leaks
+                        unifiedState.stopSaveReadinessMonitoring()
+
+                        // 🎯 CRITICAL FIX: Prepare for transition with enhanced cleanup
+                        unifiedState.prepareForTransition()
+
+                        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Enhanced state lifecycle cleanup completed")
+                    }
+            } else {
+                // Render a fallback UI if the player is not ready, preventing a crash.
+                loadingView
+                    .onAppear {
+                        logger.warning("⚠️ NAME_MOVE_UNIFIED: Appeared without a player view model. Flow state: \(String(describing: unifiedState.flowState))")
+                    }
             }
-            .onDisappear {
-                logger.info("🎬 NAME_MOVE_UNIFIED: View disappeared - preparing for transition")
-                unifiedState.prepareForTransition()
+        }
+        .sheet(isPresented: $isShowingPreview) {
+            if let playerViewModel = unifiedState.currentPlayerViewModel {
+                PreviewSheet(
+                    playerViewModel: playerViewModel,
+                    startTime: unifiedState.trimStartTime,
+                    endTime: unifiedState.trimEndTime,
+                    rotationQuarterTurns: unifiedState.rotationQuarterTurns,
+                    onDismiss: {
+                        isShowingPreview = false
+                    }
+                )
             }
-            .sheet(isPresented: $isShowingPreview) {
-                if let playerViewModel = unifiedState.currentPlayerViewModel {
-                    PreviewSheet(
-                        playerViewModel: playerViewModel,
-                        startTime: unifiedState.trimStartTime,
-                        endTime: unifiedState.trimEndTime,
-                        rotationQuarterTurns: unifiedState.rotationQuarterTurns,
-                        onDismiss: {
-                            isShowingPreview = false
-                        }
-                    )
-                }
-            }
+        }
     }
-    
+
     // MARK: - Main Content
     @ViewBuilder
     private func mainContent(with playerViewModel: UnifiedVideoPlayerViewModel) -> some View {
         VStack(spacing: 0) {
             renderHeader()
             Spacer()
-            
+
             // Video preview section
             renderVideoPreview(with: playerViewModel)
                 .padding(.bottom, 20)
-            
+
             // Name input section
             renderNameInput()
                 .padding(.bottom, 20)
-            
+
             // Action buttons
             renderActionButtons()
-            
+
             Spacer()
         }
         .background(Color.black.ignoresSafeArea())
@@ -112,18 +144,18 @@ struct NameMoveViewUnified: View {
             Text("Preview")
                 .font(.subheadline)
                 .foregroundColor(.gray)
-            
-            CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false)
+
+            CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false, shouldAutoplay: false)
                 .frame(height: 200)
                 .cornerRadius(12)
                 .padding(.horizontal)
-            
+
             // Trim info
             HStack {
                 Text("Duration: \(formatDuration(unifiedState.trimEndTime - unifiedState.trimStartTime))")
                     .font(.caption)
                     .foregroundColor(.gray)
-                
+
                 if unifiedState.rotationQuarterTurns > 0 {
                     Text("Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
                         .font(.caption)
@@ -146,6 +178,7 @@ struct NameMoveViewUnified: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .padding(.horizontal)
                 .onChange(of: moveName) { _, newValue in
+                    logger.info("🎬 NAME_MOVE_UNIFIED: Text changed to '\(newValue)' - canSave: \(canSave)")
                     unifiedState.moveName = newValue
                 }
         }
@@ -154,6 +187,7 @@ struct NameMoveViewUnified: View {
     private func renderActionButtons() -> some View {
         VStack(spacing: 16) {
             Button(action: {
+                logger.info("🎬 NAME_MOVE_UNIFIED: Save tap detected")
                 handleSave()
             }) {
                 Text("Save Move")
@@ -232,7 +266,7 @@ struct NameMoveViewUnified: View {
         // Show confirmation dialog
         // For now, just go back to ready state
         Task {
-            await unifiedState.reset()
+            unifiedState.reset()
         }
     }
     
@@ -253,7 +287,7 @@ struct NameMoveViewUnified: View {
     }
       
     // MARK: - Utility Methods
-    
+
     private func formatDuration(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
@@ -279,7 +313,7 @@ struct PreviewSheet: View {
                     .font(.headline)
                     .padding()
                 
-                CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false)
+                CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false, shouldAutoplay: false)
                     .frame(height: 300)
                     .cornerRadius(12)
                     .padding()

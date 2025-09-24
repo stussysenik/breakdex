@@ -50,7 +50,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     private var isPlaybackPending = false
     private var cancellables = Set<AnyCancellable>()
     private let logger: AppLogger
-    private let videoHealthMonitor: VideoHealthMonitor
+    public let videoHealthMonitor: VideoHealthMonitor
     private let memoryManager: MemoryManager
     private let memoryLogger = CentralizedMemoryLogger.shared
     private var correlationId: String?
@@ -68,7 +68,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     /// Public getter for AVPlayer access (for logging and debugging)
     public var avPlayer: AVPlayer? {
         switch state {
-        case .ready(let player), .playing(let player):
+        case .ready(let player), .playing(let player), .paused(let player):
             return player
         default:
             return nil
@@ -143,21 +143,91 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     // MARK: - Public Methods
 
 
+    /// 🎯 CRITICAL FIX: Enhanced idempotent startPlayback method with comprehensive state validation
+    /// Prevents redundant calls and ensures correct player state management
     public func startPlayback() {
-        if case .ready(let player) = state {
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🎬 startPlayback() called", metadata: [
+            "current_state": "\(state)",
+            "is_playback_pending": "\(isPlaybackPending)",
+            "is_player_ready": "\(isPlayerReady)"
+        ])
+
+        switch state {
+        case .ready(let player):
             // Defensive check: Only attempt to play if the item is actually ready
+            if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Player ready, starting playback", metadata: [
+                    "item_status": "\(currentItem.status.rawValue)",
+                    "is_likely_to_keep_up": "\(currentItem.isPlaybackLikelyToKeepUp)"
+                ])
+
+                // 🎯 CRITICAL FIX: Basic validation before playback
+                // Note: isPlayable check omitted to avoid async complexity in synchronous method
+                guard currentItem.duration.seconds > 0 else {
+                    logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ❌ Invalid asset duration", metadata: [
+                        "duration_seconds": "\(currentItem.duration.seconds)"
+                    ])
+                    state = .error(message: "Invalid video duration")
+                    return
+                }
+
+                player.play()
+                self.state = .playing(player: player)
+                isPlaybackPending = false
+
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🎉 Playback started successfully", metadata: [
+                    "player_rate": "\(player.rate)",
+                    "time_control_status": "\(player.timeControlStatus.rawValue)"
+                ])
+            } else {
+                // If not ready, set pending flag and observe for readiness
+                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ Item not ready, setting playback pending flag", metadata: [
+                    "item_status": "\(player.currentItem?.status.rawValue ?? -1)",
+                    "item_error": "\(player.currentItem?.error?.localizedDescription ?? "none")"
+                ])
+                isPlaybackPending = true
+                observePlayerItemReadiness()
+            }
+
+        case .playing(let player):
+            // 🎯 CRITICAL FIX: Ensure player is actually playing when in playing state
+            if player.rate == 0 {
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Player in playing state but paused, resuming", metadata: [
+                    "player_rate": "\(player.rate)",
+                    "time_control_status": "\(player.timeControlStatus.rawValue)"
+                ])
+                player.play()
+            } else {
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏭️ Player already playing, skipping redundant call", metadata: [
+                    "player_rate": "\(player.rate)",
+                    "time_control_status": "\(player.timeControlStatus.rawValue)"
+                ])
+            }
+
+        case .paused(let player):
+            // 🎯 CRITICAL FIX: Handle transition from paused to playing state
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Resuming from paused state", metadata: [
+                "player_rate": "\(player.rate)",
+                "time_control_status": "\(player.timeControlStatus.rawValue)"
+            ])
+
             if let currentItem = player.currentItem, currentItem.status == .readyToPlay {
                 player.play()
                 self.state = .playing(player: player)
                 isPlaybackPending = false
             } else {
-                // If not ready, set pending flag and observe for readiness
-                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): startPlayback() called, but item is not ready (status: \(player.currentItem?.status.rawValue ?? -1)). Setting playback pending flag.", metadata: nil)
+                logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ Cannot resume from paused - item not ready", metadata: [
+                    "item_status": "\(player.currentItem?.status.rawValue ?? -1)"
+                ])
                 isPlaybackPending = true
                 observePlayerItemReadiness()
             }
-        } else if case .playing(let player) = state {
-            player.play()
+
+        case .loading, .idle:
+            logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ Cannot start playback from current state: \(state)", metadata: nil)
+
+        case .error:
+            logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ❌ Cannot start playback from error state", metadata: nil)
         }
     }
 
@@ -259,6 +329,22 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         player.pause()
         isPlaybackPending = false
 
+        // 🎯 CRITICAL FIX: Invalidate the persistent KVO observer on the OLD item before replacing it.
+        // This is the root cause of the crash, as it prevents the "message sent to deallocated instance"
+        // error when the old view's coordinator is dismantled during the state transition.
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Invalidating persistent KVO observer to prevent race condition", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "observer_exists": "\(itemStatusObserver != nil)",
+            "old_item_duration": "\(player.currentItem?.asset.duration.seconds ?? 0)"
+        ])
+
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ KVO observer invalidated safely", metadata: [
+            "correlationId": correlationId ?? "unknown"
+        ])
+
         // 💡 ENHANCEMENT: Clear any existing observation subscriptions to prevent race conditions
         cancellables.removeAll()
 
@@ -347,12 +433,18 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             videoHealthMonitor.startMonitoring(asset: newItem.asset)
 
             // 💡 ENHANCEMENT: Setup new persistent KVO observers for the replaced item to prevent future race conditions
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔧 Setting up new persistent KVO observers for replaced item", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "new_item_status": "\(newItem.status.rawValue)"
+            ])
+
             setupObservers(for: newItem)
 
             logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🎉 Enhanced player item replacement completed successfully", metadata: [
                 "correlationId": correlationId ?? "unknown",
                 "total_operation_time": "measured_by_monitor",
-                "final_state": "\(state)"
+                "final_state": "\(state)",
+                "new_observer_active": "\(itemStatusObserver != nil)"
             ])
 
         } catch {
@@ -444,6 +536,12 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         itemStatusObserver = nil
 
         // 🔧 CRITICAL: Set up persistent KVO observer that survives Combine cancellable removal
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 📡 Creating persistent KVO observer", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "item_status": "\(item.status.rawValue)",
+            "observation_options": "initial,new"
+        ])
+
         itemStatusObserver = item.observe(\.status, options: [.initial, .new]) { [weak self] observedItem, change in
             guard let self = self else { return }
 
@@ -497,7 +595,9 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         }
 
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Persistent KVO observers setup completed", metadata: [
-            "correlationId": correlationId ?? "unknown"
+            "correlationId": correlationId ?? "unknown",
+            "observer_created": "\(itemStatusObserver != nil)",
+            "item_status": "\(item.status.rawValue)"
         ])
     }
 
@@ -509,26 +609,30 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     public func pauseForTrimming() {
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): pauseForTrimming() called", metadata: nil)
 
-        Task { @MainActor in
-            switch state {
-            case .playing(let player):
-                player.pause()
-                videoHealthMonitor.pauseMonitoring()
-                if mode == .preview {
-                    memoryCheckTimer?.invalidate()
-                    memoryCheckTimer = nil
-                }
-                state = .paused(player: player)
-            case .ready(let player):
-                player.pause()
-                videoHealthMonitor.pauseMonitoring()
-                state = .paused(player: player)
-            case .paused(_):
-                // Already paused, do nothing
-                break
-            default:
-                break
+        // Ensure this runs on the main actor synchronously.
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.pauseForTrimming() }
+            return
+        }
+
+        switch state {
+        case .playing(let player):
+            player.pause()
+            videoHealthMonitor.pauseMonitoring()
+            if mode == .preview {
+                memoryCheckTimer?.invalidate()
+                memoryCheckTimer = nil
             }
+            state = .paused(player: player)
+        case .ready(let player):
+            player.pause()
+            videoHealthMonitor.pauseMonitoring()
+            state = .paused(player: player)
+        case .paused(_):
+            // Already paused, do nothing
+            break
+        default:
+            break
         }
         shouldPlay = false
     }
@@ -594,6 +698,131 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
     
     public func seek(to time: CMTime) {
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+
+    public func asyncSeek(to time: CMTime) async throws {
+        let diagnosticStart = CFAbsoluteTimeGetCurrent()
+        logger.info("🎬 VIDEO_MODEL: Async seek starting with enhanced readiness check.", metadata: [
+            "target_time": "\(time.seconds)",
+            "player_state": "\(state)",
+            "correlationId": correlationId ?? "unknown"
+        ])
+
+        // Enhanced validation with detailed logging
+        guard let player = self.avPlayer, let item = player.currentItem else {
+            let errorMessage = "Player or player item is nil"
+            logger.error("❌ VIDEO_MODEL: Async seek validation failed", metadata: [
+                "error": errorMessage,
+                "player_exists": "\(self.avPlayer != nil)",
+                "item_exists": "\(player.currentItem != nil)",
+                "current_state": "\(state)"
+            ])
+            throw NSError(domain: "SeekFailed", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+        }
+
+        // 🎯 CRITICAL FIX: Enhanced readiness awaiting with comprehensive progress logging
+        // This prevents race conditions during player item status transitions
+        let initialItemStatus = item.status
+        let initialBufferStatus = item.isPlaybackLikelyToKeepUp
+
+        logger.info("🎬 VIDEO_MODEL: Starting enhanced player readiness monitoring", metadata: [
+            "initial_item_status": "\(initialItemStatus.rawValue)",
+            "initial_buffer_status": "\(initialBufferStatus)",
+            "target_time": "\(time.seconds)",
+            "item_duration": "\(item.asset.duration.seconds)",
+            "loaded_ranges": "\(item.loadedTimeRanges.count)"
+        ])
+
+        let monitor = PlayerItemStatusMonitor(playerItem: item)
+        do {
+            // Enhanced readiness monitoring with progress callbacks
+            try await monitor.awaitReadyAndBuffered(timeout: 5.0) { [weak self] progress in
+                guard let self = self else { return }
+
+                let memoryInfo = self.diagnosticLogger.getMemoryInfo()
+                logger.info("🎬 VIDEO_MODEL: Seek readiness progress: \(Int(progress * 100))%", metadata: [
+                    "correlationId": self.correlationId ?? "unknown",
+                    "progress": "\(progress)",
+                    "memory_usage_mb": "\(String(format: "%.1f", memoryInfo.used))",
+                    "current_item_status": "\(item.status.rawValue)",
+                    "buffer_status": "\(item.isPlaybackLikelyToKeepUp)",
+                    "loaded_ranges": "\(item.loadedTimeRanges.count)"
+                ])
+            }
+
+            // Post-readiness validation
+            let finalItemStatus = item.status
+            let finalBufferStatus = item.isPlaybackLikelyToKeepUp
+
+            logger.info("✅ VIDEO_MODEL: Player readiness validation complete", metadata: [
+                "initial_status": "\(initialItemStatus.rawValue)",
+                "final_status": "\(finalItemStatus.rawValue)",
+                "initial_buffer": "\(initialBufferStatus)",
+                "final_buffer": "\(finalBufferStatus)",
+                "validation_time_ms": "\((CFAbsoluteTimeGetCurrent() - diagnosticStart) * 1000)"
+            ])
+
+        } catch {
+            let readinessDuration = CFAbsoluteTimeGetCurrent() - diagnosticStart
+            logger.error("❌ VIDEO_MODEL: Enhanced readiness monitoring failed", metadata: [
+                "error": error.localizedDescription,
+                "duration_ms": "\(readinessDuration * 1000)",
+                "final_item_status": "\(item.status.rawValue)",
+                "item_error": "\(item.error?.localizedDescription ?? "none")",
+                "loaded_ranges": "\(item.loadedTimeRanges.count)",
+                "correlationId": correlationId ?? "unknown"
+            ])
+            throw NSError(domain: "PlayerNotReady", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "Player item did not become ready for seek operation after enhanced monitoring."
+            ])
+        }
+
+        // 🎯 ENHANCED: Now that we're certain the item is ready, perform the seek with enhanced error handling
+        let seekStart = CFAbsoluteTimeGetCurrent()
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            // Configure video composition settings for smooth seeking
+            if item.videoComposition != nil {
+                item.seekingWaitsForVideoCompositionRendering = true
+                logger.info("🎬 VIDEO_MODEL: Video composition seeking enabled", metadata: [
+                    "composition_layers": "\(item.videoComposition?.instructions.count ?? 0)",
+                    "render_size": "\(item.videoComposition?.renderSize.width ?? 0)x\(item.videoComposition?.renderSize.height ?? 0)"
+                ])
+            }
+
+            // Perform the seek with precise timing
+            // Capture values needed in closure to avoid main actor isolation issues
+            let targetTimeSeconds = time.seconds
+            let currentCorrelationId = self.correlationId ?? "unknown"
+            let currentLogger = self.logger
+
+            player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { completed in
+                let seekDuration = CFAbsoluteTimeGetCurrent() - seekStart
+
+                if completed {
+                    let finalTime = player.currentTime()
+                    currentLogger.info("✅ VIDEO_MODEL: Enhanced seek completed successfully", metadata: [
+                        "target_time": "\(targetTimeSeconds)",
+                        "actual_time": "\(finalTime.seconds)",
+                        "time_delta_ms": "\((finalTime.seconds - targetTimeSeconds) * 1000)",
+                        "seek_duration_ms": "\(seekDuration * 1000)",
+                        "player_rate": "\(player.rate)",
+                        "correlationId": currentCorrelationId
+                    ])
+                    continuation.resume()
+                } else {
+                    currentLogger.error("❌ VIDEO_MODEL: Enhanced seek failed to complete", metadata: [
+                        "target_time": "\(targetTimeSeconds)",
+                        "seek_duration_ms": "\(seekDuration * 1000)",
+                        "player_time_control_status": "\(player.timeControlStatus.rawValue)",
+                        "correlationId": currentCorrelationId
+                    ])
+                    continuation.resume(throwing: NSError(domain: "SeekFailed", code: 3, userInfo: [
+                        NSLocalizedDescriptionKey: "The enhanced seek operation was cancelled or failed."
+                    ]))
+                }
+            }
+        }
     }
 
     public func waitForReady() async throws {

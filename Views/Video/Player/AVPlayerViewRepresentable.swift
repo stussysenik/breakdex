@@ -4,8 +4,8 @@
 //
 //  Single Responsibility: Provide reliable AVPlayer rendering in SwiftUI
 //  Replaces SwiftUI VideoPlayer with AVFoundation direct access for stability
-//  UPDATED: Restored UI-level rotation for immediate visual feedback
-//  Provides instant rotation feedback while asset-level rotation processes in background
+//  UPDATED: Implemented Coordinator pattern to handle race conditions where the
+//  player's currentItem is not yet ready when the view is created.
 //
 
 import SwiftUI
@@ -15,96 +15,109 @@ import OSLog
 /// UIViewRepresentable wrapper for AVPlayer using AVPlayerLayer
 /// Single Responsibility: Display AVPlayer content reliably in SwiftUI
 /// Eliminates SwiftUI VideoPlayer crashes while maintaining identical UX
-/// FIXED: Removed UI-level rotation to prevent conflicts with data-layer rotation
-/// Rotation is now handled exclusively by VideoTransformBuilder at the asset level
+/// FIXED: Implemented Coordinator pattern to resolve race condition during view transitions
+/// Now properly waits for player item readiness before rendering video content
 struct AVPlayerViewRepresentable: UIViewRepresentable {
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "AVPlayerViewRepresentable")
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "AVPlayerView")
 
-    let player: AVPlayer
     let metadata: [AVMetadataItem]?
+    let viewModel: any VideoPlayerViewModelProtocol
+    let playerItem: AVPlayerItem? // 🎯 CRITICAL FIX: Track player item for state synchronization
 
-    init(player: AVPlayer, metadata: [AVMetadataItem]? = nil) {
+    init(metadata: [AVMetadataItem]? = nil, viewModel: any VideoPlayerViewModelProtocol, playerItem: AVPlayerItem?) {
         diagnosticLogger.startTiming("representable_initialization")
 
         let initMemory = diagnosticLogger.getMemoryInfo()
         let initCPU = diagnosticLogger.getCurrentCPUUsage()
 
-        self.player = player
         self.metadata = metadata
+        self.viewModel = viewModel
+        self.playerItem = playerItem // 🎯 CRITICAL FIX: Assign player item for state synchronization
 
         diagnosticLogger.logInfo("🎬 AVPlayerViewRepresentable initializing", metadata: [
-            "player_status": "\(player.status.rawValue)",
-            "player_item_exists": "\(player.currentItem != nil)",
             "metadata_provided": "\(metadata != nil)",
+            "view_model_type": "\(type(of: viewModel))",
+            "player_item_provided": "\(playerItem != nil)",
             "memory_usage_mb": "\(String(format: "%.1f", initMemory.used))",
             "cpu_usage_percent": "\(String(format: "%.1f", initCPU))"
         ])
 
         logger.info("🎬 AV_PLAYER_VIEW: init called")
-        logger.info("🎬 AV_PLAYER_VIEW: AVPlayer status: \(player.status.rawValue)")
-        logger.info("🎬 AV_PLAYER_VIEW: AVPlayer currentItem exists: \(player.currentItem != nil)")
+        logger.info("🎬 AV_PLAYER_VIEW: Using viewModel as single source of truth")
         logger.info("🎬 AV_PLAYER_VIEW: Metadata provided: \(metadata != nil)")
-        if let item = player.currentItem {
-            logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem status: \(item.status.rawValue)")
-            logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem duration: \(item.duration.seconds)")
-            diagnosticLogger.logDebug("📹 Player item details", metadata: [
-                "item_duration_seconds": "\(item.duration.seconds)",
-                "item_status": "\(item.status.rawValue)",
-                "item_error": "\(item.error?.localizedDescription ?? "none")"
-            ])
+        logger.info("🎬 AV_PLAYER_VIEW: PlayerItem provided: \(playerItem != nil)") // 🎯 CRITICAL FIX: Log player item status
+
+        if let player = viewModel.avPlayer {
+            logger.info("🎬 AV_PLAYER_VIEW: AVPlayer status: \(player.status.rawValue)")
+            logger.info("🎬 AV_PLAYER_VIEW: AVPlayer currentItem exists: \(player.currentItem != nil)")
+            if let item = player.currentItem {
+                logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem status: \(item.status.rawValue)")
+                logger.info("🎬 AV_PLAYER_VIEW: AVPlayerItem duration: \(item.duration.seconds)")
+                diagnosticLogger.logDebug("📹 Player item details", metadata: [
+                    "item_duration_seconds": "\(item.duration.seconds)",
+                    "item_status": "\(item.status.rawValue)",
+                    "item_error": "\(item.error?.localizedDescription ?? "none")"
+                ])
+            }
+        } else {
+            logger.warning("🎬 AV_PLAYER_VIEW: AVPlayer is nil")
         }
 
         diagnosticLogger.stopTiming("representable_initialization")
     }
+
+    // MARK: - Coordinator Pattern
+
+    func makeCoordinator() -> Coordinator {
+        diagnosticLogger.startTiming("coordinator_creation")
+
+        let coordinator = Coordinator(viewModel: viewModel, logger: logger, diagnosticLogger: diagnosticLogger)
+
+        diagnosticLogger.logInfo("🔧 Coordinator created", metadata: [
+            "coordinator_type": "\(type(of: coordinator))",
+            "view_model_type": "\(type(of: viewModel))"
+        ])
+
+        logger.info("🎬 AV_PLAYER_VIEW: Coordinator created")
+        diagnosticLogger.stopTiming("coordinator_creation")
+
+        return coordinator
+    }
+
+    class Coordinator: NSObject {
+        let viewModel: any VideoPlayerViewModelProtocol
+        let logger: Logger
+        let diagnosticLogger: DiagnosticLoggingHelper
+
+        // SIMPLIFIED: Removed all KVO logic - ViewModel is now single source of truth
+        init(viewModel: any VideoPlayerViewModelProtocol, logger: Logger, diagnosticLogger: DiagnosticLoggingHelper) {
+            self.viewModel = viewModel
+            self.logger = logger
+            self.diagnosticLogger = diagnosticLogger
+            super.init()
+            logger.info("🎬 COORDINATOR: Initialized with viewModel (Simplified)")
+        }
+    }
     
     func makeUIView(context: Context) -> PlayerView {
         diagnosticLogger.startTiming("make_uiview")
-
-        let makeMemory = diagnosticLogger.getMemoryInfo()
-        let makeCPU = diagnosticLogger.getCurrentCPUUsage()
-
-        diagnosticLogger.logInfo("🔧 Creating UIView for AVPlayer rendering", metadata: [
-            "memory_usage_mb": "\(String(format: "%.1f", makeMemory.used))",
-            "cpu_usage_percent": "\(String(format: "%.1f", makeCPU))",
-            "player_status": "\(player.status.rawValue)",
-            "player_ready": "\(player.status == .readyToPlay)"
-        ])
-
-        logger.info("🎬 AV_PLAYER_VIEW: makeUIView called")
+        logger.info("🎬 AV_PLAYER_VIEW: makeUIView called (Simplified)")
 
         let playerView = PlayerView()
-
-        // Configure player layer
-        playerView.playerLayer.player = player
         playerView.playerLayer.videoGravity = .resizeAspect
 
-        diagnosticLogger.logDebug("⚙️ Player layer configured", metadata: [
-            "video_gravity": "resizeAspect",
-            "player_assigned": "true"
-        ])
+        // SIMPLIFIED: Directly assign the player if the ViewModel confirms it's ready.
+        // The ViewModel is now the single source of truth for readiness.
+        if viewModel.isPlayerReady {
+            playerView.playerLayer.player = viewModel.avPlayer
+            logger.info("🎬 AV_PLAYER_VIEW: Player assigned on creation because ViewModel is ready.")
+        }
 
-        logger.info("🎬 AV_PLAYER_VIEW: PlayerView created successfully")
-        logger.info("🎬 AV_PLAYER_VIEW: AVPlayerLayer configured with videoGravity: resizeAspect")
-
-        // Add tap gesture for play/pause (maintaining UX compatibility)
+        // Add tap gesture for play/pause
         let tapGesture = UITapGestureRecognizer(target: playerView, action: #selector(PlayerView.handleTap))
         playerView.addGestureRecognizer(tapGesture)
         playerView.isUserInteractionEnabled = true
-
-        diagnosticLogger.logDebug("👆 Tap gesture configured", metadata: [
-            "gesture_enabled": "true",
-            "user_interaction_enabled": "true"
-        ])
-
-        logger.info("🎬 AV_PLAYER_VIEW: Tap gesture recognizer added for play/pause")
-
-        let postMakeMemory = diagnosticLogger.getMemoryInfo()
-        diagnosticLogger.logInfo("✅ UIView creation completed", metadata: [
-            "memory_after_mb": "\(String(format: "%.1f", postMakeMemory.used))",
-            "memory_increase_mb": "\(String(format: "%.1f", postMakeMemory.used - makeMemory.used))",
-            "player_view_ready": "true"
-        ])
 
         diagnosticLogger.stopTiming("make_uiview")
         return playerView
@@ -112,37 +125,21 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
     
     func updateUIView(_ uiView: PlayerView, context: Context) {
         diagnosticLogger.startTiming("update_uiview")
+        logger.info("🎬 AV_PLAYER_VIEW: updateUIView called (Simplified)")
 
-        let updateMemory = diagnosticLogger.getMemoryInfo()
-        let currentRotation = uiView.playerLayer.player != nil ? "player_assigned" : "no_player"
-
-        diagnosticLogger.logInfo("🔄 Updating UIView for AVPlayer", metadata: [
-            "memory_usage_mb": "\(String(format: "%.1f", updateMemory.used))",
-            "player_status": "\(player.status.rawValue)",
-            "player_assigned": "\(uiView.playerLayer.player !== player ? "needs_update" : "current")"
-        ])
-
-        logger.info("🎬 AV_PLAYER_VIEW: updateUIView called")
-
-        // Update player if needed
-        if uiView.playerLayer.player !== player {
-            diagnosticLogger.logInfo("🔄 Player reference needs update", metadata: [
-                "old_player_status": "\(uiView.playerLayer.player?.status.rawValue ?? -1)",
-                "new_player_status": "\(player.status.rawValue)"
-            ])
-            logger.info("🎬 AV_PLAYER_VIEW: Updating player reference")
-            uiView.playerLayer.player = player
-            diagnosticLogger.logDebug("✅ Player reference updated successfully")
+        // SIMPLIFIED: Synchronize the view's player with the ViewModel's player.
+        // This is the core of the fix. It relies on SwiftUI's update cycle.
+        if uiView.playerLayer.player !== viewModel.avPlayer {
+            if viewModel.isPlayerReady {
+                logger.info("🎬 AV_PLAYER_VIEW: Syncing player to layer.")
+                uiView.playerLayer.player = viewModel.avPlayer
+            } else {
+                // If the player isn't ready, ensure we don't show a stale frame.
+                logger.info("🎬 AV_PLAYER_VIEW: Player not ready, clearing layer.")
+                uiView.playerLayer.player = nil
+            }
         }
 
-        let postUpdateMemory = diagnosticLogger.getMemoryInfo()
-        diagnosticLogger.logInfo("✅ UIView update completed", metadata: [
-            "memory_after_mb": "\(String(format: "%.1f", postUpdateMemory.used))",
-            "memory_change_mb": "\(String(format: "%.1f", postUpdateMemory.used - updateMemory.used))",
-            "player_sync": "\(uiView.playerLayer.player === player)"
-        ])
-
-        logger.info("🎬 AV_PLAYER_VIEW: updateUIView completed")
         diagnosticLogger.stopTiming("update_uiview")
     }
     
@@ -292,63 +289,46 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
 
         deinit {
-            Task { @MainActor in
-                diagnosticLogger.startTiming("player_view_deinit")
+            // Note: deinit runs on whatever thread the object is deallocated on
+            // We need to ensure cleanup happens on main thread for UI operations
+            DispatchQueue.main.async {
+                self.diagnosticLogger.startTiming("player_view_deinit")
 
-                let deinitMemory = diagnosticLogger.getMemoryInfo()
+                let deinitMemory = self.diagnosticLogger.getMemoryInfo()
 
-                diagnosticLogger.logInfo("🗑️ PlayerView deinitializing", metadata: [
+                self.diagnosticLogger.logInfo("🗑️ PlayerView deinitializing", metadata: [
                     "final_memory_usage_mb": "\(String(format: "%.1f", deinitMemory.used))",
-                    "had_player": "\(playerLayer.player != nil)",
+                    "had_player": "\(self.playerLayer.player != nil)",
                     "final_bounds": "\(self.bounds.size)",
-                    "active_timers": "\(diagnosticLogger.getActiveTimerNames())"
+                    "active_timers": "\(self.diagnosticLogger.getActiveTimerNames())"
                 ])
 
-                logger.info("🎬 PLAYER_VIEW: deinit called")
+                self.logger.info("🎬 PLAYER_VIEW: deinit called")
 
                 // Clean up player reference
-                if playerLayer.player != nil {
-                    diagnosticLogger.logDebug("🧹 Clearing player reference")
-                    playerLayer.player = nil
+                if self.playerLayer.player != nil {
+                    self.diagnosticLogger.logDebug("🧹 Clearing player reference")
+                    self.playerLayer.player = nil
                 }
 
-                diagnosticLogger.logPerformanceSummary()
-                diagnosticLogger.stopTiming("player_view_deinit")
+                self.diagnosticLogger.logPerformanceSummary()
+                self.diagnosticLogger.stopTiming("player_view_deinit")
             }
         }
     }
 }
 
-// MARK: - UIViewRepresentable Extension for Logging
+// MARK: - UIViewRepresentable Extension for Dismantling
 extension AVPlayerViewRepresentable {
-    func dismantleUIView(_ uiView: PlayerView, coordinator: ()) {
-        diagnosticLogger.startTiming("dismantle_uiview")
+    static func dismantleUIView(_ uiView: PlayerView, coordinator: Coordinator) {
+        let diagnosticLogger = DiagnosticLoggingHelper(category: "AVPlayerViewDismantle")
+        let logger = Logger(subsystem: "com.breakingflashcards", category: "AVPlayerViewDismantle")
+        logger.info("🎬 AV_PLAYER_VIEW: dismantleUIView called (Simplified)")
 
-        let dismantleMemory = diagnosticLogger.getMemoryInfo()
-
-        diagnosticLogger.logInfo("🧹 Dismantling UIView", metadata: [
-            "memory_usage_mb": "\(String(format: "%.1f", dismantleMemory.used))",
-            "had_player": "\(uiView.playerLayer.player != nil)",
-            "player_status": "\(uiView.playerLayer.player?.status.rawValue ?? -1)"
-        ])
-
-        logger.info("🎬 AV_PLAYER_VIEW: dismantleUIView called")
-
-        // Clean up player reference
-        if uiView.playerLayer.player != nil {
-            diagnosticLogger.logDebug("🗑️ Clearing player reference in dismantle")
-            uiView.playerLayer.player = nil
-            logger.info("🎬 AV_PLAYER_VIEW: AVPlayer reference cleared")
-        }
-
-        let postDismantleMemory = diagnosticLogger.getMemoryInfo()
-        diagnosticLogger.logInfo("✅ UIView dismantle completed", metadata: [
-            "memory_after_mb": "\(String(format: "%.1f", postDismantleMemory.used))",
-            "memory_freed_mb": "\(String(format: "%.1f", dismantleMemory.used - postDismantleMemory.used))",
-            "player_cleared": "true"
-        ])
-
-        diagnosticLogger.stopTiming("dismantle_uiview")
+        // SIMPLIFIED: Clean up by removing the player from the layer.
+        // This is the only cleanup now required from the representable.
+        uiView.playerLayer.player = nil
+        diagnosticLogger.logInfo("🧹 Dismantling UIView - Player reference cleared.")
     }
 }
 

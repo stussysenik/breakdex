@@ -1,5 +1,7 @@
 ## Claude.md — BreakingFlashcards Video App (iOS 18.0)
 
+# * **Single Responsibility Principle (SRP):** Enforce SRP across all components. Views remain "dumb," containing no business logic and forwarding all user actions to the ViewModel.
+
 ### Project Structure
 - **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/`
 - **Main App:** `BreakingFlashcards/` (100+ Swift files)
@@ -25,7 +27,6 @@ Develop a high-performance, iOS 18.0-compliant video flashcard application for l
 
 ### Core Architectural Principles
 * **SwiftUI & State Flow:** Employ a strict unidirectional data flow for all UI. The `AddMoveState` enum serves as the single source of truth, with a state-driven ViewRouter (`AddMoveContainer`) managing view switching.
-* **Single Responsibility Principle (SRP):** Enforce SRP across all components. Views remain "dumb," containing no business logic and forwarding all user actions to the ViewModel.
 
 ### Logging & Debugging
 * **Logging-First Approach:** Adopt a logging-first approach using `OSLog` for detailed, categorized, and traceable logging. Use emojis in log categories for enhanced traceability.

@@ -13,6 +13,7 @@ public struct CustomVideoPlayerView: View {
     @State private var showFullscreen = false
     @State private var isMuted = false
     private let shouldTeardownOnDisappear: Bool
+    private let shouldAutoplay: Bool
     
     // MARK: - Static Properties
     private static var viewRecomputeCount = 0
@@ -68,17 +69,19 @@ public struct CustomVideoPlayerView: View {
     private let impactGenerator = UIImpactFeedbackGenerator(style: .light)
     
     // MARK: - Initialization
-    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false) {
+    public init(viewModel: any VideoPlayerViewModelProtocol, shouldTeardownOnDisappear: Bool = false, shouldAutoplay: Bool = true) {
         diagnosticLogger.startTiming("video_player_initialization")
 
         let initialMemory = diagnosticLogger.getMemoryInfo()
 
         self.observableWrapper = ObservableVideoPlayerWrapper(viewModel: viewModel)
         self.shouldTeardownOnDisappear = shouldTeardownOnDisappear
+        self.shouldAutoplay = shouldAutoplay
 
         diagnosticLogger.logInfo("🎬 CustomVideoPlayerView initializing", metadata: [
             "view_model_type": "\(type(of: viewModel))",
             "should_teardown": "\(shouldTeardownOnDisappear)",
+            "should_autoplay": "\(shouldAutoplay)",
             "initial_memory_mb": "\(String(format: "%.1f", initialMemory.used))",
             "instance_count": "\(Self.playerViewInstanceCount + 1)",
             "recompute_count": "\(Self.viewRecomputeCount + 1)"
@@ -88,6 +91,7 @@ public struct CustomVideoPlayerView: View {
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: ✅ INIT - Using @ObservedObject (corrected from @StateObject)", metadata: nil)
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel type: \(type(of: viewModel))", metadata: nil)
         logger.info("🎬 CUSTOM_VIDEO_PLAYER: Should teardown: \(shouldTeardownOnDisappear)", metadata: nil)
+        logger.info("🎬 CUSTOM_VIDEO_PLAYER: Should autoplay: \(shouldAutoplay)", metadata: nil)
 
         diagnosticLogger.stopTiming("video_player_initialization")
     }
@@ -129,8 +133,9 @@ public struct CustomVideoPlayerView: View {
                 .background(Color.black)
                 
             case "playing", "paused", "ready":
-                if isViewReady, let player = getPlayerFromState() {
-                    AVPlayerViewRepresentable(player: player)
+                // ✅ FIXED: No longer need getPlayerFromState helper - viewModel is single source of truth
+                if isViewReady, let unifiedViewModel = observableWrapper.viewModel as? UnifiedVideoPlayerViewModel {
+                    AVPlayerViewRepresentable(metadata: nil, viewModel: unifiedViewModel, playerItem: observableWrapper.playerItem)
                         .overlay(alignment: Alignment.topTrailing) {
                             HStack {
                                 Button {
@@ -160,10 +165,35 @@ public struct CustomVideoPlayerView: View {
                         }
                         .onChange(of: isMuted) { _, muted in
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Mute state changed to: \(muted)", metadata: nil)
-                            player.isMuted = muted
+                            if let player = observableWrapper.avPlayer {
+                                player.isMuted = muted
+                            }
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
-                            FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
+                            // 🎯 DEFENSIVE CHECK: Ensure player is available for fullscreen
+                            if let player = observableWrapper.avPlayer {
+                                FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
+                            } else {
+                                // Fallback UI if player becomes unavailable
+                                VStack(spacing: 16) {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(.yellow)
+                                    Text("Video Player Unavailable")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                    Text("Please try again or restart the video")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                    Button("Dismiss") {
+                                        showFullscreen = false
+                                    }
+                                    .buttonStyle(.appPrimary(size: .medium))
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(Color.black)
+                            }
                         }
                         .task {
                             diagnosticLogger.startTiming("video_render_task")
@@ -174,11 +204,24 @@ public struct CustomVideoPlayerView: View {
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: RenderStart: representable", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🔄 AVPlayerViewRepresentable task started (Instance #\(Self.playerViewInstanceCount), Recompute #\(Self.viewRecomputeCount))", metadata: nil)
 
+                            // 🎯 DEFENSIVE CHECK: Early return if player becomes nil due to race condition
+                            guard let player = observableWrapper.avPlayer else {
+                                logger.warning("🎬 CUSTOM_VIDEO_PLAYER: ⚠️ Player became nil during render task - possible race condition detected", metadata: nil)
+                                diagnosticLogger.logWarning("Video render task skipped - player not available", metadata: [
+                                    "instance_count": "\(Self.playerViewInstanceCount)",
+                                    "recompute_count": "\(Self.viewRecomputeCount)",
+                                    "observable_wrapper_state": "\(observableWrapper.stateString)",
+                                    "memory_usage_mb": "\(String(format: "%.1f", startMemory.used))"
+                                ])
+                                return
+                            }
+
                             diagnosticLogger.logInfo("🎬 Starting video render task", metadata: [
                                 "instance_count": "\(Self.playerViewInstanceCount)",
                                 "recompute_count": "\(Self.viewRecomputeCount)",
                                 "memory_usage_mb": "\(String(format: "%.1f", startMemory.used))",
-                                "cpu_usage_percent": "\(String(format: "%.1f", startCPU))"
+                                "cpu_usage_percent": "\(String(format: "%.1f", startCPU))",
+                                "player_status": "\(player.status.rawValue)"
                             ])
 
                             logMemoryUsage(context: "playing_task_start")
@@ -207,9 +250,9 @@ public struct CustomVideoPlayerView: View {
                                 "memory_increase_mb": "\(String(format: "%.1f", endMemory.used - startMemory.used))",
                                 "cpu_before_percent": "\(String(format: "%.1f", startCPU))",
                                 "cpu_after_percent": "\(String(format: "%.1f", endCPU))",
-                                "player_status": "\(player.status.rawValue)",
-                                "player_rate": "\(player.rate)",
-                                "is_muted": "\(player.isMuted)"
+                                "player_status": "\(observableWrapper.avPlayer?.status.rawValue ?? -1)",
+                                "player_rate": "\(observableWrapper.avPlayer?.rate ?? 0)",
+                                "is_muted": "\(observableWrapper.avPlayer?.isMuted ?? false)"
                             ])
 
                             logMemoryUsage(context: "playing_task_end")
@@ -252,12 +295,12 @@ public struct CustomVideoPlayerView: View {
                         }
                         .onChange(of: isMuted) { _, muted in
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Mute state changed to: \(muted)", metadata: nil)
-                            if let player = observableWrapper.avPlayer {
-                                player.isMuted = muted
+                            if let unifiedViewModel = observableWrapper.viewModel as? UnifiedVideoPlayerViewModel {
+                                unifiedViewModel.avPlayer?.isMuted = muted
                             }
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
-                            if let player = observableWrapper.avPlayer {
+                            if let unifiedViewModel = observableWrapper.viewModel as? UnifiedVideoPlayerViewModel, let player = unifiedViewModel.avPlayer {
                                 FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
                             }
                         }
@@ -313,10 +356,18 @@ public struct CustomVideoPlayerView: View {
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewModel state: \(String(describing: observableWrapper.state))", metadata: nil)
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: Thread: \(Thread.current.isMainThread ? "Main" : "Background")", metadata: nil)
 
-            // Mark view as ready and start playback
+            // Mark view as ready and start playback if requested
             isViewReady = true
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewReady: onAppear", metadata: nil)
-            observableWrapper.startPlayback()
+
+            // 🎯 CRITICAL FIX: Only start playback if shouldAutoplay is true
+            // This prevents race conditions in naming view where video should not autoplay
+            if shouldAutoplay {
+                logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🎬 Starting autoplay (shouldAutoplay: true)", metadata: nil)
+                observableWrapper.startPlayback()
+            } else {
+                logger.info("🎬 CUSTOM_VIDEO_PLAYER: ⏸️ Skipping autoplay (shouldAutoplay: false)", metadata: nil)
+            }
 
             let postAppearMemory = diagnosticLogger.getMemoryInfo()
             let appearDuration = Date().timeIntervalSince(appearStartTime)
@@ -382,10 +433,10 @@ public struct CustomVideoPlayerView: View {
                 diagnosticLogger.logDebug("✅ View model teardown completed")
             } else {
                 // Legacy behavior: only pause playback, don't tear down resources
-                if let player = getPlayerFromState() {
-                    logger.info("🎬 CUSTOM_VIDEO_PLAYER: Pausing playback (no teardown)", metadata: nil)
-                    diagnosticLogger.logDebug("⏸️ Pausing playback (preserving resources)")
-                    player.pause()
+                if let unifiedViewModel = observableWrapper.viewModel as? UnifiedVideoPlayerViewModel {
+                    logger.info("🎬 CUSTOM_VIDEO_PLAYER: Pausing playback via viewModel (no teardown)", metadata: nil)
+                    diagnosticLogger.logDebug("⏸️ Pausing playback via viewModel (preserving resources)")
+                    unifiedViewModel.avPlayer?.pause()
                 }
             }
 
@@ -433,18 +484,8 @@ public struct CustomVideoPlayerView: View {
         return observableWrapper.stateString
     }
     
-    /// Extract the player from the state if available
-    private func getPlayerFromState() -> AVPlayer? {
-        if let unifiedState = observableWrapper.state as? UnifiedVideoPlayerViewModel.State {
-            switch unifiedState {
-            case .playing(let player), .paused(let player), .ready(let player):
-                return player
-            default:
-                return nil
-            }
-        }
-        return nil
-    }
+    /// ✅ REMOVED: getPlayerFromState helper function - no longer needed
+    /// The viewModel is now the single source of truth, so we access player directly from viewModel.avPlayer
     
     /// Extract the error message from the state if available
     private func getErrorMessage() -> String? {
@@ -489,7 +530,7 @@ public struct CustomVideoPlayerView: View {
             ])
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: View rendering playing state", metadata: nil)
             // Extract player information if available
-            if let player = getPlayerFromState() {
+            if let unifiedViewModel = observableWrapper.viewModel as? UnifiedVideoPlayerViewModel, let player = unifiedViewModel.avPlayer {
                 diagnosticLogger.logInfo("🎵 Player details", metadata: [
                     "player_status": "\(player.status.rawValue)",
                     "player_rate": "\(player.rate)",
@@ -599,7 +640,9 @@ public struct CustomVideoPlayerView: View {
             logger.info("🎬 FULLSCREEN_PLAYER: Player rate: \(player.rate)", metadata: nil)
 
             return ZStack(alignment: Alignment.topLeading) {
-                AVPlayerViewRepresentable(player: player)
+                // Note: For fullscreen mode, we need to create a minimal wrapper viewModel
+                // This maintains the single source of truth pattern
+                AVPlayerViewRepresentable(metadata: nil, viewModel: FullscreenPlayerWrapper(player: player), playerItem: player.currentItem)
                     .edgesIgnoringSafeArea(.all)
 
                 Button {
@@ -675,35 +718,77 @@ class ObservableVideoPlayerWrapper: ObservableObject {
     @Published var isPlayerReady: Bool = false
     @Published var shouldPlay: Bool = false
     @Published var loadingProgress: Double? = nil
-    
-    private var viewModel: any VideoPlayerViewModelProtocol
+    @Published var playerItem: AVPlayerItem? = nil // 🎯 CRITICAL FIX: Track player item for state synchronization
+
+    private var _viewModel: any VideoPlayerViewModelProtocol
     private let logger = AppContainer.shared.logger
     private var cancellables = Set<AnyCancellable>()
-    
+
+    // MARK: - Phase 4: Player Hardening - Idempotency Tracking
+    private var hasStartedPlayback = false
+
     // MARK: - Public Accessors
     var avPlayer: AVPlayer? {
-        return viewModel.avPlayer
+        return _viewModel.avPlayer
     }
-    
+
     var state: Any {
-        return viewModel.state
+        return _viewModel.state
     }
-    
+
+    var viewModel: any VideoPlayerViewModelProtocol {
+        return self._viewModel
+    }
+
+    /// 🎯 CRITICAL FIX: Enhanced startPlayback method with idempotency protection
+    /// Prevents multiple redundant calls that could cause race conditions
     func startPlayback() {
-        viewModel.startPlayback()
+        // Check if we've already started playback to prevent redundant calls
+        guard !hasStartedPlayback else {
+            logger.info("🎬 OBSERVABLE_WRAPPER: ⏭️ Playback already started, skipping redundant call", metadata: nil)
+            return
+        }
+
+        // Check if player is ready before attempting playback
+        guard _viewModel.isPlayerReady else {
+            logger.warning("🎬 OBSERVABLE_WRAPPER: ⚠️ Player not ready for playback", metadata: [
+                "state_string": stateString,
+                "is_player_ready": "\(_viewModel.isPlayerReady)"
+            ])
+            return
+        }
+
+        logger.info("🎬 OBSERVABLE_WRAPPER: 🎬 Starting playback with idempotency protection", metadata: [
+            "has_started_before": "\(hasStartedPlayback)",
+            "is_player_ready": "\(_viewModel.isPlayerReady)"
+        ])
+
+        _viewModel.startPlayback()
+        hasStartedPlayback = true
+    }
+
+    /// 🎯 CRITICAL FIX: Reset playback flag for reuse in different contexts
+    func resetPlaybackFlag() {
+        logger.info("🎬 OBSERVABLE_WRAPPER: 🔄 Resetting playback flag for reuse", metadata: [
+            "previous_state": "\(hasStartedPlayback)"
+        ])
+        hasStartedPlayback = false
     }
     
     func teardown() {
-        viewModel.teardown()
+        logger.info("🎬 OBSERVABLE_WRAPPER: 🧹 Starting teardown", metadata: nil)
+        resetPlaybackFlag()
+        _viewModel.teardown()
+        logger.info("🎬 OBSERVABLE_WRAPPER: ✅ Teardown completed", metadata: nil)
     }
-    
+
     init(viewModel: any VideoPlayerViewModelProtocol) {
-        self.viewModel = viewModel
+        self._viewModel = viewModel
         self.updatePublishedProperties()
-        
+
         // 💡 SOLUTION: Observe specific properties instead of the entire view model
         setupObservation()
-        
+
         logger.info("🎬 OBSERVABLE_WRAPPER: ✅ INIT - Created focused wrapper for viewModel", metadata: nil)
     }
     
@@ -728,32 +813,43 @@ class ObservableVideoPlayerWrapper: ObservableObject {
     private func updatePublishedProperties() {
         // Extract state as string for comparison
         let newStateString = getStateString()
-        let newIsPlayerReady = viewModel.isPlayerReady
-        let newShouldPlay = viewModel.shouldPlay
+        let newIsPlayerReady = _viewModel.isPlayerReady
+        let newShouldPlay = _viewModel.shouldPlay
         let newLoadingProgress = getLoadingProgress()
-        
+        let newPlayerItem = _viewModel.avPlayer?.currentItem // 🎯 CRITICAL FIX: Track player item changes
+
         // Only update if values changed to prevent unnecessary publishes
         if stateString != newStateString {
             stateString = newStateString
         }
-        
+
         if isPlayerReady != newIsPlayerReady {
             isPlayerReady = newIsPlayerReady
         }
-        
+
         if shouldPlay != newShouldPlay {
             shouldPlay = newShouldPlay
         }
-        
+
         if loadingProgress != newLoadingProgress {
             loadingProgress = newLoadingProgress
+        }
+
+        // 🎯 CRITICAL FIX: Update player item if it changed - this triggers SwiftUI view updates
+        if playerItem !== newPlayerItem {
+            logger.info("🎬 OBSERVABLE_WRAPPER: 🔄 Player item changed - updating published property", metadata: [
+                "previous_item_exists": "\(playerItem != nil)",
+                "new_item_exists": "\(newPlayerItem != nil)",
+                "items_different": "\(playerItem !== newPlayerItem)"
+            ])
+            playerItem = newPlayerItem
         }
     }
     
     // MARK: - Helper Methods
     
     private func getStateString() -> String {
-        if let state = viewModel.state as? UnifiedVideoPlayerViewModel.State {
+        if let state = _viewModel.state as? UnifiedVideoPlayerViewModel.State {
             switch state {
             case .idle: return "idle"
             case .loading: return "loading"
@@ -765,15 +861,15 @@ class ObservableVideoPlayerWrapper: ObservableObject {
         }
         return "unknown"
     }
-    
+
     private func getLoadingProgress() -> Double? {
-        let state = viewModel.state
+        let state = _viewModel.state
         let stateString = String(describing: state)
-        
+
         if stateString.contains("loading") {
             // Use reflection to extract the progress value from the state
             let mirror = Mirror(reflecting: state)
-            
+
             // Look for the first associated value which should be the progress
             if let progressChild = mirror.children.first(where: { $0.label == nil }) {
                 if let progress = progressChild.value as? Double {
@@ -781,8 +877,96 @@ class ObservableVideoPlayerWrapper: ObservableObject {
                 }
             }
         }
-        
+
         return nil
+    }
+}
+
+// MARK: - Fullscreen Player Wrapper
+/// Minimal wrapper for fullscreen mode that provides UnifiedVideoPlayerViewModel interface
+/// This maintains the single source of truth pattern using composition
+@MainActor
+private class FullscreenPlayerWrapper: VideoPlayerViewModelProtocol {
+    private let _player: AVPlayer
+    private let _logger = AppContainer.shared.logger
+
+    // MARK: - Associated Type
+    typealias State = String
+
+    // MARK: - VideoPlayerViewModelProtocol Conformance
+    var avPlayer: AVPlayer? {
+        return _player
+    }
+
+    var state: String {
+        return "fullscreen_ready"
+    }
+
+    var isPlayerReady: Bool {
+        return _player.status == .readyToPlay
+    }
+
+    var shouldPlay: Bool {
+        return _player.rate != 0
+    }
+
+    var healthStatus: VideoHealthStatus {
+        return .excellent
+    }
+
+    var currentTime: CMTime? {
+        return _player.currentTime()
+    }
+
+    init(player: AVPlayer) {
+        self._player = player
+    }
+
+    // MARK: - Protocol Methods
+    func startPlayback() {
+        _player.play()
+    }
+
+    func pausePlayback() {
+        _player.pause()
+    }
+
+    func loadVideo(from source: VideoSource, quarterTurns: Int) async throws {
+        // No-op for fullscreen wrapper
+    }
+
+    func setRotation(_ quarterTurns: Int) {
+        // No-op for fullscreen wrapper
+    }
+
+    func pauseForTrimming() {
+        _player.pause()
+    }
+
+    func resumeAfterTrimming() {
+        // No-op for fullscreen wrapper
+    }
+
+    func waitForReady() async throws {
+        // No-op for fullscreen wrapper
+    }
+
+    func seek(to time: CMTime) {
+        _player.seek(to: time)
+    }
+
+    func teardown() {
+        // Minimal cleanup for fullscreen mode
+        pausePlayback()
+    }
+
+    // MARK: - Equatable and Hashable Conformance
+    static func == (lhs: FullscreenPlayerWrapper, rhs: FullscreenPlayerWrapper) -> Bool {
+        return lhs._player == rhs._player
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(_player)
     }
 }
 

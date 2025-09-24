@@ -4,11 +4,6 @@ import Combine
 import AVFoundation
 import OSLog
 
-import Foundation
-import Combine
-import AVFoundation
-import OSLog
-
 public class PlayerItemStatusMonitor {
     
     private let logger = Logger(subsystem: "BreakingFlashcards", category: "PlayerItemStatusMonitor")
@@ -42,6 +37,28 @@ public class PlayerItemStatusMonitor {
         @unknown default: return "unknown (\(status.rawValue))"
         }
     }
+
+    // 🎯 ENHANCED: Calculate total buffered duration across all loaded ranges
+    private func calculateTotalBufferedDuration() -> TimeInterval {
+        var totalDuration: TimeInterval = 0
+
+        for rangeIndex in 0..<playerItem.loadedTimeRanges.count {
+            let timeRange = playerItem.loadedTimeRanges[rangeIndex].timeRangeValue
+            let rangeDuration = CMTimeGetSeconds(timeRange.duration)
+            totalDuration += rangeDuration
+
+            // Log individual ranges for debugging (first 3 ranges only to avoid spam)
+            if rangeIndex < 3 {
+                logger.info("🎬 MONITOR: 📊 Range \(rangeIndex + 1): \(String(format: "%.2f", rangeDuration))s")
+            }
+        }
+
+        if self.playerItem.loadedTimeRanges.count > 3 {
+            self.logger.info("🎬 MONITOR: 📊 ... and \(self.playerItem.loadedTimeRanges.count - 3) more ranges")
+        }
+
+        return totalDuration
+    }
     
     /// Waits until the player item is ready and has buffered a sufficient duration for smooth interaction.
     /// Reports progress of the buffering process via a callback.
@@ -50,7 +67,9 @@ public class PlayerItemStatusMonitor {
         timeout: TimeInterval = 15.0,
         onProgress: @escaping @MainActor (Double) -> Void
     ) async throws {
-        let requiredBufferDuration: TimeInterval = 2.0 // Require 2 seconds of buffer for "readiness"
+        let requiredBufferDuration: TimeInterval = 0.5 // Reduced from 2.0s to 0.5s for faster readiness
+        let retryBackoffBase: TimeInterval = 0.1 // Base for exponential backoff
+        let maxRetryAttempts: Int = 5
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             // Timeout Task
@@ -105,28 +124,28 @@ public class PlayerItemStatusMonitor {
                         case .readyToPlay:
                             self.logger.info("🎬 MONITOR: ✅ Status is ready, checking buffer...")
                             
-                            // Check loaded time ranges
-                            guard let firstRange = self.playerItem.loadedTimeRanges.first?.timeRangeValue else {
-                                Task { @MainActor in
-                                    await onProgress(0) // No buffer yet
-                                    self.logger.info("🎬 MONITOR: 📈 Buffer progress: 0% (no loaded ranges)")
-                                }
-                                return
-                            }
-                            
-                            // Calculate buffer progress
-                            let bufferedDuration = CMTimeGetSeconds(firstRange.duration)
-                            let progress = min(1.0, bufferedDuration / requiredBufferDuration)
+                            // 🎯 ENHANCED: Multi-range buffer calculation for better 90% handling
+                            let totalBufferedDuration = self.calculateTotalBufferedDuration()
+                            let progress = min(1.0, totalBufferedDuration / requiredBufferDuration)
+
                             Task { @MainActor in
                                 await onProgress(progress)
-                                self.logger.info("🎬 MONITOR: 📈 Buffer progress: \(Int(progress * 100))% (\(String(format: "%.2f", bufferedDuration))s buffered)")
+                                self.logger.info("🎬 MONITOR: 📈 Enhanced buffer progress: \(Int(progress * 100))% (\(String(format: "%.2f", totalBufferedDuration))s buffered across \(self.playerItem.loadedTimeRanges.count) ranges)")
+
+                                // 🎯 CRITICAL: Explicit 90%+ milestone logging
+                                if progress >= 0.9 && progress < 1.0 {
+                                    self.logger.info("🎬 MONITOR: 🎯 90% milestone reached - final buffering phase")
+                                }
                             }
 
-                            // Check if buffer requirements are met
-                            if bufferedDuration >= requiredBufferDuration || 
-                               self.playerItem.isPlaybackBufferFull || 
-                               self.playerItem.isPlaybackLikelyToKeepUp {
-                                self.logger.info("🎬 MONITOR: 🎉 Buffer requirements met - resuming continuation!")
+                            // 🎯 ENHANCED: More comprehensive buffer readiness check
+                            let isBufferReady = totalBufferedDuration >= requiredBufferDuration ||
+                                                 self.playerItem.isPlaybackBufferFull ||
+                                                 self.playerItem.isPlaybackLikelyToKeepUp ||
+                                                 (progress >= 0.95 && self.playerItem.loadedTimeRanges.count > 1) // Accept 95%+ with multiple ranges
+
+                            if isBufferReady {
+                                self.logger.info("🎬 MONITOR: 🎉 Enhanced buffer requirements met - resuming continuation!")
                                 cleanupAndResume(nil)
                             }
                             

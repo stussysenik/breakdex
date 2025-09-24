@@ -138,7 +138,10 @@ struct AddMoveContainer: View {
                 } else {
                     LoadingView(progress: 1.0, status: "Initializing Trimmer...")
                 }
-                
+
+            case .finalizing(let status):
+                LoadingOverlayView(progress: 0.9, status: status)
+
             case .naming:
                 NameMoveViewUnified(unifiedState: unifiedState)
                 
@@ -204,7 +207,9 @@ struct AddMoveContainer: View {
             }
         case .trimming:
             switch newState {
-            case .ready, .previewing, .naming, .error: return true
+            // 🎯 FIX: Add .finalizing as a valid transition state from .trimming.
+            // This was the root cause of the "Invalid Flow State Transition" error.
+            case .ready, .previewing, .naming, .finalizing, .error: return true
             default: return false
             }
         case .naming:
