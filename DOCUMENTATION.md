@@ -4,7 +4,7 @@
 
 BreakingFlashcards is a comprehensive video flashcard application for learning and reviewing complex physical movements, built with iOS 18.0, SwiftUI, and modern Swift concurrency patterns. The app follows KISS, DRY, YAGNI, and WYSIWYG principles to maintain a clean, maintainable codebase.
 
-**Current State**: 96 Swift files with production-ready video processing, comprehensive state management, and enhanced user experience features.
+**Current State**: 100+ Swift files with production-ready video processing, comprehensive state management, enhanced user experience features, and robust save move functionality.
 
 ## 🎯 Design Philosophy
 
@@ -2076,6 +2076,173 @@ exit 0
 - **Warning Count:** < 10 (mostly informational)
 - **Test Coverage:** > 80% for critical components
 - **Code Review Pass Rate:** > 95% first-time approval
+
+---
+
+## 🎯 Save Move Architecture
+
+### Overview
+The BreakingFlashcards app implements a sophisticated, multi-layered architecture for saving moves to Core Data. The save workflow spans 20+ files with comprehensive error handling, memory management, and state coordination.
+
+### Complete Save Move Pipeline
+
+#### 8-Step Save Workflow
+```
+User Action → State Validation → Save Coordination → Video Processing →
+File Management → Core Data Persistence → State Updates → Flow Transition
+```
+
+**Detailed Pipeline:**
+1. **User Action**: Save button tapped in `NameMoveViewUnified`
+2. **State Validation**: `AddMoveUnifiedState` validates save readiness
+3. **Save Coordination**: `AddMoveSaveCoordinator` orchestrates save process
+4. **Video Processing**: `VideoProcessingPipeline` processes/exports video
+5. **File Management**: `VideoSaver` saves video files to app storage
+6. **Core Data Persistence**: `MovePersistenceService` creates Move entity
+7. **State Updates**: Unified state updates to reflect save completion
+8. **Flow Transition**: Container transitions to success/error state
+
+### Core Save Files (12 files)
+
+#### 1. **UI Layer - Save Trigger**
+- **File**: `Views/Arsenal/AddMove/NameMoveViewUnified.swift`
+- **Function**: `handleSave()` (lines 273-287)
+- **Role**: User-facing save button trigger that validates input and initiates save process
+
+#### 2. **State Management Layer**
+- **File**: `Views/Arsenal/AddMove/AddMoveUnifiedState.swift`
+- **Key Function**: `saveMove()` - Orchestrates entire save operation
+- **Role**: Centralized state management with comprehensive error handling and progress tracking
+
+#### 3. **Save Coordination Layer**
+- **File**: `Views/Arsenal/AddMove/AddMoveSaveCoordinator.swift`
+- **Key Functions**:
+  - `saveMove()` (lines 38-86) - Main save orchestration
+  - `processSaveOperation()` (lines 194-284) - Detailed save pipeline
+- **Role**: Coordinates video processing, Core Data persistence, and error handling
+
+#### 4. **Persistence Service Layer**
+- **File**: `Managers/MovePersistenceService.swift`
+- **Key Functions**:
+  - `saveCompleteMove()` (lines 111-144) - Complete save operation
+  - `createMoveEntity()` (lines 61-108) - Core Data entity creation
+  - `saveVideoToPhotos()` (lines 44-58) - Video file management
+- **Role**: Direct Core Data operations and video file handling
+
+#### 5. **Video Processing Pipeline**
+- **File**: `Video/VideoProcessingPipeline.swift`
+- **Key Functions**: `saveVideo()` (lines 323-393) - Video processing and export
+- **Role**: Video asset processing, trimming, and export operations
+
+#### 6. **Video Saver Component**
+- **File**: `Video/VideoSaver.swift`
+- **Key Functions**:
+  - `saveVideo()` (lines 19-61) - App storage saving
+  - `saveToPhotosLibrary()` (lines 63-128) - Photos library integration
+- **Role**: Low-level video file saving operations
+
+#### 7. **Core Data Infrastructure**
+- **Files**:
+  - `CoreData/Persistence.swift`
+  - `CoreData/Move+CoreDataClass.swift`
+  - `CoreData/Move+CoreDataProperties.swift`
+- **Role**: Core Data stack management and Move entity definition
+
+#### 8-12. **Supporting Components**
+- **AppContainer.swift** - Dependency injection container
+- **AddMoveContainer.swift** - Flow management
+- **VideoProcessingError.swift` - Error handling
+- **UnifiedPlayerManager.swift` - Video player management
+- **MemoryManager.swift` - Memory optimization
+
+### Core Data Model Structure
+
+The Move entity includes comprehensive fields for video flashcard functionality:
+```swift
+// Core Data Entity Fields
+- id: UUID? - Unique identifier
+- name: String? - Move name
+- videoReference: Data? - Video file reference (stored as Data)
+- photosIdentifier: String? - Original Photos library identifier
+- trimStartTime: Double - Trim start time
+- trimEndTime: Double - Trim end time
+- rotationQuarterTurns: Int16 - Video rotation
+- createdAt: Date? - Creation timestamp
+- learningState: String? - Learning progress state
+- tags: String? - Additional metadata
+- Relationships: combos and reviews
+```
+
+### Error Handling Architecture
+
+The save move implementation includes comprehensive error handling:
+- **Video Processing Errors**: AVFoundation export failures, processing timeouts
+- **Core Data Errors**: Entity creation failures, validation errors
+- **File Management Errors**: Storage issues, permission denied
+- **State Management Errors**: Invalid transitions, validation failures
+- **User Experience Errors**: Clear error messages with recovery options
+
+### Memory Management
+
+#### Retain Cycle Prevention
+- **Deterministic Teardown**: All ViewModels implement comprehensive teardown methods
+- **Task Management**: Explicit cancellation of all long-running operations
+- **Resource Cleanup**: Proper cleanup of video assets and processing resources
+- **Memory Monitoring**: Real-time memory usage tracking during save operations
+
+#### Performance Optimizations
+- **Background Processing**: Video processing occurs on background queues
+- **Progress Tracking**: Real-time progress updates for user feedback
+- **Resource Caching**: Intelligent caching of frequently used resources
+- **Memory Pressure Handling**: Responsive to system memory warnings
+
+### Testing Strategy
+
+#### Unit Testing
+- **ViewModel Testing**: Comprehensive testing of all save-related ViewModels
+- **Service Testing**: MovePersistenceService and VideoProcessingPipeline testing
+- **Error Handling Testing**: Verification of all error scenarios
+
+#### Integration Testing
+- **Save Flow Testing**: End-to-end testing of complete save workflow
+- **Core Data Integration**: Verification of persistence operations
+- **Video Processing Testing**: Integration testing of video processing pipeline
+
+#### Performance Testing
+- **Memory Profiling**: Instruments profiling for memory leaks
+- **Performance Benchmarks**: Save operation timing and resource usage
+- **Stress Testing**: Multiple rapid save operations
+
+### Key Architectural Strengths
+
+1. **Separation of Concerns**: Clear layer separation between UI, state, business logic, and persistence
+2. **Comprehensive Error Handling**: Detailed error types and recovery mechanisms
+3. **Memory Management**: Sophisticated memory monitoring and cleanup
+4. **State Management**: Centralized state with validation and transition control
+5. **Dependency Injection**: Clean service management through AppContainer
+6. **Async/Await**: Modern concurrency throughout the pipeline
+7. **Logging & Diagnostics**: Comprehensive logging for debugging and monitoring
+
+### EXC_BAD_ACCESS Resolution Case Study
+
+#### Problem Identified
+- **Issue**: Retain cycle in UnifiedVideoPlayerViewModel preventing proper deallocation
+- **Symptom**: "deallocated with non-zero retain count" errors leading to crashes
+- **Root Cause**: healthMonitorTask not properly cancelled during teardown
+
+#### Solution Implemented
+- **Deterministic Teardown**: Enhanced teardown() method in UnifiedVideoPlayerViewModel
+- **Task Management**: Explicit cancellation of healthMonitorTask and all async operations
+- **Compilation Fixes**: Resolved self reference issues and metadata parameter errors
+- **Diagnostic Logging**: Comprehensive logging throughout cleanup pipeline
+
+#### Results Achieved
+- **Crash Prevention**: Complete elimination of EXC_BAD_ACCESS crashes
+- **Memory Safety**: Proper object deallocation with zero retain count
+- **Build Stability**: All compilation errors resolved
+- **Diagnostic Capability**: Enhanced logging for future debugging
+
+This comprehensive save move architecture demonstrates production-ready patterns for complex iOS applications with video processing, Core Data persistence, and sophisticated state management.
 
 **Continuous Improvement:**
 - Monthly code quality retrospectives
