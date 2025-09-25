@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import AVFoundation
+import OSLog
 
 extension Array {
     subscript(safe index: Int) -> Element? {
@@ -39,18 +40,9 @@ struct FlashcardReviewView: View {
     @State private var currentIndex = 0
     @State private var reviewedIndices: Set<Int> = []
 
-    private func getVideoAsset(for move: Move) -> AVAsset? {
-        guard let videoData = move.videoReference,
-              let path = String(data: videoData, encoding: .utf8) else {
-            return nil
-        }
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "FlashcardReviewView")
 
-        let url = URL(fileURLWithPath: path)
-        guard FileManager.default.fileExists(atPath: path) else {
-            return nil
-        }
-        return AVURLAsset(url: url)
-    }
+    // 🗑️ DEPRECATED: Old getVideoAsset method removed - replaced by PhotosAssetService
     
     init(learningState: String, reviewType: ReviewType = .moves) {
         self.learningState = learningState
@@ -67,30 +59,39 @@ struct FlashcardReviewView: View {
         )
     }
     
+    /// Optimized combo learning state calculation using in-memory relationship data
+    /// 🚀 PERFORMANCE: Eliminates database queries by using existing relationship data
+    /// 📊 LOGS: Provides detailed logging for debugging combo state logic
     private func getComboLearningState(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
-        fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
-        
-        do {
-            let comboMoves = try viewContext.fetch(fetchRequest)
-            let moveStates = comboMoves.compactMap { $0.move?.learningState }
-            
-            if moveStates.isEmpty {
-                return "NEW"
-            }
-            
-            if moveStates.allSatisfy({ $0 == "MASTERY" }) {
-                return "MASTERY"
-            } else if moveStates.contains(where: { $0 == "NEW" }) {
-                return "NEW"
-            } else if moveStates.contains(where: { $0 == "LEARNING" }) {
-                return "LEARNING"
-            } else {
-                return "NEW"
-            }
-        } catch {
+        logger.info("🎮 FLASHCARD_REVIEW: 🔄 Calculating state for combo: \(combo.name ?? "Unknown")")
+
+        // ✅ RELATIONSHIPS: Use existing relationship data instead of additional database queries
+        guard let comboMoves = combo.comboMoves as? Set<ComboMove> else {
+            logger.warning("🎮 FLASHCARD_REVIEW: ⚠️ No combo moves relationship found for combo: \(combo.name ?? "Unknown")")
             return "NEW"
         }
+
+        let moveStates = comboMoves.compactMap { $0.move?.learningState }
+        logger.info("🎮 FLASHCARD_REVIEW: 📊 Found \(moveStates.count) move states: \(moveStates)")
+
+        // Business logic for determining combo learning state
+        let calculatedState: String
+
+        if moveStates.isEmpty {
+            calculatedState = "NEW"
+        } else if moveStates.allSatisfy({ $0 == "MASTERY" }) {
+            calculatedState = "MASTERY"
+        } else if moveStates.contains("NEW") {
+            calculatedState = "NEW"
+        } else if moveStates.contains("LEARNING") {
+            calculatedState = "LEARNING"
+        } else {
+            calculatedState = "NEW" // Fallback for edge cases
+        }
+
+        logger.info("🎮 FLASHCARD_REVIEW: ✅ Combo '\(combo.name ?? "Unknown")' calculated state: \(calculatedState)")
+
+        return calculatedState
     }
     
     private var filteredCombos: [Combo] {
@@ -155,21 +156,89 @@ struct MoveReviewView: View {
     let move: Move
     let learningState: String
     let onReviewComplete: () -> Void
+
+    // MARK: - State
     @State private var showRelink = false
     @State private var isPlayerReady = false
+    @State private var videoAsset: AVAsset? = nil
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var playerViewModel: UnifiedVideoPlayerViewModel?
 
-    private func getVideoAsset(for move: Move) -> AVAsset? {
-        guard let videoData = move.videoReference,
-              let path = String(data: videoData, encoding: .utf8) else {
-            return nil
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "MoveReviewView")
+
+    // MARK: - Video Loading
+
+    /// Load video asset asynchronously using PhotosAssetService
+    /// 🎯 ASYNC: Modern async/await pattern with proper error handling
+    /// 📊 LOGS: Comprehensive logging for debugging
+    private func loadVideoAsset() async {
+        logger.info("🎮 MOVE_REVIEW: 🔄 Starting video asset load")
+
+        // Reset state
+        isLoading = true
+        videoAsset = nil
+        errorMessage = nil
+        isPlayerReady = false
+
+        guard let photosIdentifier = move.photosIdentifier, !photosIdentifier.isEmpty else {
+            let error = "Move has no photos identifier"
+            logger.error("🎮 MOVE_REVIEW: ❌ \(error) for move: \(move.name ?? "Unknown")")
+            errorMessage = error
+            isLoading = false
+            return
         }
 
-        let url = URL(fileURLWithPath: path)
-        guard FileManager.default.fileExists(atPath: path) else {
-            return nil
+        logger.info("🎮 MOVE_REVIEW: 📝 Photos identifier: \(photosIdentifier.prefix(8))...")
+
+        do {
+            // 🎯 PHOTOS_SERVICE: Use centralized asset loading
+            let asset = try await PhotosAssetService.shared.fetchAVAsset(with: photosIdentifier)
+            logger.info("🎮 MOVE_REVIEW: ✅ Video asset loaded successfully")
+            logger.info("🎮 MOVE_REVIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
+
+            await MainActor.run {
+                self.videoAsset = asset
+                self.isLoading = false
+                self.errorMessage = nil
+
+                // Prefetch for better performance next time
+                Task.detached {
+                    await PhotosAssetService.shared.prefetchAssetMetadata(for: photosIdentifier)
+                }
+            }
+        } catch let error as AssetError {
+            // Handle specific AssetError cases
+            if error == .assetNotFound {
+                await MainActor.run {
+                    let errorDescription = error.localizedDescription
+                    logger.error("🎮 MOVE_REVIEW: ❌ Asset not found, triggering relink flow: \(errorDescription)")
+                    self.errorMessage = errorDescription
+                    self.videoAsset = nil
+                    self.isLoading = false
+                    self.showRelink = true // Trigger navigation to VideoRelinkView
+                }
+            } else {
+                await MainActor.run {
+                    let errorDescription = error.localizedDescription
+                    logger.error("🎮 MOVE_REVIEW: ❌ Other AssetError: \(errorDescription)")
+                    self.errorMessage = errorDescription
+                    self.videoAsset = nil
+                    self.isLoading = false
+                }
+            }
+        } catch {
+            await MainActor.run {
+                let errorDescription = error.localizedDescription
+                logger.error("🎮 MOVE_REVIEW: ❌ Failed to load video asset: \(errorDescription)")
+                self.errorMessage = errorDescription
+                self.videoAsset = nil
+                self.isLoading = false
+            }
         }
-        return AVURLAsset(url: url)
     }
+
+    // 🗑️ DEPRECATED: Old getVideoAsset method removed - replaced by PhotosAssetService
     
     var body: some View {
         VStack(spacing: 16) {
@@ -197,41 +266,113 @@ struct MoveReviewView: View {
             .padding(.horizontal, 20)
             .padding(.top, 8)
             
+            // MARK: - Video Player Section
             Group {
-                if let asset = getVideoAsset(for: move) {
-                    VStack {
-                        if isPlayerReady {
-                            CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .main, appContainer: AppContainer.shared))
-                        } else {
-                            // Loading placeholder while player is initializing
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.secondary.opacity(0.2))
+                if isLoading {
+                    // Loading state with progress indicator
+                    VStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.secondary.opacity(0.2))
+                                .frame(height: 350)
+
+                            VStack(spacing: 8) {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .primary))
                                     .scaleEffect(1.5)
+
+                                Text("Loading video...")
+                                    .font(.ibmPlexMono(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } else if let asset = videoAsset {
+                    // Video loaded successfully
+                    VStack {
+                        if isPlayerReady {
+                            CustomVideoPlayerView(
+                                viewModel: playerViewModel!
+                            )
+                        } else {
+                            // Player initializing
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.secondary.opacity(0.2))
+                                    .frame(height: 350)
+
+                                VStack(spacing: 8) {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                        .scaleEffect(1.2)
+
+                                    Text("Preparing player...")
+                                        .font(.ibmPlexMono(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
                     .onAppear {
-                        // Initialize the player and check when it's ready
-                        let viewModel = UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .main, appContainer: AppContainer.shared)
-                        
+                        // Initialize the player and monitor readiness
+                        let viewModel = UnifiedVideoPlayerViewModel(
+                            player: AVPlayer(playerItem: AVPlayerItem(asset: asset)),
+                            mode: .main,
+                            appContainer: AppContainer.shared
+                        )
+                        self.playerViewModel = viewModel // Store reference for teardown
+
+                        logger.info("🎮 MOVE_REVIEW: 🔄 Monitoring player readiness for move: \(move.name ?? "Unknown")")
+
                         // Monitor when the player becomes ready
                         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
                             if viewModel.isPlayerReady {
+                                logger.info("🎮 MOVE_REVIEW: ✅ Player ready for move: \(move.name ?? "Unknown")")
                                 isPlayerReady = true
                                 timer.invalidate()
                             }
                         }
                     }
+                    .onDisappear {
+                        // 🎯 CRITICAL: Teardown player to prevent audio overlap when navigating away
+                        logger.info("🎮 MOVE_REVIEW: 🔄 View disappearing, tearing down player for move: \(move.name ?? "Unknown")")
+                        playerViewModel?.teardown()
+                        playerViewModel = nil
+                        isPlayerReady = false
+                    }
                 } else {
-                    ContentUnavailableView("Video not available", systemImage: "video.slash")
+                    // Error state with actionable feedback
+                    VStack(spacing: 12) {
+                        ContentUnavailableView(
+                            "Video Unavailable",
+                            systemImage: "video.slash",
+                            description: Text(errorMessage ?? "This move's video could not be loaded from your photo library.")
+                        )
+
+                        Button(action: {
+                            logger.info("🎮 MOVE_REVIEW: 🔄 Retry requested for move: \(move.name ?? "Unknown")")
+                            Task {
+                                await loadVideoAsset()
+                            }
+                        }) {
+                            Text("Retry")
+                                .font(.ibmPlexMono(size: 14, weight: .bold))
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 8)
+                                .background(Color.accentColor)
+                                .foregroundColor(.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(ReviewButtonStyle())
+                    }
+                    .frame(height: 350)
                 }
-            } // video player with proper audio lifecycle management
-            .frame(height: 350)
-            .cornerRadius(16)
+            }
             .padding(.horizontal, 20)
+            .task(id: move.objectID) { // 🔄 Reload when move changes
+                logger.info("🎮 MOVE_REVIEW: 🔄 Loading video for move: \(move.name ?? "Unknown")")
+                await loadVideoAsset()
+            }
             
             Spacer(minLength: 40)
             
@@ -259,23 +400,70 @@ struct ComboReviewView: View {
     let learningState: String
     let onReviewComplete: () -> Void
 
+    // MARK: - State
     @State private var activeMoveIndex: Int? = 0
     @State private var comboMoves: [Move] = []
     @State private var moveToRelink: Move? = nil
     @State private var isPlayerReady = false
+    @State private var videoAsset: AVAsset? = nil
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+    @State private var playerViewModel: UnifiedVideoPlayerViewModel?
 
-    private func getVideoAsset(for move: Move) -> AVAsset? {
-        guard let videoData = move.videoReference,
-              let path = String(data: videoData, encoding: .utf8) else {
-            return nil
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "ComboReviewView")
+
+    // MARK: - Video Loading
+
+    /// Load video asset asynchronously for a specific move in combo
+    /// 🎯 ASYNC: Modern async/await pattern with proper error handling
+    /// 📊 LOGS: Comprehensive logging for debugging combo moves
+    private func loadVideoAsset(for move: Move) async {
+        logger.info("🎮 COMBO_REVIEW: 🔄 Starting video asset load for combo move: \(move.name ?? "Unknown")")
+
+        // Reset state
+        isLoading = true
+        videoAsset = nil
+        errorMessage = nil
+        isPlayerReady = false
+
+        guard let photosIdentifier = move.photosIdentifier, !photosIdentifier.isEmpty else {
+            let error = "Move has no photos identifier"
+            logger.error("🎮 COMBO_REVIEW: ❌ \(error) for move: \(move.name ?? "Unknown")")
+            errorMessage = error
+            isLoading = false
+            return
         }
 
-        let url = URL(fileURLWithPath: path)
-        guard FileManager.default.fileExists(atPath: path) else {
-            return nil
+        logger.info("🎮 COMBO_REVIEW: 📝 Photos identifier: \(photosIdentifier.prefix(8))...")
+
+        do {
+            // 🎯 PHOTOS_SERVICE: Use centralized asset loading
+            let asset = try await PhotosAssetService.shared.fetchAVAsset(with: photosIdentifier)
+            logger.info("🎮 COMBO_REVIEW: ✅ Video asset loaded successfully")
+            logger.info("🎮 COMBO_REVIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
+
+            await MainActor.run {
+                self.videoAsset = asset
+                self.isLoading = false
+                self.errorMessage = nil
+
+                // Prefetch for better performance next time
+                Task.detached {
+                    await PhotosAssetService.shared.prefetchAssetMetadata(for: photosIdentifier)
+                }
+            }
+        } catch {
+            await MainActor.run {
+                let errorDescription = error.localizedDescription
+                logger.error("🎮 COMBO_REVIEW: ❌ Failed to load video asset: \(errorDescription)")
+                self.errorMessage = errorDescription
+                self.videoAsset = nil
+                self.isLoading = false
+            }
         }
-        return AVURLAsset(url: url)
     }
+
+    // 🗑️ DEPRECATED: Old getVideoAsset method removed - replaced by PhotosAssetService
     
     var body: some View {
         VStack(spacing: 16) {
@@ -291,56 +479,126 @@ struct ComboReviewView: View {
             }
             .padding(.top, 8)
             
-            if let activeMove = activeMove { // video player section
-                if let asset = getVideoAsset(for: activeMove) {
+            // MARK: - Video Player Section
+            Group {
+                if let activeMove = activeMove {
+                VStack(spacing: 8) {
+                    Text(activeMove.name ?? "Unknown Move")
+                        .font(.ibmPlexMono(size: 16, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                }
+
+                if isLoading {
+                    // Loading state
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.secondary.opacity(0.2))
+                            .frame(height: 320)
+
+                        VStack(spacing: 8) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                .scaleEffect(1.5)
+
+                            Text("Loading video...")
+                                .font(.ibmPlexMono(size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(height: 320)
+                    .padding(.horizontal, 20)
+                } else if let asset = videoAsset {
+                    // Video loaded successfully
                     VStack {
                         if isPlayerReady {
-                            CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .main, appContainer: AppContainer.shared))
+                            CustomVideoPlayerView(
+                                viewModel: playerViewModel!
+                            )
                         } else {
-                            // Loading placeholder while player is initializing
+                            // Player initializing
                             ZStack {
                                 RoundedRectangle(cornerRadius: 16)
                                     .fill(Color.secondary.opacity(0.2))
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .primary))
-                                    .scaleEffect(1.5)
+                                    .frame(height: 320)
+
+                                VStack(spacing: 8) {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                        .scaleEffect(1.2)
+
+                                    Text("Preparing player...")
+                                        .font(.ibmPlexMono(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }
                     .frame(height: 320)
                     .cornerRadius(16)
                     .padding(.horizontal, 20)
-                    .id(activeMove.managedObjectID) // Force re-initialization when activeMove changes
+                    .id(activeMove.objectID) // Force re-initialization when activeMove changes
                     .onAppear {
-                        // Reset player readiness state when move changes
-                        isPlayerReady = false
-                        
-                        // Initialize the player and check when it's ready
-                        let viewModel = UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .main, appContainer: AppContainer.shared)
-                        
+                        let viewModel = UnifiedVideoPlayerViewModel(
+                            player: AVPlayer(playerItem: AVPlayerItem(asset: asset)),
+                            mode: .main,
+                            appContainer: AppContainer.shared
+                        )
+                        self.playerViewModel = viewModel // Store reference for teardown
+
+                        logger.info("🎮 COMBO_REVIEW: 🔄 Monitoring player readiness for move: \(activeMove.name ?? "Unknown")")
+
                         // Monitor when the player becomes ready
                         Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
                             if viewModel.isPlayerReady {
+                                logger.info("🎮 COMBO_REVIEW: ✅ Player ready for move: \(activeMove.name ?? "Unknown")")
                                 isPlayerReady = true
                                 timer.invalidate()
                             }
                         }
                     }
-                    .onChange(of: activeMoveIndex) { _ in
-                        // Reset player readiness state when move changes
+                    .onDisappear {
+                        // 🎯 CRITICAL: Teardown player to prevent audio overlap when navigating away or switching moves
+                        logger.info("🎮 COMBO_REVIEW: 🔄 View disappearing, tearing down player for move: \(activeMove.name ?? "Unknown")")
+                        playerViewModel?.teardown()
+                        playerViewModel = nil
                         isPlayerReady = false
                     }
                 } else {
-                    ContentUnavailableView("Video not available", systemImage: "video.slash")
-                        .frame(height: 320)
-                        .padding(.horizontal, 20)
-                }
-            } else {
-                ContentUnavailableView("Select a move to see a preview", systemImage: "video.slash")
+                    // Error state
+                    ContentUnavailableView(
+                        "Video Unavailable",
+                        systemImage: "video.slash",
+                        description: Text(errorMessage ?? "This move's video could not be loaded from your photo library.")
+                    )
                     .frame(height: 320)
                     .padding(.horizontal, 20)
+                }
+            } else {
+                // No move selected
+                ContentUnavailableView(
+                    "Select a move to see a preview",
+                    systemImage: "video.slash"
+                )
+                .frame(height: 320)
+                .padding(.horizontal, 20)
             }
-            
+            }
+            .task(id: activeMove?.objectID) { // 🔄 Reload when active move changes
+                if let move = activeMove {
+                    logger.info("🎮 COMBO_REVIEW: 🔄 Loading video for move: \(move.name ?? "Unknown")")
+                    await loadVideoAsset(for: move)
+                } else {
+                    // Reset state when no move is selected
+                    await MainActor.run {
+                        self.videoAsset = nil
+                        self.isLoading = false
+                        self.errorMessage = nil
+                        self.isPlayerReady = false
+                    }
+                }
+            } // End Group
+
             if !comboMoves.isEmpty { // timeline section
                 VStack(spacing: 12) {
                     Text("COMBO SEQUENCE")

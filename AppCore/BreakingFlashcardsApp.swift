@@ -12,7 +12,13 @@ import Photos
 struct BreakingFlashcardsApp: App {
     // This line keeps the Core Data controller alive for the whole app.
     let persistenceController = PersistenceController.shared
-    
+
+    init() {
+        // 🎯 MIGRATION: Run data migration on app startup to ensure learningState consistency
+        // This ensures all existing moves have proper learningState for review functionality
+        persistenceController.migrateDataStoreIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             // Here, we create our MainView and inject the database context
@@ -22,11 +28,11 @@ struct BreakingFlashcardsApp: App {
                 .onAppear {
                     // MARK: - BreakDex System Initialization
                     let context = persistenceController.container.viewContext
-                    
+
                     // Configure managers with Core Data context
                     VideoRelinkManager.shared.configure(with: context)
                     AlbumSyncManager.shared.configure(with: context)
-                    
+
                     // MARK: - BreakDex Health Checks
                     performBreakDexHealthChecks()
                 }

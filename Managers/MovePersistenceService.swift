@@ -95,6 +95,8 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         move.trimEndTime = trimEndTime ?? 0
         move.rotationQuarterTurns = Int16(rotationQuarterTurns)
         move.createdAt = Date()
+        move.learningState = "NEW" // ✅ FIX: Set default learning state to ensure moves appear in review
+        logger.info("💾 MOVE_PERSISTENCE: ✅ Set default learning state: NEW")
         
         // 🎯 FIXED: Removed binary video storage from Core Data - architectural violation
         // 🗑️ REMOVED: Storing entire video files as binary Data in Core Data causes performance issues

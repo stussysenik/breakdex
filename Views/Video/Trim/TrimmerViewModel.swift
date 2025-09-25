@@ -66,6 +66,9 @@ public final class TrimmerViewModel: ObservableObject {
     // MARK: - Enhanced Diagnostic Logging
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "TrimmerViewModel")
 
+    // MARK: - Timecode Service Integration
+    private let timecodeService = TimecodeCalculationService()
+
     // MARK: - Animation State Tracking
     private var animationState = TrimmerAnimationState()
 
@@ -669,8 +672,8 @@ public final class TrimmerViewModel: ObservableObject {
 
         // Apply frame snapping only if not at boundary for smoother constraint experience
         if oneFrameDuration.seconds > 0 && !didHitLimit {
-            let frameNumber = round(validatedTime.seconds / oneFrameDuration.seconds)
-            validatedTime = CMTime(seconds: frameNumber * oneFrameDuration.seconds, preferredTimescale: validatedTime.timescale)
+            // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
+            validatedTime = timecodeService.snapToFrame(time: validatedTime, frameRate: currentFrameRate)
         }
 
         return validatedTime
@@ -717,8 +720,8 @@ public final class TrimmerViewModel: ObservableObject {
 
         // Apply frame snapping only if not at boundary
         if oneFrameDuration.seconds > 0 && !didHitLimit {
-            let frameNumber = round(validatedTime.seconds / oneFrameDuration.seconds)
-            validatedTime = CMTime(seconds: frameNumber * oneFrameDuration.seconds, preferredTimescale: validatedTime.timescale)
+            // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
+            validatedTime = timecodeService.snapToFrame(time: validatedTime, frameRate: currentFrameRate)
         }
 
         return ValidationResult(
@@ -839,17 +842,44 @@ public final class TrimmerViewModel: ObservableObject {
     
     // MARK: - Frame-Accurate Timing Methods
     public func getFrameNumber(for time: CMTime) -> Int {
-        guard oneFrameDuration.seconds > 0 else { return 0 }
-        return Int(time.seconds / oneFrameDuration.seconds)
+        // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate calculations
+        let timecodeResult = timecodeService.calculateTimecode(
+            startTime: time,
+            endTime: time,
+            assetDuration: videoDuration,
+            frameRate: currentFrameRate
+        )
+
+        diagnosticLogger.logDebug("🧮 Frame number calculation completed", metadata: [
+            "input_time": "\(time.seconds)",
+            "calculated_frame": "\(timecodeResult.startFrame)",
+            "frame_rate": "\(currentFrameRate)",
+            "is_valid": "\(timecodeResult.isValid)",
+            "calculation_source": "TimecodeCalculationService"
+        ])
+
+        return timecodeResult.startFrame
     }
 
     public func getTimeForFrame(_ frameNumber: Int) -> CMTime {
-        return CMTime(seconds: Double(frameNumber) * oneFrameDuration.seconds, preferredTimescale: oneFrameDuration.timescale)
+        // 🎯 ENHANCED: Use TimecodeCalculationService for precise frame-to-time conversion
+        let frameTime = CMTime(seconds: Double(frameNumber) / currentFrameRate, preferredTimescale: 600)
+        return timecodeService.snapToFrame(time: frameTime, frameRate: currentFrameRate)
     }
 
     public func snapToFrame(_ time: CMTime) -> CMTime {
-        let frameNumber = getFrameNumber(for: time)
-        return getTimeForFrame(frameNumber)
+        // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
+        let snappedTime = timecodeService.snapToFrame(time: time, frameRate: currentFrameRate)
+
+        diagnosticLogger.logDebug("🎯 Frame snapping completed", metadata: [
+            "input_time": "\(time.seconds)",
+            "snapped_time": "\(snappedTime.seconds)",
+            "time_delta": "\(abs(snappedTime.seconds - time.seconds))",
+            "frame_rate": "\(currentFrameRate)",
+            "snapping_source": "TimecodeCalculationService"
+        ])
+
+        return snappedTime
     }
 
     public func getFrameRate() -> Double {

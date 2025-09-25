@@ -63,40 +63,52 @@ struct PersistenceController {
 extension Move {
     public var managedObjectID: NSManagedObjectID { objectID }
 
-    // Computed property to get the video URL from videoReference
-    @objc public var videoURL: URL? {
-        get {
-            guard let videoData = videoReference,
-                  let path = String(data: videoData, encoding: .utf8),
-                  !path.isEmpty else {
-                return nil
-            }
-            return URL(fileURLWithPath: path)
-        }
-        set {
-            if let url = newValue {
-                videoReference = Data(url.path.utf8)
-            } else {
-                videoReference = nil
-            }
-        }
-    }
-
-    // Helper method to check if the move has a video
+    // Helper method to check if the move has a video using photosIdentifier
     @objc public var hasVideo: Bool {
-        return videoURL != nil
-    }
-
-    // Helper method to check if the video file exists
-    @objc public var videoFileExists: Bool {
-        guard let url = videoURL else { return false }
-        return FileManager.default.fileExists(atPath: url.path)
+        return photosIdentifier != nil && !photosIdentifier!.isEmpty
     }
 
     // Method to update the last accessed date for the video
     @objc public func updateVideoLastAccessedDate() {
         // This method would update a lastAccessedDate property if it existed
         // For now, it's a placeholder for future functionality
+    }
+}
+
+// MARK: - Data Migration
+extension PersistenceController {
+    /// Migrates existing Move entities to ensure learningState consistency
+    /// 🎯 MIGRATION: Ensures all moves have proper learningState for review functionality
+    /// 📊 LOGS: Detailed logging for debugging migration results
+    func migrateDataStoreIfNeeded() {
+        backgroundContext.perform {
+            let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
+            // Fetch moves where learningState is nil or an empty string
+            fetchRequest.predicate = NSPredicate(format: "learningState == nil OR learningState == ''")
+
+            do {
+                let legacyMoves = try self.backgroundContext.fetch(fetchRequest)
+                if !legacyMoves.isEmpty {
+                    print("✅ MIGRATION: Found \(legacyMoves.count) legacy moves to update.")
+                    for move in legacyMoves {
+                        move.learningState = "NEW"
+                    }
+                    try self.backgroundContext.save()
+                    print("✅ MIGRATION: Successfully updated learningState for \(legacyMoves.count) moves.")
+                } else {
+                    print("✅ MIGRATION: No legacy moves found requiring update.")
+                }
+            } catch {
+                print("❌ MIGRATION: Failed to migrate moves: \(error)")
+            }
+        }
+    }
+
+    /// Background context for Core Data operations
+    private var backgroundContext: NSManagedObjectContext {
+        let context = container.newBackgroundContext()
+        context.automaticallyMergesChangesFromParent = true
+        return context
     }
 }
 

@@ -123,6 +123,9 @@ public class AddMoveUnifiedState: ObservableObject {
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "AddMoveUnifiedState")
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "AddMoveUnifiedState")
 
+    // MARK: - Timecode Service Integration
+    private let timecodeService = TimecodeCalculationService()
+
     // MARK: - Save Completion Handler
     /// Completion handler called when a move is successfully saved
     /// This enables proper navigation to the detail view with the final persisted object
@@ -1368,9 +1371,24 @@ extension AddMoveUnifiedState {
             // This keeps the AVPlayerLayer in the view hierarchy, allowing the new AVPlayerItem to become ready.
             do {
                 diagnosticLogger.startTiming("transactional_trim_and_seek")
+                // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate timing
+                let startTime = timecodeService.snapToFrame(time: CMTime(seconds: finalStartTime, preferredTimescale: 600))
+                let endTime = timecodeService.snapToFrame(time: CMTime(seconds: finalEndTime, preferredTimescale: 600))
+
+                diagnosticLogger.logDebug("🧮 Timecode service integration for trim and seek", metadata: [
+                    "original_start": "\(finalStartTime)",
+                    "original_end": "\(finalEndTime)",
+                    "snapped_start": "\(startTime.seconds)",
+                    "snapped_end": "\(endTime.seconds)",
+                    "start_delta": "\(abs(startTime.seconds - finalStartTime))",
+                    "end_delta": "\(abs(endTime.seconds - finalEndTime))",
+                    "rotation": "\(finalRotation)",
+                    "service_source": "TimecodeCalculationService"
+                ])
+
                 try await unifiedPlayerManager.applyTrimAndSeek(
-                    startTime: CMTime(seconds: finalStartTime, preferredTimescale: 600),
-                    endTime: CMTime(seconds: finalEndTime, preferredTimescale: 600),
+                    startTime: startTime,
+                    endTime: endTime,
                     rotation: finalRotation
                 )
                 diagnosticLogger.stopTiming("transactional_trim_and_seek")

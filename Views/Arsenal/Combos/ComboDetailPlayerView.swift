@@ -5,16 +5,20 @@ struct ComboDetailPlayerView: View {
     let move: Move?
     
     private func getVideoAsset(for move: Move) -> AVAsset? {
-        guard let videoData = move.videoReference,
-              let path = String(data: videoData, encoding: .utf8) else {
+        // 🎯 FIXED: Use photosIdentifier instead of deprecated videoReference
+        guard let photosIdentifier = move.photosIdentifier else {
             return nil
         }
 
-        let url = URL(fileURLWithPath: path)
-        guard FileManager.default.fileExists(atPath: path) else {
+        // Use synchronous check for asset existence first
+        guard PhotosAssetLoader.assetExists(with: photosIdentifier) else {
             return nil
         }
-        return AVURLAsset(url: url)
+
+        // For UI purposes, we'll create a simple AVAsset placeholder
+        // The actual video loading will happen asynchronously in the player
+        // This is a temporary solution for UI compatibility
+        return AVAsset(url: URL(string: "photos://\(photosIdentifier)")!)
     }
     
     var body: some View {
