@@ -10,6 +10,8 @@ This document provides a comprehensive architectural overview of the save move f
 **File Count**: 20+ files involved in complete save workflow
 **Testing**: Comprehensive unit, integration, and performance testing implemented
 **Performance**: Optimized for large video files with background processing and progress tracking
+**Latest Update**: September 25, 2025 - Completed comprehensive debugging and optimization pass
+**Build Status**: ✅ All compilation errors resolved, successful build validation achieved
 
 ---
 
@@ -140,12 +142,11 @@ File Management → Core Data Persistence → State Updates → Flow Transition
 ### Move Entity Schema
 
 ```swift
-// Core Data Entity: Move
+// Core Data Entity: Move (Updated September 2025)
 public class Move: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
-    @NSManaged public var videoReference: Data?
-    @NSManaged public var photosIdentifier: String?
+    @NSManaged public var photosIdentifier: String?  // 🎯 UPDATED: Now primary video reference
     @NSManaged public var trimStartTime: Double
     @NSManaged public var trimEndTime: Double
     @NSManaged public var rotationQuarterTurns: Int16
@@ -162,12 +163,20 @@ public class Move: NSManagedObject {
 ### Entity Relationships
 
 ```
-Move (Entity)
+Move (Entity) (Updated September 2025)
 ├── combos → Combo (Many-to-Many)
 ├── reviews → Review (One-to-Many)
-├── videoReference → Data (Binary storage)
-└── photosIdentifier → String (External reference)
+└── photosIdentifier → String (Primary Photos library reference)
 ```
+
+### Data Storage Strategy (Updated)
+
+#### Video Storage
+- **Primary Storage**: Video files stored in Photos library with identifiers
+- **Core Data Reference**: Photos library local identifiers stored as strings
+- **Photos Integration**: First-class Photos library integration via PhotosAssetLoader
+- **Asset Loading**: Async asset loading with proper authorization handling
+- **Migration**: Migrated from binary videoReference storage to Photos identifier approach
 
 ### Data Storage Strategy
 
@@ -492,6 +501,13 @@ struct SaveMoveConfiguration {
 ---
 
 **Document Status**: ✅ Complete - Production-ready architecture documentation
-**Last Updated**: September 24, 2025
+**Last Updated**: September 25, 2025
 **Maintainers**: Development Team
 **Review Cycle**: Quarterly or as needed
+**Recent Changes**:
+- ✅ Removed deprecated videoReference field from Core Data schema
+- ✅ Updated all video asset loading to use PhotosAssetLoader
+- ✅ Enhanced video rotation handling in VideoTransformBuilder
+- ✅ Integrated TimecodeCalculationService across all components
+- ✅ Added comprehensive diagnostic logging throughout pipeline
+- ✅ Resolved all compilation errors and achieved successful build validation
