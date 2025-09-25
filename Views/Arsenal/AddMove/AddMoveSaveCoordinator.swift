@@ -132,7 +132,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
             let exportedURL = try await VideoTransformBuilder.exportVideo(
                 asset: asset,
                 trimRange: timeRange,
-                quarterTurns: 0, // No rotation for save operation
+                quarterTurns: 0, // ✨ FIX: Add comment explaining why no rotation for export-only operation
                 outputURL: outputURL
             )
             
@@ -224,7 +224,8 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 processedAsset = try await processTrimmedVideo(
                     asset: readyAsset,
                     startTime: startTime,
-                    endTime: endTime
+                    endTime: endTime,
+                    rotationQuarterTurns: rotationQuarterTurns // ✨ ADD: Pass rotation parameter
                 )
             } else {
                 logger.info("🎬 SAVE_COORDINATOR: Using original video (no trim)", metadata: nil)
@@ -329,9 +330,10 @@ public class AddMoveSaveCoordinator: ObservableObject {
     private func processTrimmedVideo(
         asset: AVAsset,
         startTime: Double,
-        endTime: Double
+        endTime: Double,
+        rotationQuarterTurns: Int // ✨ ADD: Rotation parameter for proper transformation
     ) async throws -> AVAsset {
-        logger.info("🎬 SAVE_COORDINATOR: Processing trimmed video (\(startTime)s - \(endTime)s)", metadata: nil)
+        logger.info("🎬 SAVE_COORDINATOR: Processing trimmed video (\(startTime)s - \(endTime)s) with rotation: \(rotationQuarterTurns)", metadata: nil)
 
         // Verify asset before processing
         let readyAsset = try await verifyAssetReadiness(asset)
@@ -349,7 +351,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
         let exportedURL = try await VideoTransformBuilder.exportVideo(
             asset: readyAsset,
             trimRange: timeRange,
-            quarterTurns: 0, // No rotation for save operation
+            quarterTurns: rotationQuarterTurns, // ✨ FIX: Use passed rotation parameter instead of hardcoded 0
             outputURL: outputURL
         )
 

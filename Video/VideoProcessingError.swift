@@ -4,6 +4,7 @@ import Foundation
 public enum AddMoveError: LocalizedError {
     case videoLoadFailed(underlyingError: Error?)
     case invalidMoveName
+    case duplicateMoveName
     case invalidTrimRange(String)
     case trimmerNotAvailable
     case trimmerNotReady
@@ -21,6 +22,8 @@ public enum AddMoveError: LocalizedError {
             return "Failed to load video"
         case .invalidMoveName:
             return "Invalid move name"
+        case .duplicateMoveName:
+            return "A move with this name already exists"
         case .invalidTrimRange(let reason):
             return reason
         case .trimmerNotAvailable:
@@ -50,6 +53,8 @@ public enum AddMoveError: LocalizedError {
             return "Please try selecting a different video"
         case .invalidMoveName:
             return "Please enter a valid name for your move"
+        case .duplicateMoveName:
+            return "Please choose a different name for your move"
         case .invalidTrimRange:
             return "Please adjust your trim handles to valid positions"
         case .trimmerNotAvailable:
@@ -75,7 +80,7 @@ public enum AddMoveError: LocalizedError {
 
     public var isRecoverable: Bool {
         switch self {
-        case .videoLoadFailed, .invalidMoveName, .invalidTrimRange, .trimmerNotAvailable,
+        case .videoLoadFailed, .invalidMoveName, .duplicateMoveName, .invalidTrimRange, .trimmerNotAvailable,
              .trimmerNotReady, .videoAssetNotAvailable, .playerNotReady, .assetNotReady,
              .invalidAssetDuration, .invalidStateForSaving, .photosIdentifierNotAvailable,
              .saveValidationFailed:
@@ -87,7 +92,7 @@ public enum AddMoveError: LocalizedError {
         switch self {
         case .videoLoadFailed, .invalidAssetDuration, .invalidStateForSaving, .photosIdentifierNotAvailable:
             return .critical
-        case .invalidMoveName, .invalidTrimRange, .trimmerNotAvailable, .trimmerNotReady,
+        case .invalidMoveName, .duplicateMoveName, .invalidTrimRange, .trimmerNotAvailable, .trimmerNotReady,
              .videoAssetNotAvailable, .playerNotReady, .assetNotReady, .saveValidationFailed:
             return .warning
         }
@@ -116,6 +121,8 @@ public enum VideoProcessingError: LocalizedError {
     case invalidVideoDimensions(width: Int, height: Int)
     case frameRateNotSupported(fps: Double)
     case audioTrackMissing
+    case photosPermissionDenied
+    case photosSaveFailed(underlyingError: Error)
 
     public var errorDescription: String? {
         switch self {
@@ -159,6 +166,10 @@ public enum VideoProcessingError: LocalizedError {
             return "Frame rate not supported: \(fps)fps"
         case .audioTrackMissing:
             return "Audio track is missing from video"
+        case .photosPermissionDenied:
+            return "Photos library access denied"
+        case .photosSaveFailed:
+            return "Failed to save video to Photos library"
         }
     }
 
@@ -204,6 +215,10 @@ public enum VideoProcessingError: LocalizedError {
             return "Use a video with standard frame rate (24, 30, or 60 fps)"
         case .audioTrackMissing:
             return "This is expected for silent videos"
+        case .photosPermissionDenied:
+            return "Grant photo library access in Settings"
+        case .photosSaveFailed:
+            return "Check available storage and try again"
         }
     }
 
@@ -213,7 +228,7 @@ public enum VideoProcessingError: LocalizedError {
              .assetCreationFailed, .playerInitializationFailed, .readinessTimeout, .exportFailed,
              .trimOperationFailed, .assetNotReadable, .codecNotSupported, .invalidVideoFormat,
              .insufficientPermissions, .diskSpaceFull, .networkError, .concurrentOperationLimitReached,
-             .invalidVideoDimensions, .frameRateNotSupported:
+             .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied, .photosSaveFailed:
             return true
         case .operationCancelled, .audioTrackMissing:
             return false
@@ -224,10 +239,11 @@ public enum VideoProcessingError: LocalizedError {
         switch self {
         case .memoryLimitExceeded, .invalidStateTransition, .assetCreationFailed, .playerInitializationFailed,
              .codecNotSupported, .invalidVideoFormat, .insufficientPermissions, .diskSpaceFull,
-             .invalidVideoDimensions, .frameRateNotSupported:
+             .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied:
             return .critical
         case .videoLoadingFailed, .videoProcessingFailed, .readinessTimeout, .exportFailed,
-             .trimOperationFailed, .assetNotReadable, .networkError, .concurrentOperationLimitReached:
+             .trimOperationFailed, .assetNotReadable, .networkError, .concurrentOperationLimitReached,
+             .photosSaveFailed:
             return .warning
         case .operationCancelled, .audioTrackMissing:
             return .info
@@ -246,6 +262,7 @@ public enum VideoProcessingError: LocalizedError {
         case .operationCancelled: return .user
         case .invalidStateTransition: return .state
         case .assetNotReadable, .audioTrackMissing: return .content
+        case .photosPermissionDenied, .photosSaveFailed: return .permission
         }
     }
 }

@@ -11,7 +11,8 @@ protocol VideoSaver {
 // MARK: - Video Saver Implementation
 final class VideoSaverImpl: VideoSaver {
     private let logger: AppLogger
-    
+    private let breakDexAlbumManager = BreakDexAlbumManager.shared // ✨ ADD: BreakDex album manager integration
+
     init(logger: AppLogger) {
         self.logger = logger
     }
@@ -61,73 +62,69 @@ final class VideoSaverImpl: VideoSaver {
     }
     
     func saveToPhotosLibrary(_ asset: AVAsset) async throws -> String {
-        logger.info("💾 Saving video to Photos library", metadata: nil)
-        
-        // Check Photos library access
+        logger.info("💾 Saving video to Photos library and BreakDex album...", metadata: nil)
+
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else {
-            let error = VideoProcessingError.videoProcessingFailed(
-                operation: "saving to photos",
-                underlyingError: NSError(domain: "Photos", code: -1, userInfo: [NSLocalizedDescriptionKey: "Photos library access denied"])
-            )
-            logger.error("❌ Photos library access denied: \(error.localizedDescription)", metadata: nil)
+            let error = VideoProcessingError.photosPermissionDenied
+            logger.error("❌ Photos library access denied.", metadata: nil)
             throw error
         }
-        
-        // Create a temporary file URL for the exported video
+
+        // Export the video to a temporary URL first
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
-        
-        // Export the video to the temporary URL
+
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
-            let error = VideoProcessingError.assetCreationFailed
-            logger.error("❌ Failed to create export session: \(error.localizedDescription)", metadata: nil)
-            throw error
+            throw VideoProcessingError.assetCreationFailed
         }
-        
         exportSession.outputURL = tempURL
         exportSession.outputFileType = .mov
-        
-        // Export the video asynchronously
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            exportSession.exportAsynchronously {
-                continuation.resume()
-            }
-        }
-        
-        // Check for errors
+
+        await exportSession.export()
+
         if let error = exportSession.error {
-            logger.error("❌ Video export failed: \(error.localizedDescription)", metadata: nil)
-            throw VideoProcessingError.videoProcessingFailed(
-                operation: "saving to photos",
-                underlyingError: error
-            )
+            logger.error("❌ Video export to temporary file failed: \(error.localizedDescription)", metadata: nil)
+            throw VideoProcessingError.videoProcessingFailed(operation: "exporting for photos save", underlyingError: error)
         }
-        
-        // Save the video to Photos library and get the actual local identifier
+
+        // Find or create the "BreakDex" album
+        let album = try await breakDexAlbumManager.ensureBreakDexAlbum()
+
+        // Atomically save the video and add it to the album
         return try await withCheckedThrowingContinuation { continuation in
             var placeholder: PHObjectPlaceholder?
 
             PHPhotoLibrary.shared().performChanges({
-                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
-                placeholder = request?.placeholderForCreatedAsset
+                // 1. Create the asset creation request from the temporary file.
+                guard let assetRequest = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL) else {
+                    return
+                }
+                placeholder = assetRequest.placeholderForCreatedAsset
+
+                // 2. Create the album change request.
+                guard let albumChangeRequest = PHAssetCollectionChangeRequest(for: album),
+                      let assetPlaceholder = placeholder else {
+                    return
+                }
+
+                // 3. Add the new asset placeholder to the album change request.
+                albumChangeRequest.addAssets([assetPlaceholder] as NSArray)
+
             }) { success, error in
+                // Clean up the temporary file regardless of outcome
+                try? FileManager.default.removeItem(at: tempURL)
+
                 if success, let localIdentifier = placeholder?.localIdentifier {
-                    // 🎯 FIXED: Return the actual Photos library local identifier
-                    self.logger.info("✅ Video saved to Photos library successfully", metadata: [
-                        "identifier": localIdentifier,
-                        "identifier_type": "photos_local_identifier",
-                        "identifier_length": "\(localIdentifier.count)"
+                    self.logger.info("✅ Video saved to Photos and added to BreakDex album successfully.", metadata: [
+                        "identifier": localIdentifier
                     ])
                     continuation.resume(returning: localIdentifier)
                 } else {
-                    let error = error ?? NSError(domain: "Photos", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving to Photos library"])
-                    self.logger.error("❌ Failed to save video to Photos library: \(error.localizedDescription)", metadata: nil)
-                    continuation.resume(throwing: VideoProcessingError.videoProcessingFailed(
-                        operation: "saving to photos",
-                        underlyingError: error
-                    ))
+                    let saveError = error ?? NSError(domain: "Photos", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving to Photos."])
+                    self.logger.error("❌ Failed to save video to Photos library: \(saveError.localizedDescription)", metadata: nil)
+                    continuation.resume(throwing: VideoProcessingError.photosSaveFailed(underlyingError: saveError))
                 }
             }
         }

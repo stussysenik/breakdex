@@ -69,9 +69,23 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         logger.info("💾 MOVE_PERSISTENCE: Original photos ID: \(originalPhotosIdentifier)")
         logger.info("💾 MOVE_PERSISTENCE: Trim start: \(trimStartTime ?? 0), end: \(trimEndTime ?? 0)")
         logger.info("💾 MOVE_PERSISTENCE: Rotation: \(rotationQuarterTurns)°")
-        
-        // Create Move entity using the Core Data context
+
+        // ✨ VALIDATION: Check for duplicate move names before creating entity
+        logger.info("💾 MOVE_PERSISTENCE: 🔍 Validating move name uniqueness")
         let context = PersistenceController.shared.container.viewContext
+        let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name ==[c] %@", name) // Case-insensitive comparison
+
+        let existingMoves = try context.fetch(fetchRequest)
+        if !existingMoves.isEmpty {
+            logger.error("💾 MOVE_PERSISTENCE: ❌ A move named '\(name)' already exists (\(existingMoves.count) duplicates found)")
+            logger.error("💾 MOVE_PERSISTENCE: ❌ Duplicate move IDs: \(existingMoves.map { $0.id ?? UUID() })")
+            throw AddMoveError.duplicateMoveName
+        }
+
+        logger.info("💾 MOVE_PERSISTENCE: ✅ Move name uniqueness validated - no duplicates found")
+
+        // Create Move entity using the existing Core Data context
         
         let move = Move(context: context)
         move.id = UUID()

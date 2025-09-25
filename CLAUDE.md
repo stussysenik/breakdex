@@ -24,10 +24,12 @@ DesignSystem.swift or Color+Extensions.swift
 approx. 500 lines if exceeded - means we're not following SRP principle
 
 ### App Purpose
-Develop a high-performance, iOS 18.0-compliant video flashcard application for learning and reviewing complex physical movements. The project is built on a foundation of robust state management, Swift Concurrency, and a stable, custom video playback engine.
+Develop a high-performance, iOS 18.0-compliant video flashcard application for learning and reviewing complex physical movements. The project is built on a foundation of robust state management, Swift Concurrency, and a stable, custom video playback engine with millisecond-precise video trimming capabilities.
 
 ### Core Architectural Principles
 * **SwiftUI & State Flow:** Employ a strict unidirectional data flow for all UI. The `AddMoveState` enum serves as the single source of truth, with a state-driven ViewRouter (`AddMoveContainer`) managing view switching.
+* **Millisecond Precision:** All video trimming operations maintain frame-accurate precision through the TimecodeCalculationService, ensuring WYSIWYG video editing from preview to final asset.
+* **Unified State Management:** The AddMoveUnifiedState coordinates all video processing operations with comprehensive error handling and state validation.
 
 ### Logging & Debugging
 * **Logging-First Approach:** Adopt a logging-first approach using `OSLog` for detailed, categorized, and traceable logging. Use emojis in log categories for enhanced traceability.
@@ -90,6 +92,20 @@ Develop a high-performance, iOS 18.0-compliant video flashcard application for l
 * **Video Processing:** Use VideoProcessingPipeline for all video export and processing operations
 * **Memory Management:** Ensure proper cleanup of video assets and processing resources
 
+### Video Precision Architecture
+* **TimecodeCalculationService:** Centralized service for all timecode calculations, validation, and frame-accurate operations
+* **Millisecond Precision:** End-to-end ms precision from trimmer UI to final video asset processing
+* **Frame-Accurate Snapping:** All time conversions use frame-based calculations for precise video editing
+* **Unified Time Formatting:** Consistent ms-precise time display across all UI components
+* **Comprehensive Validation:** Timecode range validation with detailed error reporting and minimum duration enforcement
+
+### Key Services and Managers
+* **PhotosAssetLoader:** Async service for loading video assets from Photos library with proper authorization handling
+* **TimecodeCalculationService:** Provides frame-accurate timecode calculations, validation, and formatting
+* **VideoProcessingPipeline:** Handles video export, trimming, and transformation operations
+* **DiagnosticLoggingHelper:** Comprehensive logging with memory tracking and performance monitoring
+* **TimecodeFormatter:** Utility for consistent ms-precise time string formatting across the application
+
 ### Error Resolution Protocol
 When encountering compilation errors:
 1. **Start with the first error** - subsequent errors may be cascading
@@ -109,4 +125,16 @@ xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -des
 # Clean build verification
 xcodebuild clean -project BreakingFlashcards.xcodeproj
 xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Build with specific simulator (useful when multiple simulators available)
+xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,id=86FFC075-5BA3-4125-9534-C9F8B525E72A' build
 ```
+
+### Recent Improvements (September 2025)
+* **Fixed MoveDetailView Data Contract Issue:** Resolved data contract violation where MoveDetailView was reading from deprecated `videoReference` while MovePersistenceService correctly wrote to `photosIdentifier`
+* **Implemented PhotosAssetLoader:** Created async service for reliable Photos library asset loading with proper authorization handling
+* **Enhanced Video Trimming Precision:** Fixed millisecond precision loss throughout video trimming pipeline by updating `applyTrimSettings` to accept CMTime parameters directly
+* **Integrated TimecodeCalculationService:** Comprehensive integration across all video components for frame-accurate timecode calculations, validation, and formatting
+* **Unified Time Display:** Consistent ms-precise time formatting across all UI components using TimecodeFormatter
+* **Improved State Management:** Enhanced AddMoveUnifiedState with better error handling, state validation, and race condition prevention
+* **Memory Management:** Fixed retain cycle issues and implemented proper resource cleanup in all ViewModels

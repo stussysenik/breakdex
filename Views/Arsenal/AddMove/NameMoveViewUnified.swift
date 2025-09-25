@@ -77,8 +77,8 @@ struct NameMoveViewUnified: View {
             if let playerViewModel = unifiedState.currentPlayerViewModel {
                 PreviewSheet(
                     playerViewModel: playerViewModel,
-                    startTime: unifiedState.trimStartTime,
-                    endTime: unifiedState.trimEndTime,
+                    startTime: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600),
+                    endTime: CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600),
                     rotationQuarterTurns: unifiedState.rotationQuarterTurns,
                     onDismiss: {
                         isShowingPreview = false
@@ -152,7 +152,7 @@ struct NameMoveViewUnified: View {
 
             // Trim info
             HStack {
-                Text("Duration: \(formatDuration(unifiedState.trimEndTime - unifiedState.trimStartTime))")
+                Text("Duration: \(TimecodeFormatter.format(time: CMTimeSubtract(CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600), CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600))))")
                     .font(.caption)
                     .foregroundColor(.gray)
 
@@ -287,20 +287,14 @@ struct NameMoveViewUnified: View {
     }
       
     // MARK: - Utility Methods
-
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
 }
 
 // MARK: - Preview Sheet
 
 struct PreviewSheet: View {
     let playerViewModel: UnifiedVideoPlayerViewModel
-    let startTime: TimeInterval
-    let endTime: TimeInterval
+    let startTime: CMTime
+    let endTime: CMTime
     let rotationQuarterTurns: Int
     let onDismiss: () -> Void
     
@@ -318,7 +312,7 @@ struct PreviewSheet: View {
                     .cornerRadius(12)
                     .padding()
                 
-                Text("Duration: \(formatDuration(endTime - startTime))")
+                Text("Duration: \(TimecodeFormatter.format(time: CMTimeSubtract(endTime, startTime)))")
                     .font(.caption)
                     .foregroundColor(.gray)
                 

@@ -198,8 +198,8 @@ struct PreTrimViewUnified: View {
         do {
             // Apply full video trim (no actual trimming needed)
             try await unifiedState.applyTrimSettings(
-                startTime: 0.0,
-                endTime: asset.duration.seconds,
+                startTime: .zero,
+                endTime: asset.duration,
                 rotation: unifiedState.rotationQuarterTurns
             )
 

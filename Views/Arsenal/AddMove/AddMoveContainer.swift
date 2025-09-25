@@ -18,43 +18,49 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "AddM
 struct AddMoveContainer: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Binding private var selectedTab: TabSelection
-    
+
     // 💡 SOLUTION: Single unified state object eliminates churn
     @StateObject private var unifiedState: AddMoveUnifiedState
-    
+
+    // MARK: - Save Completion Handler
+    /// Called when a move is successfully saved and ready for navigation
+    private var onSaveSuccess: ((Move) -> Void)?
+
     // MARK: - Initialization
-    private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>, unifiedState: AddMoveUnifiedState) {
+    private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>, unifiedState: AddMoveUnifiedState, onSaveSuccess: ((Move) -> Void)?) {
         logger.info("🎬 CONTAINER: AddMoveContainer initialized with unified state")
-        
+
         _selectedTab = selectedTab
         _unifiedState = StateObject(wrappedValue: unifiedState)
-        
+        self.onSaveSuccess = onSaveSuccess
+
         logger.info("🎬 CONTAINER: AddMoveContainer initialization completed")
     }
     
-    init(selectedTab: Binding<TabSelection>) {
+    init(selectedTab: Binding<TabSelection>, onSaveSuccess: ((Move) -> Void)? = nil) {
         logger.info("🎬 CONTAINER: Convenience initializer called")
         logger.info("🎬 CONTAINER: Using shared PersistenceController context")
-        
+
         let unifiedState = AddMoveUnifiedState(
             unifiedPlayerManager: UnifiedPlayerManager(),
             appContainer: AppContainer.shared
         )
-        
+
         self.init(
             context: PersistenceController.shared.container.viewContext,
             selectedTab: selectedTab,
-            unifiedState: unifiedState
+            unifiedState: unifiedState,
+            onSaveSuccess: onSaveSuccess
         )
     }
     
-    init(viewContext: NSManagedObjectContext, selectedTab: Binding<TabSelection>) {
+    init(viewContext: NSManagedObjectContext, selectedTab: Binding<TabSelection>, onSaveSuccess: ((Move) -> Void)? = nil) {
         let unifiedState = AddMoveUnifiedState(
             unifiedPlayerManager: UnifiedPlayerManager(),
             appContainer: AppContainer.shared
         )
-        
-        self.init(context: viewContext, selectedTab: selectedTab, unifiedState: unifiedState)
+
+        self.init(context: viewContext, selectedTab: selectedTab, unifiedState: unifiedState, onSaveSuccess: onSaveSuccess)
     }
     
     var body: some View {
@@ -83,20 +89,34 @@ struct AddMoveContainer: View {
     private func handleViewAppear() {
         logger.info("🎬 CONTAINER: View appeared with state: \(String(describing: unifiedState.flowState))")
         logState("container_appear", flowState: unifiedState.flowState)
+
+        // 🎯 CRITICAL FIX: Set up the save completion handler for navigation
+        unifiedState.onSaveSuccess = { savedMove in
+            logger.info("🎬 CONTAINER: 🚀 Save completion handler called with saved move")
+
+            // Call the container's completion handler if available
+            self.onSaveSuccess?(savedMove)
+        }
     }
     
     private func handleViewDisappear() {
         logger.info("🎬 CONTAINER: View disappeared from state: \(String(describing: unifiedState.flowState))")
-        
-        // Clean up resources when workflow is finished
+
+        // Clean up resources when workflow is finished, but only if not navigating
         let currentState = unifiedState.flowState
-        let shouldCleanUp: Bool = switch currentState {
-        case .success, .error:
-            true
-        default:
-            false
-        }
-        
+        let shouldCleanUp: Bool = {
+            switch currentState {
+            case .success:
+                // 🎯 CRITICAL FIX: Don't clean up on success - let navigation happen first
+                logger.info("🎬 CONTAINER: Success state detected - postponing cleanup to allow navigation")
+                return false
+            case .error:
+                return true
+            default:
+                return false
+            }
+        }()
+
         if shouldCleanUp {
             logger.info("🎬 CONTAINER: Workflow completed, cleaning up unified state")
             unifiedState.reset()
@@ -154,6 +174,8 @@ struct AddMoveContainer: View {
                         await unifiedState.reset()
                     }
                 }
+                // 🎯 CRITICAL FIX: Don't immediately reset - allow navigation completion first
+                // The reset will happen after navigation is complete
                 
             case .error(let message, _):
                 ErrorView(

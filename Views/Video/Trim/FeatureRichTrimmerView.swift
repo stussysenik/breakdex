@@ -83,7 +83,8 @@ struct TrimmerPlayerView: View {
 struct FeatureRichTrimmerView: View {
     @ObservedObject var viewModel: TrimmerViewModel
     let unifiedState: AddMoveUnifiedState // No longer observed, just for actions
-    
+    private let timecodeService = TimecodeCalculationService()
+
     // MARK: - Video Replacement State
     @State private var showPhotosPicker = false
     @State private var tempVideoSelection: PhotosUI.PhotosPickerItem?
@@ -370,8 +371,8 @@ struct FeatureRichTrimmerView: View {
                     do {
                         let newRotation = (currentRotation + 1) % 4
                         try await unifiedState.applyTrimSettings(
-                            startTime: trimmerVM.startTime.seconds,
-                            endTime: trimmerVM.endTime.seconds,
+                            startTime: trimmerVM.startTime,
+                            endTime: trimmerVM.endTime,
                             rotation: newRotation
                         )
                     } catch {
@@ -486,7 +487,7 @@ struct FeatureRichTrimmerView: View {
                     let duration = trimmerViewModel.endTime - trimmerViewModel.startTime
                     let minimum = trimmerViewModel.minimumDuration
 
-                    Text("Current: \(String(format: "%.1f", duration.seconds))s • Minimum: \(String(format: "%.1f", minimum.seconds))s")
+                    Text("Current: \(timecodeService.formatTime(duration, includeMilliseconds: true)) • Minimum: \(timecodeService.formatTime(minimum, includeMilliseconds: true))")
                         .font(.system(size: 11, weight: .regular))
                         .foregroundColor(.textSecondary)
                 }
@@ -784,8 +785,8 @@ struct FeatureRichTrimmerView: View {
         let trimmerVM = viewModel
         do {
                 try await unifiedState.applyTrimSettings(
-                    startTime: 0.0,
-                    endTime: trimmerVM.videoDuration.seconds,
+                    startTime: .zero,
+                    endTime: trimmerVM.videoDuration,
                     rotation: 0
                 )
             } catch {
@@ -883,7 +884,7 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Continue Button Methods
     private func isReadyToContinue() -> Bool {
         let trimmerVM = viewModel
-        
+
         // Check if we have valid duration first
         let hasValidDuration = trimmerVM.videoDuration.seconds > 0
         if !hasValidDuration {
@@ -893,17 +894,30 @@ struct FeatureRichTrimmerView: View {
             ])
             return false
         }
-        
-        // Validate minimum duration requirement
-        let duration = trimmerVM.endTime - trimmerVM.startTime
-        let meetsMinimumDuration = duration >= trimmerVM.minimumDuration
-        
-        // Validate trim range is valid (using TrimmerViewModel's built-in validation)
-        let hasValidTrimRange = trimmerVM.isValidTrim
-        
+
+        // Use TimecodeCalculationService for comprehensive validation
+        let timecodeResult = timecodeService.calculateTimecode(
+            startTime: trimmerVM.startTime,
+            endTime: trimmerVM.endTime,
+            assetDuration: trimmerVM.videoDuration,
+            frameRate: trimmerVM.currentFrameRate
+        )
+
+        // Validate trim range is valid using timecode service
+        var validationErrors: [TimecodeValidationError] = []
+        let hasValidTrimRange = timecodeService.validateTimecodeRange(
+            startTime: trimmerVM.startTime,
+            endTime: trimmerVM.endTime,
+            assetDuration: trimmerVM.videoDuration,
+            errors: &validationErrors
+        )
+
+        // Validate minimum duration requirement using timecode result
+        let meetsMinimumDuration = !timecodeResult.isDurationTooShort
+
         // Validate player and trimmer are ready
         let readyStatus = "meets_min_duration: \(meetsMinimumDuration), valid_trim_range: \(hasValidTrimRange), components_ready: \(isReadyToShowTrimmer), valid_duration: \(hasValidDuration)"
-        
+
         if !isReadyToShowTrimmer {
             diagnosticLogger.logDebug("⏳ Waiting for components to be ready", metadata: [
                 "validation": readyStatus,
@@ -912,35 +926,39 @@ struct FeatureRichTrimmerView: View {
                 "duration_seconds": "\(trimmerVM.videoDuration.seconds)"
             ])
         }
-        
+
         if !meetsMinimumDuration {
             diagnosticLogger.logDebug("⚠️ Cannot continue - minimum duration not met", metadata: [
                 "validation": readyStatus,
-                "current_duration": "\(duration.seconds)",
-                "minimum_duration": "\(trimmerVM.minimumDuration.seconds)"
+                "current_duration": "\(timecodeResult.duration.seconds)",
+                "minimum_duration": "\(timecodeResult.minimumDuration.seconds)",
+                "validation_errors": "\(timecodeResult.validationErrors.map { $0.localizedDescription })"
             ])
         }
-        
+
         if !hasValidTrimRange {
             diagnosticLogger.logDebug("⚠️ Cannot continue - invalid trim range", metadata: [
                 "validation": readyStatus,
                 "start_time": "\(trimmerVM.startTime.seconds)",
                 "end_time": "\(trimmerVM.endTime.seconds)",
-                "video_duration": "\(trimmerVM.videoDuration.seconds)"
+                "video_duration": "\(trimmerVM.videoDuration.seconds)",
+                "validation_errors": "\(timecodeResult.validationErrors.map { $0.localizedDescription })"
             ])
         }
-        
+
         let isReady = hasValidDuration && meetsMinimumDuration && hasValidTrimRange && isReadyToShowTrimmer
-        
+
         if isReady {
             diagnosticLogger.logInfo("✅ Ready to continue", metadata: [
                 "validation": readyStatus,
-                "duration": "\(duration.seconds)",
+                "duration": "\(timecodeResult.duration.seconds)",
                 "rotation": "\(trimmerVM.rotationQuarterTurns)",
-                "video_duration": "\(trimmerVM.videoDuration.seconds)"
+                "video_duration": "\(trimmerVM.videoDuration.seconds)",
+                "timecode_valid": "\(timecodeResult.isValid)",
+                "frame_precision": "\(timecodeResult.durationFrames) frames"
             ])
         }
-        
+
         return isReady
     }
     
@@ -957,8 +975,6 @@ struct FeatureRichTrimmerView: View {
             diagnosticLogger.stopTiming("validate_and_continue")
             return
         }
-
-        let trimmerVM = viewModel
 
         // 🎯 CRITICAL: Show local loading overlay to preserve render layer
         await MainActor.run {
@@ -1048,13 +1064,14 @@ struct TimeCodeLabel: View {
     let time: CMTime
     let position: HandlePosition
     let isActive: Bool
-    
+    private let timecodeService = TimecodeCalculationService()
+
     enum HandlePosition {
         case start, end
     }
-    
+
     var body: some View {
-        Text(formatTimeWithMs(time))
+        Text(timecodeService.formatTime(time, includeMilliseconds: true))
             .font(.ibmPlexMono(size: 11, weight: isActive ? .medium : .regular))
             .foregroundColor(isActive ? Color.accent : Color.textSecondary)
             .padding(.horizontal, 8)
@@ -1066,14 +1083,6 @@ struct TimeCodeLabel: View {
             .scaleEffect(isActive ? 1.05 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
     }
-    
-    private func formatTimeWithMs(_ time: CMTime) -> String {
-        let seconds = time.seconds
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        let milliseconds = Int((seconds - Double(Int(seconds))) * 1000)
-        return String(format: "%02d:%02d.%03d", minutes, secs, milliseconds)
-    }
 }
 
 // MARK: - Duration Label
@@ -1081,7 +1090,8 @@ struct DurationLabel: View {
     let duration: CMTime
     let minimumDuration: CMTime
     let showWarning: Bool
-    
+    private let timecodeService = TimecodeCalculationService()
+
     var body: some View {
         HStack(spacing: 4) {
             if showWarning {
@@ -1090,8 +1100,8 @@ struct DurationLabel: View {
                     .font(.system(size: 10))
                     .animation(.easeInOut(duration: 0.2), value: showWarning)
             }
-            
-            Text(formatDurationWithMs(duration))
+
+            Text(timecodeService.formatTime(duration, includeMilliseconds: true))
                 .font(.ibmPlexMono(size: 11, weight: showWarning ? .medium : .regular))
                 .foregroundColor(showWarning ? Color.buttonHard : Color.textPrimary)
                 .animation(.easeInOut(duration: 0.2), value: duration)
@@ -1104,14 +1114,6 @@ struct DurationLabel: View {
         )
         .scaleEffect(showWarning ? 1.02 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showWarning)
-    }
-    
-    private func formatDurationWithMs(_ time: CMTime) -> String {
-        let seconds = time.seconds
-        let minutes = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        let milliseconds = Int((seconds - Double(Int(seconds))) * 1000)
-        return String(format: "%02d:%02d.%03d", minutes, secs, milliseconds)
     }
 }
 
@@ -1155,7 +1157,8 @@ struct TimeProgressBar: View {
 // MARK: - Hybrid Precise Trimmer (Integrated)
 struct HybridPreciseTrimmerView: View {
     @ObservedObject var viewModel: TrimmerViewModel
-    
+    private let timecodeService = TimecodeCalculationService()
+
     // Custom handle views
     var startHandleView: AnyView?
     var endHandleView: AnyView?
@@ -1252,7 +1255,8 @@ struct HybridPreciseTrimmerView: View {
     private func xLeftToTime(_ x: CGFloat, trackWidth: CGFloat) -> CMTime {
         let clamped = max(0, min(x, trackWidth))
         let seconds = Double(clamped / trackWidth) * viewModel.videoDuration.seconds
-        return CMTime(seconds: seconds, preferredTimescale: viewModel.videoDuration.timescale)
+        let time = CMTime(seconds: seconds, preferredTimescale: viewModel.videoDuration.timescale)
+        return timecodeService.snapToFrame(time: time, frameRate: viewModel.currentFrameRate)
     }
     
     private func minDistancePx(_ g: GeometryProxy) -> CGFloat {

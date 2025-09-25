@@ -122,7 +122,12 @@ public class AddMoveUnifiedState: ObservableObject {
     // MARK: - Enhanced Diagnostic Logging
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "AddMoveUnifiedState")
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "AddMoveUnifiedState")
-    
+
+    // MARK: - Save Completion Handler
+    /// Completion handler called when a move is successfully saved
+    /// This enables proper navigation to the detail view with the final persisted object
+    public var onSaveSuccess: ((Move) -> Void)?
+
     // MARK: - Core Flow State
     @Published
     public var flowState: AddMoveFlowState = .ready {
@@ -441,8 +446,8 @@ public class AddMoveUnifiedState: ObservableObject {
     }
     
     
-    /// Applies trim settings to the current video with enhanced race condition prevention
-    public func applyTrimSettings(startTime: Double, endTime: Double, rotation: Int) async throws {
+    /// Applies trim settings to the current video with enhanced race condition prevention and millisecond precision
+    public func applyTrimSettings(startTime: CMTime, endTime: CMTime, rotation: Int) async throws {
         diagnosticLogger.startTiming("apply_trim_settings")
 
         let memoryBefore = diagnosticLogger.getMemoryInfo()
@@ -450,24 +455,26 @@ public class AddMoveUnifiedState: ObservableObject {
 
         // 🎯 CRITICAL FIX: Prevent duplicate calls with same parameters
         // This eliminates redundant processing during state transitions
-        let currentTrimState = (trimStartTime, trimEndTime, rotationQuarterTurns)
-        let requestedTrimState = (startTime, endTime, rotation)
+        let currentStartTime = trimStartTime
+        let currentEndTime = trimEndTime
+        let currentTrimState = (currentStartTime, currentEndTime, rotationQuarterTurns)
+        let requestedTrimState = (startTime.seconds, endTime.seconds, rotation)
 
-        if currentTrimState == requestedTrimState {
+        if currentStartTime == startTime.seconds && currentEndTime == endTime.seconds && rotationQuarterTurns == rotation {
             diagnosticLogger.logInfo("🎬 UNIFIED_STATE: ⏭️ Skipping redundant trim application - parameters unchanged", metadata: [
-                "current_start": "\(trimStartTime)",
-                "current_end": "\(trimEndTime)",
+                "current_start": "\(TimecodeFormatter.format(time: CMTime(seconds: currentStartTime, preferredTimescale: 600)))",
+                "current_end": "\(TimecodeFormatter.format(time: CMTime(seconds: currentEndTime, preferredTimescale: 600)))",
                 "current_rotation": "\(rotationQuarterTurns)",
-                "requested_start": "\(startTime)",
-                "requested_end": "\(endTime)",
+                "requested_start": "(startTime.seconds)",
+                "requested_end": "(endTime.seconds)",
                 "requested_rotation": "\(rotation)"
             ])
             return
         }
 
         diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Starting enhanced trim settings application with race condition prevention", metadata: [
-            "start_time": "\(startTime)",
-            "end_time": "\(endTime)",
+            "start_time": "(startTime.seconds)",
+            "end_time": "(endTime.seconds)",
             "rotation": "\(rotation)",
             "current_flow_state": "\(flowState)",
             "current_player_state": "\(playerState)",
@@ -511,13 +518,13 @@ public class AddMoveUnifiedState: ObservableObject {
 
         // 💡 ENHANCEMENT: Validate trim parameters with enhanced checks
         let duration = endTime - startTime
-        let assetDuration = asset.duration.seconds
+        let assetDuration = try await asset.load(.duration)
 
-        guard duration > 0 else {
+        guard duration.seconds > 0 else {
             let errorMessage = "Invalid trim range: duration must be positive (\(duration)s)"
             let errorDetails: [String: String] = [
-                "start_time": "\(startTime)",
-                "end_time": "\(endTime)",
+                "start_time": "(startTime.seconds)",
+                "end_time": "(endTime.seconds)",
                 "duration": "\(duration)",
                 "asset_duration": "\(assetDuration)",
                 "minimum_required": "0.1"
@@ -528,11 +535,11 @@ public class AddMoveUnifiedState: ObservableObject {
             throw AddMoveError.invalidTrimRange(errorMessage)
         }
 
-        guard duration >= 3.0 else {
+        guard duration.seconds >= 3.0 else {
             let errorMessage = "Trim duration too short: \(duration)s (minimum: 3.0s)"
             let errorDetails: [String: String] = [
-                "start_time": "\(startTime)",
-                "end_time": "\(endTime)",
+                "start_time": "(startTime.seconds)",
+                "end_time": "(endTime.seconds)",
                 "duration": "\(duration)",
                 "asset_duration": "\(assetDuration)",
                 "minimum_required": "3.0"
@@ -543,11 +550,11 @@ public class AddMoveUnifiedState: ObservableObject {
             throw AddMoveError.invalidTrimRange(errorMessage)
         }
 
-        guard startTime >= 0 else {
+        guard startTime.seconds >= 0 else {
             let errorMessage = "Start time cannot be negative (\(startTime)s)"
             let errorDetails: [String: String] = [
-                "start_time": "\(startTime)",
-                "end_time": "\(endTime)",
+                "start_time": "(startTime.seconds)",
+                "end_time": "(endTime.seconds)",
                 "asset_duration": "\(assetDuration)"
             ]
 
@@ -557,12 +564,12 @@ public class AddMoveUnifiedState: ObservableObject {
         }
 
         guard endTime <= assetDuration else {
-            let errorMessage = "End time (\(endTime)s) exceeds asset duration (\(assetDuration)s)"
+            let errorMessage = "End time ((endTime.seconds)s) exceeds asset duration ((TimecodeFormatter.format(time: assetDuration))s)"
             let errorDetails: [String: String] = [
-                "start_time": "\(startTime)",
-                "end_time": "\(endTime)",
+                "start_time": "(startTime.seconds)",
+                "end_time": "(endTime.seconds)",
                 "asset_duration": "\(assetDuration)",
-                "excess_duration": "\(endTime - assetDuration)"
+                "excess_duration": "\(TimecodeFormatter.format(time: endTime - assetDuration))"
             ]
 
             diagnosticLogger.logError(errorMessage, metadata: errorDetails)
@@ -585,8 +592,8 @@ public class AddMoveUnifiedState: ObservableObject {
             "validation_passed": "true"
         ])
 
-        let startCMTime = CMTime(seconds: startTime, preferredTimescale: 600)
-        let endCMTime = CMTime(seconds: endTime, preferredTimescale: 600)
+        let startCMTime = startTime
+        let endCMTime = endTime
 
         // 💡 ENHANCEMENT: Synchronize TrimmerViewModel state with UnifiedState BEFORE applying trim
         if let trimmerVM = trimmerViewModel {
@@ -629,15 +636,16 @@ public class AddMoveUnifiedState: ObservableObject {
             "new_rotation": "\(rotation)"
         ])
 
-        trimStartTime = startTime
-        trimEndTime = endTime
+        // 🎯 CRITICAL FIX: Store CMTime values as Double for API compatibility
+        trimStartTime = startTime.seconds
+        trimEndTime = endTime.seconds
         rotationQuarterTurns = rotation
 
         // 💡 ENHANCEMENT: Apply trim to player with comprehensive error handling and retry logic
         do {
             diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🔄 Starting player trim operation with readiness monitoring", metadata: [
-                "start_time_cm": "\(startCMTime.seconds)",
-                "end_time_cm": "\(endCMTime.seconds)",
+                "start_time_cm": "\(TimecodeFormatter.format(time: startCMTime))",
+                "end_time_cm": "\(TimecodeFormatter.format(time: endCMTime))",
                 "rotation": "\(rotation)",
                 "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)"
             ])
@@ -1088,24 +1096,24 @@ public class AddMoveUnifiedState: ObservableObject {
             }
 
             // Now set initial trim values using the actual asset duration
-            let startTime = CMTime(seconds: trimStartTime, preferredTimescale: 600)
-            let endTime = CMTime(seconds: trimEndTime, preferredTimescale: 600)
+            let startTime = trimStartTime
+            let endTime = trimEndTime
 
             // Validate trim range against actual duration
-            let validatedEndTime = min(endTime, newTrimmerViewModel.videoDuration)
-            let validatedStartTime = min(startTime, validatedEndTime - newTrimmerViewModel.minimumDuration)
+            let validatedEndTime = min(endTime, newTrimmerViewModel.videoDuration.seconds)
+            let validatedStartTime = min(startTime, validatedEndTime - newTrimmerViewModel.minimumDuration.seconds)
 
             await MainActor.run {
-                newTrimmerViewModel.startTime = validatedStartTime
-                newTrimmerViewModel.endTime = validatedEndTime
+                newTrimmerViewModel.startTime = CMTime(seconds: validatedStartTime, preferredTimescale: 600)
+                newTrimmerViewModel.endTime = CMTime(seconds: validatedEndTime, preferredTimescale: 600)
             }
 
             diagnosticLogger.logDebug("✅ TrimmerViewModel setup completed and trim values set")
 
             diagnosticLogger.logInfo("✅ TrimmerViewModel setup completed", metadata: [
-                "initial_start_time": "\(validatedStartTime.seconds)",
-                "initial_end_time": "\(validatedEndTime.seconds)",
-                "duration_seconds": "\(validatedEndTime.seconds - validatedStartTime.seconds)",
+                "initial_start_time": "\(validatedStartTime)",
+                "initial_end_time": "\(validatedEndTime)",
+                "duration_seconds": "\(validatedEndTime - validatedStartTime)",
                 "video_duration_seconds": "\(newTrimmerViewModel.videoDuration.seconds)",
                 "rotation_quarter_turns": "\(rotationQuarterTurns)",
                 "trimmer_ready": "\(newTrimmerViewModel.isReady)"
@@ -1450,7 +1458,7 @@ extension AddMoveUnifiedState {
         guard endTime <= assetDuration else {
             let error = AddMoveError.invalidTrimRange("End time cannot exceed video duration")
             diagnosticLogger.logError("Trim validation failed: end time exceeds duration", error: error, metadata: [
-                "end_time": "\(endTime)",
+                "end_time": "(endTime.seconds)",
                 "asset_duration": "\(assetDuration)"
             ])
             throw error
@@ -1460,8 +1468,8 @@ extension AddMoveUnifiedState {
         guard startTime < endTime else {
             let error = AddMoveError.invalidTrimRange("Start time must be before end time")
             diagnosticLogger.logError("Trim validation failed: invalid time order", error: error, metadata: [
-                "start_time": "\(startTime)",
-                "end_time": "\(endTime)"
+                "start_time": "(startTime.seconds)",
+                "end_time": "(endTime.seconds)"
             ])
             throw error
         }
@@ -1479,8 +1487,8 @@ extension AddMoveUnifiedState {
 
         // 🎯 SUCCESS: Trim parameters are valid - log comprehensive diagnostics
         diagnosticLogger.logInfo("✅ Trim parameters validated for save using persistent state", metadata: [
-            "start_time": "\(startTime)",
-            "end_time": "\(endTime)",
+            "start_time": "(startTime.seconds)",
+            "end_time": "(endTime.seconds)",
             "duration": "\(duration)",
             "asset_duration": "\(assetDuration)",
             "validation_source": "unified_state_properties",
@@ -1665,8 +1673,8 @@ extension AddMoveUnifiedState {
         var readinessIssues: [TrimmingReadinessIssue] = []
 
         // ✅ USE: Persistent state properties instead of trimmerViewModel
-        let startTime = self.trimStartTime ?? 0.0
-        let endTime = self.trimEndTime ?? (videoAsset?.duration.seconds ?? 0.0)
+        let startTime = self.trimStartTime
+        let endTime = self.trimEndTime
         let duration = endTime - startTime
         let assetDuration = videoAsset?.duration.seconds ?? 0.0
 
@@ -1726,8 +1734,8 @@ extension AddMoveUnifiedState {
             "is_ready": "\(result.isReady)",
             "issue_count": "\(readinessIssues.count)",
             "duration_seconds": "\(duration)",
-            "start_time": "\(startTime)",
-            "end_time": "\(endTime)",
+            "start_time": "(startTime.seconds)",
+            "end_time": "(endTime.seconds)",
             "asset_duration": "\(assetDuration)"
         ])
 
@@ -1767,8 +1775,8 @@ extension AddMoveUnifiedState {
         }
 
         // ✅ FIXED: Calculate final trim parameters from persistent state properties
-        let finalStartTime = self.trimStartTime ?? 0.0
-        let finalEndTime = self.trimEndTime ?? (readyAsset.duration.seconds)
+        let finalStartTime = self.trimStartTime
+        let finalEndTime = self.trimEndTime
         let finalRotation = self.rotationQuarterTurns
 
         // Create prepared asset result
@@ -1979,7 +1987,7 @@ extension AddMoveUnifiedState {
                 return
             }
 
-            logger.info("🎬 ADD_MOVE_UNIFIED_STATE: 🔧 Starting debounced seek to trim start - trimStartTime: \(self.trimStartTime), debounceInterval: \(debounceInterval)")
+            logger.info("🎬 ADD_MOVE_UNIFIED_STATE: 🔧 Starting debounced seek to trim start - trimStartTime: \(self.trimStartTime), debounceInterval: \(Int(debounceInterval * 1000))ms")
 
             // Mark seek as in progress
             await MainActor.run {
@@ -1992,9 +2000,9 @@ extension AddMoveUnifiedState {
                 return
             }
 
-            let startTime = CMTime(seconds: trimStartTime, preferredTimescale: 600)
+            let startTime = trimStartTime
             try await withTimeout(seconds: 3.0) {
-                try await playerViewModel.asyncSeek(to: startTime)
+                try await playerViewModel.asyncSeek(to: CMTime(seconds: startTime, preferredTimescale: 600))
             }
 
             // Update seek completion state
@@ -2181,7 +2189,20 @@ extension AddMoveUnifiedState {
                 "trimmer_viewmodel_dependency": "removed"
             ])
 
-            // 5. Transition to success state
+            // 5. Call completion handler with the final persisted Move object
+            // 🎯 CRITICAL FIX: This enables proper navigation to the detail view
+            if let onSaveSuccess = onSaveSuccess {
+                let finalMove = result.move
+                diagnosticLogger.logInfo("🎬 UNIFIED_STATE: 🚀 Calling onSaveSuccess completion handler", metadata: [
+                    "move_name": "\(finalMove.name ?? "Unknown Move")",
+                    "move_id": "\(finalMove.objectID)",
+                    "photos_identifier": "\(finalMove.photosIdentifier ?? "nil")",
+                    "final_object_persistent": "true"
+                ])
+                onSaveSuccess(finalMove)
+            }
+
+            // 6. Transition to success state
             let successMessage = "Move '\(result.move.name ?? "Unknown Move")' was added to your Arsenal!"
             await transitionTo(.success(message: successMessage))
 
@@ -2189,24 +2210,36 @@ extension AddMoveUnifiedState {
             // 6. Enhanced error handling with detailed diagnostics
             let totalOperationTime = Date().timeIntervalSince(operationStartTime)
             let finalMemory = diagnosticLogger.getMemoryInfo()
-            let errorMessage = "Failed to save move"
+
+            // ✅ Enhanced, user-facing error handling
+            let errorMessage: String
             let underlyingError = error.localizedDescription
 
-            diagnosticLogger.logError("Final save operation failed", error: error, metadata: [
-                "error_message": errorMessage,
-                "underlying_error": underlyingError,
-                "error_type": "\(type(of: error))",
-                "flow_state": "\(flowState)",
-                "player_state": "\(playerState)",
-                "move_name": "\(moveName)",
-                "operation_duration_seconds": "\(String(format: "%.3f", totalOperationTime))",
-                "memory_before_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))",
-                "memory_after_mb": "\(String(format: "%.1f", finalMemory.used))",
-                "memory_delta_mb": "\(String(format: "%.1f", finalMemory.used - memoryBeforeOperation.used))",
-                "save_progress": "\(saveProgress)",
-                "coordinator_used": "true",
-                "architecture_fixed": "decoupled_from_trimmer_viewmodel"
-            ])
+            if let addMoveError = error as? AddMoveError, case .duplicateMoveName = addMoveError {
+                errorMessage = "A move named '\(self.moveName)' already exists. Please choose a different name."
+                await MainActor.run { self.flowState = .naming } // Return user to naming screen
+                diagnosticLogger.logError("Duplicate move name detected", error: error, metadata: [
+                    "duplicate_move_name": "\(self.moveName)",
+                    "user_returned_to_naming": "true"
+                ])
+            } else {
+                errorMessage = "Failed to save move"
+                diagnosticLogger.logError("Final save operation failed", error: error, metadata: [
+                    "error_message": errorMessage,
+                    "underlying_error": underlyingError,
+                    "error_type": "\(type(of: error))",
+                    "flow_state": "\(flowState)",
+                    "player_state": "\(playerState)",
+                    "move_name": "\(moveName)",
+                    "operation_duration_seconds": "\(String(format: "%.3f", totalOperationTime))",
+                    "memory_before_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))",
+                    "memory_after_mb": "\(String(format: "%.1f", finalMemory.used))",
+                    "memory_delta_mb": "\(String(format: "%.1f", finalMemory.used - memoryBeforeOperation.used))",
+                    "save_progress": "\(saveProgress)",
+                    "coordinator_used": "true",
+                    "architecture_fixed": "decoupled_from_trimmer_viewmodel"
+                ])
+            }
 
             await setError(message: errorMessage, underlying: underlyingError)
         }

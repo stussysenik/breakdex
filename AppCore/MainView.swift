@@ -1,5 +1,6 @@
 import SwiftUI
 import Foundation
+import CoreData
 
 // MARK: - Tab Selection Enum
 enum TabSelection: String, Hashable {
@@ -12,8 +13,13 @@ enum TabSelection: String, Hashable {
 struct MainView: View {
     @State private var selectedTab: TabSelection = .add // Default to Add tab
 
+    // 🎯 CRITICAL FIX: Navigation state for programmatic navigation to MoveDetailView
+    @State private var navigateToMoveDetail: Bool = false
+    @State private var savedMove: Move?
+
     var body: some View {
-        EnhancedTabView(selection: $selectedTab) {
+        NavigationStack {
+            EnhancedTabView(selection: $selectedTab) {
             // Arsenal Tab
             BreakingArsenalView(selectedTab: $selectedTab)
                 .tabItem {
@@ -28,7 +34,11 @@ struct MainView: View {
                 .accessibilityHint("View your collection of breaking moves, or combos")
 
             // Add Tab - Inline AddMoveContainer functionality
-            AddMoveView()
+            AddMoveView(selectedTab: $selectedTab, onSaveSuccess: { savedMove in
+                // 🎯 CRITICAL FIX: Handle successful save and navigate to detail view
+                self.savedMove = savedMove
+                self.navigateToMoveDetail = true
+            })
                 .tabItem {
                     Label {
                         Text("Add").font(.ibmPlexMono(size: 12))
@@ -65,6 +75,12 @@ struct MainView: View {
                 .tag(TabSelection.review)
                 .accessibilityLabel("Review")
                 .accessibilityHint("Review and practice your breaking moves")
+            }
+        }
+        .navigationDestination(isPresented: $navigateToMoveDetail) {
+            if let move = savedMove {
+                MoveDetailView(move: move)
+            }
         }
     }
 }

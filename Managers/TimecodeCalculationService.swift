@@ -4,16 +4,11 @@ import OSLog
 
 // MARK: - Unified Timecode Service
 /// Provides centralized timecode calculations and validation for all components
-@MainActor
-public class TimecodeCalculationService: ObservableObject {
+public final class TimecodeCalculationService {
 
     // MARK: - Properties
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "TimecodeCalculationService")
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "TimecodeCalculationService")
-
-    // MARK: - Published Properties
-    @Published public private(set) var lastCalculation: TimecodeCalculationResult?
-    @Published public private(set) var validationErrors: [TimecodeValidationError] = []
 
     // MARK: - Constants
     private let minimumDuration: CMTime = CMTime(seconds: 3.0, preferredTimescale: 600)
@@ -29,16 +24,19 @@ public class TimecodeCalculationService: ObservableObject {
         assetDuration: CMTime,
         frameRate: Double = 30.0
     ) -> TimecodeCalculationResult {
-        logger.info("🧮 Calculating timecode", metadata: [
-            "start_time": "\(startTime.seconds)",
-            "end_time": "\(endTime.seconds)",
-            "asset_duration": "\(assetDuration.seconds)",
-            "frame_rate": "\(frameRate)"
-        ])
+        logger.info("🧮 Calculating timecode: start=\(startTime.seconds), end=\(endTime.seconds), duration=\(assetDuration.seconds), frameRate=\(frameRate)")
 
         // Calculate duration
         let duration = endTime - startTime
-        let isValid = validateTimecodeRange(startTime: startTime, endTime: endTime, assetDuration: assetDuration)
+
+        // Validate timecode range and collect errors
+        var validationErrors: [TimecodeValidationError] = []
+        let isValid = validateTimecodeRange(
+            startTime: startTime,
+            endTime: endTime,
+            assetDuration: assetDuration,
+            errors: &validationErrors
+        )
 
         // Calculate frame information
         let startFrame = Int(startTime.seconds * frameRate)
@@ -60,9 +58,6 @@ public class TimecodeCalculationService: ObservableObject {
             validationErrors: validationErrors
         )
 
-        // Store result
-        lastCalculation = result
-
         diagnosticLogger.logDebug("🧮 Timecode calculation completed", metadata: [
             "duration": "\(duration.seconds)",
             "is_valid": "\(isValid)",
@@ -76,46 +71,45 @@ public class TimecodeCalculationService: ObservableObject {
     public func validateTimecodeRange(
         startTime: CMTime,
         endTime: CMTime,
-        assetDuration: CMTime
+        assetDuration: CMTime,
+        errors: inout [TimecodeValidationError]
     ) -> Bool {
-        validationErrors.removeAll()
-
         var isValid = true
 
         // Validate start time
         if startTime.seconds < 0 {
-            validationErrors.append(.negativeStartTime(startTime.seconds))
+            errors.append(.negativeStartTime(startTime.seconds))
             isValid = false
         }
 
         // Validate end time
         if endTime.seconds > assetDuration.seconds {
-            validationErrors.append(.endTimeExceedsAsset(endTime.seconds, assetDuration.seconds))
+            errors.append(.endTimeExceedsAsset(endTime.seconds, assetDuration.seconds))
             isValid = false
         }
 
         // Validate time order
         if startTime >= endTime {
-            validationErrors.append(.startTimeAfterEndTime(startTime.seconds, endTime.seconds))
+            errors.append(.startTimeAfterEndTime(startTime.seconds, endTime.seconds))
             isValid = false
         }
 
         // Validate minimum duration
         let duration = endTime - startTime
         if duration.seconds < minimumDuration.seconds {
-            validationErrors.append(.durationTooShort(duration.seconds, minimumDuration.seconds))
+            errors.append(.durationTooShort(duration.seconds, minimumDuration.seconds))
             isValid = false
         }
 
         // Validate asset duration
         if assetDuration.seconds <= 0 {
-            validationErrors.append(.invalidAssetDuration(assetDuration.seconds))
+            errors.append(.invalidAssetDuration(assetDuration.seconds))
             isValid = false
         }
 
         if !isValid {
             diagnosticLogger.logWarning("⚠️ Timecode validation failed", metadata: [
-                "error_count": "\(validationErrors.count)",
+                "error_count": "\(errors.count)",
                 "duration": "\(duration.seconds)"
             ])
         } else {
@@ -208,14 +202,7 @@ public class TimecodeCalculationService: ObservableObject {
         )
     }
 
-    /// Resets the service state
-    public func reset() {
-        lastCalculation = nil
-        validationErrors.removeAll()
-
-        diagnosticLogger.logDebug("🔄 Timecode service reset")
-    }
-
+    
     /// Validates handle constraint boundaries with minimum duration
     public func validateHandleConstraint(
         proposedTime: CMTime,
@@ -293,15 +280,15 @@ public struct TimecodeCalculationResult {
     }
 
     public var formattedStartTime: String {
-        TimecodeCalculationService().formatTime(startTime)
+        TimecodeFormatter.format(time: startTime)
     }
 
     public var formattedEndTime: String {
-        TimecodeCalculationService().formatTime(endTime)
+        TimecodeFormatter.format(time: endTime)
     }
 
     public var formattedDuration: String {
-        TimecodeCalculationService().formatTime(duration)
+        TimecodeFormatter.format(time: duration)
     }
 }
 
@@ -318,7 +305,7 @@ public struct SynchronizedTimecode {
     public let isDragging: Bool
 
     public var formattedTime: String {
-        TimecodeCalculationService().formatTime(effectiveTime)
+        TimecodeFormatter.format(time: effectiveTime)
     }
 
     public var formattedFrame: String {
@@ -399,11 +386,7 @@ public enum TimecodeValidationError {
 
 // MARK: - Timecode Service Protocol
 
-@MainActor
-public protocol TimecodeCalculationServiceProtocol: ObservableObject {
-    var lastCalculation: TimecodeCalculationResult? { get }
-    var validationErrors: [TimecodeValidationError] { get }
-
+public protocol TimecodeCalculationServiceProtocol {
     func calculateTimecode(
         startTime: CMTime,
         endTime: CMTime,
@@ -414,7 +397,8 @@ public protocol TimecodeCalculationServiceProtocol: ObservableObject {
     func validateTimecodeRange(
         startTime: CMTime,
         endTime: CMTime,
-        assetDuration: CMTime
+        assetDuration: CMTime,
+        errors: inout [TimecodeValidationError]
     ) -> Bool
 
     func synchronizeTimecode(
@@ -428,7 +412,21 @@ public protocol TimecodeCalculationServiceProtocol: ObservableObject {
     func formatTime(_ time: CMTime, includeMilliseconds: Bool) -> String
     func calculateValidatedDuration(startTime: CMTime, endTime: CMTime) -> CMTime
     func validateFrameRate(nominalFrameRate: Double, actualFrameRate: Double) -> FrameRateValidation
-    func reset()
+    func validateHandleConstraint(
+        proposedTime: CMTime,
+        handleType: String,
+        startTime: CMTime,
+        endTime: CMTime,
+        minimumDuration: CMTime
+    ) -> HandleConstraintValidation
+
+    func isAtConstraintBoundary(
+        time: CMTime,
+        startTime: CMTime,
+        endTime: CMTime,
+        minimumDuration: CMTime,
+        tolerance: Double
+    ) -> Bool
 }
 
 // MARK: - Protocol Conformance
