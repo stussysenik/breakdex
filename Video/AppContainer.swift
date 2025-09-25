@@ -99,7 +99,7 @@ public final class AppContainer {
         logger.info("🧹 Cleaning up AppContainer resources", metadata: nil)
         
         // Clear all caches
-        memoryManager.clearCache()
+        memoryManager.clearCache(excluding: nil)
         
         // Attempt memory recovery as part of cleanup
         memoryErrorHandler.attemptMemoryRecovery()

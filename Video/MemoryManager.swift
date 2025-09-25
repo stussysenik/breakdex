@@ -21,7 +21,7 @@ public enum MemoryState {
 public protocol MemoryManager {
     func monitorMemoryUsage() -> AsyncStream<MemoryState>
     func handleMemoryWarning()
-    func clearCache()
+    func clearCache(excluding lockedURL: URL?)
     func getAvailableMemory() -> Int64
     func getUsedMemory() -> Int64
 }
@@ -176,24 +176,41 @@ public final class MemoryManagerImpl: MemoryManager {
         logger.info("🧠 System memory warning handled")
     }
     
-    public func clearCache() {
+    public func clearCache(excluding lockedURL: URL? = nil) {
         logger.info("🧠 Clearing video cache")
-        
+
         // Clear video cache
         let tempDir = FileManager.default.temporaryDirectory
         do {
             let contents = try FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)
+            var deletedCount = 0
+            var skippedCount = 0
+
             for file in contents where file.pathExtension == "mov" || file.pathExtension == "mp4" {
+                // 🎯 CRITICAL FIX: Check if this file is locked by the current Add Move operation
+                if let lockedURL = lockedURL, file == lockedURL {
+                    logger.info("🧠 Skipping deletion of locked asset: \(file.lastPathComponent)")
+                    skippedCount += 1
+                    continue
+                }
+
                 try FileManager.default.removeItem(at: file)
                 logger.debug("🧠 Deleted cached video file: \(file.lastPathComponent)")
+                deletedCount += 1
+            }
+
+            logger.info("🧠 Cache clearing completed - deleted: \(deletedCount), skipped: \(skippedCount)")
+
+            if skippedCount > 0 {
+                logger.info("🧠 Protected \(skippedCount) locked file(s) from deletion")
             }
         } catch {
             logger.error("🧠 Failed to clear video cache: \(error.localizedDescription)")
         }
-        
+
         // Clear image cache
         ImageCache.shared.clearCache()
-        
+
         logger.info("🧠 Cache clearing completed")
     }
     

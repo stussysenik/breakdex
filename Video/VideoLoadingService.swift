@@ -84,7 +84,7 @@ public final class LiveVideoLoadingService: VideoLoadingService {
         
         if availableMemory < memoryThreshold {
             appLogger.warning("⚠️ Low memory before loading asset: \(availableMemory / (1024 * 1024))MB", metadata: nil)
-            memoryManager.clearCache()
+            memoryManager.clearCache(excluding: nil)
             
             // If still low, throw error
             if memoryManager.getAvailableMemory() < memoryThreshold {

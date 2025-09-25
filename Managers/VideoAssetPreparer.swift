@@ -16,6 +16,7 @@ public struct PreparedVideoResult {
     let photosIdentifier: String?
     let filename: String
     let playerViewModel: any VideoPlayerViewModelProtocol
+    let temporaryFileURL: URL?
 }
 
 // MARK: - Video Asset Preparer
@@ -148,7 +149,8 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
             asset: loaderResult.asset,
             photosIdentifier: loaderResult.photosIdentifier,
             filename: loaderResult.filename,
-            playerViewModel: playerViewModel
+            playerViewModel: playerViewModel,
+            temporaryFileURL: loaderResult.temporaryFileURL
         )
 
         await diagnosticLogger.stopTiming("total_video_preparation")
@@ -252,7 +254,8 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
             asset: asset,
             photosIdentifier: photosIdentifier,
             filename: "Video",
-            playerViewModel: playerViewModel
+            playerViewModel: playerViewModel,
+            temporaryFileURL: nil
         )
 
         await diagnosticLogger.stopTiming("asset_display_preparation")

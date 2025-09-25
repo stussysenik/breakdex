@@ -183,13 +183,29 @@ public class AddMoveUnifiedState: ObservableObject {
     public var photosIdentifier: String? {
         didSet {
             guard oldValue != photosIdentifier else { return }
-            
+
             diagnosticLogger.logStateChange("photos_identifier", from: oldValue ?? "nil", to: photosIdentifier ?? "nil", metadata: [
                 "flow_state": "\(flowState)",
                 "has_video_asset": "\(videoAsset != nil)"
             ])
-            
+
             logger.info("🎬 UNIFIED_STATE: Photos identifier updated - \(self.photosIdentifier ?? "nil")")
+        }
+    }
+
+    // MARK: - Asset Locking Mechanism
+    /// The URL of the temporary video file currently being processed.
+    /// This acts as a lock to prevent premature deletion by memory cleanup routines.
+    private var activeTempVideoURL: URL? {
+        didSet {
+            guard oldValue != activeTempVideoURL else { return }
+
+            diagnosticLogger.logStateChange("active_temp_video_url", from: oldValue?.absoluteString ?? "nil", to: self.activeTempVideoURL?.absoluteString ?? "nil", metadata: [
+                "flow_state": "\(flowState)",
+                "lock_acquired": "\(self.activeTempVideoURL != nil)"
+            ])
+
+            logger.info("🎬 UNIFIED_STATE: Active temp video URL \(self.activeTempVideoURL != nil ? "acquired" : "released") - \(self.activeTempVideoURL?.lastPathComponent ?? "nil")")
         }
     }
     
@@ -852,6 +868,22 @@ public class AddMoveUnifiedState: ObservableObject {
         saveProgress = 0.0
         errorMessage = nil
         underlyingError = nil
+
+        // 🎯 CRITICAL FIX: Release asset lock to allow cleanup of temporary files
+        let releasedAssetURL = self.activeTempVideoURL
+        self.activeTempVideoURL = nil
+        if let url = releasedAssetURL {
+            logger.info("🎬 UNIFIED_STATE: 🔓 Asset lock released for temporary file: \(url.lastPathComponent)")
+            diagnosticLogger.logInfo("Asset lock released", metadata: [
+                "released_file_name": url.lastPathComponent,
+                "released_file_path": url.absoluteString,
+                "previous_flow_state": "\(currentFlowState)"
+            ])
+
+            // 🎯 CRITICAL FIX: Also clear the health monitor's lock
+            healthMonitor.clearLockedAssetURL()
+            logger.info("🎬 UNIFIED_STATE: 🏥 Health monitor lock cleared")
+        }
         
         let postResetMemory = diagnosticLogger.getMemoryInfo()
         diagnosticLogger.logInfo("✅ Unified state reset completed", metadata: [
@@ -955,6 +987,27 @@ public class AddMoveUnifiedState: ObservableObject {
             // Update the state with the prepared results.
             self.videoAsset = result.asset
             self.photosIdentifier = result.photosIdentifier
+
+            // 🎯 CRITICAL FIX: Acquire asset lock to prevent premature deletion by memory cleanup
+            if let tempURL = result.temporaryFileURL {
+                self.activeTempVideoURL = tempURL
+                logger.info("🎬 UNIFIED_STATE: 🔒 Asset lock acquired for temporary file: \(tempURL.lastPathComponent)")
+                diagnosticLogger.logInfo("Asset lock acquired", metadata: [
+                    "temp_file_name": tempURL.lastPathComponent,
+                    "temp_file_path": tempURL.absoluteString,
+                    "flow_state": "\(flowState)"
+                ])
+
+                // 🎯 CRITICAL FIX: Also notify the health monitor about the locked asset
+                healthMonitor.setLockedAssetURL(tempURL)
+                logger.info("🎬 UNIFIED_STATE: 🏥 Health monitor notified of locked asset")
+            } else {
+                logger.warning("🎬 UNIFIED_STATE: ⚠️ No temporary file URL provided - asset lock not acquired")
+                diagnosticLogger.logWarning("No temporary file URL available for asset locking", metadata: [
+                    "flow_state": "\(flowState)",
+                    "has_video_asset": "\(result.asset != nil)"
+                ])
+            }
 
             // Update the UnifiedPlayerManager's internal state
             self.unifiedPlayerManager.updateAsset(result.asset, photosIdentifier: result.photosIdentifier)
@@ -2202,7 +2255,24 @@ extension AddMoveUnifiedState {
                 onSaveSuccess(finalMove)
             }
 
-            // 6. Transition to success state
+            // 🎯 CRITICAL FIX: Release asset lock after successful save - temporary file can now be cleaned up
+            let releasedAssetURL = self.activeTempVideoURL
+            self.activeTempVideoURL = nil
+            if let url = releasedAssetURL {
+                logger.info("🎬 UNIFIED_STATE: 🔓 Asset lock released after successful save for: \(url.lastPathComponent)")
+                diagnosticLogger.logInfo("Asset lock released after successful save", metadata: [
+                    "released_file_name": url.lastPathComponent,
+                    "released_file_path": url.absoluteString,
+                    "saved_move_name": result.move.name ?? "Unknown Move",
+                    "photos_identifier": result.photosIdentifier
+                ])
+
+                // 🎯 CRITICAL FIX: Also clear the health monitor's lock
+                healthMonitor.clearLockedAssetURL()
+                logger.info("🎬 UNIFIED_STATE: 🏥 Health monitor lock cleared after successful save")
+            }
+
+            // 7. Transition to success state
             let successMessage = "Move '\(result.move.name ?? "Unknown Move")' was added to your Arsenal!"
             await transitionTo(.success(message: successMessage))
 

@@ -77,7 +77,7 @@ final class VideoStateManagerImpl: VideoStateManager {
             switch memoryState {
             case .critical:
                 logger.warning("🎮 Critical memory state during loading - clearing cache")
-                memoryManager.clearCache()
+                memoryManager.clearCache(excluding: nil)
                 
                 // If memory is still critical, transition to error state
                 if memoryManager.getAvailableMemory() < (50 * 1024 * 1024) { // 50MB
@@ -90,7 +90,7 @@ final class VideoStateManagerImpl: VideoStateManager {
                 }
             case .warning:
                 logger.info("🎮 Memory warning during loading - clearing non-essential cache")
-                memoryManager.clearCache()
+                memoryManager.clearCache(excluding: nil)
             case .normal:
                 break
             }
@@ -101,7 +101,7 @@ final class VideoStateManagerImpl: VideoStateManager {
         logger.info("🎮 Handling error state - performing cleanup")
         
         // Clear any cached resources
-        memoryManager.clearCache()
+        memoryManager.clearCache(excluding: nil)
         
         // Log error state for debugging
         logger.error("🎮 Video processing entered error state")
@@ -111,6 +111,6 @@ final class VideoStateManagerImpl: VideoStateManager {
         logger.info("🎮 Handling idle state - performing cleanup")
         
         // Clear all caches when returning to idle
-        memoryManager.clearCache()
+        memoryManager.clearCache(excluding: nil)
     }
 }

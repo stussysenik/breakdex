@@ -434,7 +434,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
         )
         
         // Clear memory manager cache
-        memoryManager.clearCache()
+        memoryManager.clearCache(excluding: nil)
         
         // Clear URL cache
         URLCache.shared.removeAllCachedResponses()

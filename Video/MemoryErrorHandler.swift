@@ -220,9 +220,9 @@ private protocol MemoryRecoveryStrategy {
 /// Clears video and image cache
 private class CacheClearingStrategy: MemoryRecoveryStrategy {
     let name = "Cache Clearing"
-    
+
     func execute(memoryManager: MemoryManager) -> Bool {
-        memoryManager.clearCache()
+        memoryManager.clearCache(excluding: nil)
         return true
     }
 }
@@ -250,10 +250,10 @@ private class SessionInvalidationStrategy: MemoryRecoveryStrategy {
 /// Aggressive memory recovery including garbage collection hint
 private class AggressiveMemoryRecoveryStrategy: MemoryRecoveryStrategy {
     let name = "Aggressive Memory Recovery"
-    
+
     func execute(memoryManager: MemoryManager) -> Bool {
         // Clear all caches
-        memoryManager.clearCache()
+        memoryManager.clearCache(excluding: nil)
         URLCache.shared.removeAllCachedResponses()
         URLSession.shared.invalidateAndCancel()
         

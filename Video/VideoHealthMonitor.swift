@@ -39,6 +39,8 @@ public protocol VideoHealthMonitor {
     func getCurrentHealthStatus() -> VideoHealthStatus
     func getHealthReports() -> AsyncStream<VideoHealthReport>
     func getHealthStatusReports() -> AsyncStream<VideoHealthStatusReport>
+    func setLockedAssetURL(_ url: URL?)
+    func clearLockedAssetURL()
 }
 
 // MARK: - Video Health Report
@@ -69,6 +71,14 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
     private var continuation: AsyncStream<VideoHealthReport>.Continuation?
     private var statusContinuation: AsyncStream<VideoHealthStatusReport>.Continuation?
     private var currentAsset: AVAsset?
+
+    // 🎯 CRITICAL FIX: Asset locking mechanism to prevent race condition
+    private var lockedAssetURL: URL? {
+        didSet {
+            guard oldValue != lockedAssetURL else { return }
+            logger.info("🏥 Locked asset URL updated: \(self.lockedAssetURL?.lastPathComponent ?? "nil")")
+        }
+    }
     
     // MARK: - Lifecycle Optimization
     private var isMonitoringActive = false
@@ -115,9 +125,9 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
     
     public func stopMonitoring() {
         logger.info("🏥 Stopping video health monitoring [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
-        
+
         isMonitoringActive = false
-        
+
         monitoringTask?.cancel()
         monitoringTask = nil
         continuation?.finish()
@@ -125,11 +135,29 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         statusContinuation?.finish()
         statusContinuation = nil
         currentAsset = nil
-        
+
+        // 🎯 CRITICAL FIX: Clear locked asset URL when stopping monitoring
+        lockedAssetURL = nil
+
         // 💡 OPTIMIZATION: Reset lifecycle tracking
         lastHealthCheck = .distantPast
-        
+
         logger.info("🏥 Video health monitoring stopped [Session: \(self.monitoringSessionId.uuidString.prefix(8))]")
+    }
+
+    // MARK: - Asset Locking Mechanism
+
+    /// Sets the locked asset URL to prevent premature deletion during memory cleanup
+    public func setLockedAssetURL(_ url: URL?) {
+        lockedAssetURL = url
+        logger.info("🏥 Locked asset URL set to: \(url?.lastPathComponent ?? "nil")")
+    }
+
+    /// Clears the locked asset URL to allow cleanup of temporary files
+    public func clearLockedAssetURL() {
+        let previousURL = lockedAssetURL
+        lockedAssetURL = nil
+        logger.info("🏥 Locked asset URL cleared: \(previousURL?.lastPathComponent ?? "nil")")
     }
     
     public func pauseMonitoring() {
@@ -386,7 +414,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         case .warning(let reason):
             logger.warning("🏥 Taking action for warning state: \(reason)")
             // Take moderate actions for warning state
-            memoryManager.clearCache()
+            memoryManager.clearCache(excluding: lockedAssetURL)
             
         case .critical(let reason):
             logger.error("🏥 Taking action for critical state: \(reason)")

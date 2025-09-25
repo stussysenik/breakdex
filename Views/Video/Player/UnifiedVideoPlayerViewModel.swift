@@ -351,7 +351,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Clearing memory cache", metadata: [
                 "correlationId": correlationId ?? "unknown"
             ])
-            memoryManager.clearCache()
+            memoryManager.clearCache(excluding: nil)
         }
 
         // 🔧 CRITICAL: Reset all state properties to ensure clean deallocation
@@ -980,7 +980,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         player.pause()
 
         if mode == .preview {
-            memoryManager.clearCache()
+            memoryManager.clearCache(excluding: nil)
         }
 
         Task {
@@ -1021,7 +1021,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
                 player.currentItem?.preferredForwardBufferDuration = 0.5
                 player.pause()
             }
-            memoryManager.clearCache()
+            memoryManager.clearCache(excluding: nil)
             memoryLogger.logMemoryWarning(
                 message: "Low memory during preview: \(availableMemory / (1024 * 1024))MB",
                 correlationId: correlationId,

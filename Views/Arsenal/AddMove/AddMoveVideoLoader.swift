@@ -41,6 +41,7 @@ public struct AddMoveVideoLoaderResult {
     let asset: AVAsset
     let photosIdentifier: String
     let filename: String
+    let temporaryFileURL: URL?
 }
 
 // MARK: - VideoLoader Actor
@@ -273,7 +274,7 @@ public actor AddMoveVideoLoader {
             "asset_tracks": "\(avAsset.tracks.count)"
         ])
 
-        return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: identifier, filename: filename)
+        return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: identifier, filename: filename, temporaryFileURL: nil)
     }
 
     private func loadDirectly(from item: PhotosPickerItem) async throws -> AddMoveVideoLoaderResult {
@@ -324,7 +325,7 @@ public actor AddMoveVideoLoader {
         logger.info("🎬 VIDEO_LOADER: Generated temp identifier: \(tempIdentifier)")
         logger.info("🎬 VIDEO_LOADER: Returning VideoLoaderResult from direct load")
 
-        return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: tempIdentifier, filename: filename)
+        return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: tempIdentifier, filename: filename, temporaryFileURL: tempURL)
     }
 
     // MARK: - Helper Methods
