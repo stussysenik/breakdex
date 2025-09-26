@@ -10,6 +10,7 @@ import CoreData
 public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     case ready
     case loading(progress: Double, status: String)
+    case replacingVideo(status: String)
     case previewing
     case trimming_setup
     case trimming
@@ -22,7 +23,7 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     // MARK: - Computed Properties
     var isLoading: Bool {
         switch self {
-        case .loading: return true
+        case .loading, .replacingVideo: return true
         default: return false
         }
     }
@@ -36,7 +37,7 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     
     var canGoBack: Bool {
         switch self {
-        case .ready, .error, .success: return false
+        case .ready, .error, .success, .replacingVideo: return false
         default: return true
         }
     }
@@ -45,6 +46,7 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
         switch self {
         case .ready: return 0.0
         case .loading(let progress, _): return progress
+        case .replacingVideo: return 0.48  // Between trimming_setup and trimming
         case .trimming_setup: return 0.45
         case .trimming: return 0.5
         case .finalizing: return 0.6
@@ -282,6 +284,12 @@ public class AddMoveUnifiedState: ObservableObject {
     @Published
     public var saveElapsedTime: TimeInterval = 0
     private var saveTimer: Timer?
+
+    // MARK: - Load Timer State
+    // 🎯 CRITICAL FIX: Load timer added to provide transparent UX for large video processing
+    @Published
+    public var loadElapsedTime: TimeInterval = 0
+    private var loadTimer: Timer?
     
     // MARK: - Error State
     @Published
@@ -328,6 +336,7 @@ public class AddMoveUnifiedState: ObservableObject {
             switch state {
             case .ready: return "ready"
             case .loading: return "loading"
+            case .replacingVideo: return "replacing_video"
             case .previewing: return "previewing"
             case .trimming_setup: return "trimming_setup"
             case .trimming: return "trimming"
@@ -343,7 +352,10 @@ public class AddMoveUnifiedState: ObservableObject {
             "ready": ["loading", "error"],
             "loading": ["loading", "trimming_setup", "error"],
             "trimming_setup": ["trimming", "error"],
-            "trimming": ["finalizing", "naming", "error"],
+            // ✅ FIX: Add 'replacing_video' as a valid transition from trimming
+            "trimming": ["finalizing", "naming", "replacing_video", "error"],
+            // ✨ NEW: Define the valid transitions FROM replacing_video
+            "replacing_video": ["loading", "error"],
             "finalizing": ["naming", "error"],
             "naming": ["saving", "error"],
             "saving": ["success", "error"],
@@ -402,7 +414,7 @@ public class AddMoveUnifiedState: ObservableObject {
             return true
         case .naming:
             return !moveName.isEmpty
-        case .saving, .success, .error, .loading:
+        case .saving, .success, .error, .loading, .replacingVideo:
             return false
         }
     }
@@ -552,6 +564,8 @@ public class AddMoveUnifiedState: ObservableObject {
             return "loading, error"
         case .loading:
             return "trimming_setup, error"
+        case .replacingVideo:
+            return "loading, error"
         case .previewing:
             return "trimming_setup, error"
         case .trimming_setup:
@@ -1097,6 +1111,8 @@ public class AddMoveUnifiedState: ObservableObject {
         // 🎯 CRITICAL FIX: Cleanup save timer to prevent memory leaks
         stopSaveTimer()
         saveElapsedTime = 0
+        stopLoadTimer()
+        loadElapsedTime = 0
 
         // 🎯 CRITICAL FIX: Release asset lock to allow cleanup of temporary files
         let releasedAssetURL = self.activeTempVideoURL
@@ -1169,6 +1185,51 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("⏱️ UNIFIED_STATE: Save timer stopped")
     }
 
+    // MARK: - Load Timer Management
+    // 🎯 CRITICAL FIX: Load timer methods to provide transparent UX for large video processing
+
+    /// Starts the video loading timer for accurate elapsed time display
+    private func startLoadTimer() {
+        logger.info("⏱️ UNIFIED_STATE: Starting load timer")
+
+        loadElapsedTime = 0
+        loadTimer?.invalidate() // Invalidate any existing timer
+
+        loadTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.loadElapsedTime += 1
+
+            // Log progress every 15 seconds for debugging long loads
+            if Int(self.loadElapsedTime) % 15 == 0 {
+                self.diagnosticLogger.logInfo("Long video load in progress", metadata: [
+                    "elapsed_time_seconds": "\(Int(self.loadElapsedTime))",
+                    "current_flow_state": "\(self.flowState)",
+                    "loading_progress": "\(self.loadingProgress)"
+                ])
+            }
+        }
+
+        diagnosticLogger.logInfo("Load timer started", metadata: [
+            "timer_interval": "1.0s",
+            "flow_state": "\(flowState)"
+        ])
+    }
+
+    /// Stops the video loading timer
+    private func stopLoadTimer() {
+        logger.info("⏱️ UNIFIED_STATE: Stopping load timer")
+
+        loadTimer?.invalidate()
+        loadTimer = nil
+
+        diagnosticLogger.logInfo("Load timer stopped", metadata: [
+            "final_elapsed_time": "\(Int(loadElapsedTime))",
+            "loading_progress": "\(loadingProgress)"
+        ])
+
+        logger.info("⏱️ UNIFIED_STATE: Load timer stopped")
+    }
+
     /// Prepares for view transition (pauses monitoring, preserves state)
     public func prepareForTransition() {
         diagnosticLogger.startTiming("view_transition_prepare")
@@ -1231,12 +1292,14 @@ public class AddMoveUnifiedState: ObservableObject {
         let assetPreparer = VideoAssetPreparer(videoLoader: AddMoveVideoLoader())
 
         do {
-            // 🎯 CRITICAL FIX: Implement atomic health monitor management with defer
+            // 🎯 CRITICAL FIX: Implement atomic health monitor and load timer management with defer
             healthMonitor.pauseMonitoring()
+            startLoadTimer() // Start load timer for transparent UX
             defer {
-                // This guarantees health monitor is resumed whether function succeeds or fails
+                // This guarantees health monitor and timer are resumed whether function succeeds or fails
                 healthMonitor.resumeMonitoring()
-                logger.info("🎬 UNIFIED_STATE: 🏥 Health monitor resumed via defer.")
+                stopLoadTimer() // Stop load timer
+                logger.info("🎬 UNIFIED_STATE: 🏥 Health monitor and load timer resumed via defer.")
             }
 
             // 🎯 CRITICAL FIX: Consolidate to 3 meaningful progress states
@@ -1607,7 +1670,88 @@ extension AddMoveUnifiedState {
             await loadVideo(from: item)
         }
     }
-    
+
+    // MARK: - Video Replacement Flow
+    /// Dedicated method for handling video replacement during trimming
+    /// This provides a clean morphism for the replacement workflow vs initial selection
+    @MainActor
+    public func replaceSelectedVideo(_ item: PhotosPickerItem) {
+        logger.info("🎬 UNIFIED_STATE: 🔄 Initiating video replacement flow from \(String(describing: self.flowState))")
+
+        // 🎯 CRITICAL FIX: The logic is now sequential and follows the state machine rules.
+
+        // 1. Transition to a dedicated replacement state for proper state machine tracking
+        // This state is now primarily for logging and initiating the teardown.
+        flowState = .replacingVideo(status: "Preparing to replace video...")
+
+        // Enhanced diagnostic logging for categorical analysis
+        let memoryInfo = diagnosticLogger.getMemoryInfo()
+        diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_INITIATED", metadata: [
+            "correlation_id": self.workflowCorrelationId ?? "unknown",
+            "from_state": "\(flowState)",
+            "current_player": "\(currentPlayerViewModel != nil)",
+            "trimmer_vm": "\(trimmerViewModel != nil)",
+            "video_asset": "\(videoAsset != nil)",
+            "memory_usage_mb": "\(String(format: "%.1f", memoryInfo.used))",
+            "state_machine_fix": "explicit_loading_transition"
+        ])
+
+        // 2. Cleanly tear down existing resources BEFORE loading new ones.
+        logger.info("🎬 UNIFIED_STATE: 🧹 Tearing down existing trimmer and player resources")
+
+        // Safely teardown trimmer view model
+        trimmerViewModel?.teardown()
+        trimmerViewModel = nil
+
+        // Safely teardown unified player manager
+        unifiedPlayerManager.cleanup()
+
+        // Clear existing video asset (currentPlayerViewModel is get-only)
+        videoAsset = nil
+
+        // 3. Update the selected item.
+        selectedVideoItem = item
+
+        // 4. Use a Task to decouple this from the current UI update cycle.
+        Task {
+            let correlationId = UUID().uuidString
+            logger.info("🎬 UNIFIED_STATE: 🔄 Starting video replacement Task [correlation:\(correlationId)]")
+
+            // 🎯 CRITICAL FIX: Explicitly transition to the .loading state.
+            // This makes the subsequent transition from .loading to .trimming_setup valid.
+            logger.info("🎬 UNIFIED_STATE: 🔄 Transitioning to loading state for video replacement [correlation:\(correlationId)]")
+            diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_STATE_TRANSITION", metadata: [
+                "correlation_id": correlationId,
+                "from_state": "replacing_video",
+                "to_state": "loading",
+                "transition_reason": "state_machine_fix",
+                "timestamp": "\(Date().timeIntervalSince1970)"
+            ])
+
+            await transitionTo(.loading(progress: 0.0, status: "Loading replacement video..."))
+
+            // 5. Now, call loadVideo. Its internal transition to .trimming_setup is now valid.
+            logger.info("🎬 UNIFIED_STATE: 📥 Calling loadVideo for replacement [correlation:\(correlationId)]")
+            diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_LOAD_VIDEO_START", metadata: [
+                "correlation_id": correlationId,
+                "current_state": "\(flowState)",
+                "item_identifier": "\(item.itemIdentifier ?? "unknown")",
+                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
+            ])
+
+            await loadVideo(from: item)
+
+            logger.info("🎬 UNIFIED_STATE: ✅ Video replacement loadVideo completed [correlation:\(correlationId)]")
+            diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_LOAD_VIDEO_COMPLETE", metadata: [
+                "correlation_id": correlationId,
+                "final_state": "\(flowState)",
+                "video_asset_loaded": "\(videoAsset != nil)",
+                "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)",
+                "trimmer_ready": "\(trimmerViewModel?.isReady ?? false)"
+            ])
+        }
+    }
+
     /// Convenience method to proceed to next logical state
     public func proceedToNextState() async throws {
         switch flowState {
@@ -2466,6 +2610,22 @@ extension AddMoveUnifiedState {
         workflowCorrelationId = UUID().uuidString.prefix(8).lowercased()
         let operationStartTime = Date()
         let memoryBeforeOperation = diagnosticLogger.getMemoryInfo()
+
+        // ✅ CRITICAL: Add defer block to ensure resource cleanup happens even if unexpected errors occur
+        defer {
+            // 🎯 Ensure save timer is stopped regardless of outcome
+            stopSaveTimer()
+
+            // 🎯 Ensure asset lock is released to prevent memory leaks
+            let releasedAssetURL = self.activeTempVideoURL
+            if releasedAssetURL != nil {
+                self.activeTempVideoURL = nil
+                if let url = releasedAssetURL {
+                    logger.info("🎬 UNIFIED_STATE: 🔓 Asset lock released via defer block for: \(url.lastPathComponent)")
+                    healthMonitor.clearLockedAssetURL()
+                }
+            }
+        }
 
         // Strategic logging for categorical analysis
         logger.info("🎬 UNIFIED_STATE: 🚀 Starting FINAL saveMove operation [correlation:\(self.workflowCorrelationId ?? "unknown")]")

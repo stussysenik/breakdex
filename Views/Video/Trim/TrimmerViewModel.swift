@@ -420,9 +420,12 @@ public final class TrimmerViewModel: ObservableObject {
         diagnosticLogger.logDebug("🧹 Display link cleanup completed")
     }
 
-    // 🎯 CRITICAL FIX: Added comprehensive teardown method
+    // 🎯 CRITICAL FIX: Enhanced comprehensive teardown method for retain cycle prevention
     public func teardown() {
         diagnosticLogger.logInfo("🧹 Starting TrimmerViewModel teardown")
+
+        let startTime = Date()
+        let memoryBefore = MemoryHelper.getDetailedMemoryInfo()
 
         // Stop all async operations
         stopCoalescing()
@@ -433,7 +436,30 @@ public final class TrimmerViewModel: ObservableObject {
         // Cleanup display link
         cleanupDisplayLink()
 
-        diagnosticLogger.logInfo("✅ TrimmerViewModel teardown completed")
+        // 🎯 ENHANCED: Reset all @Published properties to break potential cycles
+        // Since this method is already @MainActor, we can directly assign
+        self.startTime = .zero
+        self.endTime = .zero
+        self.videoDuration = .zero
+        self.rotationQuarterTurns = 0
+        self.isReady = false
+        self.isExporting = false
+        self.showMinimumDurationWarning = false
+        self.isDraggingStartHandle = false
+        self.isDraggingEndHandle = false
+        self.showMinDurationAlert = false
+        self.hasShownAlertThisDragSession = false
+
+        let cleanupDuration = Date().timeIntervalSince(startTime)
+        let memoryAfter = MemoryHelper.getDetailedMemoryInfo()
+
+        diagnosticLogger.logInfo("✅ TrimmerViewModel teardown completed", metadata: [
+            "cleanup_duration_ms": "\(cleanupDuration * 1000)",
+            "memory_before_mb": "\(memoryBefore.used)",
+            "memory_after_mb": "\(memoryAfter.used)",
+            "memory_freed_mb": "\(memoryBefore.used - memoryAfter.used)",
+            "teardown_comprehensive": "true"
+        ])
     }
 
     // 🎯 CRITICAL FIX: Added state change callback cleanup

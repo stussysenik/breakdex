@@ -126,15 +126,11 @@ struct AddMoveContainer: View {
     }
     
     private func handleStateChange(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) {
-        logger.info("🎬 CONTAINER: Flow state change - From: \(String(describing: oldState)) To: \(String(describing: newState))")
-        
-        // Validate state transitions
-        if !isValidFlowStateTransition(from: oldState, to: newState) {
-            logger.error("🎬 CONTAINER: ❌ INVALID FLOW STATE TRANSITION!")
-            Task {
-                await unifiedState.setError(message: "Invalid state transition detected")
-            }
-        }
+        logger.info("🎬 CONTAINER: Flow state change observed - From: \(String(describing: oldState)) To: \(String(describing: newState))")
+
+        // ✅ REFACTOR: The validation now happens inside AddMoveUnifiedState, where it belongs.
+        // The container's job is to react to the state, not validate it.
+        // If an invalid transition somehow occurs, the UnifiedState will log it and move to an error state itself.
     }
     
     private var mainContent: some View {
@@ -150,20 +146,23 @@ struct AddMoveContainer: View {
                     AddMoveSelectClipViewUnified(unifiedState: unifiedState)
 
                 case .loading(let progress, let status):
-                    LoadingView(progress: progress, status: status)
+                    LoadingView(progress: progress, status: status, unifiedState: unifiedState)
+
+                case .replacingVideo(let status):
+                    LoadingView(progress: 0.48, status: status, unifiedState: unifiedState)
 
                 case .previewing:
                     EmptyView() // Preview state is skipped in new flow
 
                 case .trimming_setup:
-                    LoadingView(progress: 1.0, status: "Finalizing setup...")
+                    LoadingView(progress: 1.0, status: "Finalizing setup...", unifiedState: unifiedState)
 
                 case .trimming:
                     if let viewModel = unifiedState.trimmerViewModel {
                         FeatureRichTrimmerView(unifiedState: unifiedState, viewModel: viewModel)
                             .id(unifiedState.photosIdentifier ?? UUID().uuidString)
                     } else {
-                        LoadingView(progress: 1.0, status: "Initializing Trimmer...")
+                        LoadingView(progress: 1.0, status: "Initializing Trimmer...", unifiedState: unifiedState)
                     }
 
                 case .finalizing(let status):
@@ -219,45 +218,8 @@ struct AddMoveContainer: View {
         return selectedTab == .add
     }
     
-    private func isValidFlowStateTransition(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) -> Bool {
-        // Define valid flow state transitions
-        switch oldState {
-        case .ready:
-            if case .loading(_, _) = newState { return true }
-            return false
-        case .loading:
-            switch newState {
-            case .loading, .trimming_setup, .error: return true // ✅ ALLOW loading -> loading for progress updates
-            default: return false
-            }
-        case .trimming_setup:
-            switch newState {
-            case .trimming, .error: return true
-            default: return false
-            }
-        case .trimming:
-            switch newState {
-            // 🎯 FIX: Add .finalizing as a valid transition state from .trimming.
-            // This was the root cause of the "Invalid Flow State Transition" error.
-            case .ready, .previewing, .naming, .finalizing, .error: return true
-            default: return false
-            }
-        case .naming:
-            switch newState {
-            case .saving, .error: return true
-            default: return false
-            }
-        case .saving:
-            switch newState {
-            case .success, .error: return true
-            default: return false
-            }
-        case .success, .error:
-            return newState == .ready
-        default:
-            return false
-        }
-    }
+    // ✅ REFACTOR: Removed duplicate isValidFlowStateTransition function.
+    // Validation now happens in AddMoveUnifiedState, the single source of truth for state transitions.
     
     private func logState(_ context: String, flowState: AddMoveFlowState) {
         let memoryInfo = ProcessInfo.processInfo
@@ -327,22 +289,46 @@ struct AddMoveSelectClipViewUnified: View {
     }
 }
 
-/// Loading view with progress indicator
+/// Enhanced loading view with progress indicator and elapsed time tracking
+/// 🎯 CRITICAL FIX: Now displays elapsed time for transparent large video processing UX
 struct LoadingView: View {
     let progress: Double
     let status: String
-    
+    @ObservedObject var unifiedState: AddMoveUnifiedState
+
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
             Spacer()
+
             ProgressView(status)
                 .progressViewStyle(.circular)
+
+            // Progress percentage
             Text("\(Int(progress * 100))%")
-                .font(.subheadline)
-                .foregroundColor(.gray)
+                .font(.ibmPlexMono(size: 14, weight: .regular))
+                .foregroundColor(.textSecondary)
+
+            // 🎯 CRITICAL FIX: Enhanced elapsed time display for large video loading
+            HStack(spacing: 4) {
+                Image(systemName: "clock")
+                    .font(.caption2)
+                    .foregroundColor(.textSecondary.opacity(0.8))
+                Text(formatTime(unifiedState.loadElapsedTime))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundColor(.textSecondary.opacity(0.8))
+            }
+
             Spacer()
         }
         .background(Color.black.ignoresSafeArea())
+    }
+
+    // Helper to format seconds into MM:SS
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let totalSeconds = Int(seconds)
+        let minutes = totalSeconds / 60
+        let secs = totalSeconds % 60
+        return String(format: "%02d:%02d", minutes, secs)
     }
 }
 

@@ -76,6 +76,18 @@ final class VideoSaverImpl: VideoSaver {
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
 
+        // ✅ CRITICAL: Add defer block to ensure temporary file cleanup
+        defer {
+            do {
+                if FileManager.default.fileExists(atPath: tempURL.path) {
+                    try FileManager.default.removeItem(at: tempURL)
+                    logger.info("🧹 Temporary video file cleaned up: \(tempURL.lastPathComponent)", metadata: nil)
+                }
+            } catch {
+                logger.warning("⚠️ Failed to clean up temporary file: \(error.localizedDescription)", metadata: nil)
+            }
+        }
+
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
             throw VideoProcessingError.assetCreationFailed
         }

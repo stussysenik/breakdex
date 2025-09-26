@@ -724,20 +724,26 @@ struct FeatureRichTrimmerView: View {
     }
     
     private func processVideoReplacement(_ item: PhotosUI.PhotosPickerItem) async {
+        diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: 🚀 Starting video replacement process")
         isVideoReplacementInProgress = true
         videoReplacementState = .replacing(progress: 0.0, status: "Loading new video...")
 
         do {
             // Phase 1: Load new video
+            diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: 📥 Phase 1 - Loading new video")
             await updateReplacementProgress(0.2, status: "Transferring video...")
 
             // Load the new video through unified state by converting to custom type
             let customItem = PhotosPickerItem(item: item)
-            unifiedState.didSelectVideo(customItem)
-            
+            // ✨ FIX: Use the new dedicated replacement method instead of didSelectVideo
+            diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: 🎯 Calling replaceSelectedVideo method")
+            await unifiedState.replaceSelectedVideo(customItem)
+
             // Phase 2: Wait for video to be ready
+            diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: ⏳ Phase 2 - Waiting for video to be ready")
             await updateReplacementProgress(0.5, status: "Processing video...")
-            
+
+            diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: 🔍 Waiting for unified state to reach trimming with ready player")
             try await waitForVideoReady()
             
             // Phase 3: Finalize replacement
@@ -764,24 +770,34 @@ struct FeatureRichTrimmerView: View {
     private func waitForVideoReady() async throws {
         let timeout: TimeInterval = 30.0
         let startTime = Date()
-        
+
+        diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: ⏱️ Starting video readiness check with \(timeout)s timeout")
+
         while Date().timeIntervalSince(startTime) < timeout {
+            let currentState = unifiedState.flowState
+            let hasPlayer = unifiedState.currentPlayerViewModel != nil
+
+            diagnosticLogger.logDebug("🔄 TRIMMER_VIEW: 🔍 Checking readiness - State: \(currentState), Player: \(hasPlayer)")
+
             // Check if video is ready
-            if unifiedState.flowState == .trimming &&
-                unifiedState.currentPlayerViewModel != nil {
-                
+            if currentState == .trimming && hasPlayer {
+
                 let isPlayerReady = unifiedState.currentPlayerViewModel?.isPlayerReady ?? false
                 let isTrimmerReady = viewModel.isReady
-                
+
+                diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: ✅ Conditions met - PlayerReady: \(isPlayerReady), TrimmerReady: \(isTrimmerReady)")
+
                 if isPlayerReady && isTrimmerReady {
                     diagnosticLogger.logInfo("✅ Video ready after replacement")
+                    diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: 🎉 Video replacement successful!")
                     return
                 }
             }
             
             try await Task.sleep(nanoseconds: 100_000_000) // 100ms
         }
-        
+
+        diagnosticLogger.logError("🔄 TRIMMER_VIEW: ⏰ Video replacement timed out after \(timeout)s")
         throw NSError(domain: "FeatureRichTrimmerView", code: -2, userInfo: [
             NSLocalizedDescriptionKey: "Video replacement timed out"
         ])
@@ -789,20 +805,13 @@ struct FeatureRichTrimmerView: View {
     
     private func finalizeVideoReplacement() async {
         videoReplacementState = .finalizing(progress: 0.5, status: "Applying default trim settings...")
-        
-        // Apply default trim settings for new video
-        let trimmerVM = viewModel
-        do {
-                try await unifiedState.applyTrimSettings(
-                    startTime: .zero,
-                    endTime: trimmerVM.videoDuration,
-                    rotation: 0
-                )
-            } catch {
-                diagnosticLogger.logWarning("⚠️ Failed to apply default trim settings", metadata: [
-                    "error_message": error.localizedDescription
-                ])
-            }
+
+        // 🗑️ REMOVED redundant applyTrimSettings call - AddMoveUnifiedState.loadVideo()
+        // already handles state reset correctly for the new video asset. Using trimmerVM.videoDuration
+        // here was causing stale state issues with the old video's duration.
+        diagnosticLogger.logInfo("🔧 Video replacement finalized - using unifiedState.loadVideo() for state reset", metadata: [
+            "function": "finalizeVideoReplacement"
+        ])
 
         // Reset local state
         await MainActor.run {

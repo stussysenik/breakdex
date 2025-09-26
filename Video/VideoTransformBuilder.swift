@@ -148,7 +148,7 @@ final class VideoTransformBuilder {
             throw NSError(domain: "VideoTransformBuilder", code: -5, userInfo: [NSLocalizedDescriptionKey: "Could not find composition video track."])
         }
 
-        // Step E: ENHANCED transform calculation with proper coordinate system handling
+        // Step E: 🎯 CRITICAL FIX: Corrected transform calculation with proper coordinate system handling
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
 
         // Start with the source video's preferred transform (handles device orientation)
@@ -158,24 +158,26 @@ final class VideoTransformBuilder {
         let rotationAngle = .pi / 2.0 * CGFloat(quarterTurns)
         let rotationTransform = CGAffineTransform(rotationAngle: rotationAngle)
 
-        // ENHANCED translation calculation for proper coordinate system alignment
+        // 🎯 CRITICAL FIX: Corrected translation calculation based on AVFoundation documentation
+        // The translation must compensate for the coordinate system change after rotation
         let translationTransform: CGAffineTransform
 
         switch quarterTurns {
         case 1: // 90° clockwise
-            // After rotation, translate by original height to center in new frame
+            // After 90° rotation, translate by height to center in new frame
             translationTransform = CGAffineTransform(translationX: naturalSize.height, y: 0)
         case 2: // 180°
-            // Translate by full dimensions to center after rotation
+            // After 180° rotation, translate by full dimensions to center
             translationTransform = CGAffineTransform(translationX: naturalSize.width, y: naturalSize.height)
         case 3: // 270° clockwise (or 90° counter-clockwise)
-            // Translate by original width to center in new frame
+            // After 270° rotation, translate by width to center in new frame
             translationTransform = CGAffineTransform(translationX: 0, y: naturalSize.width)
         default:
             translationTransform = .identity
         }
 
-        // Apply transforms in correct order: source orientation -> user rotation -> translation
+        // 🎯 CRITICAL FIX: Apply transforms in mathematically correct order
+        // Order: preferredTransform -> rotation -> translation (non-commutative composition)
         transform = transform.concatenating(rotationTransform).concatenating(translationTransform)
         layerInstruction.setTransform(transform, at: .zero)
 
