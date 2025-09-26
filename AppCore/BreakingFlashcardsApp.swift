@@ -25,7 +25,7 @@ struct BreakingFlashcardsApp: App {
             // into the environment, making it available to all sub-views.
             MainView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .onAppear {
+                .task {
                     // MARK: - BreakDex System Initialization
                     let context = persistenceController.container.viewContext
 
@@ -33,8 +33,11 @@ struct BreakingFlashcardsApp: App {
                     VideoRelinkManager.shared.configure(with: context)
                     AlbumSyncManager.shared.configure(with: context)
 
+                    // MARK: - Initialize AlbumManager (single source of truth for BreakDex album)
+                    await AlbumManager.shared.setup()
+
                     // MARK: - BreakDex Health Checks
-                    performBreakDexHealthChecks()
+                    await performBreakDexHealthChecks()
                 }
             // Handle system-level errors gracefully
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
@@ -85,42 +88,36 @@ struct BreakingFlashcardsApp: App {
     }
     
     private func checkBreakDexAlbum() async {
-        let albumManager = BreakDexAlbumManager.shared
-        
-        do {
-            _ = try await albumManager.ensureBreakDexAlbum()
+        let albumManager = AlbumManager.shared
+
+        let album = await albumManager.getBreakDexAlbum()
+        if album != nil {
             print("✅ BreakDex album: Ready")
-        } catch {
-            print("❌ BreakDex album: Error - \(error.localizedDescription)")
-            if let breakDexError = error as? BreakDexAlbumError {
-                switch breakDexError {
-                case .albumCreationFailed:
-                    print("   Suggestion: Check Photos permissions and storage space")
-                case .albumCreationTimeout:
-                    print("   Suggestion: Try restarting the app")
-                default:
-                    print("   Suggestion: Check Photos app for album issues")
-                }
-            }
+        } else {
+            print("❌ BreakDex album: Error - Album not available")
+            print("   Suggestion: Check Photos permissions and storage space")
         }
     }
     
     private func logBreakDexStatus() async {
-        let albumManager = BreakDexAlbumManager.shared
-        
-        if albumManager.albumState.album != nil {
-            let videoCount = await albumManager.getAllVideosInBreakDex().count
+        let albumManager = AlbumManager.shared
+
+        if let album = await albumManager.getBreakDexAlbum() {
+            // Count videos in the BreakDex album
+            let fetchOptions = PHFetchOptions()
+            let assets = PHAsset.fetchAssets(in: album, options: fetchOptions)
+            let videoCount = assets.count
             print("📊 BreakDex status: Album found with \(videoCount) videos")
-            
+
             // Check for any Photos-migrated moves in Core Data
             let context = persistenceController.container.viewContext
             let fetchRequest = Move.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "photosIdentifier != nil AND photosIdentifier != ''")
-            
+
             do {
                 let photosMigratedMoves = try context.count(for: fetchRequest)
                 print("📊 Core Data status: \(photosMigratedMoves) moves migrated to Photos")
-                
+
                 let totalMoves = try context.count(for: Move.fetchRequest())
                 print("📊 Total moves: \(totalMoves)")
             } catch {

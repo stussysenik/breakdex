@@ -11,7 +11,7 @@ protocol VideoSaver {
 // MARK: - Video Saver Implementation
 final class VideoSaverImpl: VideoSaver {
     private let logger: AppLogger
-    private let breakDexAlbumManager = BreakDexAlbumManager.shared // ✨ ADD: BreakDex album manager integration
+    // Using new AlbumManager singleton for centralized album management
 
     init(logger: AppLogger) {
         self.logger = logger
@@ -89,44 +89,16 @@ final class VideoSaverImpl: VideoSaver {
             throw VideoProcessingError.videoProcessingFailed(operation: "exporting for photos save", underlyingError: error)
         }
 
-        // Find or create the "BreakDex" album
-        let album = try await breakDexAlbumManager.ensureBreakDexAlbum()
-
-        // Atomically save the video and add it to the album
-        return try await withCheckedThrowingContinuation { continuation in
-            var placeholder: PHObjectPlaceholder?
-
-            PHPhotoLibrary.shared().performChanges({
-                // 1. Create the asset creation request from the temporary file.
-                guard let assetRequest = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL) else {
-                    return
-                }
-                placeholder = assetRequest.placeholderForCreatedAsset
-
-                // 2. Create the album change request.
-                guard let albumChangeRequest = PHAssetCollectionChangeRequest(for: album),
-                      let assetPlaceholder = placeholder else {
-                    return
-                }
-
-                // 3. Add the new asset placeholder to the album change request.
-                albumChangeRequest.addAssets([assetPlaceholder] as NSArray)
-
-            }) { success, error in
-                // Clean up the temporary file regardless of outcome
-                try? FileManager.default.removeItem(at: tempURL)
-
-                if success, let localIdentifier = placeholder?.localIdentifier {
-                    self.logger.info("✅ Video saved to Photos and added to BreakDex album successfully.", metadata: [
-                        "identifier": localIdentifier
-                    ])
-                    continuation.resume(returning: localIdentifier)
-                } else {
-                    let saveError = error ?? NSError(domain: "Photos", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown error saving to Photos."])
-                    self.logger.error("❌ Failed to save video to Photos library: \(saveError.localizedDescription)", metadata: nil)
-                    continuation.resume(throwing: VideoProcessingError.photosSaveFailed(underlyingError: saveError))
-                }
-            }
+        // Use the new atomic PhotoKitService to save video to BreakDex album
+        do {
+            let localIdentifier = try await PhotoKitService.shared.saveVideoToBreakDexAlbum(tempURL)
+            logger.info("✅ Video saved to Photos and BreakDex album atomically.", metadata: [
+                "identifier": localIdentifier
+            ])
+            return localIdentifier
+        } catch {
+            logger.error("❌ Atomic save to BreakDex album failed: \(error.localizedDescription)", metadata: nil)
+            throw VideoProcessingError.photosSaveFailed(underlyingError: error)
         }
     }
 }

@@ -149,21 +149,21 @@ class AlbumSyncManager: ObservableObject {
     }
     
     private func getAllBreakDexVideos() async -> [PHAsset] {
-        guard let album = BreakDexAlbumManager.shared.albumState.album else {
+        guard let album = await AlbumManager.shared.getBreakDexAlbum() else {
             return []
         }
-        
+
         let fetchOptions = PHFetchOptions()
         fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        
+
         let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
         var videos: [PHAsset] = []
-        
+
         fetchResult.enumerateObjects { asset, _, _ in
             videos.append(asset)
         }
-        
+
         return videos
     }
     

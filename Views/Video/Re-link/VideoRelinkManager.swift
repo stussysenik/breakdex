@@ -23,7 +23,7 @@ class VideoRelinkManager: ObservableObject {
     }
     
     func scanBreakDexForMatches(_ originalIdentifier: String) async -> [PHAsset] {
-        guard let album = BreakDexAlbumManager.shared.albumState.album else {
+        guard let album = await AlbumManager.shared.getBreakDexAlbum() else {
             return []
         }
 
@@ -86,13 +86,22 @@ class VideoRelinkManager: ObservableObject {
     }
     
     func findPotentialMatches(for move: Move) async -> [PHAsset] {
-        guard BreakDexAlbumManager.shared.albumState.album != nil else {
+        guard let album = await AlbumManager.shared.getBreakDexAlbum() else {
             return []
         }
 
-        let allVideos = await BreakDexAlbumManager.shared.getAllVideosInBreakDex()
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
 
-        return allVideos
+        let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
+        var videos: [PHAsset] = []
+
+        fetchResult.enumerateObjects { asset, _, _ in
+            videos.append(asset)
+        }
+
+        return videos
     }
     
     func processImportRelinks(_ importedMoves: [MoveExport]) async throws {

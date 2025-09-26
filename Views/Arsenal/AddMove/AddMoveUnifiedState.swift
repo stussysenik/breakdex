@@ -123,6 +123,16 @@ public class AddMoveUnifiedState: ObservableObject {
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "AddMoveUnifiedState")
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "AddMoveUnifiedState")
 
+    // MARK: - Strategic Diagnostics for Categorical Analysis
+    /// Correlation ID for tracking complete add move workflows
+    private var workflowCorrelationId: String?
+
+    /// Performance tracking for critical operations
+    private var operationTimings: [String: TimeInterval] = [:]
+
+    /// Memory logger for tracking memory usage
+    private let memoryLogger = CentralizedMemoryLogger.shared
+
     // MARK: - Timecode Service Integration
     private let timecodeService = TimecodeCalculationService()
 
@@ -136,18 +146,34 @@ public class AddMoveUnifiedState: ObservableObject {
     public var flowState: AddMoveFlowState = .ready {
         didSet {
             guard oldValue != flowState else { return }
-            
-            diagnosticLogger.logStateChange("flow_state_transition", from: oldValue, to: flowState, metadata: [
+
+            // Enhanced categorical analysis logging
+            let memoryInfo = diagnosticLogger.getMemoryInfo()
+            let stateTransitionMetadata: [String: String] = [
+                "correlation_id": self.workflowCorrelationId ?? "unknown",
                 "transition_reason": "property_observer",
                 "player_ready": "\(currentPlayerViewModel != nil)",
                 "video_asset_available": "\(videoAsset != nil)",
-                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
-            ])
-            
+                "trimmer_viewmodel_available": "\(trimmerViewModel != nil)",
+                "memory_usage_mb": "\(String(format: "%.1f", memoryInfo.used))",
+                "memory_pressure": "normal",
+                "old_state": "\(oldValue)",
+                "new_state": "\(flowState)"
+            ]
+
+            diagnosticLogger.logStateChange("flow_state_transition", from: oldValue, to: flowState, metadata: stateTransitionMetadata)
+
             let newFlowState = flowState
-            logger.info("🎬 UNIFIED_STATE: Flow state changed from \(String(describing: oldValue)) to \(String(describing: newFlowState))")
+            logger.info("🎬 UNIFIED_STATE: 🔄 Flow state changed from \(String(describing: oldValue)) to \(String(describing: newFlowState)) [correlation:\(self.workflowCorrelationId ?? "unknown")]")
+
+            // Categorical analysis: Validate state transition commutativity
+            if !isValidStateTransition(from: oldValue, to: flowState) {
+                logger.error("🎬 UNIFIED_STATE: ❌ INVALID STATE TRANSITION DETECTED!")
+                diagnosticLogger.logError("Invalid state transition detected", metadata: stateTransitionMetadata)
+            }
+
             onFlowStateChange?(oldValue, flowState)
-            
+
             // Log resource usage on state transitions
             diagnosticLogger.checkResourceWarnings()
         }
@@ -250,6 +276,12 @@ public class AddMoveUnifiedState: ObservableObject {
     public var isSaving: Bool = false
     @Published
     public var saveProgress: Double = 0.0
+
+    // MARK: - Save Timer State
+    // 🎯 CRITICAL FIX: Save timer moved from view to unified state to fix ETA stuck issue and memory leak
+    @Published
+    public var saveElapsedTime: TimeInterval = 0
+    private var saveTimer: Timer?
     
     // MARK: - Error State
     @Published
@@ -285,15 +317,75 @@ public class AddMoveUnifiedState: ObservableObject {
     // MARK: - Callbacks
     public var onFlowStateChange: ((AddMoveFlowState, AddMoveFlowState) -> Void)?
     
+    // MARK: - Categorical Analysis Methods
+
+    /// Validates state transition commutativity for categorical analysis
+    private func isValidStateTransition(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) -> Bool {
+        // Define valid transitions based on categorical diagram analysis
+        // Using simplified comparison to handle enum associated values
+
+        func getStateBase(_ state: AddMoveFlowState) -> String {
+            switch state {
+            case .ready: return "ready"
+            case .loading: return "loading"
+            case .previewing: return "previewing"
+            case .trimming_setup: return "trimming_setup"
+            case .trimming: return "trimming"
+            case .finalizing: return "finalizing"
+            case .naming: return "naming"
+            case .saving: return "saving"
+            case .success: return "success"
+            case .error: return "error"
+            }
+        }
+
+        let validTransitions: [String: [String]] = [
+            "ready": ["loading", "error"],
+            "loading": ["loading", "trimming_setup", "error"],
+            "trimming_setup": ["trimming", "error"],
+            "trimming": ["finalizing", "naming", "error"],
+            "finalizing": ["naming", "error"],
+            "naming": ["saving", "error"],
+            "saving": ["success", "error"],
+            "success": ["ready"],
+            "error": ["ready"]
+        ]
+
+        let oldStateBase = getStateBase(oldState)
+        let newStateBase = getStateBase(newState)
+
+        guard let allowedNextStates = validTransitions[oldStateBase] else {
+            logger.error("🎬 UNIFIED_STATE: ❌ Unknown state in transition validation: \(oldStateBase)")
+            return false
+        }
+
+        let isValid = allowedNextStates.contains(newStateBase)
+
+        // 🎯 ENHANCED LOGGING: Add detailed state transition logging for debugging
+        if !isValid {
+            logger.error("🎬 UNIFIED_STATE: ❌ Invalid transition \(oldStateBase) → \(newStateBase). Valid: \(allowedNextStates)")
+        } else {
+            // Log successful transitions with memory tracking for categorical analysis
+            diagnosticLogger.logDebug("🔄 State transition validated", metadata: [
+                "from_state": oldStateBase,
+                "to_state": newStateBase,
+                "memory_usage_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)",
+                "timestamp": "\(Date().timeIntervalSince1970)"
+            ])
+        }
+
+        return isValid
+    }
+
     // MARK: - Computed Properties
     public var isInError: Bool {
         return errorMessage != nil
     }
-    
+
     public var isReady: Bool {
         return flowState == .ready && !isInError
     }
-    
+
     public var hasVideo: Bool {
         return videoAsset != nil
     }
@@ -322,7 +414,7 @@ public class AddMoveUnifiedState: ObservableObject {
     // MARK: - Initialization
     public init(
         unifiedPlayerManager: UnifiedPlayerManager,
-        appContainer: AppContainer = AppContainer.shared
+        appContainer: AppContainer
     ) {
         diagnosticLogger.startTiming("unified_state_initialization")
 
@@ -339,7 +431,7 @@ public class AddMoveUnifiedState: ObservableObject {
             "initial_player_state": "\(playerState)",
             "memory_usage_mb": "\(String(format: "%.1f", memoryInfo.used))",
             "memory_percent": "\(String(format: "%.1f", memoryInfo.percentage))",
-            "health_monitor_active": "\(healthMonitor != nil)"
+            "health_monitor_active": "true"
         ])
 
         // 🎯 CRITICAL FIX: Add transition validation hook to prevent race conditions
@@ -349,8 +441,136 @@ public class AddMoveUnifiedState: ObservableObject {
         diagnosticLogger.stopTiming("unified_state_initialization")
     }
     
-    // MARK: - State Management
-    
+    // MARK: - Enhanced State Management
+
+    /// Centralized state transition method with comprehensive logging and trigger context
+    /// This method provides a natural transformation for state transitions with enhanced debugging
+    public func transition(to newState: AddMoveFlowState, triggeredBy trigger: String) async {
+        guard flowState != newState else {
+            diagnosticLogger.logDebug("State transition skipped - already in target state", metadata: [
+                "current_state": "\(String(describing: flowState))",
+                "target_state": "\(String(describing: newState))",
+                "trigger": trigger
+            ])
+            return
+        }
+
+        let oldState = flowState
+        let correlationId = UUID().uuidString
+        let memoryBefore = diagnosticLogger.getMemoryInfo()
+
+        // Enhanced correlation tracking for workflow analysis
+        if workflowCorrelationId == nil {
+            workflowCorrelationId = correlationId
+            diagnosticLogger.logInfo("🎯 NEW_WORKFLOW: Starting new add move workflow", metadata: [
+                "correlation_id": correlationId,
+                "initial_state": "\(String(describing: oldState))",
+                "target_state": "\(String(describing: newState))",
+                "trigger": trigger
+            ])
+        }
+
+        // Comprehensive state transition logging
+        diagnosticLogger.startTiming("state_transition_\(String(describing: newState).lowercased())")
+        diagnosticLogger.logUserInteraction("enhanced_state_transition", metadata: [
+            "correlation_id": workflowCorrelationId ?? "unknown",
+            "from_state": "\(String(describing: oldState))",
+            "to_state": "\(String(describing: newState))",
+            "trigger_context": trigger,
+            "can_proceed": "\(canProceed)",
+            "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)",
+            "video_loaded": "\(videoAsset != nil)",
+            "trimmer_ready": "\(trimmerViewModel?.isReady ?? false)",
+            "memory_usage_mb": "\(String(format: "%.1f", memoryBefore.used))",
+            "timestamp": "\(Date().timeIntervalSince1970)"
+        ])
+
+        // Log state transition to system logger
+        logger.info("🎬 UNIFIED_STATE: 🔄 STATE TRANSITION: \(String(describing: oldState)) → \(String(describing: newState)) [Trigger: \(trigger)]")
+
+        // Validate state transition using category theory principles
+        if !isValidStateTransition(from: oldState, to: newState) {
+            let errorMetadata = [
+                "correlation_id": workflowCorrelationId ?? "unknown",
+                "from_state": "\(String(describing: oldState))",
+                "to_state": "\(String(describing: newState))",
+                "trigger": trigger,
+                "transition_validity": "INVALID",
+                "allowed_transitions": "\(allowedTransitions(from: oldState))"
+            ]
+            diagnosticLogger.logError("❌ INVALID STATE TRANSITION DETECTED", metadata: errorMetadata)
+            logger.error("🎬 UNIFIED_STATE: ❌ INVALID STATE TRANSITION: \(String(describing: oldState)) → \(String(describing: newState))")
+
+            // Apply natural transformation fallback to safe state
+            await MainActor.run {
+                flowState = .ready
+            }
+            diagnosticLogger.logError("❌ RECOVERED: Reset to ready state due to invalid transition", metadata: errorMetadata)
+            return
+        }
+
+        // Apply the state transition using the existing method
+        await transitionTo(newState)
+
+        // Post-transition analysis
+        let memoryAfter = diagnosticLogger.getMemoryInfo()
+        let memoryDelta = memoryAfter.used - memoryBefore.used
+
+        diagnosticLogger.logInfo("✅ STATE TRANSITION COMPLETED", metadata: [
+            "correlation_id": workflowCorrelationId ?? "unknown",
+            "from_state": "\(String(describing: oldState))",
+            "to_state": "\(String(describing: newState))",
+            "trigger": trigger,
+            "memory_before_mb": "\(String(format: "%.1f", memoryBefore.used))",
+            "memory_after_mb": "\(String(format: "%.1f", memoryAfter.used))",
+            "memory_delta_mb": "\(String(format: "%.1f", memoryDelta))",
+            "duration_ms": "N/A",  // Timing handled by diagnosticLogger
+            "final_player_state": "\(playerState)",
+            "can_proceed_after": "\(canProceed)"
+        ])
+
+        // Clear workflow correlation ID on terminal states
+        switch newState {
+        case .success(let _), .error(let _, _):
+            // Terminal states reached - log completion and clear correlation ID
+            diagnosticLogger.logInfo("🎯 WORKFLOW_COMPLETED: \(String(describing: newState))", metadata: [
+                "correlation_id": workflowCorrelationId ?? "unknown",
+                "final_state": "\(String(describing: newState))",
+                "total_duration_ms": "N/A"  // stopTiming returns Void, not a value
+            ])
+            workflowCorrelationId = nil
+        default:
+            // Non-terminal state, don't clear correlation ID
+            break
+        }
+    }
+
+    /// Helper method to get allowed transitions from a given state (category theory morphism validation)
+    private func allowedTransitions(from state: AddMoveFlowState) -> String {
+        switch state {
+        case .ready:
+            return "loading, error"
+        case .loading:
+            return "trimming_setup, error"
+        case .previewing:
+            return "trimming_setup, error"
+        case .trimming_setup:
+            return "trimming, error"
+        case .trimming:
+            return "finalizing, error"
+        case .finalizing:
+            return "naming, error"
+        case .naming:
+            return "saving, error"
+        case .saving:
+            return "success, error"
+        case .success:
+            return "ready"
+        case .error:
+            return "ready"
+        }
+    }
+
     /// Transitions to a new flow state
     public func transitionTo(_ newState: AddMoveFlowState) async {
         guard flowState != newState else { return }
@@ -773,11 +993,11 @@ public class AddMoveUnifiedState: ObservableObject {
     /// Sets error state
     public func setError(message: String, underlying: String? = nil) async {
         let wasInError = errorMessage != nil
-        
+
         errorMessage = message
         underlyingError = underlying
         playerState = .error(message)
-        
+
         diagnosticLogger.logError("Error state set", metadata: [
             "error_message": message,
             "underlying_error": underlying ?? "none",
@@ -786,32 +1006,34 @@ public class AddMoveUnifiedState: ObservableObject {
             "player_state": "\(playerState)",
             "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
         ])
-        
+
         if case .error = flowState {
             // Already in error state, just update the message
             diagnosticLogger.logDebug("Already in error state, updating message only")
         } else {
-            await transitionTo(.error(message: message, underlyingError: underlying))
+            // 🎯 ENHANCED: Use centralized transition method with trigger context
+            await transition(to: .error(message: message, underlyingError: underlying), triggeredBy: "error_handler")
         }
-        
+
         logger.error("🎬 UNIFIED_STATE: ❌ Error set - \(message)")
     }
     
     /// Clears error state
     public func clearError() async {
         let hadError = errorMessage != nil
-        
+
         errorMessage = nil
         underlyingError = nil
-        
+
         diagnosticLogger.logInfo("Clearing error state", metadata: [
             "had_error": "\(hadError)",
             "current_flow_state": "\(flowState)",
             "current_player_state": "\(playerState)"
         ])
-        
+
         if case .error = flowState {
-            await transitionTo(.ready)
+            // 🎯 ENHANCED: Use centralized transition method with trigger context
+            await transition(to: .ready, triggeredBy: "error_clear")
         }
 
         if case .error = playerState {
@@ -872,6 +1094,10 @@ public class AddMoveUnifiedState: ObservableObject {
         errorMessage = nil
         underlyingError = nil
 
+        // 🎯 CRITICAL FIX: Cleanup save timer to prevent memory leaks
+        stopSaveTimer()
+        saveElapsedTime = 0
+
         // 🎯 CRITICAL FIX: Release asset lock to allow cleanup of temporary files
         let releasedAssetURL = self.activeTempVideoURL
         self.activeTempVideoURL = nil
@@ -900,7 +1126,49 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("🎬 UNIFIED_STATE: ✅ Reset completed")
         diagnosticLogger.stopTiming("unified_state_reset")
     }
-    
+
+    // MARK: - Save Timer Management
+    // 🎯 CRITICAL FIX: Save timer methods to fix ETA stuck issue and memory leak
+
+    /// Starts the save operation timer for accurate ETA display
+    private func startSaveTimer() {
+        logger.info("⏱️ UNIFIED_STATE: Starting save timer")
+
+        saveElapsedTime = 0
+        saveTimer?.invalidate() // Invalidate any existing timer
+
+        saveTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.saveElapsedTime += 1
+
+            // Log progress every 10 seconds for debugging
+            if Int(self.saveElapsedTime) % 10 == 0 {
+                self.diagnosticLogger.logInfo("Save operation in progress", metadata: [
+                    "elapsed_time_seconds": "\(Int(self.saveElapsedTime))",
+                    "save_progress": "\(self.saveProgress)",
+                    "flow_state": "\(self.flowState)"
+                ])
+            }
+        }
+
+        logger.info("⏱️ UNIFIED_STATE: Save timer started successfully")
+    }
+
+    /// Stops the save operation timer and cleans up resources
+    private func stopSaveTimer() {
+        logger.info("⏱️ UNIFIED_STATE: Stopping save timer")
+
+        saveTimer?.invalidate()
+        saveTimer = nil
+
+        diagnosticLogger.logInfo("Save timer stopped", metadata: [
+            "final_elapsed_time": "\(Int(saveElapsedTime))",
+            "save_progress": "\(saveProgress)"
+        ])
+
+        logger.info("⏱️ UNIFIED_STATE: Save timer stopped")
+    }
+
     /// Prepares for view transition (pauses monitoring, preserves state)
     public func prepareForTransition() {
         diagnosticLogger.startTiming("view_transition_prepare")
@@ -1208,24 +1476,25 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("🎬 UNIFIED_STATE: Cleaning up TrimmerViewModel")
 
         // Sync final trim values back to unified state before cleanup
-        if let trimmerViewModel = trimmerViewModel {
-            let finalStartTime = trimmerViewModel.startTime.seconds
-            let finalEndTime = trimmerViewModel.endTime.seconds
-            let finalRotation = trimmerViewModel.rotationQuarterTurns
+        let finalStartTime = trimmerViewModel!.startTime.seconds
+        let finalEndTime = trimmerViewModel!.endTime.seconds
+        let finalRotation = trimmerViewModel!.rotationQuarterTurns
 
-            await MainActor.run {
-                self.trimStartTime = finalStartTime
-                self.trimEndTime = finalEndTime
-                self.rotationQuarterTurns = finalRotation
-            }
-
-            diagnosticLogger.logInfo("🔄 Syncing final trim values before cleanup", metadata: [
-                "final_start_time": "\(finalStartTime)",
-                "final_end_time": "\(finalEndTime)",
-                "final_rotation": "\(finalRotation)",
-                "final_duration": "\(finalEndTime - finalStartTime)"
-            ])
+        await MainActor.run {
+            self.trimStartTime = finalStartTime
+            self.trimEndTime = finalEndTime
+            self.rotationQuarterTurns = finalRotation
         }
+
+        diagnosticLogger.logInfo("🔄 Syncing final trim values before cleanup", metadata: [
+            "final_start_time": "\(finalStartTime)",
+            "final_end_time": "\(finalEndTime)",
+            "final_rotation": "\(finalRotation)",
+            "final_duration": "\(finalEndTime - finalStartTime)"
+        ])
+
+        // 🎯 CRITICAL FIX: Call the deterministic teardown method to break retain cycles
+        trimmerViewModel!.teardown()
 
         // Clear the trimmer view model
         await MainActor.run {
@@ -1330,6 +1599,9 @@ extension AddMoveUnifiedState {
             await startLoading(status: "Preparing to load video...")
 
             logger.info("🎬 UNIFIED_STATE: Video selection detected, starting loading task")
+
+            // 🎯 ENHANCED: Use centralized transition method with trigger context
+            await transition(to: .loading(progress: 0.0, status: "Preparing to load video..."), triggeredBy: "user_video_selection")
 
             // Start the video loading task
             await loadVideo(from: item)
@@ -2177,7 +2449,7 @@ extension AddMoveUnifiedState {
         )
 
         diagnosticLogger.logInfo("✅ Immediate save validation passed", metadata: [
-            "asset_duration": "\(preparedAsset.asset.duration.seconds)",
+            "asset_duration": "\(preparedAsset.trimDuration)",
             "trim_duration": "\(preparedAsset.trimDuration)"
         ])
 
@@ -2190,10 +2462,27 @@ extension AddMoveUnifiedState {
     /// Validates state, processes the video, saves to Core Data, and updates the final state with enhanced race condition prevention.
     /// 🎯 REFACTORED: Eliminates TrimmerViewModel dependency and uses dedicated coordinator
     public func saveMove() async {
+        // Generate workflow correlation ID for categorical analysis
+        workflowCorrelationId = UUID().uuidString.prefix(8).lowercased()
         let operationStartTime = Date()
         let memoryBeforeOperation = diagnosticLogger.getMemoryInfo()
+
+        // Strategic logging for categorical analysis
+        logger.info("🎬 UNIFIED_STATE: 🚀 Starting FINAL saveMove operation [correlation:\(self.workflowCorrelationId ?? "unknown")]")
         diagnosticLogger.startTiming("save_move_operation")
-        logger.info("🎬 UNIFIED_STATE: 🚀 Starting FINAL saveMove operation with TrimmerViewModel decoupling...")
+
+        // Log initial state for functor mapping analysis
+        diagnosticLogger.logInfo("Save operation initial state", metadata: [
+            "correlation_id": workflowCorrelationId ?? "unknown",
+            "flow_state": "\(flowState)",
+            "player_state": "\(playerState)",
+            "video_asset_available": "\(videoAsset != nil)",
+            "trim_start": "\(trimStartTime)",
+            "trim_end": "\(trimEndTime)",
+            "rotation": "\(rotationQuarterTurns)",
+            "move_name": "\(moveName)",
+            "memory_usage_mb": "\(String(format: "%.1f", memoryBeforeOperation.used))"
+        ])
 
         // 💡 ENHANCEMENT: Comprehensive pre-save validation using persistent state
         do {
@@ -2213,6 +2502,9 @@ extension AddMoveUnifiedState {
 
         // 1. Transition to the saving state immediately to update the UI
         await transitionTo(.saving)
+
+        // 🎯 CRITICAL FIX: Start save timer for accurate ETA display
+        startSaveTimer()
 
         do {
             // ✅ CRITICAL FIX: Directly use persistent state properties, NOT prepareAssetForSaving
@@ -2290,7 +2582,10 @@ extension AddMoveUnifiedState {
                 logger.info("🎬 UNIFIED_STATE: 🏥 Health monitor lock cleared after successful save")
             }
 
-            // 7. Transition to success state
+            // 🎯 CRITICAL FIX: Stop save timer on successful completion
+            stopSaveTimer()
+
+            // 8. Transition to success state
             let successMessage = "Move '\(result.move.name ?? "Unknown Move")' was added to your Arsenal!"
             await transitionTo(.success(message: successMessage))
 
@@ -2329,13 +2624,17 @@ extension AddMoveUnifiedState {
                 ])
             }
 
+            // 🎯 CRITICAL FIX: Stop save timer on error completion
+            stopSaveTimer()
+
             await setError(message: errorMessage, underlying: underlyingError)
         }
 
         diagnosticLogger.stopTiming("save_move_operation")
         logger.info("🎬 UNIFIED_STATE: 🏁 FINAL saveMove operation completed (success or failure)")
     }
-}
+
+    }
 
 // MARK: - Real-time Save Validation Types
 

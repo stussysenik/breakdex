@@ -205,10 +205,10 @@ struct VideoRelinkView: View {
         
         Task {
             do {
-                let newAsset = try await BreakDexAlbumManager.shared.copyVideoToBreakDex(from: url)
-                
+                let newAssetIdentifier = try await PhotoKitService.shared.saveVideoToBreakDexAlbum(url)
+
                 await viewContext.perform {
-                    move.photosIdentifier = newAsset.localIdentifier
+                    move.photosIdentifier = newAssetIdentifier
                     move.trimStartTime = 0.0
                     move.trimEndTime = 0.0
                     try? viewContext.save()

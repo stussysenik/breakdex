@@ -1,6 +1,7 @@
 // In CreateComboView.swift
 import SwiftUI
 import AVKit
+import OSLog
 
 struct CreateComboView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -16,23 +17,9 @@ struct CreateComboView: View {
     @State private var showErrorMessage = false
     @State private var successMessage = ""
     @State private var errorMessage = ""
+    @State private var currentPlayer: AVPlayer? // 🎯 ADD: State for the async player
 
-    private func getVideoAsset(for move: Move) -> AVAsset? {
-        // 🎯 FIXED: Use photosIdentifier instead of deprecated videoReference
-        guard let photosIdentifier = move.photosIdentifier else {
-            return nil
-        }
-
-        // Use synchronous check for asset existence first
-        guard PhotosAssetLoader.assetExists(with: photosIdentifier) else {
-            return nil
-        }
-
-        // For UI purposes, we'll create a simple AVAsset placeholder
-        // The actual video loading will happen asynchronously in the player
-        // This is a temporary solution for UI compatibility
-        return AVAsset(url: URL(string: "photos://\(photosIdentifier)")!)
-    }
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "🚀 CREATE_COMBO_VIEW")
     
     var body: some View {
         VStack(spacing: 6) {
@@ -45,18 +32,49 @@ struct CreateComboView: View {
             .padding(.vertical, 40)
             .padding(.horizontal, 20)
             
-            if let activeMove = activeMove { // middle section: video player or empty state
-                if let asset = getVideoAsset(for: activeMove) {
-                    CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)), mode: .main, appContainer: AppContainer.shared))
-                        .frame(height: 300)
-                        .id(activeMove.managedObjectID) // Force re-initialization when activeMove changes
-                } else {
-                    ContentUnavailableView("Video not available", systemImage: "video.slash")
-                        .frame(height: 300)
+            // 🎯 FIX: Asynchronous Video Player Section
+            if let activeMove = activeMove {
+                ZStack {
+                    if let player = currentPlayer {
+                        CustomVideoPlayerView(viewModel: UnifiedVideoPlayerViewModel(player: player, mode: .main, appContainer: AppContainer.shared))
+                    } else {
+                        VStack(spacing: 16) {
+                            ProgressView()
+                                .scaleEffect(1.2)
+                            Text("Loading video...")
+                                .font(.ibmPlexMono(size: 14))
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
+                }
+                .frame(height: 300)
+                .background(Color.black)
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .id(activeMove.id) // Use stable ID to trigger updates
+                .task(id: activeMove.id) {
+                    logger.info("🚀 CREATE_COMBO_VIEW: Starting video load for move '\(activeMove.name ?? "Unknown")'")
+                    currentPlayer = nil // Reset the player to show the loader
+                    guard let identifier = activeMove.photosIdentifier else {
+                        logger.error("🚀 CREATE_COMBO_VIEW: No photosIdentifier for move '\(activeMove.name ?? "Unknown")'")
+                        return
+                    }
+
+                    if let avAsset = await PhotosAssetLoader.fetchAsset(with: identifier) {
+                        logger.info("🚀 CREATE_COMBO_VIEW: Video asset loaded successfully for move '\(activeMove.name ?? "Unknown")'")
+                        // Once the asset is loaded, create the player on the main thread
+                        await MainActor.run {
+                            self.currentPlayer = AVPlayer(playerItem: AVPlayerItem(asset: avAsset))
+                        }
+                    } else {
+                        logger.error("🚀 CREATE_COMBO_VIEW: Failed to load video asset for move '\(activeMove.name ?? "Unknown")'")
+                    }
                 }
             } else {
-                ContentUnavailableView("No preview available", systemImage: "video.slash")
+                ContentUnavailableView("No move selected", systemImage: "video.slash")
                     .frame(height: 300)
+                    .cornerRadius(10)
+                    .padding(.horizontal)
             }
             
             VStack(spacing: 16) {   // bottom Section: timeline group
@@ -64,8 +82,23 @@ struct CreateComboView: View {
                     .font(.ibmPlexMono(size: 18, weight: .bold))
                     .foregroundColor(.textPrimary)
                 
-                ComboTimelineView(moves: $comboMoves, activeIndex: $activeNodeIndex)
-                    .frame(height: 120)
+                // 🎯 FIX: Use the upgraded, unified ComboTimelineView
+                ComboTimelineView(moves: comboMoves, activeIndex: $activeNodeIndex) { index in
+                    logger.info("🚀 CREATE_COMBO_VIEW: Delete button tapped for move at index \(index)")
+                    // Deletion logic
+                    comboMoves.remove(at: index)
+
+                    if comboMoves.isEmpty {
+                        logger.info("🚀 CREATE_COMBO_VIEW: All moves removed, clearing active index")
+                        activeNodeIndex = nil
+                    } else if let currentIndex = activeNodeIndex, index <= currentIndex {
+                        // Smartly adjust the active index after deletion
+                        let newIndex = max(0, currentIndex - 1)
+                        logger.info("🚀 CREATE_COMBO_VIEW: Adjusting active index from \(currentIndex) to \(newIndex)")
+                        activeNodeIndex = newIndex
+                    }
+                }
+                .frame(height: 120)
                 
                 Button("Save Combo") {
                     MotionCatalog.Accessibility.actionHaptic()
@@ -108,53 +141,51 @@ struct CreateComboView: View {
     
     private var activeMove: Move? {
         guard let activeNodeIndex, !comboMoves.isEmpty, comboMoves.indices.contains(activeNodeIndex) else {
+            // Default to the first move if no index is active but moves exist
+            if activeNodeIndex == nil, !comboMoves.isEmpty {
+                logger.info("🚀 CREATE_COMBO_VIEW: Auto-selecting first move (index 0)")
+                DispatchQueue.main.async { activeNodeIndex = 0 }
+            }
             return nil
         }
         return comboMoves[activeNodeIndex]
     }
     
-    private func videoURL(for move: Move) -> URL {
-        // 🎯 FIXED: Use photosIdentifier instead of deprecated videoReference
-        // Since we're using Photos library, we can't directly get a file URL
-        // Return a placeholder URL or handle this case appropriately
-        guard let photosIdentifier = move.photosIdentifier else {
-            return URL(fileURLWithPath: "")
-        }
-
-        // For now, return a placeholder - this method may need to be redesigned
-        // since Photos assets don't have direct file URLs
-        return URL(fileURLWithPath: "photos://\(photosIdentifier)")
-    }
-    
     private func saveCombo(name: String) {
+        logger.info("🚀 CREATE_COMBO_VIEW: Starting combo save process for '\(name)' with \(comboMoves.count) moves")
+
         let newCombo = Combo(context: viewContext)
         // Note: We don't set the id as it's managed by Core Data
         newCombo.name = name
-        
+
         for (index, move) in comboMoves.enumerated() {
             let comboMove = ComboMove(context: viewContext)
             // Note: We don't set the id as it's managed by Core Data
             comboMove.sequenceIndex = Int64(index)
             comboMove.move = move
             comboMove.combo = newCombo
+            logger.info("🚀 CREATE_COMBO_VIEW: Added move '\(move.name ?? "Unknown")' at sequence index \(index)")
         }
-        
+
         do {
             try viewContext.save()
+            logger.info("🚀 CREATE_COMBO_VIEW: Combo '\(name)' saved successfully to Core Data")
+
             successMessage = "Combo '\(name)' created successfully!" // success message
             showSuccessMessage = true
-            
+
             comboMoves.removeAll() // reset combo after saving
             activeNodeIndex = nil
-            
+            currentPlayer = nil // Clear the video player
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { // auto-hide success message after 3 seconds
                 showSuccessMessage = false
             }
         } catch {
-            print("Error saving combo: \(error)")
+            logger.error("🚀 CREATE_COMBO_VIEW: Failed to save combo: \(error.localizedDescription)")
             errorMessage = "Failed to save combo. Please try again."
             showErrorMessage = true
-            
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 showErrorMessage = false
             }

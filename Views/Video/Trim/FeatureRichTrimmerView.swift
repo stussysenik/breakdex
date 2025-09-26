@@ -368,6 +368,8 @@ struct FeatureRichTrimmerView: View {
                     "target_rotation": "\((currentRotation + 1) % 4)"
                 ])
                 Task {
+                    // Structs don't need weak references - they're value types
+                    diagnosticLogger.logDebug("🔧 MEMORY_FIX: Rotation button Task started")
                     do {
                         let newRotation = (currentRotation + 1) % 4
                         try await unifiedState.applyTrimSettings(
@@ -375,6 +377,7 @@ struct FeatureRichTrimmerView: View {
                             endTime: trimmerVM.endTime,
                             rotation: newRotation
                         )
+                        diagnosticLogger.logDebug("✅ MEMORY_FIX: Rotation button Task completed successfully")
                     } catch {
                         await unifiedState.setError(message: "Failed to apply rotation", underlying: error.localizedDescription)
                     }
@@ -421,6 +424,8 @@ struct FeatureRichTrimmerView: View {
                 ])
                 
                 Task {
+                    // Structs don't need weak references - they're value types
+                    diagnosticLogger.logDebug("🔧 MEMORY_FIX: Continue button Task started")
                     await validateAndContinue()
                 }
             }
@@ -651,6 +656,8 @@ struct FeatureRichTrimmerView: View {
         videoReplacementState = .preparing(progress: 0.0, status: "Preparing video replacement...")
         
         Task {
+            // Structs don't need weak references - they're value types
+            diagnosticLogger.logDebug("🔧 MEMORY_FIX: Video replacement Task started")
             await performVideoReplacement()
         }
     }
@@ -710,6 +717,8 @@ struct FeatureRichTrimmerView: View {
 
         // Start replacement process
         Task {
+            // Structs don't need weak references - they're value types
+            diagnosticLogger.logDebug("🔧 MEMORY_FIX: Process video replacement Task started")
             await processVideoReplacement(item)
         }
     }
@@ -825,6 +834,7 @@ struct FeatureRichTrimmerView: View {
         
         // Reset error state and try again
         Task {
+            diagnosticLogger.logDebug("🔧 MEMORY_FIX: Reset video replacement state Task started")
             await resetVideoReplacementState()
             try? await Task.sleep(nanoseconds: 500_000_000) // Brief delay
             startVideoReplacement()

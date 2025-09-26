@@ -152,7 +152,7 @@ struct ImportExportView: View {
         let context = viewContext
         
         // Get BreakDex album identifier
-        let breakDexAlbumId = BreakDexAlbumManager.shared.albumState.album?.localIdentifier
+        let breakDexAlbumId = await AlbumManager.shared.getBreakDexAlbum()?.localIdentifier
         
         // Fetch all moves synchronously in Core Data context
         let moveExports = try await context.perform {

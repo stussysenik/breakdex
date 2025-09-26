@@ -4,22 +4,25 @@ import Combine
 import OSLog
 
 /// Manages the BreakDex album in the Photos library
-/// This is the single source of truth for all video storage operations
+/// This now serves as a compatibility layer over the atomic PhotoKitService
+/// 🎯 DEPRECATED: Use PhotoKitService directly for new code
+/// 🔄 COMPATIBILITY: Maintains existing API while using atomic operations
 @MainActor
 class BreakDexAlbumManager: ObservableObject {
     static let shared = BreakDexAlbumManager()
-    
+
     private let albumName = "BreakDex"
     private let albumIdentifierKey = "BreakDexAlbumIdentifier"
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "BreakDexAlbumManager")
-    
+    private let photoKitService = PhotoKitService.shared
+
     enum AlbumState {
         case unknown
         case creating
         case ready(PHAssetCollection)
         case failed(Error)
         case permissionDenied
-        
+
         var album: PHAssetCollection? {
             switch self {
             case .ready(let collection):
@@ -29,12 +32,12 @@ class BreakDexAlbumManager: ObservableObject {
             }
         }
     }
-    
+
     @Published private(set) var albumState: AlbumState = .unknown
     @Published private(set) var isOperationInProgress = false
-    
+
     private var cancellables = Set<AnyCancellable>()
-    
+
     private init() {
         // Check album status on initialization
         checkAlbumStatus()
@@ -44,14 +47,15 @@ class BreakDexAlbumManager: ObservableObject {
     
     /// Ensure BreakDex album exists and is accessible
     /// - Returns: The BreakDex album if available
+    /// 🔄 ATOMIC: Now uses PhotoKitService for atomic operations
     func ensureBreakDexAlbum() async throws -> PHAssetCollection {
         // Check current state
         switch albumState {
         case .ready(let album):
             return album
         case .creating:
-            // Wait for creation to complete
-            try await waitForAlbumCreation()
+            // Wait for creation to complete (simplified - PhotoKitService handles this atomically)
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
             guard case .ready(let album) = albumState else {
                 throw BreakDexAlbumError.albumCreationFailed
             }
@@ -63,25 +67,20 @@ class BreakDexAlbumManager: ObservableObject {
         case .unknown:
             break
         }
-        
-        // Check permissions first
-        guard await PhotosPermissionManager.shared.ensurePermission() else {
-            await MainActor.run { albumState = .permissionDenied }
-            throw PhotosPermissionError.accessDenied
+
+        // Use the atomic PhotoKitService
+        logger.info("💾 ALBUM_MANAGER: 🔄 Using atomic PhotoKitService for album operations")
+
+        do {
+            let album = try await photoKitService.getOrCreateBreakDexAlbum()
+            await MainActor.run { albumState = .ready(album) }
+            logger.info("💾 ALBUM_MANAGER: ✅ BreakDex album ensured atomically")
+            return album
+        } catch {
+            await MainActor.run { albumState = .failed(error) }
+            logger.error("💾 ALBUM_MANAGER: ❌ Failed to ensure BreakDex album atomically: \(error.localizedDescription)")
+            throw error
         }
-        
-        // Try to find existing album
-        if let existingAlbum = await findBreakDexAlbum() {
-            await MainActor.run { albumState = .ready(existingAlbum) }
-            return existingAlbum
-        }
-        
-        // Create new album
-        await MainActor.run { albumState = .creating }
-        let newAlbum = try await createBreakDexAlbum()
-        await MainActor.run { albumState = .ready(newAlbum) }
-        
-        return newAlbum
     }
     
     /// Check if BreakDex album exists and update state
@@ -100,92 +99,83 @@ class BreakDexAlbumManager: ObservableObject {
     /// Copy a video asset to the BreakDex album
     /// - Parameter asset: The PHAsset to copy
     /// - Returns: The new PHAsset in BreakDex album
+    /// 🔄 ATOMIC: Now uses PhotoKitService for atomic operations
     func copyVideoToBreakDex(_ asset: PHAsset) async throws -> PHAsset {
         await MainActor.run { isOperationInProgress = true }
         defer { Task { await MainActor.run { isOperationInProgress = false } } }
-        
-        let album = try await ensureBreakDexAlbum()
-        
+
+        logger.info("💾 ALBUM_MANAGER: 🔄 Copying video to BreakDex album atomically")
+
         // For copying existing PHAssets, we need to get the video data first
         let videoData = try await getVideoData(from: asset)
         let tempURL = try await saveVideoDataToTempFile(videoData)
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            PHPhotoLibrary.shared().performChanges {
-                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
-                let albumChangeRequest = PHAssetCollectionChangeRequest(for: album)
-                if let placeholder = request?.placeholderForCreatedAsset {
-                    albumChangeRequest?.addAssets([placeholder] as NSFastEnumeration)
-                }
-            } completionHandler: { success, error in
-                // Clean up temp file
-                try? FileManager.default.removeItem(at: tempURL)
-                
-                if success {
-                    // Find the newly created asset
-                    let fetchOptions = PHFetchOptions()
-                    fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-                    fetchOptions.fetchLimit = 1
-                    
-                    let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
-                    if let newAsset = fetchResult.firstObject {
-                        continuation.resume(returning: newAsset)
-                    } else {
-                        continuation.resume(throwing: BreakDexAlbumError.assetCreationFailed)
-                    }
-                } else {
-                    continuation.resume(throwing: error ?? BreakDexAlbumError.assetCreationFailed)
-                }
+
+        // Use the atomic PhotoKitService to save the video
+        do {
+            let localIdentifier = try await photoKitService.saveVideoToBreakDexAlbum(tempURL)
+
+            // Clean up temp file
+            try? FileManager.default.removeItem(at: tempURL)
+
+            // Find the newly created asset by identifier
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+            if let newAsset = fetchResult.firstObject {
+                logger.info("💾 ALBUM_MANAGER: ✅ Video copied to BreakDex album atomically: \(newAsset.localIdentifier)")
+                return newAsset
+            } else {
+                throw BreakDexAlbumError.assetCreationFailed
             }
+        } catch {
+            // Clean up temp file on error
+            try? FileManager.default.removeItem(at: tempURL)
+            logger.error("💾 ALBUM_MANAGER: ❌ Failed to copy video to BreakDex album atomically: \(error.localizedDescription)")
+            throw error
         }
     }
     
     /// Copy a video from file URL to BreakDex album
     /// - Parameter fileURL: Local file URL of the video
     /// - Returns: The new PHAsset in BreakDex album
+    /// 🔄 ATOMIC: Now uses PhotoKitService for atomic operations
     func copyVideoToBreakDex(from fileURL: URL) async throws -> PHAsset {
         await MainActor.run { isOperationInProgress = true }
         defer { Task { await MainActor.run { isOperationInProgress = false } } }
-        
-        let album = try await ensureBreakDexAlbum()
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            PHPhotoLibrary.shared().performChanges {
-                let request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: fileURL)
-                let albumChangeRequest = PHAssetCollectionChangeRequest(for: album)
-                if let placeholder = request?.placeholderForCreatedAsset {
-                    albumChangeRequest?.addAssets([placeholder] as NSFastEnumeration)
-                }
-            } completionHandler: { success, error in
-                if success {
-                    // Find the newly created asset
-                    let fetchOptions = PHFetchOptions()
-                    fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-                    fetchOptions.fetchLimit = 1
-                    
-                    let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
-                    if let newAsset = fetchResult.firstObject {
-                        continuation.resume(returning: newAsset)
-                    } else {
-                        continuation.resume(throwing: BreakDexAlbumError.assetCreationFailed)
-                    }
-                } else {
-                    continuation.resume(throwing: error ?? BreakDexAlbumError.assetCreationFailed)
-                }
+
+        logger.info("💾 ALBUM_MANAGER: 🔄 Copying video from file to BreakDex album atomically")
+
+        // Use the atomic PhotoKitService to save the video
+        do {
+            let localIdentifier = try await photoKitService.saveVideoToBreakDexAlbum(fileURL)
+
+            // Find the newly created asset by identifier
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+            if let newAsset = fetchResult.firstObject {
+                logger.info("💾 ALBUM_MANAGER: ✅ Video copied from file to BreakDex album atomically: \(newAsset.localIdentifier)")
+                return newAsset
+            } else {
+                throw BreakDexAlbumError.assetCreationFailed
             }
+        } catch {
+            logger.error("💾 ALBUM_MANAGER: ❌ Failed to copy video from file to BreakDex album atomically: \(error.localizedDescription)")
+            throw error
         }
     }
     
     /// Save a video to BreakDex album and return its identifier
     /// - Parameter fileURL: Local file URL of the video
     /// - Returns: Photos identifier of the saved video
+    /// 🔄 ATOMIC: Now uses PhotoKitService for atomic operations
     func saveVideoToBreakDexAlbum(_ fileURL: URL) async throws -> String {
-        logger.info("💾 ALBUM_MANAGER: Saving video to BreakDex album: \(fileURL.absoluteString)")
-        
-        let asset = try await copyVideoToBreakDex(from: fileURL)
-        logger.info("💾 ALBUM_MANAGER: Video saved to BreakDex album successfully: \(asset.localIdentifier)")
-        
-        return asset.localIdentifier
+        logger.info("💾 ALBUM_MANAGER: 🔄 Saving video to BreakDex album atomically: \(fileURL.lastPathComponent)")
+
+        do {
+            let localIdentifier = try await photoKitService.saveVideoToBreakDexAlbum(fileURL)
+            logger.info("💾 ALBUM_MANAGER: ✅ Video saved to BreakDex album atomically: \(localIdentifier)")
+            return localIdentifier
+        } catch {
+            logger.error("💾 ALBUM_MANAGER: ❌ Failed to save video to BreakDex album atomically: \(error.localizedDescription)")
+            throw error
+        }
     }
     
     /// Check if a video exists in BreakDex album by local identifier
@@ -203,20 +193,13 @@ class BreakDexAlbumManager: ObservableObject {
     
     /// Get all videos in BreakDex album
     /// - Returns: Array of all video assets in BreakDex
+    /// 🔄 ATOMIC: Now uses PhotoKitService for atomic operations
     func getAllVideosInBreakDex() async -> [PHAsset] {
-        guard let album = albumState.album else { return [] }
-        
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        
-        let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
-        var assets: [PHAsset] = []
-        
-        fetchResult.enumerateObjects { asset, _, _ in
-            assets.append(asset)
-        }
-        
+        logger.info("💾 ALBUM_MANAGER: 📂 Getting all videos from BreakDex album")
+
+        let assets = await photoKitService.getAllVideosInBreakDex()
+        logger.info("💾 ALBUM_MANAGER: ✅ Retrieved \(assets.count) videos from BreakDex album")
+
         return assets
     }
     
@@ -251,57 +234,6 @@ class BreakDexAlbumManager: ObservableObject {
         
         try data.write(to: tempURL)
         return tempURL
-    }
-    
-    private func findBreakDexAlbum() async -> PHAssetCollection? {
-        return await withCheckedContinuation { continuation in
-            let fetchOptions = PHFetchOptions()
-            fetchOptions.predicate = NSPredicate(format: "title == %@", albumName)
-            
-            let collections = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: fetchOptions)
-            
-            if let album = collections.firstObject {
-                continuation.resume(returning: album)
-            } else {
-                continuation.resume(returning: nil)
-            }
-        }
-    }
-    
-    private func createBreakDexAlbum() async throws -> PHAssetCollection {
-        return try await withCheckedThrowingContinuation { continuation in
-            var collectionPlaceholder: PHObjectPlaceholder?
-            PHPhotoLibrary.shared().performChanges {
-                let createRequest = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: self.albumName)
-                collectionPlaceholder = createRequest.placeholderForCreatedAssetCollection
-            } completionHandler: { success, error in
-                if success, let collectionPlaceholder = collectionPlaceholder {
-                    let fetchResult = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [collectionPlaceholder.localIdentifier], options: nil)
-                    if let album = fetchResult.firstObject {
-                        continuation.resume(returning: album)
-                    } else {
-                        continuation.resume(throwing: BreakDexAlbumError.albumCreationFailed)
-                    }
-                } else {
-                    continuation.resume(throwing: error ?? BreakDexAlbumError.albumCreationFailed)
-                }
-            }
-        }
-    }
-    
-    private func waitForAlbumCreation() async throws {
-        // Simple polling mechanism - in production, consider using a more sophisticated approach
-        let maxAttempts = 10
-        let delay: UInt64 = 500_000_000 // 0.5 seconds
-        
-        for _ in 0..<maxAttempts {
-            if case .ready = albumState {
-                return
-            }
-            try await Task.sleep(nanoseconds: delay)
-        }
-        
-        throw BreakDexAlbumError.albumCreationTimeout
     }
 }
 

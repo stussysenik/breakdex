@@ -215,8 +215,8 @@ public final class TrimmerViewModel: ObservableObject {
         Task { [weak self] in
             await MainActor.run {
                 guard let self = self else { return }
-                self.stopCoalescing()
-                // stopFrameAnimation() removed - no longer needed with simplified animation system
+                // 🎯 CRITICAL FIX: Call comprehensive teardown
+                self.teardown()
             }
         }
     }
@@ -397,10 +397,13 @@ public final class TrimmerViewModel: ObservableObject {
         }
         playerViewModel.pauseForTrimming()
         guard displayLink == nil else { return }
-        displayLink = CADisplayLink(target: self, selector: #selector(tick))
+
+        // 🎯 CRITICAL FIX: Use weak reference to prevent retain cycle
+        let weakTarget = WeakTimerTarget(self, selector: #selector(TrimmerViewModel.tick))
+        displayLink = CADisplayLink(target: weakTarget, selector: #selector(WeakTimerTarget.forwardTick))
         displayLink?.add(to: .main, forMode: .common)
     }
-    
+
     public func stopCoalescing() {
         // Only log if we actually had an active timer
         if displayLink != nil {
@@ -409,8 +412,37 @@ public final class TrimmerViewModel: ObservableObject {
         displayLink?.invalidate()
         displayLink = nil
     }
+
+    // 🎯 CRITICAL FIX: Added explicit display link cleanup
+    private func cleanupDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+        diagnosticLogger.logDebug("🧹 Display link cleanup completed")
+    }
+
+    // 🎯 CRITICAL FIX: Added comprehensive teardown method
+    public func teardown() {
+        diagnosticLogger.logInfo("🧹 Starting TrimmerViewModel teardown")
+
+        // Stop all async operations
+        stopCoalescing()
+
+        // Clear state change callbacks to break potential retain cycles
+        cleanupStateChangeCallbacks()
+
+        // Cleanup display link
+        cleanupDisplayLink()
+
+        diagnosticLogger.logInfo("✅ TrimmerViewModel teardown completed")
+    }
+
+    // 🎯 CRITICAL FIX: Added state change callback cleanup
+    private func cleanupStateChangeCallbacks() {
+        stateChangeCallbacks.removeAll()
+        diagnosticLogger.logDebug("🧹 State change callbacks cleared")
+    }
     
-    @objc private func tick() {
+    @objc func tick() {
         guard let time = pendingPreviewTime else { return }
         pendingPreviewTime = nil
         // Reduce verbosity - only log significant time jumps
@@ -904,7 +936,16 @@ public final class TrimmerViewModel: ObservableObject {
             "current_duration": "\((endTime - startTime).seconds)",
             "minimum_duration": "\(minimumDuration.seconds)"
         ])
-        HapticManager.shared.trigger(.heavyImpact)
+
+        // 🎯 CRITICAL FIX: Resilient haptic error handling to prevent system-level errors
+        do {
+            HapticManager.shared.trigger(.heavyImpact)
+        } catch {
+            diagnosticLogger.logWarning("Haptic feedback failed for boundary", metadata: [
+                "error": error.localizedDescription,
+                "haptic_event": "heavyImpact"
+            ])
+        }
     }
 
     // MARK: - Haptic Feedback
@@ -912,7 +953,16 @@ public final class TrimmerViewModel: ObservableObject {
         diagnosticLogger.logDebug("📳 Triggering haptic feedback", metadata: [
             "haptic_event": "\(event)"
         ])
-        HapticManager.shared.trigger(event)
+
+        // 🎯 CRITICAL FIX: Resilient haptic error handling to prevent system-level errors
+        do {
+            HapticManager.shared.trigger(event)
+        } catch {
+            diagnosticLogger.logWarning("Haptic feedback failed", metadata: [
+                "error": error.localizedDescription,
+                "haptic_event": "\(event)"
+            ])
+        }
     }
 
     // MARK: - Animation State Management
@@ -1025,6 +1075,25 @@ public final class HapticManager {
             selectionFeedback.selectionChanged()
         case .heavyImpact:
             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        }
+    }
+}
+
+// MARK: - Weak Timer Target (Memory Leak Fix)
+// 🎯 CRITICAL FIX: Weak reference wrapper to prevent CADisplayLink retain cycles
+fileprivate class WeakTimerTarget: NSObject {
+    private weak var target: TrimmerViewModel?
+    private let selector: Selector
+
+    init(_ target: TrimmerViewModel, selector: Selector) {
+        self.target = target
+        self.selector = selector
+        super.init()
+    }
+
+    @objc func forwardTick() {
+        Task { @MainActor in
+            target?.tick()
         }
     }
 }

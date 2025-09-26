@@ -64,11 +64,17 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         trimEndTime: Double?,
         rotationQuarterTurns: Int
     ) async throws -> Move {
-        logger.info("💾 MOVE_PERSISTENCE: Creating Move entity in Core Data")
+        let operationStartTime = Date()
+        logger.info("💾 MOVE_PERSISTENCE: 🚀 Creating Move entity in Core Data [context:\(Thread.isMainThread ? "main" : "background")]")
         logger.info("💾 MOVE_PERSISTENCE: Move name: \(name)")
         logger.info("💾 MOVE_PERSISTENCE: Original photos ID: \(originalPhotosIdentifier)")
         logger.info("💾 MOVE_PERSISTENCE: Trim start: \(trimStartTime ?? 0), end: \(trimEndTime ?? 0)")
         logger.info("💾 MOVE_PERSISTENCE: Rotation: \(rotationQuarterTurns)°")
+
+        // Categorical analysis: Log thread safety and concurrency context
+        let threadContext = Thread.isMainThread ? "main_actor" : "background_thread"
+        let memoryInfo = ProcessInfo.processInfo
+        logger.info("💾 MOVE_PERSISTENCE: 🧮 Thread context: \(threadContext), Memory: \(memoryInfo.physicalMemory / (1024*1024*1024))GB")
 
         // ✨ VALIDATION: Check for duplicate move names before creating entity
         logger.info("💾 MOVE_PERSISTENCE: 🔍 Validating move name uniqueness")
@@ -117,14 +123,33 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         logger.info("💾 MOVE_PERSISTENCE: Binary storage removed, using photos library reference approach")
         
         do {
+            let saveStartTime = Date()
             try context.save()
-            logger.info("💾 MOVE_PERSISTENCE: ✅ Move entity saved to Core Data")
+            let saveDuration = Date().timeIntervalSince(saveStartTime)
+
+            logger.info("💾 MOVE_PERSISTENCE: ✅ Move entity saved to Core Data [duration:\(String(format: "%.2f", saveDuration))s]")
             logger.info("💾 MOVE_PERSISTENCE: 📊 Move ID: \(move.id ?? UUID())")
+            logger.info("💾 MOVE_PERSISTENCE: 📊 Total operation duration: \(String(format: "%.2f", Date().timeIntervalSince(operationStartTime)))s")
+
+            // Categorical analysis: Log success metrics
+            logger.info("💾 MOVE_PERSISTENCE: 🧮 Save operation metrics - duration: \(Int(Date().timeIntervalSince(operationStartTime) * 1000))ms, context: \(threadContext), name: \(name)")
+
             return move
         } catch {
+            let errorDuration = Date().timeIntervalSince(operationStartTime)
             logger.error("💾 MOVE_PERSISTENCE: ❌ Failed to save Move entity: \(error.localizedDescription)")
             logger.error("💾 MOVE_PERSISTENCE: ❌ Error type: \(type(of: error))")
-            throw NSError(domain: "MovePersistenceService", code: 1001, userInfo: [NSLocalizedDescriptionKey: "Failed to save move to Core Data", NSUnderlyingErrorKey: error])
+            logger.error("💾 MOVE_PERSISTENCE: ❌ Failed after \(String(format: "%.2f", errorDuration))s")
+
+            // Categorical analysis: Log failure metrics
+            logger.error("💾 MOVE_PERSISTENCE: 🧮 Save failure metrics - duration: \(Int(errorDuration * 1000))ms, context: \(threadContext), error: \((error as NSError).domain):\((error as NSError).code), name: \(name)")
+
+            throw NSError(domain: "MovePersistenceService", code: 1001, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to save move to Core Data",
+                NSUnderlyingErrorKey: error,
+                "OperationDuration": errorDuration,
+                "ThreadContext": threadContext
+            ])
         }
     }
     
