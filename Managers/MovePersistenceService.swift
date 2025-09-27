@@ -1,11 +1,13 @@
 import SwiftUI
 import AVKit
 import CoreData
+import Photos
 import OSLog
 
 // MARK: - MovePersistenceService Protocol
 public protocol MovePersistenceServiceProtocol {
     func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> String // ✅ FIXED: Returns localIdentifier
+    func deleteVideoFromPhotos(localIdentifier: String) async throws // ✅ ADDED: For rollback operations
     func createMoveEntity(
         name: String,
         originalPhotosIdentifier: String, // ✅ FIXED: This is the single source of truth
@@ -21,6 +23,7 @@ public protocol MovePersistenceServiceProtocol {
         trimEndTime: Double?,
         rotationQuarterTurns: Int
     ) async throws
+    func cleanupOrphanedMoveEntity(name: String) async throws // 🎯 ADDED: For rollback operations
 }
 
 // MARK: - Move Persistence Service
@@ -187,7 +190,48 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         logger.info("💾 MOVE_PERSISTENCE: ✅ Complete save operation finished successfully")
         logger.info("💾 MOVE_PERSISTENCE: 📊 Final Move entity: \(move)")
     }
-    
+
+    /// Delete video from Photos library (for rollback operations)
+    func deleteVideoFromPhotos(localIdentifier: String) async throws {
+        logger.info("💾 MOVE_PERSISTENCE: Deleting video from Photos library: \(localIdentifier.prefix(20))...")
+
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+        guard let asset = fetchResult.firstObject else {
+            logger.warning("💾 MOVE_PERSISTENCE: ⚠️ Asset not found for deletion: \(localIdentifier.prefix(20))...")
+            return // Asset doesn't exist, consider deletion successful
+        }
+
+        try await PHPhotoLibrary.shared().performChanges {
+            PHAssetChangeRequest.deleteAssets([asset] as NSArray)
+        }
+
+        logger.info("💾 MOVE_PERSISTENCE: ✅ Video deleted from Photos library successfully")
+    }
+
+    /// Clean up orphaned Move entity (for rollback operations)
+    func cleanupOrphanedMoveEntity(name: String) async throws {
+        logger.info("💾 MOVE_PERSISTENCE: 🔄 Cleaning up potential orphaned Move entity: \(name)")
+
+        let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@", name)
+        fetchRequest.fetchLimit = 1
+
+        do {
+            let results = try viewContext.fetch(fetchRequest)
+            if let orphanedMove = results.first {
+                logger.info("💾 MOVE_PERSISTENCE: 🗑️ Found orphaned Move entity, deleting: \(orphanedMove.name ?? "unnamed")")
+                viewContext.delete(orphanedMove)
+                try viewContext.save()
+                logger.info("💾 MOVE_PERSISTENCE: ✅ Orphaned Move entity deleted successfully")
+            } else {
+                logger.info("💾 MOVE_PERSISTENCE: ℹ️ No orphaned Move entity found for cleanup: \(name)")
+            }
+        } catch {
+            logger.error("💾 MOVE_PERSISTENCE: ❌ Failed to cleanup orphaned Move entity: \(error.localizedDescription)")
+            throw error
+        }
+    }
+
     // MARK: - Helper Methods
     
     /// Validate move data before saving

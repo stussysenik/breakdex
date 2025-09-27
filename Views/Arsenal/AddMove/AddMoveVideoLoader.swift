@@ -278,54 +278,237 @@ public actor AddMoveVideoLoader {
     }
 
     private func loadDirectly(from item: PhotosPickerItem) async throws -> AddMoveVideoLoaderResult {
-        logger.info("🎬 VIDEO_LOADER: loadDirectly called")
-        logger.info("🎬 VIDEO_LOADER: Checking content types for movie support")
+        let correlationId = currentCorrelationId ?? "unknown"
 
-        // For iOS 18 PhotosPickerItem, we need to check if it can load movie data
-        // We'll try to load the data and see if it succeeds
+        logger.info("🎬 VIDEO_LOADER: loadDirectly called [\(correlationId)]")
+        await diagnosticLogger.logInfo("Starting direct video loading", metadata: [
+            "correlation_id": correlationId,
+            "loading_method": "streaming_file_copy"
+        ])
 
-        logger.info("🎬 VIDEO_LOADER: Loading transferable data from PhotosPickerItem")
-        guard let data = try await item.loadTransferable(type: Data.self) else {
-            logger.error("🎬 VIDEO_LOADER: Failed to load transferable data")
-            throw AddMoveVideoLoaderError.dataUnavailable
-        }
+        memoryLogger.logMemoryState(context: "Before Direct Loading", correlationId: correlationId, component: "AddMoveVideoLoader")
 
-        logger.info("🎬 VIDEO_LOADER: Data loaded successfully, size: \(data.count) bytes")
+        await diagnosticLogger.startTiming("direct_loading")
 
-        // Validate that the data is actually a video by creating an AVAsset
+        // Create temporary URL for streaming file copy
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
-        logger.info("🎬 VIDEO_LOADER: Created temp URL: \(tempURL.absoluteString)")
+
+        logger.info("🎬 VIDEO_LOADER: Created temp URL for streaming: \(tempURL.lastPathComponent) [\(correlationId)]")
+        await diagnosticLogger.logInfo("Temporary file created", metadata: [
+            "correlation_id": correlationId,
+            "temp_filename": tempURL.lastPathComponent,
+            "file_size": "0",
+            "loading_approach": "streaming_copy"
+        ])
 
         do {
-            logger.info("🎬 VIDEO_LOADER: Writing data to temp file")
-            try data.write(to: tempURL)
-            logger.info("🎬 VIDEO_LOADER: Data written to temp file successfully")
+            // Use streaming approach instead of loading entire file into memory
+            await diagnosticLogger.startTiming("file_copy")
+
+            logger.info("🎬 VIDEO_LOADER: 🔄 Starting streaming file copy [\(correlationId)]")
+            await diagnosticLogger.logInfo("Initiating streaming file copy", metadata: [
+                "correlation_id": correlationId,
+                "copy_method": "streaming",
+                "memory_efficient": "true",
+                "avoid_memory_overload": "true"
+            ])
+
+            // 🎯 CRITICAL FIX: Use true streaming file copy without loading entire Data into memory
+            // This prevents memory overload for large video files
+            guard let fileURL = try await item.loadTransferable(type: URL.self) else {
+                // Fallback to Data approach only if URL transfer is not supported
+                logger.warning("🎬 VIDEO_LOADER: ⚠️ URL transfer not supported, falling back to Data loading [\(correlationId)]")
+                await diagnosticLogger.logWarning("URL transfer failed, using Data fallback", metadata: [
+                    "correlation_id": correlationId,
+                    "fallback_reason": "URL transfer not supported",
+                    "memory_warning": "potential_memory_overload"
+                ])
+
+                guard let data = try await item.loadTransferable(type: Data.self) else {
+                    let error = AddMoveVideoLoaderError.temporaryFileError(NSError(domain: "PhotosPicker", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not load video data from PhotosPicker item"]))
+                    logger.error("🎬 VIDEO_LOADER: ❌ Could not load video data from PhotosPicker item [\(correlationId)]")
+                    await diagnosticLogger.logError("Failed to load video data from PhotosPicker", metadata: [
+                        "correlation_id": correlationId,
+                        "error": "Could not load video data",
+                        "user_impact": "Cannot load video - PhotosPicker data loading failed"
+                    ])
+                    throw error
+                }
+
+                // Write the data to the temporary file
+                try data.write(to: tempURL)
+
+                await diagnosticLogger.logWarning("Used Data fallback for file copy", metadata: [
+                    "correlation_id": correlationId,
+                    "file_size_bytes": "\(data.count)",
+                    "memory_impact": "high",
+                    "fallback_successful": "true"
+                ])
+
+                // Create AVAsset from the temporary file
+                let avAsset = AVURLAsset(url: tempURL)
+
+                // Load asset duration to validate it's a valid video
+                let assetDuration = try await avAsset.load(.duration)
+
+                guard assetDuration.seconds > 0 else {
+                    logger.error("🎬 VIDEO_LOADER: ❌ Invalid video duration from Data fallback: \(assetDuration.seconds) [\(correlationId)]")
+                    await diagnosticLogger.logError("Invalid video duration from Data fallback", metadata: [
+                        "correlation_id": correlationId,
+                        "duration_seconds": "\(assetDuration.seconds)",
+                        "file_path": tempURL.path,
+                        "user_impact": "Cannot load video - invalid file format from Data fallback"
+                    ])
+                    throw AddMoveVideoLoaderError.unsupportedFileType
+                }
+
+                // Generate filename and identifier
+                let filename = "video-\(Date().timeIntervalSince1970).mov"
+                let tempIdentifier = "temp-\(UUID().uuidString)"
+
+                await diagnosticLogger.stopTiming("direct_loading")
+
+                logger.info("🎬 VIDEO_LOADER: 🏆 Returning VideoLoaderResult from Data fallback [\(correlationId)]")
+
+                return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: tempIdentifier, filename: filename, temporaryFileURL: tempURL)
+            }
+
+            // Use streaming file copy for memory efficiency
+            do {
+                try FileManager.default.copyItem(at: fileURL, to: tempURL)
+                    await diagnosticLogger.logInfo("Streaming file copy completed", metadata: [
+                    "correlation_id": correlationId,
+                    "source_url": fileURL.lastPathComponent,
+                    "destination_url": tempURL.lastPathComponent,
+                    "copy_method": "streaming_file_copy",
+                    "memory_efficient": "true",
+                    "avoided_memory_overload": "true"
+                ])
+            } catch {
+                logger.error("🎬 VIDEO_LOADER: ❌ File copy failed: \(error.localizedDescription) [\(correlationId)]")
+                await diagnosticLogger.logError("Streaming file copy failed", error: error, metadata: [
+                    "correlation_id": correlationId,
+                    "source_url": fileURL.path,
+                    "destination_url": tempURL.path,
+                    "user_impact": "Cannot load video - file copy failed"
+                ])
+                throw AddMoveVideoLoaderError.temporaryFileError(error)
+            }
+
+            await diagnosticLogger.stopTiming("file_copy")
+
+            // Verify file was created and has content
+            guard FileManager.default.fileExists(atPath: tempURL.path) else {
+                let error = AddMoveVideoLoaderError.temporaryFileError(NSError(domain: "FileManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "File was not created"]))
+                logger.error("🎬 VIDEO_LOADER: ❌ Temporary file was not created [\(correlationId)]")
+                await diagnosticLogger.logError("Temporary file creation failed", metadata: [
+                    "correlation_id": correlationId,
+                    "temp_path": tempURL.path,
+                    "file_exists": "false",
+                    "user_impact": "Cannot load video - file creation failed"
+                ])
+                throw error
+            }
+
+            // Get file size for logging
+            do {
+                let resources = try tempURL.resourceValues(forKeys: [.fileSizeKey])
+                if let fileSize = resources.fileSize {
+                    logger.info("🎬 VIDEO_LOADER: ✅ File copied successfully, size: \(fileSize) bytes (\(Double(fileSize) / (1024 * 1024)) MB) [\(correlationId)]")
+                    await diagnosticLogger.logInfo("Streaming file copy completed", metadata: [
+                        "correlation_id": correlationId,
+                        "file_size_bytes": "\(fileSize)",
+                        "file_size_mb": "\(String(format: "%.2f", Double(fileSize) / (1024 * 1024)))",
+                        "copy_duration_ms": "\(String(format: "%.1f", (operationTimings["file_copy"] ?? 0) * 1000))",
+                        "memory_efficient": "true",
+                        "avoided_memory_overload": "true"
+                    ])
+                }
+            } catch {
+                logger.warning("🎬 VIDEO_LOADER: ⚠️ Could not get file size, but file was copied [\(correlationId)]")
+            }
+
+            // Create AVAsset from the temporary file
+            await diagnosticLogger.startTiming("asset_creation")
+            let avAsset = AVURLAsset(url: tempURL)
+
+            // Load asset duration to validate it's a valid video
+            let assetDuration = try await avAsset.load(.duration)
+            await diagnosticLogger.stopTiming("asset_creation")
+
+            guard assetDuration.seconds > 0 else {
+                logger.error("🎬 VIDEO_LOADER: ❌ Invalid video duration: \(assetDuration.seconds) [\(correlationId)]")
+                await diagnosticLogger.logError("Invalid video duration", metadata: [
+                    "correlation_id": correlationId,
+                    "duration_seconds": "\(assetDuration.seconds)",
+                    "file_path": tempURL.path,
+                    "user_impact": "Cannot load video - invalid file format"
+                ])
+                throw AddMoveVideoLoaderError.unsupportedFileType
+            }
+
+            await diagnosticLogger.logInfo("Video asset validated", metadata: [
+                "correlation_id": correlationId,
+                "asset_duration_seconds": "\(assetDuration.seconds)",
+                "asset_creation_duration_ms": "\(String(format: "%.1f", (operationTimings["asset_creation"] ?? 0) * 1000))",
+                "validation_successful": "true"
+            ])
+
+            logger.info("🎬 VIDEO_LOADER: ✅ Valid video asset created with duration: \(assetDuration.seconds) seconds [\(correlationId)]")
+
+            // Generate filename and identifier
+            let filename = "video-\(Date().timeIntervalSince1970).mov"
+            let tempIdentifier = "temp-\(UUID().uuidString)"
+
+            await diagnosticLogger.stopTiming("direct_loading")
+            memoryLogger.logMemoryState(context: "After Direct Loading", correlationId: correlationId, component: "AddMoveVideoLoader")
+
+            await diagnosticLogger.logInfo("Direct loading completed successfully", metadata: [
+                "correlation_id": correlationId,
+                "total_duration_ms": "\(String(format: "%.1f", (operationTimings["direct_loading"] ?? 0) * 1000))",
+                "filename": filename,
+                "temp_identifier": tempIdentifier,
+                "final_asset_duration": "\(assetDuration.seconds)",
+                "memory_efficient": "true",
+                "streaming_successful": "true"
+            ])
+
+            logger.info("🎬 VIDEO_LOADER: 🏆 Returning VideoLoaderResult from direct load [\(correlationId)]")
+
+            return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: tempIdentifier, filename: filename, temporaryFileURL: tempURL)
+
         } catch {
-            logger.error("🎬 VIDEO_LOADER: Failed to write data to temp file: \(error.localizedDescription)")
-            throw AddMoveVideoLoaderError.temporaryFileError(error)
+            await diagnosticLogger.stopTiming("direct_loading")
+
+            // Clean up temporary file if it exists
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try? FileManager.default.removeItem(at: tempURL)
+                await diagnosticLogger.logInfo("Cleaned up temporary file after error", metadata: [
+                    "correlation_id": correlationId,
+                    "temp_path": tempURL.path,
+                    "cleanup_successful": "true"
+                ])
+            }
+
+            logger.error("🎬 VIDEO_LOADER: ❌ Direct loading failed: \(error.localizedDescription) [\(correlationId)]")
+            await diagnosticLogger.logError("Direct loading failed", error: error, metadata: [
+                "correlation_id": correlationId,
+                "temp_path": tempURL.path,
+                "error_type": "\(type(of: error))",
+                "user_impact": "Cannot load video - streaming copy failed"
+            ])
+
+            // Convert to appropriate error type
+            if error.localizedDescription.contains("format") || error.localizedDescription.contains("type") {
+                throw AddMoveVideoLoaderError.unsupportedFileType
+            } else if error.localizedDescription.contains("data") {
+                throw AddMoveVideoLoaderError.dataUnavailable
+            } else {
+                throw AddMoveVideoLoaderError.temporaryFileError(error)
+            }
         }
-
-        // Validate that this is actually a video file
-        let avAsset = AVURLAsset(url: tempURL)
-        let assetDuration = try await avAsset.load(.duration)
-
-        guard assetDuration.seconds > 0 else {
-            logger.error("🎬 VIDEO_LOADER: Invalid video duration: \(assetDuration.seconds)")
-            throw AddMoveVideoLoaderError.unsupportedFileType
-        }
-
-        logger.info("🎬 VIDEO_LOADER: Valid video asset created with duration: \(assetDuration.seconds) seconds")
-
-        let filename = "video-\(Date().timeIntervalSince1970).mov"
-        let tempIdentifier = "temp-\(UUID().uuidString)"
-
-        logger.info("🎬 VIDEO_LOADER: Generated filename: \(filename)")
-        logger.info("🎬 VIDEO_LOADER: Generated temp identifier: \(tempIdentifier)")
-        logger.info("🎬 VIDEO_LOADER: Returning VideoLoaderResult from direct load")
-
-        return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: tempIdentifier, filename: filename, temporaryFileURL: tempURL)
     }
 
     // MARK: - Helper Methods

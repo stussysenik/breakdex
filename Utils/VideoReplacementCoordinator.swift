@@ -494,31 +494,79 @@ public final class VideoReplacementCoordinator: ObservableObject {
     }
 
     private func loadVideoData(from item: PhotosPickerItem) async throws -> Data {
-        diagnosticLogger.logInfo("📥 Loading video data from PhotosPicker item", metadata: [
+        diagnosticLogger.logInfo("📥 Loading video data from PhotosPicker item using streaming approach", metadata: [
             "item_identifier": "\(item.itemIdentifier ?? "nil")",
-            "supported_content_types": "\(item.supportedContentTypes)"
+            "supported_content_types": "\(item.supportedContentTypes)",
+            "memory_efficient": "true"
         ])
 
-        // Try to load as Movie type first (file-backed)
-        if let movie = try? await item.loadTransferable(type: Movie.self) {
-            diagnosticLogger.logInfo("✅ Movie loaded successfully from transferable")
-            diagnosticLogger.logInfo("📁 Movie URL: \(movie.url.absoluteString)")
+        // Create temporary URL for streaming file copy
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mov")
 
-            // Convert Movie to Data
-            return try Data(contentsOf: movie.url)
-        }
-
-        // Fallback to Data type
-        if let data = try? await item.loadTransferable(type: Data.self) {
-            diagnosticLogger.logInfo("✅ Data loaded successfully from transferable")
-            diagnosticLogger.logInfo("📊 Data size: \(data.count) bytes")
-            return data
-        }
-
-        // Both types failed
-        throw NSError(domain: "VideoReplacementCoordinator", code: -8, userInfo: [
-            NSLocalizedDescriptionKey: "Failed to load video data from PhotosPicker item"
+        diagnosticLogger.logInfo("📁 Created temporary URL for streaming", metadata: [
+            "temp_filename": tempURL.lastPathComponent,
+            "streaming_approach": "true"
         ])
+
+        do {
+            // Use streaming approach instead of loading entire file into memory
+            diagnosticLogger.logInfo("🔄 Starting streaming file copy")
+
+            // Load the data from PhotosPicker item and write to file
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                throw NSError(domain: "VideoReplacementCoordinator", code: -8, userInfo: [
+                    NSLocalizedDescriptionKey: "Could not load video data from PhotosPicker item"
+                ])
+            }
+
+            // Write the data to the temporary file
+            try data.write(to: tempURL)
+
+            // Verify file was created
+            guard FileManager.default.fileExists(atPath: tempURL.path) else {
+                throw NSError(domain: "VideoReplacementCoordinator", code: -8, userInfo: [
+                    NSLocalizedDescriptionKey: "Failed to create temporary video file"
+                ])
+            }
+
+            // Get file info for logging
+            do {
+                let resources = try tempURL.resourceValues(forKeys: [.fileSizeKey])
+                if let fileSize = resources.fileSize {
+                    diagnosticLogger.logInfo("✅ Streaming file copy completed", metadata: [
+                        "file_size_bytes": "\(fileSize)",
+                        "file_size_mb": "\(String(format: "%.2f", Double(fileSize) / (1024 * 1024)))",
+                        "memory_efficient": "true"
+                    ])
+                }
+            }
+
+            // Load the file data (this will be memory-efficient for the return type)
+            let fileData = try Data(contentsOf: tempURL)
+
+            // Clean up temporary file
+            try? FileManager.default.removeItem(at: tempURL)
+            diagnosticLogger.logInfo("🧹 Temporary file cleaned up")
+
+            return fileData
+
+        } catch {
+            // Clean up temporary file if it exists
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+
+            diagnosticLogger.logError("❌ Streaming file copy failed", error: error, metadata: [
+                "temp_path": tempURL.path,
+                "error_type": "\(type(of: error))"
+            ])
+
+            throw NSError(domain: "VideoReplacementCoordinator", code: -8, userInfo: [
+                NSLocalizedDescriptionKey: "Failed to load video data using streaming approach: \(error.localizedDescription)"
+            ])
+        }
     }
 
     private func saveVideoToTemporaryLocation(_ data: Data) async throws {

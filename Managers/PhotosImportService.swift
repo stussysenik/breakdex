@@ -53,68 +53,58 @@ public class PhotosImportService: PhotosImportServiceProtocol {
             
             self.importTask = Task {
                 do {
-                    logger.info("📥 PHOTOS_IMPORT: Starting video import via loadTransferable")
-                    
-                    // Try Movie type first (file-backed)
-                    logger.info("📥 PHOTOS_IMPORT: 🔍 Attempting to load Movie type from transferable")
-                    if let movie = try? await item.loadTransferable(type: Movie.self) {
-                        logger.info("📥 PHOTOS_IMPORT: ✅ Movie loaded successfully from transferable")
-                        logger.info("📥 PHOTOS_IMPORT: 📁 Movie URL: \(movie.url.absoluteString)")
-                        logger.info("📥 PHOTOS_IMPORT: 💾 Starting persist operation...")
-                        let url = try persist(movie: movie)
-                        
-                        if Task.isCancelled { 
-                            logger.info("📥 PHOTOS_IMPORT: Import task cancelled after Movie persist")
-                            continuation.resume(throwing: CancellationError())
-                            return
+                    logger.info("📥 PHOTOS_IMPORT: Starting video import via streaming approach")
+
+                    // Create temporary URL for streaming file copy
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("mov")
+
+                    logger.info("📥 PHOTOS_IMPORT: 📁 Created temp URL: \(tempURL.lastPathComponent)")
+
+                    // Use streaming approach by loading the data and writing to file
+                    logger.info("📥 PHOTOS_IMPORT: 🔄 Starting streaming file copy")
+
+                    // Load the data from the PhotosPicker item
+                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                        throw ImportError.fileOperationFailed(NSError(domain: "PhotosImportService", code: -2, userInfo: [NSLocalizedDescriptionKey: "Could not load video data from PhotosPicker item"]))
+                    }
+
+                    // Write the data to the temporary file
+                    try data.write(to: tempURL)
+
+                    logger.info("📥 PHOTOS_IMPORT: ✅ Streaming file copy completed")
+
+                    // Get file size for logging
+                    do {
+                        let resources = try tempURL.resourceValues(forKeys: [.fileSizeKey])
+                        if let fileSize = resources.fileSize {
+                            logger.info("📥 PHOTOS_IMPORT: 📊 File size: \(fileSize) bytes (\(Double(fileSize) / (1024 * 1024)) MB)")
                         }
-                        
-                        await MainActor.run {
-                            self.importState = .ready(url)
-                            logger.info("📥 PHOTOS_IMPORT: Import completed successfully, URL: \(url)")
-                        }
-                        
-                        continuation.resume(returning: url)
+                    }
+
+                    logger.info("📥 PHOTOS_IMPORT: 💾 Starting persist operation...")
+                    let url = try persist(file: tempURL)
+
+                    if Task.isCancelled {
+                        logger.info("📥 PHOTOS_IMPORT: Import task cancelled after file persist")
+                        continuation.resume(throwing: CancellationError())
                         return
                     }
-                    
-                    // Fallback to Data type
-                    logger.info("📥 PHOTOS_IMPORT: ⚠️ Movie type failed, falling back to Data type")
-                    logger.info("📥 PHOTOS_IMPORT: 🔍 Attempting to load Data type from transferable")
-                    if let data = try? await item.loadTransferable(type: Data.self) {
-                        logger.info("📥 PHOTOS_IMPORT: ✅ Data loaded successfully from transferable")
-                        logger.info("📥 PHOTOS_IMPORT: 📊 Data size: \(data.count) bytes")
-                        logger.info("📥 PHOTOS_IMPORT: 💾 Starting persist operation for Data...")
-                        let url = try persist(data: data, utType: .movie)
-                        
-                        if Task.isCancelled { 
-                            logger.info("📥 PHOTOS_IMPORT: Import task cancelled after Data persist")
-                            continuation.resume(throwing: CancellationError())
-                            return
-                        }
-                        
-                        await MainActor.run {
-                            self.importState = .ready(url)
-                            logger.info("📥 PHOTOS_IMPORT: Import completed successfully, URL: \(url)")
-                        }
-                        
-                        continuation.resume(returning: url)
-                        return
-                    }
-                    
-                    // Both types failed
-                    logger.error("📥 PHOTOS_IMPORT: ❌ Both Movie and Data types failed to load")
-                    logger.error("📥 PHOTOS_IMPORT: ❌ No transferable data available")
+
                     await MainActor.run {
-                        self.importState = .error(ImportError.unsupportedType)
+                        self.importState = .ready(url)
+                        logger.info("📥 PHOTOS_IMPORT: Import completed successfully, URL: \(url)")
                     }
-                    continuation.resume(throwing: ImportError.unsupportedType)
-                    
+
+                    continuation.resume(returning: url)
+                    return
+
                 } catch {
-                    if Task.isCancelled { 
+                    if Task.isCancelled {
                         logger.info("📥 PHOTOS_IMPORT: Import task cancelled during error handling")
                         continuation.resume(throwing: CancellationError())
-                        return 
+                        return
                     }
                     
                     logger.error("📥 PHOTOS_IMPORT: ❌ Import pipeline failed with error")
@@ -162,18 +152,42 @@ public class PhotosImportService: PhotosImportServiceProtocol {
     /// Persist Data to app-scoped URL
     private func persist(data: Data, utType: UTType) throws -> URL {
         logger.info("📥 PHOTOS_IMPORT: Persisting Data to app-scoped URL, size: \(data.count) bytes")
-        
+
         let fileExtension = utType.preferredFilenameExtension ?? "mov"
         let destinationURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension(fileExtension)
-        
+
         do {
             try data.write(to: destinationURL)
             logger.info("📥 PHOTOS_IMPORT: Data persisted successfully to: \(destinationURL)")
             return destinationURL
         } catch {
             logger.error("📥 PHOTOS_IMPORT: Failed to persist Data: \(error.localizedDescription)")
+            throw ImportError.fileOperationFailed(error)
+        }
+    }
+
+    /// Persist file URL to app-scoped URL (streaming approach)
+    private func persist(file sourceURL: URL) throws -> URL {
+        logger.info("📥 PHOTOS_IMPORT: Persisting file to app-scoped URL: \(sourceURL.lastPathComponent)")
+
+        let fileExtension = sourceURL.pathExtension.isEmpty ? "mov" : sourceURL.pathExtension
+        let destinationURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(fileExtension)
+
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            logger.info("📥 PHOTOS_IMPORT: File persisted successfully to: \(destinationURL)")
+
+            // Clean up source temporary file
+            try? FileManager.default.removeItem(at: sourceURL)
+            logger.info("📥 PHOTOS_IMPORT: Source temporary file cleaned up")
+
+            return destinationURL
+        } catch {
+            logger.error("📥 PHOTOS_IMPORT: Failed to persist file: \(error.localizedDescription)")
             throw ImportError.fileOperationFailed(error)
         }
     }

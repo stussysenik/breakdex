@@ -16,7 +16,8 @@ enum HandleType {
 struct TrimmerPlayerView: View {
     @ObservedObject var unifiedState: AddMoveUnifiedState
     let isReady: Bool
-    
+    let previewRotationDegrees: Double
+
     // MARK: - Logging
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "TrimmerPlayerView")
     
@@ -54,8 +55,10 @@ struct TrimmerPlayerView: View {
             viewModel: unifiedState.currentPlayerViewModel!,
             shouldAutoplay: false
         )
+        .rotationEffect(.degrees(previewRotationDegrees))
+        .animation(.easeInOut(duration: 0.3), value: previewRotationDegrees)
         .onAppear {
-            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state), rotation: \(unifiedState.rotationQuarterTurns)"
+            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state), rotation: \(unifiedState.rotationQuarterTurns), preview_degrees: \(previewRotationDegrees)"
             logger.info("\(message)")
         }
     }
@@ -109,7 +112,7 @@ struct FeatureRichTrimmerView: View {
     @State private var videoReplacementState: VideoReplacementState = .idle
     
     // MARK: - Performance Optimization
-    @State private var localRotation: Int = 0
+    @State private var previewRotationDegrees: Double = 0.0
     @State private var cachedTimeCodeRow: (startTime: CMTime, endTime: CMTime, isDraggingStart: Bool, isDraggingEnd: Bool)?
     @State private var isRotationButtonPressed: Bool = false
 
@@ -124,8 +127,10 @@ struct FeatureRichTrimmerView: View {
         Binding(
             get: { viewModel.rotationQuarterTurns },
             set: { newValue in
+                // 🎯 CRITICAL FIX: Only update ViewModel state, don't trigger video rebuild
                 viewModel.rotationQuarterTurns = newValue
-                localRotation = newValue
+                // Update local preview state for instant UI feedback
+                previewRotationDegrees = Double(newValue * 90)
             }
         )
     }
@@ -239,7 +244,8 @@ struct FeatureRichTrimmerView: View {
                         // The loading logic is moved inside it.
                         TrimmerPlayerView(
                             unifiedState: unifiedState,
-                            isReady: isReadyToShowTrimmer
+                            isReady: isReadyToShowTrimmer,
+                            previewRotationDegrees: previewRotationDegrees
                         )
                     }
                 }
@@ -367,21 +373,18 @@ struct FeatureRichTrimmerView: View {
                     "current_rotation": "\(currentRotation)",
                     "target_rotation": "\((currentRotation + 1) % 4)"
                 ])
-                Task {
-                    // Structs don't need weak references - they're value types
-                    diagnosticLogger.logDebug("🔧 MEMORY_FIX: Rotation button Task started")
-                    do {
-                        let newRotation = (currentRotation + 1) % 4
-                        try await unifiedState.applyTrimSettings(
-                            startTime: trimmerVM.startTime,
-                            endTime: trimmerVM.endTime,
-                            rotation: newRotation
-                        )
-                        diagnosticLogger.logDebug("✅ MEMORY_FIX: Rotation button Task completed successfully")
-                    } catch {
-                        await unifiedState.setError(message: "Failed to apply rotation", underlying: error.localizedDescription)
-                    }
-                }
+
+                // 🎯 CRITICAL FIX: Instant lightweight rotation preview
+                // Update ViewModel state without triggering video rebuild
+                let newRotation = (currentRotation + 1) % 4
+                viewModel.rotationQuarterTurns = newRotation
+                previewRotationDegrees = Double(newRotation * 90)
+
+                diagnosticLogger.logDebug("✅ LIGHTWEIGHT_ROTATION: Applied instant preview rotation", metadata: [
+                    "new_rotation": "\(newRotation)",
+                    "preview_degrees": "\(previewRotationDegrees)",
+                    "video_rebuild_triggered": "false"
+                ])
             }) {
                 HStack(spacing: 6) {
                     Image(systemName: "rotate.right")
@@ -816,7 +819,6 @@ struct FeatureRichTrimmerView: View {
         // Reset local state
         await MainActor.run {
             isRotationButtonPressed = false
-            localRotation = 0
             videoReplacementState = .finalizing(progress: 1.0, status: "Replacement complete!")
         }
     }
@@ -1000,18 +1002,28 @@ struct FeatureRichTrimmerView: View {
             isFinalizing = true
         }
 
-        // 🎯 FIX: The view's only responsibility is to trigger the state transition.
-        // The unifiedState will now handle getting the final trim values and processing the asset.
-        // We REMOVE the applyTrimSettings call from here.
+        // 🎯 CRITICAL FIX: Apply final rotation settings before state transition
+        // The lightweight preview was only for UI - now apply the actual video transformation
         do {
-            diagnosticLogger.logInfo("🔄 Triggering state transition via proceedToNextState()", metadata: [
+            diagnosticLogger.logInfo("🔄 Applying final rotation before state transition", metadata: [
                 "current_flow_state": "\(unifiedState.flowState)",
                 "target_state": "naming",
+                "final_rotation": "\(viewModel.rotationQuarterTurns)",
+                "preview_degrees": "\(previewRotationDegrees)",
                 "race_condition_prevention": "enabled",
                 "local_overlay_active": "\(isFinalizing)"
             ])
 
-            // This is now the ONLY call we need to make.
+            // Apply the final rotation settings to rebuild the video composition
+            try await unifiedState.applyTrimSettings(
+                startTime: viewModel.startTime,
+                endTime: viewModel.endTime,
+                rotation: viewModel.rotationQuarterTurns
+            )
+
+            diagnosticLogger.logInfo("✅ Final rotation applied, proceeding to next state")
+
+            // Now trigger the state transition
             try await withTimeout(seconds: 15.0) {
                 try await unifiedState.proceedToNextState()
             }

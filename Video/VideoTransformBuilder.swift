@@ -148,37 +148,41 @@ final class VideoTransformBuilder {
             throw NSError(domain: "VideoTransformBuilder", code: -5, userInfo: [NSLocalizedDescriptionKey: "Could not find composition video track."])
         }
 
-        // Step E: 🎯 CRITICAL FIX: Corrected transform calculation with proper coordinate system handling
+        // Step E: 🎯 CRITICAL FIX: Mathematically correct transform calculation
         let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
 
-        // Start with the source video's preferred transform (handles device orientation)
-        var transform = preferredTransform
+        // Start with identity transform
+        var transform = CGAffineTransform.identity
 
-        // Apply user rotation transform
+        // Apply user rotation transform with proper coordinate system translation
         let rotationAngle = .pi / 2.0 * CGFloat(quarterTurns)
         let rotationTransform = CGAffineTransform(rotationAngle: rotationAngle)
 
-        // 🎯 CRITICAL FIX: Corrected translation calculation based on AVFoundation documentation
-        // The translation must compensate for the coordinate system change after rotation
+        // 🎯 CRITICAL FIX: Mathematically correct translation for rotation centering
+        // The translation must move the origin to the correct position after rotation
         let translationTransform: CGAffineTransform
 
         switch quarterTurns {
         case 1: // 90° clockwise
-            // After 90° rotation, translate by height to center in new frame
+            // After 90° rotation: move origin by height in X direction
             translationTransform = CGAffineTransform(translationX: naturalSize.height, y: 0)
         case 2: // 180°
-            // After 180° rotation, translate by full dimensions to center
+            // After 180° rotation: move origin by full dimensions
             translationTransform = CGAffineTransform(translationX: naturalSize.width, y: naturalSize.height)
-        case 3: // 270° clockwise (or 90° counter-clockwise)
-            // After 270° rotation, translate by width to center in new frame
+        case 3: // 270° clockwise
+            // After 270° rotation: move origin by width in Y direction
             translationTransform = CGAffineTransform(translationX: 0, y: naturalSize.width)
         default:
             translationTransform = .identity
         }
 
-        // 🎯 CRITICAL FIX: Apply transforms in mathematically correct order
-        // Order: preferredTransform -> rotation -> translation (non-commutative composition)
-        transform = transform.concatenating(rotationTransform).concatenating(translationTransform)
+        // 🎯 CRITICAL FIX: Apply transforms in correct mathematical order
+        // For AVFoundation: rotation first, then translation, then preferredTransform
+        transform = rotationTransform.concatenating(translationTransform)
+
+        // Finally apply the source video's preferred transform (handles device orientation)
+        transform = preferredTransform.concatenating(transform)
+
         layerInstruction.setTransform(transform, at: .zero)
 
         print("🎬 VideoTransformBuilder: Enhanced transform constructed for \(quarterTurns * 90)° rotation")

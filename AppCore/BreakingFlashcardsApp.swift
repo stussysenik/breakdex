@@ -7,6 +7,28 @@
 
 import SwiftUI
 import Photos
+import CoreData
+
+// MARK: - Supporting Types
+
+/// Results of data consistency verification
+struct ConsistencyResults {
+    let coreDataMoves: Int
+    let photosAssets: Int
+    let mismatches: Int
+
+    var isConsistent: Bool {
+        return mismatches == 0
+    }
+
+    var summary: String {
+        if isConsistent {
+            return "✅ Data is consistent - \(coreDataMoves) moves, \(photosAssets) assets"
+        } else {
+            return "⚠️ Data inconsistencies found - \(mismatches) mismatches"
+        }
+    }
+}
 
 @main
 struct BreakingFlashcardsApp: App {
@@ -36,6 +58,9 @@ struct BreakingFlashcardsApp: App {
                     // MARK: - Initialize AlbumManager (single source of truth for BreakDex album)
                     await AlbumManager.shared.setup()
 
+                    // MARK: - Orphaned Asset Reconciliation
+                    await performOrphanedAssetReconciliation()
+
                     // MARK: - BreakDex Health Checks
                     await performBreakDexHealthChecks()
                 }
@@ -47,8 +72,89 @@ struct BreakingFlashcardsApp: App {
         }
     }
     
+    // MARK: - Orphaned Asset Reconciliation
+
+    private func performOrphanedAssetReconciliation() {
+        Task {
+            print("🧹 Starting orphaned asset reconciliation...")
+
+            do {
+                let consistencyResults = await performDataConsistencyCheck()
+                print(consistencyResults.summary)
+
+                if consistencyResults.isConsistent {
+                    print("✅ Orphaned asset reconciliation completed successfully")
+                } else {
+                    print("⚠️ Orphaned asset reconciliation completed with issues")
+                    print("   📊 Core Data moves: \(consistencyResults.coreDataMoves)")
+                    print("   📊 Photos assets: \(consistencyResults.photosAssets)")
+                    print("   📊 Mismatches: \(consistencyResults.mismatches)")
+                }
+            } catch {
+                print("❌ Orphaned asset reconciliation failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    /// Perform data consistency check between Core Data and Photos library
+    private func performDataConsistencyCheck() async -> ConsistencyResults {
+        print("🧹 Checking data consistency between Core Data and Photos library...")
+
+        // Count Core Data moves
+        let coreDataMoves: Int
+        do {
+            coreDataMoves = try persistenceController.container.viewContext.count(for: Move.fetchRequest())
+        } catch {
+            coreDataMoves = 0
+        }
+
+        // Count Photos assets in BreakDex album
+        var photosAssets = 0
+        if let breakDexAlbum = await AlbumManager.shared.getBreakDexAlbum() {
+            let fetchOptions = PHFetchOptions()
+            let assets = PHAsset.fetchAssets(in: breakDexAlbum, options: fetchOptions)
+            photosAssets = assets.count
+        }
+
+        // Count mismatches
+        let knownIdentifiers = await getKnownPhotosIdentifiers()
+        var mismatches = 0
+
+        if let breakDexAlbum = await AlbumManager.shared.getBreakDexAlbum() {
+            let fetchOptions = PHFetchOptions()
+            let assets = PHAsset.fetchAssets(in: breakDexAlbum, options: fetchOptions)
+
+            assets.enumerateObjects { asset, _, _ in
+                if !knownIdentifiers.contains(asset.localIdentifier) {
+                    mismatches += 1
+                }
+            }
+        }
+
+        return ConsistencyResults(
+            coreDataMoves: coreDataMoves,
+            photosAssets: photosAssets,
+            mismatches: mismatches
+        )
+    }
+
+    /// Get all known photosIdentifiers from Core Data
+    private func getKnownPhotosIdentifiers() async -> Set<String> {
+        let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "photosIdentifier != nil AND photosIdentifier != ''")
+
+        do {
+            let moves = try persistenceController.container.viewContext.fetch(fetchRequest)
+            let identifiers = moves.compactMap { $0.photosIdentifier }
+            return Set(identifiers)
+        } catch {
+            print("🧹 Failed to fetch known identifiers: \(error.localizedDescription)")
+            return Set()
+        }
+    }
+
     // MARK: - BreakDex Health Checks
-    
+
     private func performBreakDexHealthChecks() {
         Task {
             print("🔍 Starting BreakDex health checks...")

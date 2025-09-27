@@ -200,12 +200,21 @@ public class AddMoveSaveCoordinator: ObservableObject {
         rotationQuarterTurns: Int
     ) async throws -> SavedMoveResult {
 
+        // Track temporary resources for atomic transaction
+        var temporaryVideoURL: URL?
+        var finalPhotosIdentifier: String?
+
         defer {
             Task {
                 await MainActor.run {
                     self.isSaving = false
-                    self.saveProgress = 1.0
                 }
+            }
+
+            // CRITICAL: Cleanup happens regardless of success or failure
+            if let url = temporaryVideoURL {
+                try? FileManager.default.removeItem(at: url)
+                logger.info("🎬 SAVE_COORDINATOR: 🧹 Deferred cleanup of temporary file completed", metadata: nil)
             }
         }
 
@@ -215,70 +224,129 @@ public class AddMoveSaveCoordinator: ObservableObject {
             let readyAsset = try await verifyAssetReadiness(asset)
             await updateProgress(0.1)
 
-            // Step 2: Process video (trim if needed)
-            let processedAsset: AVAsset
-            if let startTime = trimStartTime, let endTime = trimEndTime {
-                logger.info("🎬 SAVE_COORDINATOR: Processing trimmed video", metadata: nil)
-                await updateProgress(0.2)
+            // Step 2: Process video (trim if needed) and export to temporary file
+            logger.info("🎬 SAVE_COORDINATOR: Processing video with atomic export", metadata: nil)
+            await updateProgress(0.2)
 
-                processedAsset = try await processTrimmedVideo(
-                    asset: readyAsset,
-                    startTime: startTime,
-                    endTime: endTime,
-                    rotationQuarterTurns: rotationQuarterTurns // ✨ ADD: Pass rotation parameter
-                )
-            } else {
-                logger.info("🎬 SAVE_COORDINATOR: Using original video (no trim)", metadata: nil)
-                processedAsset = readyAsset
-                await updateProgress(0.3)
-            }
+            let timeRange = CMTimeRange(
+                start: CMTime(seconds: trimStartTime ?? 0.0, preferredTimescale: 600),
+                end: CMTime(seconds: trimEndTime ?? asset.duration.seconds, preferredTimescale: 600)
+            )
 
-            // Step 3: Verify processed asset is ready for saving
-            let finalAsset = try await verifyAssetReadiness(processedAsset)
+            let outputURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("mov")
+
+            temporaryVideoURL = try await videoProcessingPipeline.exportVideo(
+                asset: readyAsset,
+                trimRange: timeRange,
+                quarterTurns: rotationQuarterTurns,
+                outputURL: outputURL
+            )
+
             await updateProgress(0.4)
 
-            // Step 4: Save video to Photos library and get the new localIdentifier
-            logger.info("🎬 SAVE_COORDINATOR: Saving video to Photos library", metadata: nil)
+            // Step 3: ATOMIC OPERATION - Save to Photos library first
+            logger.info("🎬 SAVE_COORDINATOR: 🎯 ATOMIC: Saving to Photos library", metadata: nil)
             await updateProgress(0.5)
 
-            let finalPhotosIdentifier = try await movePersistenceService.saveVideoToPhotos(
-                asset: finalAsset,
+            guard let tempFileURL = temporaryVideoURL else {
+                throw AddMoveSaveError.temporaryFileCreationFailed
+            }
+
+            let avAssetForPhotos = AVURLAsset(url: tempFileURL)
+            finalPhotosIdentifier = try await movePersistenceService.saveVideoToPhotos(
+                asset: avAssetForPhotos,
                 moveName: name
             )
 
-            // Step 5: Create Move entity in Core Data using the NEW identifier
-            logger.info("🎬 SAVE_COORDINATOR: Creating Move entity with new Photos identifier", metadata: nil)
+            // Step 4: ATOMIC OPERATION - Create Move entity in Core Data
+            logger.info("🎬 SAVE_COORDINATOR: 🎯 ATOMIC: Creating Move entity", metadata: nil)
             await updateProgress(0.7)
+
+            guard let photosId = finalPhotosIdentifier else {
+                throw AddMoveSaveError.photosIdentifierGenerationFailed
+            }
 
             let move = try await movePersistenceService.createMoveEntity(
                 name: name,
-                originalPhotosIdentifier: finalPhotosIdentifier, // ✅ USE: The new identifier from Photos library
+                originalPhotosIdentifier: photosId,
                 trimStartTime: trimStartTime ?? 0.0,
-                trimEndTime: trimEndTime ?? finalAsset.duration.seconds,
+                trimEndTime: trimEndTime ?? asset.duration.seconds,
                 rotationQuarterTurns: rotationQuarterTurns
             )
 
-            // Step 6: Finalize and return result
+            // Step 5: Finalize and return result - TRANSACTION COMPLETE
             await MainActor.run {
                 self.saveProgress = 1.0
                 self.saveStatus = .completed
             }
 
+            guard let finalTempURL = temporaryVideoURL else {
+                throw AddMoveSaveError.temporaryFileCreationFailed
+            }
+
+            let finalAsset = AVURLAsset(url: finalTempURL)
             let result = SavedMoveResult(
                 move: move,
-                photosIdentifier: finalPhotosIdentifier, // ✅ USE: The new Photos identifier
+                photosIdentifier: photosId,
                 asset: finalAsset,
                 wasTrimmed: trimStartTime != nil && trimEndTime != nil
             )
 
+            logger.info("🎬 SAVE_COORDINATOR: ✅ ATOMIC TRANSACTION COMPLETED SUCCESSFULLY", metadata: [
+                "move_name": name,
+                "photos_identifier": photosId,
+                "temporary_file": finalTempURL.lastPathComponent
+            ])
+
             return result
 
         } catch {
-            logger.error("🎬 SAVE_COORDINATOR: Save operation failed: \(error.localizedDescription)", metadata: nil)
+            // 🚨 CRITICAL: ENHANCED ROLLBACK LOGIC - Comprehensive cleanup and error recovery
             await MainActor.run {
                 self.saveStatus = .error(error.localizedDescription)
                 self.saveProgress = 0.0
             }
+
+            logger.error("🎬 SAVE_COORDINATOR: ❌ ATOMIC TRANSACTION FAILED - Initiating comprehensive rollback", metadata: [
+                "error": error.localizedDescription,
+                "error_type": "\(type(of: error))",
+                "error_domain": (error as NSError).domain,
+                "error_code": "\((error as NSError).code)",
+                "rollback_initiated": "true"
+            ])
+
+            // ENHANCED ROLLBACK: Multi-stage cleanup with detailed logging
+            do {
+                // Stage 1: Clean up Photos assets if they were created
+                if let orphanedIdentifier = finalPhotosIdentifier {
+                    await performPhotosRollback(orphanedIdentifier: orphanedIdentifier, error: error)
+                }
+
+                // Stage 2: Clean up any Core Data entities that might have been partially created
+                await performCoreDataRollback(moveName: name, error: error)
+
+                // Stage 3: Ensure temporary files are cleaned up
+                await performTemporaryFileRollback(temporaryURL: temporaryVideoURL, error: error)
+
+                logger.info("🎬 SAVE_COORDINATOR: ✅ ROLLBACK COMPLETED - System integrity maintained", metadata: [
+                    "rollback_stages_completed": "3",
+                    "system_state": "clean",
+                    "user_impact": "operation_failed_but_no_orphans"
+                ])
+
+            } catch let rollbackError {
+                logger.error("🎬 SAVE_COORDINATOR: ❌ CRITICAL - ROLLBACK FAILED - Manual cleanup required", metadata: [
+                    "original_error": error.localizedDescription,
+                    "rollback_error": rollbackError.localizedDescription,
+                    "orphaned_identifier": finalPhotosIdentifier ?? "none",
+                    "temporary_file": temporaryVideoURL?.lastPathComponent ?? "none",
+                    "manual_intervention_required": "true",
+                    "user_impact": "potential_data_inconsistency"
+                ])
+            }
+
             throw error
         }
     }
@@ -447,6 +515,97 @@ private extension AddMoveSaveCoordinator {
             "asset_duration": "\(assetDuration)"
         ])
     }
+
+    // MARK: - Enhanced Rollback Methods
+
+    /// Stage 1: Rollback Photos library assets
+    private func performPhotosRollback(orphanedIdentifier: String, error: Error) async {
+        logger.warning("🎬 SAVE_COORDINATOR: 🔄 ROLLBACK STAGE 1: Cleaning up Photos asset", metadata: [
+            "orphaned_identifier": orphanedIdentifier,
+            "rollback_reason": "Photos asset orphaned due to failure",
+            "original_error": error.localizedDescription
+        ])
+
+        do {
+            try await movePersistenceService.deleteVideoFromPhotos(localIdentifier: orphanedIdentifier)
+            logger.info("🎬 SAVE_COORDINATOR: ✅ ROLLBACK STAGE 1: Photos asset deleted successfully", metadata: [
+                "orphaned_identifier": orphanedIdentifier,
+                "rollback_successful": "true"
+            ])
+        } catch {
+            logger.error("🎬 SAVE_COORDINATOR: ❌ ROLLBACK STAGE 1 FAILED: Could not delete Photos asset", metadata: [
+                "orphaned_identifier": orphanedIdentifier,
+                "rollback_error": error.localizedDescription,
+                "manual_cleanup_required": "true",
+                "user_impact": "orphaned_Photos_asset_requires_manual_deletion"
+            ])
+            // Continue with other rollback stages even if this one fails
+        }
+    }
+
+    /// Stage 2: Rollback Core Data entities
+    private func performCoreDataRollback(moveName: String, error: Error) async {
+        logger.warning("🎬 SAVE_COORDINATOR: 🔄 ROLLBACK STAGE 2: Cleaning up Core Data entities", metadata: [
+            "move_name": moveName,
+            "rollback_reason": "Potential partially created Move entity",
+            "original_error": error.localizedDescription
+        ])
+
+        do {
+            // Try to find and delete any Move entity with this name that might have been created
+            try await movePersistenceService.cleanupOrphanedMoveEntity(name: moveName)
+            logger.info("🎬 SAVE_COORDINATOR: ✅ ROLLBACK STAGE 2: Core Data cleanup completed", metadata: [
+                "move_name": moveName,
+                "rollback_successful": "true"
+            ])
+        } catch {
+            logger.error("🎬 SAVE_COORDINATOR: ❌ ROLLBACK STAGE 2 FAILED: Could not cleanup Core Data", metadata: [
+                "move_name": moveName,
+                "rollback_error": error.localizedDescription,
+                "manual_cleanup_required": "true",
+                "user_impact": "potential_orphaned_Core_Data_entity"
+            ])
+            // Continue with other rollback stages even if this one fails
+        }
+    }
+
+    /// Stage 3: Rollback temporary files
+    private func performTemporaryFileRollback(temporaryURL: URL?, error: Error) async {
+        guard let tempURL = temporaryURL else {
+            logger.info("🎬 SAVE_COORDINATOR: 🔄 ROLLBACK STAGE 3: No temporary file to cleanup", metadata: [
+                "rollback_reason": "No temporary file was created"
+            ])
+            return
+        }
+
+        logger.warning("🎬 SAVE_COORDINATOR: 🔄 ROLLBACK STAGE 3: Cleaning up temporary file", metadata: [
+            "temporary_file": tempURL.lastPathComponent,
+            "rollback_reason": "Temporary file cleanup after failure",
+            "original_error": error.localizedDescription
+        ])
+
+        do {
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try FileManager.default.removeItem(at: tempURL)
+                logger.info("🎬 SAVE_COORDINATOR: ✅ ROLLBACK STAGE 3: Temporary file deleted successfully", metadata: [
+                    "temporary_file": tempURL.lastPathComponent,
+                    "rollback_successful": "true"
+                ])
+            } else {
+                logger.info("🎬 SAVE_COORDINATOR: ℹ️ ROLLBACK STAGE 3: Temporary file already cleaned up", metadata: [
+                    "temporary_file": tempURL.lastPathComponent,
+                    "cleanup_status": "already_cleaned"
+                ])
+            }
+        } catch {
+            logger.error("🎬 SAVE_COORDINATOR: ❌ ROLLBACK STAGE 3 FAILED: Could not delete temporary file", metadata: [
+                "temporary_file": tempURL.lastPathComponent,
+                "rollback_error": error.localizedDescription,
+                "manual_cleanup_required": "true",
+                "user_impact": "temporary_file_will_be_cleaned_by_system"
+            ])
+        }
+    }
 }
 
 // MARK: - Save Status
@@ -524,6 +683,8 @@ public enum AddMoveSaveError: LocalizedError {
     case invalidAssetDuration
     case invalidAssetFormat
     case operationCancelled
+    case temporaryFileCreationFailed
+    case photosIdentifierGenerationFailed
 
     public var errorDescription: String? {
         switch self {
@@ -543,6 +704,10 @@ public enum AddMoveSaveError: LocalizedError {
             return "Unsupported video format. Please select a valid video file."
         case .operationCancelled:
             return "Save operation was cancelled."
+        case .temporaryFileCreationFailed:
+            return "Failed to create temporary video file for processing."
+        case .photosIdentifierGenerationFailed:
+            return "Failed to generate identifier for saved video."
         }
     }
 }

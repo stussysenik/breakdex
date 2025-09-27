@@ -36,6 +36,7 @@ public protocol VideoProcessingPipeline {
     func loadVideo(from identifier: String) async throws -> VideoAsset
     func processVideo(_ asset: VideoAsset, rotationQuarterTurns: Int) async throws -> VideoAsset
     func saveVideo(_ asset: VideoAsset) async throws -> URL
+    func exportVideo(asset: AVAsset, trimRange: CMTimeRange, quarterTurns: Int, outputURL: URL) async throws -> URL
     func cancelCurrentOperation()
 }
 
@@ -392,19 +393,114 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
         }
     }
     
+    func exportVideo(asset: AVAsset, trimRange: CMTimeRange, quarterTurns: Int, outputURL: URL) async throws -> URL {
+        // 🎯 ENHANCED: Comprehensive export logging with asset validation
+        logger.info("🎬 PIPELINE: 🚀 Starting video export operation", metadata: [
+            "trim_start_seconds": "\(trimRange.start.seconds)",
+            "trim_duration_seconds": "\(trimRange.duration.seconds)",
+            "rotation_quarter_turns": "\(quarterTurns)",
+            "output_filename": outputURL.lastPathComponent,
+            "asset_duration_seconds": "\(asset.duration.seconds)",
+            "asset_tracks": "\(asset.tracks.count)"
+        ])
+
+        // 🎯 ENHANCED: Asset validation before export
+        do {
+            let assetDuration = try await asset.load(.duration)
+            guard assetDuration.seconds > 0 else {
+                logger.error("🎬 PIPELINE: ❌ Invalid asset duration for export", metadata: [
+                    "duration_seconds": "\(assetDuration.seconds)",
+                    "asset_tracks": "\(asset.tracks.count)"
+                ])
+                throw NSError(domain: "VideoProcessingPipeline", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid asset duration"])
+            }
+            logger.info("🎬 PIPELINE: ✅ Asset validation passed for export", metadata: [
+                "validated_duration_seconds": "\(assetDuration.seconds)"
+            ])
+        } catch {
+            logger.error("🎬 PIPELINE: ❌ Asset validation failed for export: \(error)", metadata: [
+                "trim_range": "\(trimRange.start.seconds)-\(trimRange.end.seconds)s",
+                "user_impact": "export_operation_will_fail"
+            ])
+            throw error
+        }
+
+        // Cancel any existing operation
+        cancelCurrentOperation()
+
+        return try await withTaskCancellationHandler {
+            // 🎯 ENHANCED: Detailed export progress tracking
+            logger.info("🎬 PIPELINE: 🔄 Beginning VideoTransformBuilder export", metadata: [
+                "export_method": "VideoTransformBuilder.exportVideo",
+                "expected_output_path": outputURL.path,
+                "rotation_applied": "\(quarterTurns != 0)"
+            ])
+
+            let startTime = CFAbsoluteTimeGetCurrent()
+
+            // Use VideoTransformBuilder for export
+            let exportedURL = try await VideoTransformBuilder.exportVideo(
+                asset: asset,
+                trimRange: trimRange,
+                quarterTurns: quarterTurns,
+                outputURL: outputURL
+            )
+
+            let exportDuration = CFAbsoluteTimeGetCurrent() - startTime
+
+            // 🎯 ENHANCED: Post-export validation and detailed logging
+            guard FileManager.default.fileExists(atPath: exportedURL.path) else {
+                logger.error("🎬 PIPELINE: ❌ Export completed but output file missing", metadata: [
+                    "expected_path": exportedURL.path,
+                    "export_duration_ms": "\(exportDuration * 1000)",
+                    "user_impact": "export_failed_silently"
+                ])
+                throw NSError(domain: "VideoProcessingPipeline", code: -2, userInfo: [NSLocalizedDescriptionKey: "Export failed - output file missing"])
+            }
+
+            do {
+                let resources = try exportedURL.resourceValues(forKeys: [.fileSizeKey])
+                let fileSize = resources.fileSize ?? 0
+                logger.info("🎬 PIPELINE: ✅ Video export completed successfully", metadata: [
+                    "output_url": exportedURL.lastPathComponent,
+                    "file_size_bytes": "\(fileSize)",
+                    "file_size_mb": "\(String(format: "%.2f", Double(fileSize) / (1024 * 1024)))",
+                    "export_duration_ms": "\(String(format: "%.1f", exportDuration * 1000))",
+                    "export_throughput_mb_s": "\(String(format: "%.2f", (Double(fileSize) / (1024 * 1024)) / exportDuration))",
+                    "rotation_applied": "\(quarterTurns != 0)",
+                    "trim_applied": "\(trimRange.duration.seconds < asset.duration.seconds)"
+                ])
+            } catch {
+                logger.warning("🎬 PIPELINE: ⚠️ Export succeeded but file size unavailable", metadata: [
+                    "output_url": exportedURL.lastPathComponent,
+                    "export_duration_ms": "\(String(format: "%.1f", exportDuration * 1000))",
+                    "file_access_error": error.localizedDescription
+                ])
+            }
+
+            return exportedURL
+        } onCancel: {
+            logger.info("🎬 PIPELINE: 🚫 Export operation cancelled", metadata: [
+                "output_path": outputURL.lastPathComponent,
+                "cancellation_reason": "user_initiated_or_system_triggered"
+            ])
+            self.currentTask?.cancel()
+        }
+    }
+
     func cancelCurrentOperation() {
         logger.info("🔄 Cancelling current operation", metadata: nil)
         logMemoryState("Before cancelling operation")
-        
+
         currentTask?.cancel()
         currentTask = nil
-        
+
         // Clear intermediate assets when cancelling
         clearIntermediateAssets()
-        
+
         // Perform cache clearing when cancelling
         performAggressiveCacheClearing()
-        
+
         logMemoryState("After cancelling operation")
     }
     
