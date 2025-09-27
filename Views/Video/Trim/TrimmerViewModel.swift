@@ -94,11 +94,10 @@ public final class TrimmerViewModel: ObservableObject {
     @Published
     public var rotationQuarterTurns: Int = 0 {
         didSet {
-            // 🛑 PREVENT running during initialization - avoid race condition
+            // 🎯 CRITICAL FIX: Decouple UI rotation from expensive asset processing
+            // Only update the UI state; asset processing happens during transactional save
             guard isSetupComplete else { return }
 
-            // This is no longer a simple UI rotation change.
-            // It now triggers real-time asset transformation for true WYSIWYG.
             let rotationStartTime = Date()
             let timeSinceLastRotation = rotationStartTime.timeIntervalSince(animationState.lastRotationTime)
             let rotationDelta = abs(rotationQuarterTurns - oldValue)
@@ -110,28 +109,25 @@ public final class TrimmerViewModel: ObservableObject {
                 "time_since_last_rotation_ms": "\(timeSinceLastRotation * 1000)",
                 "rotation_count": "\(animationState.rotationCount)",
                 "setup_complete": "\(isSetupComplete)",
+                "processing_type": "ui_only",
                 "memory_usage_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
             ])
 
-            // Force state synchronization to ensure UI consistency
-            synchronizeStateAfterExternalChange()
+            // 🎯 CRITICAL FIX: Removed expensive asset processing - now only UI state update
+            // This prevents the retain cycle from asset processing operations
 
-            Task {
-                await applyRotationToPlayerAsset()
+            // Log completion immediately since no expensive operation
+            let rotationDuration = Date().timeIntervalSince(rotationStartTime)
+            updateAnimationState(syncDuration: rotationDuration, type: "ui_rotation")
 
-                // Log rotation completion
-                let rotationDuration = Date().timeIntervalSince(rotationStartTime)
-                await MainActor.run {
-                    self.updateAnimationState(syncDuration: rotationDuration, type: "asset_rotation")
-
-                    diagnosticLogger.logAnimation("rotation_change_complete", metadata: [
-                        "rotation_duration_ms": "\(rotationDuration * 1000)",
-                        "total_rotations": "\(animationState.rotationCount)",
-                        "avg_rotation_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
-                        "final_rotation": "\(rotationQuarterTurns)"
-                    ])
-                }
-            }
+            diagnosticLogger.logAnimation("rotation_change_complete", metadata: [
+                "rotation_duration_ms": "\(rotationDuration * 1000)",
+                "total_rotations": "\(animationState.rotationCount)",
+                "avg_rotation_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+                "final_rotation": "\(rotationQuarterTurns)",
+                "processing_type": "ui_only",
+                "asset_processing_deferred": "true"
+            ])
         }
     }
     @Published
@@ -200,25 +196,51 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     deinit {
-        Task { @MainActor in
-            diagnosticLogger.logAnimation("trimmer_viewmodel_deinitialized", metadata: [
-                "total_syncs": "\(animationState.stateSyncCount)",
-                "total_rotations": "\(animationState.rotationCount)",
-                "animation_conflicts": "\(animationState.animationConflicts)",
-                "avg_sync_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
-                "final_memory_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
-            ])
+        // 🎯 CRITICAL FIX: Made deinit synchronous to prevent retain cycles
+        diagnosticLogger.logAnimation("trimmer_viewmodel_deinitialized", metadata: [
+            "total_syncs": "\(animationState.stateSyncCount)",
+            "total_rotations": "\(animationState.rotationCount)",
+            "animation_conflicts": "\(animationState.animationConflicts)",
+            "avg_sync_duration_ms": "\(animationState.averageStateSyncDuration * 1000)",
+            "final_memory_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
+        ])
 
-            diagnosticLogger.logInfo("🗑️ TrimmerViewModel deinitialized")
+        diagnosticLogger.logInfo("🗑️ TrimmerViewModel deinitializing synchronously")
+
+        // 🎯 CRITICAL FIX: Minimal synchronous cleanup that doesn't require @MainActor
+        // Only invalidate display link synchronously - it's thread-safe
+        displayLink?.invalidate()
+
+        // Schedule the rest of cleanup to run on main actor without creating retain cycles
+        // Use a weak capture pattern to avoid retaining self
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            self.performAsyncCleanup()
         }
-        // Schedule cleanup on main thread to avoid actor isolation issues
-        Task { [weak self] in
-            await MainActor.run {
-                guard let self = self else { return }
-                // 🎯 CRITICAL FIX: Call comprehensive teardown
-                self.teardown()
-            }
-        }
+    }
+
+    // 🎯 CRITICAL FIX: Async cleanup method that can safely access @MainActor properties
+    @MainActor
+    private func performAsyncCleanup() {
+        displayLink = nil
+        pendingPreviewTime = nil
+        cleanupStateChangeCallbacks()
+        isSetupComplete = false
+
+        // Reset critical @Published properties to break cycles
+        startTime = .zero
+        endTime = .zero
+        videoDuration = .zero
+        rotationQuarterTurns = 0
+        isReady = false
+        isExporting = false
+        showMinimumDurationWarning = false
+        isDraggingStartHandle = false
+        isDraggingEndHandle = false
+        showMinDurationAlert = false
+        hasShownAlertThisDragSession = false
+
+        diagnosticLogger.logInfo("✅ TrimmerViewModel async cleanup completed")
     }
 
     // MARK: - State Synchronization Methods
@@ -427,14 +449,22 @@ public final class TrimmerViewModel: ObservableObject {
         let startTime = Date()
         let memoryBefore = MemoryHelper.getDetailedMemoryInfo()
 
+        // 🎯 CRITICAL FIX: Ensure display link is properly invalidated
+        if displayLink != nil {
+            diagnosticLogger.logDebug("⏹️ Invalidating display link during teardown")
+            displayLink?.invalidate()
+            displayLink = nil
+        }
+
         // Stop all async operations
         stopCoalescing()
 
         // Clear state change callbacks to break potential retain cycles
         cleanupStateChangeCallbacks()
 
-        // Cleanup display link
-        cleanupDisplayLink()
+        // 🎯 CRITICAL FIX: Break any pending async operations
+        // Clear any pending preview time to prevent orphaned operations
+        pendingPreviewTime = nil
 
         // 🎯 ENHANCED: Reset all @Published properties to break potential cycles
         // Since this method is already @MainActor, we can directly assign
@@ -450,6 +480,9 @@ public final class TrimmerViewModel: ObservableObject {
         self.showMinDurationAlert = false
         self.hasShownAlertThisDragSession = false
 
+        // 🎯 CRITICAL FIX: Mark setup as incomplete to prevent any async operations
+        isSetupComplete = false
+
         let cleanupDuration = Date().timeIntervalSince(startTime)
         let memoryAfter = MemoryHelper.getDetailedMemoryInfo()
 
@@ -458,7 +491,9 @@ public final class TrimmerViewModel: ObservableObject {
             "memory_before_mb": "\(memoryBefore.used)",
             "memory_after_mb": "\(memoryAfter.used)",
             "memory_freed_mb": "\(memoryBefore.used - memoryAfter.used)",
-            "teardown_comprehensive": "true"
+            "teardown_comprehensive": "true",
+            "display_link_cleaned": "true",
+            "setup_incomplete": "true"
         ])
     }
 
@@ -810,15 +845,15 @@ public final class TrimmerViewModel: ObservableObject {
     // MARK: - Real-time Asset Transformation
     private func applyRotationToPlayerAsset() async {
         diagnosticLogger.startTiming("asset_rotation")
-        
+
         diagnosticLogger.logInfo("🔄 Applying asset-level rotation: \(self.rotationQuarterTurns * 90)°")
-        
+
         // 🛡️ DEFENSIVE GUARD: Ensure the time range is valid before processing.
         guard (self.endTime - self.startTime).seconds > 0 else {
             diagnosticLogger.logWarning("Skipping asset rotation due to invalid (zero-duration) time range")
             return
         }
-        
+
         do {
             // Use the VideoTransformBuilder to create a new player item with the current trim
             // and the NEW rotation. This implements true WYSIWYG.
@@ -827,15 +862,15 @@ public final class TrimmerViewModel: ObservableObject {
                 trimRange: CMTimeRange(start: self.startTime, end: self.endTime),
                 quarterTurns: self.rotationQuarterTurns
             )
-            
+
             // Hot-swap the player's content. This is a powerful feature of AVFoundation.
             guard let unifiedPlayer = self.playerViewModel as? UnifiedVideoPlayerViewModel else {
                 diagnosticLogger.logError("PlayerViewModel is not UnifiedVideoPlayerViewModel")
                 return
             }
-            
+
             try await unifiedPlayer.replacePlayerItemAndWaitForReady(transformedItem)
-            
+
             diagnosticLogger.logInfo("✅ Asset rotation applied successfully")
             diagnosticLogger.stopTiming("asset_rotation")
         } catch {
@@ -843,6 +878,39 @@ public final class TrimmerViewModel: ObservableObject {
             // Optionally, revert rotationQuarterTurns or show a user-facing error.
             // For now, we'll log the error and continue with the previous state.
         }
+    }
+
+    // 🎯 CRITICAL FIX: New transactional method for final asset processing during save
+    public func prepareFinalAssetForSave() async throws -> AVPlayerItem {
+        diagnosticLogger.startTiming("final_asset_preparation")
+
+        guard isSetupComplete else {
+            throw NSError(domain: "TrimmerViewModel", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "Trimmer not properly initialized"
+            ])
+        }
+
+        guard validateTrimRanges() else {
+            throw NSError(domain: "TrimmerViewModel", code: -2, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid trim ranges"
+            ])
+        }
+
+        diagnosticLogger.logInfo("🎬 Preparing final asset for save", metadata: [
+            "start_time_seconds": "\(startTime.seconds)",
+            "end_time_seconds": "\(endTime.seconds)",
+            "rotation_quarter_turns": "\(rotationQuarterTurns)",
+            "duration_seconds": "\((endTime - startTime).seconds)"
+        ])
+
+        let transformedItem = try await VideoTransformBuilder.createPlayerItem(
+            asset: asset,
+            trimRange: CMTimeRange(start: startTime, end: endTime),
+            quarterTurns: rotationQuarterTurns
+        )
+
+        diagnosticLogger.stopTiming("final_asset_preparation")
+        return transformedItem
     }
     
     // MARK: - Export Methods (needed by TrimmerView)

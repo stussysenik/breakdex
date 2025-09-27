@@ -107,9 +107,11 @@ final class FileLogger: AppLogger {
     private let logFileURL: URL
     
     init() {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            fatalError("Unable to access documents directory")
+        }
         logFileURL = documents.appendingPathComponent("BreakingFlashcards.log")
-        
+
         // Create log file if it doesn't exist
         if !FileManager.default.fileExists(atPath: logFileURL.path) {
             FileManager.default.createFile(atPath: logFileURL.path, contents: nil)
@@ -145,7 +147,10 @@ final class FileLogger: AppLogger {
         }
         
         do {
-            let data = logMessage.data(using: .utf8)!
+            guard let data = logMessage.data(using: .utf8) else {
+                logger.error("Failed to convert log message to data")
+                return
+            }
             let fileHandle = try FileHandle(forWritingTo: logFileURL)
             fileHandle.seekToEndOfFile()
             fileHandle.write(data)
@@ -313,7 +318,7 @@ final class MemoryLoggerImpl: MemoryLogger {
     
     func logMemoryEntry(_ entry: MemoryLogEntry) {
         let formattedTime = DateFormatter.memoryLogFormatter.string(from: entry.timestamp)
-        let correlationIdString = entry.correlationId != nil ? "[\(entry.correlationId!)]" : ""
+        let correlationIdString = entry.correlationId != nil ? "[\(entry.correlationId ?? "unknown")]" : ""
         
         let memoryInfo = "Available: \(entry.availableMemory / (1024 * 1024))MB, Used: \(entry.usedMemory / (1024 * 1024))MB (\(String(format: "%.1f", entry.percentageUsed))%)"
         

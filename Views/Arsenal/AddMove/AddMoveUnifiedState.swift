@@ -1638,6 +1638,7 @@ public class AddMoveUnifiedState: ObservableObject {
     @Published private var saveReadiness: SaveReadinessResult?
     @Published private var lastSaveReadiness: SaveReadinessResult?
     private var saveReadinessMonitoringTask: Task<Void, Never>?
+
 }
 
 // MARK: - Convenience Extensions
@@ -1762,68 +1763,90 @@ extension AddMoveUnifiedState {
             }
 
         case .trimming:
-            // 🎯 CRITICAL CATEGORICAL FIX: Perform video processing BEFORE state transition
-            // This preserves the AVPlayerLayer in the view hierarchy during composition
-            diagnosticLogger.startTiming("transition_trimming_to_naming")
-            logger.info("🎬 UNIFIED_STATE: 🚀 Starting deadlock-free transition from .trimming")
+            // 🎯 ATOMIC FIX: Centralized transition logic eliminates race condition
+            // This creates a single, sequential morphism for the entire transition
+            diagnosticLogger.startTiming("atomic_transition_trimming_to_naming")
+            logger.info("🎬 UNIFIED_STATE: 🚀 Starting atomic transition from .trimming")
 
-            // 1. 🧠 Get final values directly from the TrimmerViewModel BEFORE any cleanup.
+            // 1. 🧠 Capture final values from TrimmerViewModel BEFORE any cleanup
             guard let trimmerVM = self.trimmerViewModel else {
                 await setError(message: "Trimmer state was lost.", underlying: "TrimmerViewModel was nil during transition.")
-                return
+                throw AddMoveError.trimmerNotAvailable
             }
-            let finalStartTime = trimmerVM.startTime.seconds
-            let finalEndTime = trimmerVM.endTime.seconds
+
+            let finalStartTime = trimmerVM.startTime
+            let finalEndTime = trimmerVM.endTime
             let finalRotation = trimmerVM.rotationQuarterTurns
 
             diagnosticLogger.logInfo("✅ Captured final trim values while UI is still active", metadata: [
-                "start_time": "\(finalStartTime)",
-                "end_time": "\(finalEndTime)",
+                "start_time": "\(finalStartTime.seconds)",
+                "end_time": "\(finalEndTime.seconds)",
                 "rotation": "\(finalRotation)",
-                "render_layer_preserved": "true"
+                "render_layer_preserved": "true",
+                "atomic_transition": "enabled"
             ])
 
-            // 2. 🎯 CRITICAL FIX: Perform all sequential async work BEFORE transitioning state.
-            // This keeps the AVPlayerLayer in the view hierarchy, allowing the new AVPlayerItem to become ready.
+            // 2. 🎯 ATOMIC FIX: Perform all sequential async work BEFORE state transition
             do {
-                diagnosticLogger.startTiming("transactional_trim_and_seek")
-                // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate timing
-                let startTime = timecodeService.snapToFrame(time: CMTime(seconds: finalStartTime, preferredTimescale: 600))
-                let endTime = timecodeService.snapToFrame(time: CMTime(seconds: finalEndTime, preferredTimescale: 600))
+                diagnosticLogger.startTiming("atomic_asset_preparation")
 
-                diagnosticLogger.logDebug("🧮 Timecode service integration for trim and seek", metadata: [
-                    "original_start": "\(finalStartTime)",
-                    "original_end": "\(finalEndTime)",
-                    "snapped_start": "\(startTime.seconds)",
-                    "snapped_end": "\(endTime.seconds)",
-                    "start_delta": "\(abs(startTime.seconds - finalStartTime))",
-                    "end_delta": "\(abs(endTime.seconds - finalEndTime))",
-                    "rotation": "\(finalRotation)",
-                    "service_source": "TimecodeCalculationService"
+                // 🎯 CRITICAL: Create final trimmed and rotated asset from TrimmerViewModel
+                let finalPlayerItem = try await trimmerVM.prepareFinalAssetForSave()
+
+                diagnosticLogger.logInfo("✅ Final asset prepared atomically", metadata: [
+                    "item_duration": "\(finalPlayerItem.asset.duration.seconds)",
+                    "item_status": "\(finalPlayerItem.status.rawValue)",
+                    "preparation_method": "atomic"
                 ])
 
-                try await unifiedPlayerManager.applyTrimAndSeek(
-                    startTime: startTime,
-                    endTime: endTime,
-                    rotation: finalRotation
-                )
-                diagnosticLogger.stopTiming("transactional_trim_and_seek")
+                // 🎯 CRITICAL: Atomically replace player item and wait for readiness
+                guard let currentPlayer = unifiedPlayerManager.currentPlayer else {
+                    throw AddMoveError.playerNotReady
+                }
+                try await currentPlayer.replacePlayerItemAndWaitForReady(finalPlayerItem)
 
-                // 3. 🧹 Perform cleanup for the state we are LEAVING.
+                diagnosticLogger.logInfo("✅ Player item replaced and ready atomically", metadata: [
+                    "player_ready": "\(currentPlayerViewModel?.isPlayerReady ?? false)",
+                    "replacement_method": "atomic_with_readiness_wait"
+                ])
+
+                // 🎯 CRITICAL: Update persistent state properties AFTER successful player update
+                await MainActor.run {
+                    self.trimStartTime = finalStartTime.seconds
+                    self.trimEndTime = finalEndTime.seconds
+                    self.rotationQuarterTurns = finalRotation
+
+                    // Trigger state change notification
+                    self.objectWillChange.send()
+
+                    logger.info("🎬 UNIFIED_STATE: ✅ Atomic state update completed successfully")
+                }
+
+                diagnosticLogger.stopTiming("atomic_asset_preparation")
+
+                // 3. 🧹 Perform cleanup for the state we are LEAVING
                 await cleanupTrimmerViewModel()
 
-                // 4. ✅ ONLY after all work is successful, transition to the final state.
+                // 4. ✅ ONLY after all work is successful, transition to final state
                 await transitionTo(.naming)
 
-                logger.info("🎬 UNIFIED_STATE: 🎉 Successfully transitioned to .naming state via deadlock-free operation.")
-                diagnosticLogger.stopTiming("transition_trimming_to_naming")
+                logger.info("🎬 UNIFIED_STATE: 🎉 Successfully completed atomic transition to .naming")
+                diagnosticLogger.stopTiming("atomic_transition_trimming_to_naming")
 
             } catch {
-                // 5. ❌ If any step fails, transition to a clear error state.
-                logger.error("🎬 UNIFIED_STATE: ❌ Failed to prepare video for naming view: \(error.localizedDescription)")
-                diagnosticLogger.logError("Video preparation for naming failed", error: error)
-                await setError(message: "Could not prepare video preview.", underlying: error.localizedDescription)
-                diagnosticLogger.stopTiming("transition_trimming_to_naming")
+                // 5. ❌ If any step fails, transition to clear error state with detailed logging
+                logger.error("🎬 UNIFIED_STATE: ❌ Atomic transition failed: \(error.localizedDescription)")
+                diagnosticLogger.logError("Atomic transition from trimming to naming failed", error: error, metadata: [
+                    "failure_step": "atomic_asset_preparation_or_player_replacement",
+                    "start_time": "\(finalStartTime.seconds)",
+                    "end_time": "\(finalEndTime.seconds)",
+                    "rotation": "\(finalRotation)",
+                    "atomic_operation": "failed"
+                ])
+
+                await setError(message: "Could not prepare video preview for naming.", underlying: error.localizedDescription)
+                diagnosticLogger.stopTiming("atomic_transition_trimming_to_naming")
+                throw error // Re-throw to inform the caller
             }
 
         case .naming:
@@ -3045,4 +3068,5 @@ public enum StateValidationError {
             return "Player view model is missing in naming state"
         }
     }
-}
+
+  }

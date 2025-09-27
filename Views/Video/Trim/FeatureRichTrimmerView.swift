@@ -4,6 +4,7 @@ import Combine
 import OSLog
 import PhotosUI
 
+
 // MARK: - HandleType Enum (internal use)
 enum HandleType {
     case start, end
@@ -1002,46 +1003,37 @@ struct FeatureRichTrimmerView: View {
             isFinalizing = true
         }
 
-        // 🎯 CRITICAL FIX: Apply final rotation settings before state transition
-        // The lightweight preview was only for UI - now apply the actual video transformation
+        // 🎯 ATOMIC FIX: Simplified approach - unified state handles entire transition
+        // This eliminates the race condition by centralizing all logic in proceedToNextState
         do {
-            diagnosticLogger.logInfo("🔄 Applying final rotation before state transition", metadata: [
+            diagnosticLogger.logInfo("🚀 Starting atomic state transition from trimmer view", metadata: [
                 "current_flow_state": "\(unifiedState.flowState)",
                 "target_state": "naming",
-                "final_rotation": "\(viewModel.rotationQuarterTurns)",
-                "preview_degrees": "\(previewRotationDegrees)",
-                "race_condition_prevention": "enabled",
-                "local_overlay_active": "\(isFinalizing)"
+                "race_condition_prevention": "atomic_transition",
+                "local_overlay_active": "\(isFinalizing)",
+                "processing_method": "centralized"
             ])
 
-            // Apply the final rotation settings to rebuild the video composition
-            try await unifiedState.applyTrimSettings(
-                startTime: viewModel.startTime,
-                endTime: viewModel.endTime,
-                rotation: viewModel.rotationQuarterTurns
-            )
-
-            diagnosticLogger.logInfo("✅ Final rotation applied, proceeding to next state")
-
-            // Now trigger the state transition
-            try await withTimeout(seconds: 15.0) {
-                try await unifiedState.proceedToNextState()
-            }
+            // 🎯 ATOMIC FIX: Simply tell the state machine to proceed
+            // All asset preparation and transition logic is now centralized in proceedToNextState
+            try await unifiedState.proceedToNextState()
 
             diagnosticLogger.stopTiming("validate_and_continue")
-            diagnosticLogger.logInfo("🎉 Successfully continued to naming view via proper state transition", metadata: [
+            diagnosticLogger.logInfo("🎉 Successfully triggered atomic state transition", metadata: [
                 "final_flow_state": "\(unifiedState.flowState)",
                 "transition_method": "proceedToNextState",
-                "race_condition_prevention": "verified"
+                "race_condition_prevention": "atomic",
+                "asset_processing_method": "centralized",
+                "finalization_successful": "true"
             ])
 
         } catch let timeoutError as TimeoutError {
-            diagnosticLogger.logError("⏰ Continue operation timed out", error: timeoutError)
-            await unifiedState.setError(message: "Operation timed out", underlying: "The continue operation took too long to complete")
+            diagnosticLogger.logError("⏰ Atomic state transition timed out", error: timeoutError)
+            // No need to call setError here - unifiedState handles its own error state
             diagnosticLogger.stopTiming("validate_and_continue")
         } catch {
-            diagnosticLogger.logError("❌ Failed during proceedToNextState", error: error)
-            await unifiedState.setError(message: "Failed to prepare the video", underlying: error.localizedDescription)
+            diagnosticLogger.logError("❌ Failed during atomic state transition", error: error)
+            // No need to call setError here - unifiedState handles its own error state
             diagnosticLogger.stopTiming("validate_and_continue")
         }
 

@@ -433,7 +433,10 @@ private struct SimpleVideoTrimmerView: View {
                                            at: .zero)
         }
         
-        let sourceVideoTrack = try await asset.loadTracks(withMediaType: .video).first!
+        let videoTracks = try await asset.loadTracks(withMediaType: .video)
+        guard let sourceVideoTrack = videoTracks.first else {
+            throw VideoProcessingError.noValidVideoTrackFound
+        }
         try videoTrack.insertTimeRange(CMTimeRange(start: CMTime(seconds: startTime, preferredTimescale: 600),
                                                    duration: CMTime(seconds: endTime - startTime, preferredTimescale: 600)),
                                        of: sourceVideoTrack,

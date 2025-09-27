@@ -40,58 +40,98 @@ final class VideoTransformBuilder {
                         userInfo: [NSLocalizedDescriptionKey: "No video tracks found in asset"])
         }
 
-        // 3. 🎯 CRITICAL: EXPLICIT TRACK-BY-TRACK COMPOSITION BUILDING
+        // 3. 🎯 CRITICAL: ROBUST TRACK SELECTION AND VALIDATION
+        // 🎯 ENHANCED: Implement robust track selection for complex multi-track assets
+        logger.info("🎬 BUILDER: 🔍 Starting robust track validation for complex asset")
+        logger.info("🎬 BUILDER: 📊 Asset analysis - Raw video tracks: \(videoTracks.count), Raw audio tracks: \(audioTracks.count)")
+
+        let validVideoTracks = await findBestVideoTracks(from: videoTracks)
+        let validAudioTracks = await findBestAudioTracks(from: audioTracks)
+
+        guard !validVideoTracks.isEmpty else {
+            logger.error("🎬 BUILDER: ❌ No valid video tracks found in asset - asset may be corrupted or unsupported")
+            throw VideoProcessingError.noValidVideoTrackFound
+        }
+
+        // 🎯 ENHANCED: Detailed multi-track asset logging
+        logger.info("🎬 BUILDER: ✅ Robust track selection completed")
+        logger.info("🎬 BUILDER: 📊 Validation results:")
+        logger.info("🎬 BUILDER:   - Valid video tracks: \(validVideoTracks.count)/\(videoTracks.count)")
+        logger.info("🎬 BUILDER:   - Valid audio tracks: \(validAudioTracks.count)/\(audioTracks.count)")
+
+        if validVideoTracks.count > 1 {
+            logger.warning("🎬 BUILDER: ⚠️ Multi-track video asset detected - using highest quality track for rotation")
+            // Log details about multi-track scenario
+            for (index, track) in validVideoTracks.enumerated() {
+                let size = try? await track.load(.naturalSize)
+                logger.info("🎬 BUILDER:   - Track \(index + 1): \(size?.width ?? 0)x\(size?.height ?? 0)")
+            }
+        }
+
+        if videoTracks.count > validVideoTracks.count {
+            logger.warning("🎬 BUILDER: ⚠️ Filtered out \(videoTracks.count - validVideoTracks.count) invalid video tracks")
+        }
+
+        if audioTracks.count > validAudioTracks.count {
+            logger.warning("🎬 BUILDER: ⚠️ Filtered out \(audioTracks.count - validAudioTracks.count) invalid audio tracks")
+        }
+
+        // 4. 🎯 CRITICAL: EXPLICIT TRACK-BY-TRACK COMPOSITION BUILDING
         // Abandon the high-level API that creates invalid compositions
         let composition = AVMutableComposition()
 
         logger.info("🎬 BUILDER: 🔧 Building composition with explicit track insertion...")
         let compositionStart = CFAbsoluteTimeGetCurrent()
 
-        // Handle video tracks explicitly
-        for (index, sourceVideoTrack) in videoTracks.enumerated() {
-            logger.info("🎬 BUILDER: 🎬 Processing video track \(index + 1)/\(videoTracks.count)")
+        // Handle video tracks explicitly using validated tracks
+        for (index, sourceVideoTrack) in validVideoTracks.enumerated() {
+            logger.info("🎬 BUILDER: 🎬 Processing validated video track \(index + 1)/\(validVideoTracks.count)")
 
-            let compositionVideoTrack = composition.addMutableTrack(
+            guard let compositionVideoTrack = composition.addMutableTrack(
                 withMediaType: .video,
                 preferredTrackID: kCMPersistentTrackID_Invalid
-            )
+            ) else {
+                throw VideoProcessingError.compositionTrackCreationFailed
+            }
 
             do {
-                try compositionVideoTrack?.insertTimeRange(
+                try compositionVideoTrack.insertTimeRange(
                     timeRange,
                     of: sourceVideoTrack,
                     at: .zero
                 )
-                print("🎬 VideoTransformBuilder: ✅ Successfully inserted video track \(index + 1)")
+                logger.info("🎬 BUILDER: ✅ Successfully inserted validated video track \(index + 1)")
             } catch {
-                print("🎬 VideoTransformBuilder: ❌ Failed to insert video track \(index + 1): \(error)")
-                throw error
+                logger.error("🎬 BUILDER: ❌ Failed to insert validated video track \(index + 1): \(error)")
+                throw VideoProcessingError.trackInsertionFailed
             }
         }
 
-        // Handle audio tracks explicitly
-        for (index, sourceAudioTrack) in audioTracks.enumerated() {
-            logger.info("🎬 BUILDER: 🎵 Processing audio track \(index + 1)/\(audioTracks.count)")
+        // Handle audio tracks explicitly using validated tracks
+        for (index, sourceAudioTrack) in validAudioTracks.enumerated() {
+            logger.info("🎬 BUILDER: 🎵 Processing validated audio track \(index + 1)/\(validAudioTracks.count)")
 
-            let compositionAudioTrack = composition.addMutableTrack(
+            guard let compositionAudioTrack = composition.addMutableTrack(
                 withMediaType: .audio,
                 preferredTrackID: kCMPersistentTrackID_Invalid
-            )
+            ) else {
+                throw VideoProcessingError.compositionTrackCreationFailed
+            }
 
             do {
-                try compositionAudioTrack?.insertTimeRange(
+                try compositionAudioTrack.insertTimeRange(
                     timeRange,
                     of: sourceAudioTrack,
                     at: .zero
                 )
-                print("🎬 VideoTransformBuilder: ✅ Successfully inserted audio track \(index + 1)")
+                logger.info("🎬 BUILDER: ✅ Successfully inserted validated audio track \(index + 1)")
             } catch {
-                print("🎬 VideoTransformBuilder: ❌ Failed to insert audio track \(index + 1): \(error)")
-                throw error
+                logger.error("🎬 BUILDER: ❌ Failed to insert validated audio track \(index + 1): \(error)")
+                throw VideoProcessingError.trackInsertionFailed
             }
         }
 
-        // 4. VALIDATE THE COMPOSITION
+        // 5. VALIDATE THE COMPOSITION
         logger.info("🎬 BUILDER: 🔍 Validating built composition...")
         let finalVideoTracks = composition.tracks(withMediaType: .video)
         let finalAudioTracks = composition.tracks(withMediaType: .audio)
@@ -113,12 +153,13 @@ final class VideoTransformBuilder {
             return (composition, nil)
         }
 
-        // 6. --- ENHANCED ROTATION TRANSFORM LOGIC (for quarterTurns != 0) ---
-        print("🎬 VideoTransformBuilder: Rotation needed. Building enhanced video composition...")
+        // 7. --- ENHANCED ROTATION TRANSFORM LOGIC (for quarterTurns != 0) ---
+        logger.info("🎬 BUILDER: 🔄 Rotation needed. Building enhanced video composition...")
 
-        // Step A: Get the properties we need from the source video track (not composition track)
-        guard let sourceVideoTrack = videoTracks.first else {
-            throw NSError(domain: "VideoTransformBuilder", code: -4, userInfo: [NSLocalizedDescriptionKey: "Could not find source video track."])
+        // Step A: Get the properties we need from the validated source video track (not composition track)
+        guard let sourceVideoTrack = validVideoTracks.first else {
+            logger.error("🎬 BUILDER: ❌ No validated video track available for rotation")
+            throw VideoProcessingError.noValidVideoTrackFound
         }
 
         let naturalSize = try await sourceVideoTrack.load(.naturalSize)
@@ -395,7 +436,7 @@ final class VideoTransformBuilder {
                 print("   - Instruction \(instructionIndex): \(mutableInstruction.layerInstructions.count) layer instructions")
 
                 for (layerIndex, layerInstruction) in mutableInstruction.layerInstructions.enumerated() {
-                    guard let mutableLayerInstruction = layerInstruction as? AVMutableVideoCompositionLayerInstruction else { continue }
+                    guard layerInstruction is AVMutableVideoCompositionLayerInstruction else { continue }
                     print("     - Layer \(layerIndex): Transform applied")
                 }
             }
@@ -403,7 +444,7 @@ final class VideoTransformBuilder {
 
         // 4. Test basic seekability (non-blocking test)
         do {
-            let testSeekTime = CMTime(seconds: 0.1, preferredTimescale: 600)
+            _ = CMTime(value: 1, timescale: 10) // 0.1 seconds
             logger.info("🎬 BUILDER: 📊 Seekability test - checking asset seekability")
         }
 
@@ -421,5 +462,119 @@ final class VideoTransformBuilder {
         }
 
         print("🎬 VideoTransformBuilder: ✅ Composition readiness validation completed successfully")
+    }
+
+    // MARK: - Robust Track Selection
+
+    /// 🎯 ENHANCED: Finds the best video tracks from a collection of tracks
+    /// Handles complex multi-track assets by filtering for playable, valid tracks
+    /// - Parameter tracks: Collection of video tracks to filter
+    /// - Returns: Array of valid video tracks, sorted by quality
+    private static func findBestVideoTracks(from tracks: [AVAssetTrack]) async -> [AVAssetTrack] {
+        logger.info("🎬 BUILDER: 🔍 Starting robust video track selection from \(tracks.count) tracks")
+
+        let validationStart = CFAbsoluteTimeGetCurrent()
+
+        // Filter tracks using simple loop approach
+        var validTracks: [AVAssetTrack] = []
+        for track in tracks {
+            // Check basic track properties
+            guard (try? await track.load(.isPlayable)) ?? false else {
+                logger.warning("🎬 BUILDER: ⚠️ Skipping non-playable video track")
+                continue
+            }
+
+            // Check for valid format descriptions
+            do {
+                let formatDescriptions = try await track.load(.formatDescriptions)
+                guard !formatDescriptions.isEmpty else {
+                    logger.warning("🎬 BUILDER: ⚠️ Skipping video track with no format descriptions")
+                    continue
+                }
+            } catch {
+                logger.error("🎬 BUILDER: ❌ Failed to load format descriptions for video track: \(error)")
+                continue
+            }
+
+            // Check for valid dimensions
+            do {
+                let naturalSize = try await track.load(.naturalSize)
+                guard naturalSize != .zero else {
+                    logger.warning("🎬 BUILDER: ⚠️ Skipping video track with zero dimensions")
+                    continue
+                }
+
+                // Log track quality metrics
+                logger.info("🎬 BUILDER: 📊 Valid video track found - dimensions: \(naturalSize.width)x\(naturalSize.height)")
+                validTracks.append(track)
+            } catch {
+                logger.error("🎬 BUILDER: ❌ Failed to load natural size for video track: \(error)")
+                continue
+            }
+        }
+
+        // Sort tracks by quality (prefer higher resolution) - use natural size property
+        let sortedTracks = validTracks.sorted { track1, track2 in
+            let size1 = track1.naturalSize
+            let size2 = track2.naturalSize
+            let area1 = size1.width * size1.height
+            let area2 = size2.width * size2.height
+            return area1 > area2
+        }
+
+        let validationTime = (CFAbsoluteTimeGetCurrent() - validationStart) * 1000
+        logger.info("🎬 BUILDER: ✅ Robust video track selection completed in \(String(format: "%.2f", validationTime))ms")
+        logger.info("🎬 BUILDER: 📊 Track selection results: \(sortedTracks.count)/\(tracks.count) tracks valid")
+
+        return sortedTracks
+    }
+
+    /// 🎯 ENHANCED: Finds the best audio tracks from a collection of tracks
+    /// Handles complex multi-track assets by filtering for playable audio tracks
+    /// - Parameter tracks: Collection of audio tracks to filter
+    /// - Returns: Array of valid audio tracks
+    private static func findBestAudioTracks(from tracks: [AVAssetTrack]) async -> [AVAssetTrack] {
+        logger.info("🎬 BUILDER: 🔍 Starting robust audio track selection from \(tracks.count) tracks")
+
+        let validationStart = CFAbsoluteTimeGetCurrent()
+
+        // Filter tracks using simple loop approach
+        var validTracks: [AVAssetTrack] = []
+        for track in tracks {
+            // Check basic track properties
+            do {
+                let isPlayable = try await track.load(.isPlayable)
+                guard isPlayable else {
+                    logger.warning("🎬 BUILDER: ⚠️ Skipping non-playable audio track")
+                    continue
+                }
+            } catch {
+                logger.warning("🎬 BUILDER: ⚠️ Failed to check playability: \(error)")
+                continue
+            }
+
+            // Check for valid format descriptions
+            do {
+                let formatDescriptions = try await track.load(.formatDescriptions)
+                guard !formatDescriptions.isEmpty else {
+                    logger.warning("🎬 BUILDER: ⚠️ Skipping audio track with no format descriptions")
+                    continue
+                }
+            } catch {
+                logger.error("🎬 BUILDER: ❌ Failed to load format descriptions for audio track: \(error)")
+                continue
+            }
+
+            // Additional audio-specific validation could be added here
+            // For now, basic validation is sufficient
+            logger.info("🎬 BUILDER: 🎵 Valid audio track found")
+            validTracks.append(track)
+        }
+
+        let validationTime = (CFAbsoluteTimeGetCurrent() - validationStart) * 1000
+        logger.info("🎬 BUILDER: ✅ Robust audio track selection completed in \(String(format: "%.2f", validationTime))ms")
+        logger.info("🎬 BUILDER: 📊 Audio track selection results: \(validTracks.count)/\(tracks.count) tracks valid")
+
+        return validTracks
     }
 }

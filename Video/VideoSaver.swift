@@ -21,7 +21,10 @@ final class VideoSaverImpl: VideoSaver {
         logger.info("💾 Saving video to app storage", metadata: ["filename": filename])
         
         // Create a URL in the app's documents directory
-        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            logger.error("❌ Unable to access documents directory", metadata: nil)
+            throw VideoProcessingError.diskSpaceFull(required: 0, available: 0)
+        }
         let videoURL = documentsDirectory.appendingPathComponent(filename)
         
         // Remove existing file if it exists

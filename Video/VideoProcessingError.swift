@@ -123,6 +123,9 @@ public enum VideoProcessingError: LocalizedError {
     case audioTrackMissing
     case photosPermissionDenied
     case photosSaveFailed(underlyingError: Error)
+    case noValidVideoTrackFound
+    case compositionTrackCreationFailed
+    case trackInsertionFailed
 
     public var errorDescription: String? {
         switch self {
@@ -170,6 +173,12 @@ public enum VideoProcessingError: LocalizedError {
             return "Photos library access denied"
         case .photosSaveFailed:
             return "Failed to save video to Photos library"
+        case .noValidVideoTrackFound:
+            return "No valid video track found in asset"
+        case .compositionTrackCreationFailed:
+            return "Failed to create composition track"
+        case .trackInsertionFailed:
+            return "Failed to insert track into composition"
         }
     }
 
@@ -219,6 +228,12 @@ public enum VideoProcessingError: LocalizedError {
             return "Grant photo library access in Settings"
         case .photosSaveFailed:
             return "Check available storage and try again"
+        case .noValidVideoTrackFound:
+            return "Please select a different video file with valid video content"
+        case .compositionTrackCreationFailed:
+            return "Try restarting the app or selecting a different video"
+        case .trackInsertionFailed:
+            return "Try converting the video to a different format"
         }
     }
 
@@ -228,7 +243,8 @@ public enum VideoProcessingError: LocalizedError {
              .assetCreationFailed, .playerInitializationFailed, .readinessTimeout, .exportFailed,
              .trimOperationFailed, .assetNotReadable, .codecNotSupported, .invalidVideoFormat,
              .insufficientPermissions, .diskSpaceFull, .networkError, .concurrentOperationLimitReached,
-             .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied, .photosSaveFailed:
+             .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied, .photosSaveFailed,
+             .noValidVideoTrackFound, .compositionTrackCreationFailed, .trackInsertionFailed:
             return true
         case .operationCancelled, .audioTrackMissing:
             return false
@@ -239,11 +255,12 @@ public enum VideoProcessingError: LocalizedError {
         switch self {
         case .memoryLimitExceeded, .invalidStateTransition, .assetCreationFailed, .playerInitializationFailed,
              .codecNotSupported, .invalidVideoFormat, .insufficientPermissions, .diskSpaceFull,
-             .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied:
+             .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied,
+             .noValidVideoTrackFound, .compositionTrackCreationFailed:
             return .critical
         case .videoLoadingFailed, .videoProcessingFailed, .readinessTimeout, .exportFailed,
              .trimOperationFailed, .assetNotReadable, .networkError, .concurrentOperationLimitReached,
-             .photosSaveFailed:
+             .photosSaveFailed, .trackInsertionFailed:
             return .warning
         case .operationCancelled, .audioTrackMissing:
             return .info
@@ -263,6 +280,7 @@ public enum VideoProcessingError: LocalizedError {
         case .invalidStateTransition: return .state
         case .assetNotReadable, .audioTrackMissing: return .content
         case .photosPermissionDenied, .photosSaveFailed: return .permission
+        case .noValidVideoTrackFound, .compositionTrackCreationFailed, .trackInsertionFailed: return .content
         }
     }
 }

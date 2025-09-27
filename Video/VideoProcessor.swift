@@ -24,29 +24,38 @@ final class VideoProcessorImpl: VideoProcessor {
         }
         
         // Create a new composition with the video track
-        guard let videoTrack = (try await asset.loadTracks(withMediaType: .video)).first else {
-            let error = VideoProcessingError.assetCreationFailed
-            logger.error("❌ No video track found in asset: \(error.localizedDescription)", metadata: nil)
-            throw error
+        let videoTracks = try await asset.loadTracks(withMediaType: .video)
+        guard let videoTrack = videoTracks.first else {
+            logger.error("❌ No video track found in asset", metadata: ["asset": "\(asset)"])
+            throw VideoProcessingError.noValidVideoTrackFound
         }
-        
+
         // Create composition
         let composition = AVMutableComposition()
-        
+
         // Add video track to composition
-        let compositionVideoTrack = composition.addMutableTrack(
+        guard let compositionVideoTrack = composition.addMutableTrack(
             withMediaType: .video,
             preferredTrackID: kCMPersistentTrackID_Invalid
-        )
-        
+        ) else {
+            logger.error("❌ Failed to create composition video track", metadata: nil)
+            throw VideoProcessingError.compositionTrackCreationFailed
+        }
+
         let duration = try await asset.load(.duration)
         let naturalSize = try await videoTrack.load(.naturalSize)
-        
-        try compositionVideoTrack?.insertTimeRange(
-            CMTimeRange(start: .zero, duration: duration),
-            of: videoTrack,
-            at: .zero
-        )
+
+        do {
+            try compositionVideoTrack.insertTimeRange(
+                CMTimeRange(start: .zero, duration: duration),
+                of: videoTrack,
+                at: .zero
+            )
+            logger.info("✅ Video track inserted successfully", metadata: ["duration": "\(duration.seconds)s"])
+        } catch {
+            logger.error("❌ Failed to insert video track into composition", metadata: ["error": "\(error)"])
+            throw VideoProcessingError.trackInsertionFailed
+        }
         
         // Add audio tracks if any
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -73,7 +82,7 @@ final class VideoProcessorImpl: VideoProcessor {
         instruction.timeRange = CMTimeRange(start: .zero, duration: duration)
         
         // Create layer instruction with rotation
-        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack!)
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionVideoTrack)
         
         // Apply rotation based on quarter turns
         switch rotationQuarterTurns {
