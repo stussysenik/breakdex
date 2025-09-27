@@ -69,6 +69,23 @@ struct BreakingFlashcardsApp: App {
                     // Clear any cached images when memory is low
                     print("Memory warning received - clearing caches")
                 }
+                // 🎯 NEW: Trigger sync when app becomes active (user returns to app)
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    Task {
+                        print("🚀 App became active, triggering album sync.")
+                        do {
+                            AlbumSyncManager.shared.configure(with: persistenceController.container.viewContext)
+                            let results = try await AlbumSyncManager.shared.performFullSync()
+                            print("📊 App active sync completed:")
+                            print("   📊 Total moves: \(results.totalMoves)")
+                            print("   ✅ Found in Photos: \(results.foundInPhotos)")
+                            print("   ⚠️ Missing from Photos: \(results.missingFromPhotos)")
+                            print("   🗂️ Orphaned metadata: \(results.orphanedMetadata)")
+                        } catch {
+                            print("❌ App active sync failed: \(error.localizedDescription)")
+                        }
+                    }
+                }
         }
     }
     

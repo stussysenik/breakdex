@@ -8,6 +8,7 @@ import OSLog
 public protocol MovePersistenceServiceProtocol {
     func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> String // ✅ FIXED: Returns localIdentifier
     func deleteVideoFromPhotos(localIdentifier: String) async throws // ✅ ADDED: For rollback operations
+    func doesMoveExist(withName name: String) async throws -> Bool // 🎯 FIXED: Added missing method for duplicate validation
     func createMoveEntity(
         name: String,
         originalPhotosIdentifier: String, // ✅ FIXED: This is the single source of truth
@@ -206,6 +207,31 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         }
 
         logger.info("💾 MOVE_PERSISTENCE: ✅ Video deleted from Photos library successfully")
+    }
+
+    /// Check if a move with the given name already exists (fail-fast validation)
+    /// 🎯 NEW: Lightweight validation function for early duplicate detection
+    func doesMoveExist(withName name: String) async throws -> Bool {
+        logger.info("💾 MOVE_PERSISTENCE: 🔍 Validating move name uniqueness for: '\(name)'")
+
+        let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name ==[c] %@", name) // Case-insensitive check
+        fetchRequest.fetchLimit = 1 // We only need to know if at least one exists
+
+        let count = try await PersistenceController.shared.container.viewContext.perform {
+            try self.viewContext.count(for: fetchRequest)
+        }
+
+        let exists = count > 0
+        logger.info("💾 MOVE_PERSISTENCE: 🎯 Name validation result: '\(name)' exists: \(exists)")
+
+        // ✨ ENHANCED: Log detailed information when duplicate is found
+        if exists {
+            logger.warning("💾 MOVE_PERSISTENCE: ⚠️ DUPLICATE DETECTION: Move name '\(name)' already exists in database")
+            logger.info("💾 MOVE_PERSISTENCE: 📊 Duplicate detection details: name=\(name), method=doesMoveExist, case_insensitive=true")
+        }
+
+        return exists
     }
 
     /// Clean up orphaned Move entity (for rollback operations)

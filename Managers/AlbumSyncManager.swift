@@ -71,12 +71,43 @@ class AlbumSyncManager: ObservableObject {
             // Legacy file-based moves are ignored in this sync
         }
         
+        // 🎯 NEW: Clean up orphaned Core Data entries (moves missing from Photos)
+        if !missingFromPhotos.isEmpty {
+            print("🧹 Found \(missingFromPhotos.count) orphaned move(s) in Core Data. Cleaning up...")
+            print("📊 Orphaned moves to delete: \(missingFromPhotos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
+
+            await context.perform {
+                for orphanedMove in missingFromPhotos {
+                    print("🗑️ Deleting Core Data entry for move: \(orphanedMove.name ?? "Untitled") (ID: \(orphanedMove.id?.uuidString ?? "unknown"))")
+                    context.delete(orphanedMove)
+                }
+                do {
+                    try context.save()
+                    print("✅ Orphaned move cleanup complete. Deleted \(missingFromPhotos.count) entries.")
+                } catch {
+                    print("❌ Error saving context after cleanup: \(error)")
+                    print("🔄 Rolling back Core Data context changes")
+                    context.rollback()
+                }
+            }
+        } else {
+            print("✅ No orphaned Core Data entries found - all moves have corresponding Photos assets")
+        }
+
         // Check for orphaned metadata (videos in album but not in Core Data)
         let albumVideos = await getAllBreakDexVideos()
         let photosIdentifiersInCoreData = Set(allMoves.compactMap { $0.photosIdentifier })
         let orphanedIdentifiers = albumVideos.filter { !photosIdentifiersInCoreData.contains($0.localIdentifier) }
         let orphanedMetadata = orphanedIdentifiers.count
-        
+
+        if !orphanedIdentifiers.isEmpty {
+            print("📊 Found \(orphanedMetadata) video(s) in BreakDex album without Core Data entries")
+            print("📋 Orphaned video identifiers (first 3): \(orphanedIdentifiers.prefix(3).map { $0.localIdentifier.prefix(20) + "..." }.joined(separator: ", "))")
+            if orphanedIdentifiers.count > 3 {
+                print("📋 ... and \(orphanedIdentifiers.count - 3) more")
+            }
+        }
+
         let results = SyncResults(
             totalMoves: totalMoves,
             foundInPhotos: foundInPhotos,

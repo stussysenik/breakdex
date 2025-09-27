@@ -46,7 +46,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
         logger.info("🎬 SAVE_COORDINATOR: Starting save operation for move: \(name)", metadata: nil)
 
         // Validate input parameters before proceeding
-        try validateSaveParameters(
+        try await validateSaveParameters(
             name: name,
             asset: asset,
             trimStartTime: trimStartTime,
@@ -219,18 +219,47 @@ public class AddMoveSaveCoordinator: ObservableObject {
         }
 
         do {
-            // Step 1: Verify asset is ready and loadable
+            // 🎯 NEW STEP 1: Fail-fast name validation BEFORE any processing
+            logger.info("🎬 SAVE_COORDINATOR: 🎯 ATOMIC: Validating move name uniqueness for: '\(name)'", metadata: [
+                "move_name": name,
+                "validation_stage": "preflight",
+                "atomic_operation": "true",
+                "timestamp": "\(Date().timeIntervalSince1970)"
+            ])
+            if try await movePersistenceService.doesMoveExist(withName: name) {
+                logger.warning("🎬 SAVE_COORDINATOR: ❌ DUPLICATE NAME DETECTED: '\(name)' - aborting save operation", metadata: [
+                    "duplicate_name": name,
+                    "validation_result": "failed",
+                    "operation_aborted": "true",
+                    "error_type": "AddMoveSaveError.duplicateMoveName",
+                    "user_impact": "validation_blocked_save",
+                    "timestamp": "\(Date().timeIntervalSince1970)"
+                ])
+                throw AddMoveSaveError.duplicateMoveName(name: name)
+            }
+            await updateProgress(0.05)
+            logger.info("🎬 SAVE_COORDINATOR: ✅ Name validation passed - continuing with save operation", metadata: [
+                "move_name": name,
+                "validation_result": "passed",
+                "progress": "0.05",
+                "next_stage": "asset_verification",
+                "timestamp": "\(Date().timeIntervalSince1970)"
+            ])
+
+            // Step 2: Verify asset is ready and loadable
             logger.info("🎬 SAVE_COORDINATOR: Verifying asset readiness", metadata: nil)
             let readyAsset = try await verifyAssetReadiness(asset)
             await updateProgress(0.1)
 
-            // Step 2: Process video (trim if needed) and export to temporary file
+            // Step 3: Process video (trim if needed) and export to temporary file
             logger.info("🎬 SAVE_COORDINATOR: Processing video with atomic export", metadata: nil)
             await updateProgress(0.2)
 
+            // Load asset duration asynchronously (iOS 16+ compatible)
+            let assetDuration = try await asset.load(.duration)
             let timeRange = CMTimeRange(
                 start: CMTime(seconds: trimStartTime ?? 0.0, preferredTimescale: 600),
-                end: CMTime(seconds: trimEndTime ?? asset.duration.seconds, preferredTimescale: 600)
+                end: CMTime(seconds: trimEndTime ?? assetDuration.seconds, preferredTimescale: 600)
             )
 
             let outputURL = FileManager.default.temporaryDirectory
@@ -246,7 +275,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
 
             await updateProgress(0.4)
 
-            // Step 3: ATOMIC OPERATION - Save to Photos library first
+            // Step 4: ATOMIC OPERATION - Save to Photos library first
             logger.info("🎬 SAVE_COORDINATOR: 🎯 ATOMIC: Saving to Photos library", metadata: nil)
             await updateProgress(0.5)
 
@@ -260,7 +289,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 moveName: name
             )
 
-            // Step 4: ATOMIC OPERATION - Create Move entity in Core Data
+            // Step 5: ATOMIC OPERATION - Create Move entity in Core Data
             logger.info("🎬 SAVE_COORDINATOR: 🎯 ATOMIC: Creating Move entity", metadata: nil)
             await updateProgress(0.7)
 
@@ -272,11 +301,11 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 name: name,
                 originalPhotosIdentifier: photosId,
                 trimStartTime: trimStartTime ?? 0.0,
-                trimEndTime: trimEndTime ?? asset.duration.seconds,
+                trimEndTime: trimEndTime ?? assetDuration.seconds,
                 rotationQuarterTurns: rotationQuarterTurns
             )
 
-            // Step 5: Finalize and return result - TRANSACTION COMPLETE
+            // Step 6: Finalize and return result - TRANSACTION COMPLETE
             await MainActor.run {
                 self.saveProgress = 1.0
                 self.saveStatus = .completed
@@ -309,42 +338,59 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 self.saveProgress = 0.0
             }
 
-            logger.error("🎬 SAVE_COORDINATOR: ❌ ATOMIC TRANSACTION FAILED - Initiating comprehensive rollback", metadata: [
+            logger.error("🎬 SAVE_COORDINATOR: ❌ ATOMIC TRANSACTION FAILED - Analyzing error type for rollback", metadata: [
                 "error": error.localizedDescription,
                 "error_type": "\(type(of: error))",
                 "error_domain": (error as NSError).domain,
-                "error_code": "\((error as NSError).code)",
-                "rollback_initiated": "true"
+                "error_code": "\((error as NSError).code)"
             ])
 
-            // ENHANCED ROLLBACK: Multi-stage cleanup with detailed logging
-            do {
-                // Stage 1: Clean up Photos assets if they were created
-                if let orphanedIdentifier = finalPhotosIdentifier {
-                    await performPhotosRollback(orphanedIdentifier: orphanedIdentifier, error: error)
+            // ✨ SOLUTION: Conditional rollback based on error type
+            // Skip rollback for validation failures (duplicate name) - no assets were created
+            if case AddMoveSaveError.duplicateMoveName = error {
+                logger.warning("🎬 SAVE_COORDINATOR: 🔄 SKIPPING ROLLBACK: Duplicate name validation failed. No new assets or entities were created.", metadata: [
+                    "error_type": "duplicateMoveName",
+                    "move_name": name,
+                    "rollback_skipped": "true",
+                    "user_impact": "validation_failed_no_data_loss"
+                ])
+            } else {
+                // ENHANCED ROLLBACK: Multi-stage cleanup for actual transactional failures
+                logger.warning("🎬 SAVE_COORDINATOR: 🔄 INITIATING ROLLBACK: Transactional failure detected. Cleaning up partially created assets.", metadata: [
+                    "error_type": "\(type(of: error))",
+                    "rollback_initiated": "true",
+                    "move_name": name
+                ])
+
+                do {
+                    // Stage 1: Clean up Photos assets if they were created
+                    if let orphanedIdentifier = finalPhotosIdentifier {
+                        await performPhotosRollback(orphanedIdentifier: orphanedIdentifier, error: error)
+                    }
+
+                    // Stage 2: Clean up any Core Data entities that might have been partially created
+                    // This is now safe because it won't be called for duplicate name errors.
+                    await performCoreDataRollback(moveName: name, error: error)
+
+                    // Stage 3: Ensure temporary files are cleaned up
+                    await performTemporaryFileRollback(temporaryURL: temporaryVideoURL, error: error)
+
+                    logger.info("🎬 SAVE_COORDINATOR: ✅ ROLLBACK COMPLETED - System integrity maintained", metadata: [
+                        "rollback_stages_completed": "3",
+                        "system_state": "clean",
+                        "user_impact": "operation_failed_but_no_orphans"
+                    ])
+
+                } catch let rollbackError {
+                    logger.error("🎬 SAVE_COORDINATOR: ❌ CRITICAL - ROLLBACK FAILED - Manual cleanup required", metadata: [
+                        "original_error": error.localizedDescription,
+                        "rollback_error": rollbackError.localizedDescription,
+                        "orphaned_identifier": finalPhotosIdentifier ?? "none",
+                        "temporary_file": temporaryVideoURL?.lastPathComponent ?? "none",
+                        "manual_intervention_required": "true",
+                        "user_impact": "potential_data_inconsistency"
+                    ])
                 }
-
-                // Stage 2: Clean up any Core Data entities that might have been partially created
-                await performCoreDataRollback(moveName: name, error: error)
-
-                // Stage 3: Ensure temporary files are cleaned up
-                await performTemporaryFileRollback(temporaryURL: temporaryVideoURL, error: error)
-
-                logger.info("🎬 SAVE_COORDINATOR: ✅ ROLLBACK COMPLETED - System integrity maintained", metadata: [
-                    "rollback_stages_completed": "3",
-                    "system_state": "clean",
-                    "user_impact": "operation_failed_but_no_orphans"
-                ])
-
-            } catch let rollbackError {
-                logger.error("🎬 SAVE_COORDINATOR: ❌ CRITICAL - ROLLBACK FAILED - Manual cleanup required", metadata: [
-                    "original_error": error.localizedDescription,
-                    "rollback_error": rollbackError.localizedDescription,
-                    "orphaned_identifier": finalPhotosIdentifier ?? "none",
-                    "temporary_file": temporaryVideoURL?.lastPathComponent ?? "none",
-                    "manual_intervention_required": "true",
-                    "user_impact": "potential_data_inconsistency"
-                ])
             }
 
             throw error
@@ -353,20 +399,24 @@ public class AddMoveSaveCoordinator: ObservableObject {
 
     /// Verify asset is ready and can be processed
     private func verifyAssetReadiness(_ asset: AVAsset) async throws -> AVAsset {
+        // Load asset properties asynchronously (iOS 16+ compatible)
+        let assetDuration = try await asset.load(.duration)
+        let isPlayable = try await asset.load(.isPlayable)
+
         logger.info("🎬 SAVE_COORDINATOR: Verifying asset readiness", metadata: [
-            "duration": "\(asset.duration.seconds)",
-            "is_playable": "\(asset.isPlayable)"
+            "duration": "\(assetDuration.seconds)",
+            "is_playable": "\(isPlayable)"
         ])
 
         // Check if asset is already loaded and playable
-        guard asset.isPlayable else {
+        guard isPlayable else {
             logger.error("🎬 SAVE_COORDINATOR: Asset is not playable", metadata: nil)
             throw AddMoveSaveError.assetNotReady
         }
 
-        guard asset.duration.seconds > 0 else {
+        guard assetDuration.seconds > 0 else {
             logger.error("🎬 SAVE_COORDINATOR: Asset has invalid duration", metadata: [
-                "duration": "\(asset.duration.seconds)"
+                "duration": "\(assetDuration.seconds)"
             ])
             throw AddMoveSaveError.invalidAssetDuration
         }
@@ -446,7 +496,7 @@ private extension AddMoveSaveCoordinator {
         asset: AVAsset,
         trimStartTime: Double?,
         trimEndTime: Double?
-    ) throws {
+    ) async throws {
         // Validate move name
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else {
             logger.warning("🎬 SAVE_COORDINATOR: Invalid move name provided", metadata: [
@@ -456,16 +506,17 @@ private extension AddMoveSaveCoordinator {
         }
 
         // Validate asset
-        guard asset.duration.seconds > 0 else {
+        let assetDuration = try await asset.load(.duration)
+        guard assetDuration.seconds > 0 else {
             logger.warning("🎬 SAVE_COORDINATOR: Invalid asset duration", metadata: [
-                "asset_duration": "\(asset.duration.seconds)"
+                "asset_duration": "\(assetDuration.seconds)"
             ])
             throw AddMoveSaveError.videoProcessingFailed(underlyingError: nil)
         }
 
         // Validate trim parameters if provided
         if let startTime = trimStartTime, let endTime = trimEndTime {
-            try validateTrimParameters(startTime: startTime, endTime: endTime, assetDuration: asset.duration.seconds)
+            try validateTrimParameters(startTime: startTime, endTime: endTime, assetDuration: assetDuration.seconds)
         }
     }
 
@@ -670,12 +721,10 @@ public protocol AddMoveSaveCoordinatorProtocol: ObservableObject {
     func reset()
 }
 
-// MARK: - Conformance
-extension AddMoveSaveCoordinator: AddMoveSaveCoordinatorProtocol {}
-
 // MARK: - Save Errors
 public enum AddMoveSaveError: LocalizedError {
     case invalidMoveName
+    case duplicateMoveName(name: String) // 🎯 NEW: Fail-fast duplicate name validation
     case videoProcessingFailed(underlyingError: Error?)
     case photosSaveFailed(underlyingError: Error?)
     case coreDataSaveFailed(underlyingError: Error?)
@@ -690,6 +739,8 @@ public enum AddMoveSaveError: LocalizedError {
         switch self {
         case .invalidMoveName:
             return "Please enter a name for your move."
+        case .duplicateMoveName(let name):
+            return "A move named '\(name)' already exists. Please use a different name."
         case .videoProcessingFailed(let error):
             return "Failed to process video. " + (error?.localizedDescription ?? "")
         case .photosSaveFailed(let error):
@@ -711,3 +762,7 @@ public enum AddMoveSaveError: LocalizedError {
         }
     }
 }
+
+// MARK: - Conformance
+extension AddMoveSaveCoordinator: AddMoveSaveCoordinatorProtocol {}
+

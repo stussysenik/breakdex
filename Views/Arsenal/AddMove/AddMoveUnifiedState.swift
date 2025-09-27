@@ -2777,19 +2777,31 @@ extension AddMoveUnifiedState {
             let totalOperationTime = Date().timeIntervalSince(operationStartTime)
             let finalMemory = diagnosticLogger.getMemoryInfo()
 
-            // ✅ Enhanced, user-facing error handling
+            // ✅ Enhanced, user-facing error handling with proper error type matching
             let errorMessage: String
             let underlyingError = error.localizedDescription
 
-            if let addMoveError = error as? AddMoveError, case .duplicateMoveName = addMoveError {
-                errorMessage = "A move named '\(self.moveName)' already exists. Please choose a different name."
+            // ✨ FIX: Check for both AddMoveSaveError and AddMoveError duplicate name cases
+            if let addMoveSaveError = error as? AddMoveSaveError, case .duplicateMoveName = addMoveSaveError {
+                errorMessage = addMoveSaveError.localizedDescription // Use the localized description from the error
                 await MainActor.run { self.flowState = .naming } // Return user to naming screen
                 diagnosticLogger.logError("Duplicate move name detected", error: error, metadata: [
                     "duplicate_move_name": "\(self.moveName)",
-                    "user_returned_to_naming": "true"
+                    "user_returned_to_naming": "true",
+                    "error_type": "AddMoveSaveError.duplicateMoveName",
+                    "using_localized_description": "true"
+                ])
+            } else if let addMoveError = error as? AddMoveError, case .duplicateMoveName = addMoveError {
+                errorMessage = addMoveError.localizedDescription // Use the localized description from the error
+                await MainActor.run { self.flowState = .naming } // Return user to naming screen
+                diagnosticLogger.logError("Duplicate move name detected", error: error, metadata: [
+                    "duplicate_move_name": "\(self.moveName)",
+                    "user_returned_to_naming": "true",
+                    "error_type": "AddMoveError.duplicateMoveName",
+                    "using_localized_description": "true"
                 ])
             } else {
-                errorMessage = "Failed to save move"
+                errorMessage = error.localizedDescription // Use the specific error message for all other errors
                 diagnosticLogger.logError("Final save operation failed", error: error, metadata: [
                     "error_message": errorMessage,
                     "underlying_error": underlyingError,
