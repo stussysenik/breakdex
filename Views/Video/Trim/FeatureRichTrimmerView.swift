@@ -128,10 +128,22 @@ struct FeatureRichTrimmerView: View {
         Binding(
             get: { viewModel.rotationQuarterTurns },
             set: { newValue in
+                let oldValue = viewModel.rotationQuarterTurns
                 // 🎯 CRITICAL FIX: Only update ViewModel state, don't trigger video rebuild
                 viewModel.rotationQuarterTurns = newValue
                 // Update local preview state for instant UI feedback
                 previewRotationDegrees = Double(newValue * 90)
+
+                // 🎯 DIAGNOSTIC: Log rotation changes for debugging state synchronization
+                if oldValue != newValue {
+                    diagnosticLogger.logUserInteraction("Rotation changed via binding", metadata: [
+                        "old_rotation": "\(oldValue)",
+                        "new_rotation": "\(newValue)",
+                        "preview_degrees": "\(previewRotationDegrees)",
+                        "unified_state_rotation": "\(unifiedState.rotationQuarterTurns)",
+                        "binding_source": "rotation_button"
+                    ])
+                }
             }
         )
     }
@@ -280,6 +292,21 @@ struct FeatureRichTrimmerView: View {
                 "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
                 "combined_ready": "\(isReadyToShowTrimmer)"
             ])
+
+            // 🎯 CRITICAL FIX: Synchronize the local preview rotation with the view model's state.
+            // This ensures that when returning from the naming view, the visual rotation
+            // correctly reflects the preserved rotation value from the view model.
+            let newRotationDegrees = Double(viewModel.rotationQuarterTurns * 90)
+            if previewRotationDegrees != newRotationDegrees {
+                diagnosticLogger.logInfo("🔄 ROTATION_SYNC: Synchronizing preview rotation on view appearance", metadata: [
+                    "previous_degrees": "\(previewRotationDegrees)",
+                    "target_degrees": "\(newRotationDegrees)",
+                    "vm_rotation_turns": "\(viewModel.rotationQuarterTurns)",
+                    "unified_state_rotation": "\(unifiedState.rotationQuarterTurns)",
+                    "sync_source": "onAppear"
+                ])
+                previewRotationDegrees = newRotationDegrees
+            }
         }
             .onDisappear {
                 diagnosticLogger.logInfo("🧹 Body disappeared; cleanup completed")
@@ -369,21 +396,26 @@ struct FeatureRichTrimmerView: View {
             
             Button(action: {
                 HapticManager.shared.trigger(.frameDetent)
+                let newRotation = (currentRotation + 1) % 4
                 diagnosticLogger.logUserInteraction("Rotation button tapped", metadata: [
                     "button_type": "rotation",
                     "current_rotation": "\(currentRotation)",
-                    "target_rotation": "\((currentRotation + 1) % 4)"
+                    "target_rotation": "\(newRotation)",
+                    "current_preview_degrees": "\(previewRotationDegrees)",
+                    "vm_rotation": "\(viewModel.rotationQuarterTurns)",
+                    "unified_state_rotation": "\(unifiedState.rotationQuarterTurns)"
                 ])
 
                 // 🎯 CRITICAL FIX: Instant lightweight rotation preview
                 // Update ViewModel state without triggering video rebuild
-                let newRotation = (currentRotation + 1) % 4
                 viewModel.rotationQuarterTurns = newRotation
                 previewRotationDegrees = Double(newRotation * 90)
 
                 diagnosticLogger.logDebug("✅ LIGHTWEIGHT_ROTATION: Applied instant preview rotation", metadata: [
                     "new_rotation": "\(newRotation)",
                     "preview_degrees": "\(previewRotationDegrees)",
+                    "vm_rotation_after": "\(viewModel.rotationQuarterTurns)",
+                    "unified_state_rotation_after": "\(unifiedState.rotationQuarterTurns)",
                     "video_rebuild_triggered": "false"
                 ])
             }) {
@@ -1126,7 +1158,7 @@ struct DurationLabel: View {
 
             Text(timecodeService.formatTime(duration, includeMilliseconds: true))
                 .font(.ibmPlexMono(size: 11, weight: showWarning ? .medium : .regular))
-                .foregroundColor(showWarning ? Color.buttonHard : Color.textPrimary)
+                .foregroundColor(showWarning ? Color.buttonHard : Color.accent)
                 .animation(.easeInOut(duration: 0.2), value: duration)
         }
         .padding(.horizontal, 8)

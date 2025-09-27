@@ -1857,6 +1857,87 @@ extension AddMoveUnifiedState {
         }
     }
 
+    // MARK: - State Reconstruction Methods
+
+    /// Reconstructs the trimming state when navigating back from the naming view.
+    /// This acts as the correct inverse morphism to the destructive `proceedToNextState` function,
+    /// ensuring the state diagram becomes commutative and user experience is seamless.
+    @MainActor
+    public func returnToTrimming() async {
+        logger.info("🎬 UNIFIED_STATE: 🔄 Executing returnToTrimming morphism.")
+        diagnosticLogger.logUserInteraction("return_to_trimming", metadata: ["from_state": "naming"])
+
+        // 1. Guard that we have the necessary objects to rebuild the state.
+        guard let originalAsset = self.videoAsset, let originalPhotosId = self.photosIdentifier else {
+            await setError(message: "Cannot return to trimmer, original video asset is missing.")
+            logger.error("🎬 UNIFIED_STATE: ❌ Cannot return to trimmer - missing original asset or photos ID")
+            return
+        }
+
+        // 2. Transition to an intermediate loading state for a smooth UX.
+        // This provides immediate feedback to the user while we reconstruct the state.
+        await transition(to: .loading(progress: 0.1, status: "Re-initializing trimmer..."), triggeredBy: "return_to_trimming")
+
+        do {
+            // 3. Rebuild the player with the ORIGINAL asset, replacing the trimmed AVComposition.
+            // This is the core of the state correction - we need the full asset for trimming, not the trimmed preview.
+            logger.info("🎬 UNIFIED_STATE: 🔄 Rebuilding player with original asset for return to trimming")
+            diagnosticLogger.startTiming("player_reconstruction_for_trimming")
+
+            // Create AVPlayer from the original asset
+            let playerItem = AVPlayerItem(asset: originalAsset)
+            let player = AVPlayer(playerItem: playerItem)
+
+            let newPlayer = UnifiedVideoPlayerViewModel(
+                player: player,
+                mode: .preview,
+                appContainer: self.appContainer
+            )
+
+            // Replace the current player with the reconstructed one
+            self.unifiedPlayerManager.setPlayer(newPlayer)
+            try await newPlayer.waitForReady() // Ensure the player is fully ready
+
+            logger.info("🎬 UNIFIED_STATE: ✅ Player rebuilt successfully with original asset.")
+            diagnosticLogger.logInfo("Player reconstruction completed", metadata: [
+                "asset_duration": "\(originalAsset.duration.seconds)",
+                "rotation_preserved": "\(self.rotationQuarterTurns)",
+                "player_ready": "\(newPlayer.isPlayerReady)",
+                "reconstruction_method": "original_asset_restoration"
+            ])
+            diagnosticLogger.stopTiming("player_reconstruction_for_trimming")
+
+            // 4. Now, transition to the setup state. Its preconditions are now met,
+            // as the currentPlayerViewModel holds the correct (original) asset.
+            // The .trimming_setup state will properly recreate the TrimmerViewModel.
+            logger.info("🎬 UNIFIED_STATE: 🔄 Transitioning to trimming_setup to recreate TrimmerViewModel")
+            diagnosticLogger.startTiming("trimming_setup_transition")
+
+            await transitionTo(.trimming_setup)
+
+            diagnosticLogger.stopTiming("trimming_setup_transition")
+            logger.info("🎬 UNIFIED_STATE: 🎉 Successfully completed return to trimming workflow")
+            diagnosticLogger.logInfo("Return to trimming completed successfully", metadata: [
+                "trim_start_time_preserved": "\(self.trimStartTime)",
+                "trim_end_time_preserved": "\(self.trimEndTime)",
+                "rotation_preserved": "\(self.rotationQuarterTurns)",
+                "flow_state": "\(self.flowState)",
+                "player_ready": "\(self.currentPlayerViewModel?.isPlayerReady ?? false)"
+            ])
+
+        } catch {
+            logger.error("🎬 UNIFIED_STATE: ❌ Return to trimming failed: \(error.localizedDescription)")
+            diagnosticLogger.logError("Player reconstruction during return to trimming failed", error: error, metadata: [
+                "error_type": "\(type(of: error))",
+                "asset_available": "\(originalAsset != nil)",
+                "photos_id_available": "\(originalPhotosId != nil)",
+                "rotation_at_failure": "\(self.rotationQuarterTurns)",
+                "flow_state_at_failure": "\(self.flowState)"
+            ])
+            await setError(message: "Failed to re-initialize video player for trimming.", underlying: error.localizedDescription)
+        }
+    }
+
     // MARK: - State Validation Methods
 
     /// Validates the current state for consistency across all components

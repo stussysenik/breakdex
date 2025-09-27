@@ -12,6 +12,7 @@ struct NameMoveViewUnified: View {
     // MARK: - State Management
     @State private var moveName: String = ""
     @State private var isShowingPreview = false
+    @State private var estimatedFileSize: String = "Calculating..."
     
     
     @ViewBuilder
@@ -41,17 +42,23 @@ struct NameMoveViewUnified: View {
                     .onAppear {
                         logger.info("🎬 NAME_MOVE_UNIFIED: View appeared - player available: \(unifiedState.currentPlayerViewModel != nil)")
                         setupInitialState()
-                        
+
                         // 🎯 CRITICAL FIX: Integrate with state lifecycle hooks
                         // This ensures proper cleanup and prevents race conditions
                         unifiedState.completeTransition()
-                        
+
                         // 🎯 CRITICAL FIX: Start save readiness monitoring for real-time validation
                         unifiedState.startSaveReadinessMonitoring()
-                        
+
                         // 🎯 CRITICAL FIX: Player is already pre-configured with trimmed asset
                         // No seek operation needed - AVComposition starts at CMTime.zero
                         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Player is pre-configured with trimmed asset. No seek needed.")
+
+                        // 🎯 NEW: Calculate estimated file size
+                        Task {
+                            await calculateEstimatedFileSize()
+                        }
+
                         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ State lifecycle integration completed")
                     }
                     .onDisappear {
@@ -156,16 +163,33 @@ struct NameMoveViewUnified: View {
                 .cornerRadius(12)
                 .padding(.horizontal)
             
-            // Trim info
-            HStack {
-                Text("Duration: \(TimecodeFormatter.format(time: CMTimeSubtract(CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600), CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600))))")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                
-                if unifiedState.rotationQuarterTurns > 0 {
-                    Text("Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+            // Video info
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Duration: \(TimecodeFormatter.format(time: CMTimeSubtract(CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600), CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600))))")
                         .font(.caption)
                         .foregroundColor(.gray)
+
+                    Spacer()
+
+                    Text("Est. size: \(estimatedFileSize)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+
+                HStack {
+                    if unifiedState.rotationQuarterTurns > 0 {
+                        Text("Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+
+                    Spacer()
+
+                    Text("Rotation applied during export ✓")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                        .opacity(unifiedState.rotationQuarterTurns > 0 ? 1.0 : 0.0)
                 }
             }
             .padding(.top, 4)
@@ -308,14 +332,14 @@ struct NameMoveViewUnified: View {
     }
     
     private func handleBackButton() {
-        logger.info("🎬 NAME_MOVE_UNIFIED: Back button tapped")
-        
-        // Pause player
+        logger.info("🎬 NAME_MOVE_UNIFIED: Back button tapped, initiating return to trimmer.")
+
+        // Pause the current player (which shows the trimmed preview)
         unifiedState.currentPlayerViewModel?.avPlayer?.pause()
-        
-        // Return to trimming state
+
+        // Call the new, dedicated function to handle the state reconstruction.
         Task {
-            await unifiedState.transitionTo(.trimming)
+            await unifiedState.returnToTrimming()
         }
     }
     
@@ -354,6 +378,52 @@ struct NameMoveViewUnified: View {
         let minutes = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, secs)
+    }
+
+    // Calculate estimated file size based on duration and rotation
+    private func calculateEstimatedFileSize() async {
+        guard let playerViewModel = unifiedState.currentPlayerViewModel else {
+            estimatedFileSize = "Unknown"
+            return
+        }
+
+        do {
+            // Get asset duration
+            let assetDuration = try await playerViewModel.avPlayer?.currentItem?.asset.load(.duration) ?? CMTime.zero
+            let durationInSeconds = assetDuration.seconds
+
+            // Base bitrate estimation (rough estimate for H.264 video)
+            let baseBitrateMbps: Double = 5.0 // 5 Mbps for standard quality
+
+            // Adjust for rotation (rotated videos may require different encoding)
+            let rotationMultiplier = unifiedState.rotationQuarterTurns > 0 ? 1.1 : 1.0 // 10% overhead for rotation
+
+            // Calculate file size in bytes
+            let bitratebps = baseBitrateMbps * 1_000_000 * rotationMultiplier
+            let estimatedSizeBytes = bitratebps * durationInSeconds / 8 // Convert to bytes
+
+            // Format for display
+            let sizeInMB = estimatedSizeBytes / (1024 * 1024)
+
+            await MainActor.run {
+                if sizeInMB < 1 {
+                    let sizeInKB = estimatedSizeBytes / 1024
+                    estimatedFileSize = String(format: "%.0f KB", sizeInKB)
+                } else if sizeInMB < 100 {
+                    estimatedFileSize = String(format: "%.1f MB", sizeInMB)
+                } else {
+                    estimatedFileSize = String(format: "%.0f MB", sizeInMB)
+                }
+
+                logger.info("🎬 NAME_MOVE_UNIFIED: 📊 File size calculated - duration: \(String(format: "%.1f", durationInSeconds))s, estimated size: \(estimatedFileSize), rotation multiplier: \(rotationMultiplier)")
+            }
+
+        } catch {
+            await MainActor.run {
+                estimatedFileSize = "Estimate unavailable"
+                logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ File size calculation failed: \(error.localizedDescription)")
+            }
+        }
     }
 }
 

@@ -17,7 +17,9 @@ final class VideoTransformBuilder {
     /// - Returns: Tuple containing the composition and optional video composition (nil when no rotation needed)
     static func build(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int) async throws -> (composition: AVMutableComposition, videoComposition: AVMutableVideoComposition?) {
         let buildStartTime = CFAbsoluteTimeGetCurrent()
-        logger.info("🎬 BUILDER: 🚀 Starting composition build - quarterTurns: \(quarterTurns), trimRange: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s")
+
+        // 🎯 ENHANCED: Detailed rotation tracking logging
+        logger.info("🎬 BUILDER: 🚀 Starting composition build with rotation tracking - quarterTurns: \(quarterTurns)°, trimRange: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s, rotation_fix: applied_during_export_only, metadata_rotation: 0")
 
         // 1. DETERMINE TIME RANGE FOR TRIMMING
         let timeRange: CMTimeRange
@@ -328,7 +330,8 @@ final class VideoTransformBuilder {
         }
         
         print("🎬 VideoTransformBuilder: ✅ Player item created and configured")
-        logger.info("🎬 BUILDER: 📏 Asset duration: \(String(describing: playerItem.asset.duration.seconds))s")
+        let assetDuration = try await playerItem.asset.load(.duration).seconds
+        logger.info("🎬 BUILDER: 📏 Asset duration: \(String(describing: assetDuration))s")
         print("🎬 VideoTransformBuilder:   - Video composition assigned: \(playerItem.videoComposition != nil)")
         print("🎬 VideoTransformBuilder:   - Seeking waits for rendering: \(playerItem.seekingWaitsForVideoCompositionRendering)")
 
@@ -346,6 +349,10 @@ final class VideoTransformBuilder {
     ///   - outputURL: Where to save the exported video
     /// - Returns: URL of the exported video
     static func exportVideo(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int, outputURL: URL) async throws -> URL {
+
+        // 🎯 ENHANCED: Critical export logging with rotation fix tracking
+        logger.info("🎬 BUILDER: 🎯 EXPORT START: Starting video export with rotation fix - quarterTurns: \(quarterTurns)°, trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.duration.seconds ?? 0)s, file: \(outputURL.lastPathComponent), rotation_fix_active: true, metadata_rotation: 0")
+
         let (composition, videoComposition) = try await build(asset: asset, trimRange: trimRange, quarterTurns: quarterTurns)
 
         // Determine export preset
@@ -377,6 +384,9 @@ final class VideoTransformBuilder {
 
         // Export
         try await exportSession.export(to: outputURL, as: .mov)
+
+        // 🎯 ENHANCED: Post-export completion logging with rotation fix confirmation
+        logger.info("🎬 BUILDER: ✅ EXPORT COMPLETED: Video export with rotation fix finished - file: \(outputURL.lastPathComponent), rotation_applied: \(quarterTurns)°, preset: \(presetName), video_composition: \(videoComposition != nil), metadata_rotation: 0, double_rotation_fixed: true")
 
         return outputURL
     }
@@ -514,9 +524,17 @@ final class VideoTransformBuilder {
         }
 
         // Sort tracks by quality (prefer higher resolution) - use natural size property
+        var trackSizes: [AVAssetTrack: CGSize] = [:]
+        for track in validTracks {
+            do {
+                trackSizes[track] = try await track.load(.naturalSize)
+            } catch {
+                logger.warning("🎬 BUILDER: ⚠️ Failed to load natural size for track, using zero size")
+                trackSizes[track] = .zero
+            }
+        }
         let sortedTracks = validTracks.sorted { track1, track2 in
-            let size1 = track1.naturalSize
-            let size2 = track2.naturalSize
+            guard let size1 = trackSizes[track1], let size2 = trackSizes[track2] else { return false }
             let area1 = size1.width * size1.height
             let area2 = size2.width * size2.height
             return area1 > area2

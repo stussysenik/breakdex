@@ -394,14 +394,17 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
     }
     
     func exportVideo(asset: AVAsset, trimRange: CMTimeRange, quarterTurns: Int, outputURL: URL) async throws -> URL {
-        // 🎯 ENHANCED: Comprehensive export logging with asset validation
+        // 🎯 ENHANCED: Comprehensive export logging with asset validation and rotation tracking
         logger.info("🎬 PIPELINE: 🚀 Starting video export operation", metadata: [
             "trim_start_seconds": "\(trimRange.start.seconds)",
             "trim_duration_seconds": "\(trimRange.duration.seconds)",
             "rotation_quarter_turns": "\(quarterTurns)",
+            "rotation_degrees": "\(quarterTurns * 90)",
             "output_filename": outputURL.lastPathComponent,
             "asset_duration_seconds": "\(asset.duration.seconds)",
-            "asset_tracks": "\(asset.tracks.count)"
+            "asset_tracks": "\(asset.tracks.count)",
+            "export_applies_rotation": "true",
+            "rotation_fix_applied": "quarterTurns_will_be_zero_in_metadata"
         ])
 
         // 🎯 ENHANCED: Asset validation before export

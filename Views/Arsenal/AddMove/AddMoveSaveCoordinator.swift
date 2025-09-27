@@ -266,12 +266,32 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 .appendingPathComponent(UUID().uuidString)
                 .appendingPathExtension("mov")
 
+            // 🎯 ENHANCED: Detailed export logging with rotation tracking
+            logger.info("🎬 SAVE_COORDINATOR: 🔄 EXPORT START: Starting video export with rotation", metadata: [
+                "rotation_quarter_turns": "\(rotationQuarterTurns)",
+                "rotation_degrees": "\(rotationQuarterTurns * 90)",
+                "trim_start_seconds": "\(timeRange.start.seconds)",
+                "trim_duration_seconds": "\(timeRange.duration.seconds)",
+                "asset_duration_seconds": "\(assetDuration.seconds)",
+                "output_filename": outputURL.lastPathComponent,
+                "export_applies_rotation": "true",
+                "metadata_will_store_rotation": "false"
+            ])
+
             temporaryVideoURL = try await videoProcessingPipeline.exportVideo(
                 asset: readyAsset,
                 trimRange: timeRange,
-                quarterTurns: rotationQuarterTurns,
+                quarterTurns: rotationQuarterTurns, // ✅ Export applies rotation to video data
                 outputURL: outputURL
             )
+
+            // 🎯 ENHANCED: Post-export validation and logging
+            logger.info("🎬 SAVE_COORDINATOR: ✅ EXPORT COMPLETED: Video export with rotation finished", metadata: [
+                "exported_file_path": temporaryVideoURL?.lastPathComponent ?? "unknown",
+                "export_applied_rotation": "\(rotationQuarterTurns)",
+                "next_step_metadata_rotation": "0",
+                "double_rotation_prevented": "true"
+            ])
 
             await updateProgress(0.4)
 
@@ -297,12 +317,22 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 throw AddMoveSaveError.photosIdentifierGenerationFailed
             }
 
+            // 🎯 CRITICAL FIX: Store rotationQuarterTurns: 0 in metadata because rotation is already applied during export
+            // This prevents double rotation (once during export, once during playback from metadata)
+            logger.info("🎬 SAVE_COORDINATOR: 🔄 ROTATION FIX: Storing rotationQuarterTurns: 0 in metadata (rotation already applied during export)", metadata: [
+                "original_rotation_quarter_turns": "\(rotationQuarterTurns)",
+                "stored_rotation_quarter_turns": "0",
+                "fix_reason": "prevent_double_rotation",
+                "export_applied_rotation": "true",
+                "metadata_stored_rotation": "false"
+            ])
+
             let move = try await movePersistenceService.createMoveEntity(
                 name: name,
                 originalPhotosIdentifier: photosId,
                 trimStartTime: trimStartTime ?? 0.0,
                 trimEndTime: trimEndTime ?? assetDuration.seconds,
-                rotationQuarterTurns: rotationQuarterTurns
+                rotationQuarterTurns: 0 // ✨ FIX: Store 0 because rotation is already baked into exported video
             )
 
             // Step 6: Finalize and return result - TRANSACTION COMPLETE
