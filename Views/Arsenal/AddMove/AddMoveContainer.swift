@@ -44,7 +44,11 @@ struct AddMoveContainer: View {
         let appContainer = AppContainer.shared
         let unifiedState = AddMoveUnifiedState(
             unifiedPlayerManager: UnifiedPlayerManager(),
-            appContainer: appContainer
+            modernVideoLoadingService: appContainer.modernVideoLoadingService,
+            videoProcessingPipeline: appContainer.videoProcessingPipeline,
+            timecodeCalculationService: TimecodeCalculationService(),
+            persistentContainer: PersistenceController.shared.container,
+            movePersistenceService: appContainer.movePersistenceService
         )
 
         self.init(
@@ -59,7 +63,11 @@ struct AddMoveContainer: View {
         let appContainer = AppContainer.shared
         let unifiedState = AddMoveUnifiedState(
             unifiedPlayerManager: UnifiedPlayerManager(),
-            appContainer: appContainer
+            modernVideoLoadingService: appContainer.modernVideoLoadingService,
+            videoProcessingPipeline: appContainer.videoProcessingPipeline,
+            timecodeCalculationService: TimecodeCalculationService(),
+            persistentContainer: PersistenceController.shared.container,
+            movePersistenceService: appContainer.movePersistenceService
         )
 
         self.init(context: viewContext, selectedTab: selectedTab, unifiedState: unifiedState, onSaveSuccess: onSaveSuccess)
@@ -97,7 +105,9 @@ struct AddMoveContainer: View {
             logger.info("🎬 CONTAINER: 🚀 Save completion handler called with saved move")
 
             // Call the container's completion handler if available
-            self.onSaveSuccess?(savedMove)
+            if let move = savedMove as? Move {
+                self.onSaveSuccess?(move)
+            }
         }
     }
     
@@ -140,25 +150,31 @@ struct AddMoveContainer: View {
         // switch statement. It presents a simple, opaque type to the compiler,
         // resolving the "failed to produce diagnostic" error.
         AnyView(
-            Group {
+            VStack(spacing: 0) {
                 switch unifiedState.flowState {
                 case .ready:
                     AddMoveSelectClipViewUnified(unifiedState: unifiedState)
 
-                case .loading(let progress, let status):
-                    LoadingView(progress: progress, status: status, unifiedState: unifiedState)
+                case .loading(let progressPhase):
+                    LoadingOverlayView(progressPhase: progressPhase, unifiedState: unifiedState)
 
                 case .replacingVideo(let status):
                     LoadingView(progress: 0.48, status: status, unifiedState: unifiedState)
 
                 case .previewing:
-                    EmptyView() // Preview state is skipped in new flow
+                    // 🎯 CRITICAL FIX: Automatic transition from previewing to trimming_setup
+                    EmptyView()
+                        .onAppear {
+                            Task {
+                                await unifiedState.setupTrimmerAfterPreview()
+                            }
+                        }
 
                 case .trimming_setup:
                     LoadingView(progress: 1.0, status: "Finalizing setup...", unifiedState: unifiedState)
 
                 case .trimming:
-                    if let viewModel = unifiedState.trimmerViewModel {
+                    if let viewModel = unifiedState.trimmerViewModel as? TrimmerViewModel {
                         FeatureRichTrimmerView(unifiedState: unifiedState, viewModel: viewModel)
                             .id(unifiedState.photosIdentifier ?? UUID().uuidString)
                     } else {
@@ -166,7 +182,7 @@ struct AddMoveContainer: View {
                     }
 
                 case .finalizing(let status):
-                    LoadingOverlayView(progress: 0.9, status: status)
+                    LoadingOverlayView(progressPhase: .creatingAsset, unifiedState: unifiedState)
 
                 case .naming:
                     NameMoveViewUnified(unifiedState: unifiedState)

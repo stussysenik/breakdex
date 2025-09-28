@@ -17,7 +17,7 @@ struct NameMoveViewUnified: View {
     
     @ViewBuilder
     private var mainContentView: some View {
-        if let playerViewModel = unifiedState.currentPlayerViewModel {
+        if let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
             mainContent(with: playerViewModel)
         } else {
             Text("Player not available")
@@ -28,8 +28,17 @@ struct NameMoveViewUnified: View {
     
     // MARK: - Computed Properties
     private var canSave: Bool {
-        !moveName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        unifiedState.currentPlayerViewModel != nil
+        if let saveReadiness = unifiedState.saveReadiness as? SaveReadinessResult {
+            return saveReadiness.canSave
+        }
+        return false
+    }
+
+    private var validationIssues: [SaveValidationIssue] {
+        if let saveReadiness = unifiedState.saveReadiness as? SaveReadinessResult {
+            return saveReadiness.issues
+        }
+        return []
     }
     
     // MARK: - Body
@@ -48,7 +57,9 @@ struct NameMoveViewUnified: View {
                         unifiedState.completeTransition()
 
                         // 🎯 CRITICAL FIX: Start save readiness monitoring for real-time validation
-                        unifiedState.startSaveReadinessMonitoring()
+                        Task {
+                            unifiedState.startSaveReadinessMonitoring()
+                        }
 
                         // 🎯 CRITICAL FIX: Player is already pre-configured with trimmed asset
                         // No seek operation needed - AVComposition starts at CMTime.zero
@@ -65,10 +76,14 @@ struct NameMoveViewUnified: View {
                         logger.info("🎬 NAME_MOVE_UNIFIED: View disappeared - preparing for transition")
                         
                         // 🎯 CRITICAL FIX: Stop save readiness monitoring to prevent memory leaks
-                        unifiedState.stopSaveReadinessMonitoring()
+                        Task {
+                            unifiedState.stopSaveReadinessMonitoring()
+                        }
                         
                         // 🎯 CRITICAL FIX: Prepare for transition with enhanced cleanup
-                        unifiedState.prepareForTransition()
+                        Task {
+                            unifiedState.prepareForTransition()
+                        }
                         
                         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Enhanced state lifecycle cleanup completed")
                     }
@@ -81,7 +96,7 @@ struct NameMoveViewUnified: View {
             }
         }
         .sheet(isPresented: $isShowingPreview) {
-            if let playerViewModel = unifiedState.currentPlayerViewModel {
+            if let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
                 PreviewSheet(
                     playerViewModel: playerViewModel,
                     startTime: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600),
@@ -210,7 +225,7 @@ struct NameMoveViewUnified: View {
                 .font(.ibmPlexMono(size: 18))
                 .padding(.horizontal)
                 .onChange(of: moveName) { _, newValue in
-                    logger.info("🎬 NAME_MOVE_UNIFIED: Text changed to '\(newValue)' - canSave: \(canSave)")
+                    logger.info("🎬 NAME_MOVE_UNIFIED: Text changed to '\(newValue)' - canSave: \(canSave), issues: \(validationIssues.count)")
                     unifiedState.moveName = newValue
                 }
                 .accessibilityLabel("Move Name")
@@ -218,6 +233,26 @@ struct NameMoveViewUnified: View {
                 .textContentType(.name)
                 .autocorrectionDisabled()
                 .submitLabel(.done)
+
+            // ✅ ENHANCEMENT: Real-time validation messages
+            if !validationIssues.isEmpty {
+                VStack(spacing: 4) {
+                    ForEach(validationIssues, id: \.self) { issue in
+                        HStack {
+                            Image(systemName: issue.isCritical ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                                .foregroundColor(issue.isCritical ? .red : .yellow)
+                            Text(issue.localizedDescription)
+                                .font(.ibmPlexMono(size: 14))
+                                .foregroundColor(issue.isCritical ? .red : .yellow)
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(issue.localizedDescription)
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
     
@@ -335,11 +370,13 @@ struct NameMoveViewUnified: View {
         logger.info("🎬 NAME_MOVE_UNIFIED: Back button tapped, initiating return to trimmer.")
 
         // Pause the current player (which shows the trimmed preview)
-        unifiedState.currentPlayerViewModel?.avPlayer?.pause()
+        if let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
+            playerViewModel.avPlayer?.pause()
+        }
 
         // Call the new, dedicated function to handle the state reconstruction.
         Task {
-            await unifiedState.returnToTrimming()
+            unifiedState.returnToTrimming?()
         }
     }
     
@@ -382,7 +419,7 @@ struct NameMoveViewUnified: View {
 
     // Calculate estimated file size based on duration and rotation
     private func calculateEstimatedFileSize() async {
-        guard let playerViewModel = unifiedState.currentPlayerViewModel else {
+        guard let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel else {
             estimatedFileSize = "Unknown"
             return
         }

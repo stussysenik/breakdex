@@ -99,25 +99,18 @@ public enum VideoSourceType {
     }
 }
 
-// MARK: - Loading Progress
-public struct VideoLoadingProgress {
-    let phase: LoadingPhase
-    let progress: Double
-    let message: String
-    let correlationId: String
-
-    public enum LoadingPhase {
-        case initializing
-        case transferring
-        case validating
-        case creatingAsset
-        case completed
-        case failed(Error)
-    }
+// MARK: - Photo File Representation for Size Pre-fetching
+// Simplified structure to avoid Transferable complexity for now
+struct PhotoFileRepresentation {
+    let size: Int64
+    let sourceURL: URL
 }
 
+// VideoLoadingProgress is now defined in AddMoveFlowState.swift
+
 // MARK: - Video Loading Service Protocol
-public protocol ModernVideoLoadingServiceProtocol {
+@preconcurrency
+public protocol ModernVideoLoadingServiceProtocol: AnyObject {
     func loadVideo(from item: PhotosPickerItem) async throws -> VideoLoadingResult
     func loadVideo(from url: URL) async throws -> VideoLoadingResult
     func loadVideo(from phAsset: PHAsset) async throws -> VideoLoadingResult
@@ -160,25 +153,30 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         currentCorrelationId = correlationId
 
         logger.info("🎬 VIDEO_LOADING: 🚀 Loading from PhotosPicker [\(correlationId)]")
-        await reportProgress(.initializing, progress: 0.0, message: "Starting video loading", correlationId: correlationId)
+        await reportProgress(.initializing, correlationId: correlationId)
 
         let startTime = Date()
 
         do {
-            // Try streaming URL approach first
-            await reportProgress(.transferring, progress: 0.2, message: "Attempting streaming transfer", correlationId: correlationId)
+            // 🎯 STEP 1: Get file representation to know the size beforehand
+            logger.info("🎬 VIDEO_LOADING: 📊 Fetching file metadata [\(correlationId)]")
+            let totalBytes = try await getFileSize(from: item, correlationId: correlationId)
 
-            if let urlResult = try await loadViaStreaming(from: item, correlationId: correlationId) {
-                await reportProgress(.completed, progress: 1.0, message: "Streaming transfer completed", correlationId: correlationId)
+            // 🎯 STEP 2: Report transferring phase with total size
+            await reportProgress(.transferring, correlationId: correlationId)
+
+            // Try streaming URL approach first
+            if let urlResult = try await loadViaStreaming(from: item, totalBytes: totalBytes, correlationId: correlationId) {
+                await reportProgress(.creatingAsset, correlationId: correlationId)
                 logCompletion(result: urlResult, startTime: startTime, method: "streaming")
                 return urlResult
             }
 
             // Fallback to PHAsset loading
-            await reportProgress(.transferring, progress: 0.4, message: "Fallback to Photos library", correlationId: correlationId)
+            await reportProgress(.transferring, correlationId: correlationId)
 
             if let assetResult = try await loadViaPhotosLibrary(from: item, correlationId: correlationId) {
-                await reportProgress(.completed, progress: 1.0, message: "Photos library loading completed", correlationId: correlationId)
+                await reportProgress(.creatingAsset, correlationId: correlationId)
                 logCompletion(result: assetResult, startTime: startTime, method: "photos_library")
                 return assetResult
             }
@@ -186,7 +184,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
             throw VideoLoadingError.transferableNotSupported
 
         } catch {
-            await reportProgress(.failed(error), progress: 0.0, message: "Loading failed: \(error.localizedDescription)", correlationId: correlationId)
+            await reportProgress(.initializing, correlationId: correlationId)
             logger.error("🎬 VIDEO_LOADING: ❌ Loading failed [\(correlationId)]: \(error)")
             throw error
         }
@@ -198,22 +196,23 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         currentCorrelationId = correlationId
 
         logger.info("🎬 VIDEO_LOADING: 🚀 Loading from URL [\(correlationId)]: \(url.lastPathComponent)")
-        await reportProgress(.initializing, progress: 0.0, message: "Starting URL loading", correlationId: correlationId)
+        await reportProgress(.initializing, correlationId: correlationId)
 
         let startTime = Date()
 
         do {
-            await reportProgress(.transferring, progress: 0.3, message: "Streaming from URL", correlationId: correlationId)
+            let fileSize = try await getFileSize(url)
+            await reportProgress(.transferring, correlationId: correlationId)
 
             let result = try await loadFromURL(url, correlationId: correlationId)
 
-            await reportProgress(.completed, progress: 1.0, message: "URL loading completed", correlationId: correlationId)
+            await reportProgress(.creatingAsset, correlationId: correlationId)
             logCompletion(result: result, startTime: startTime, method: "url_streaming")
 
             return result
 
         } catch {
-            await reportProgress(.failed(error), progress: 0.0, message: "URL loading failed: \(error.localizedDescription)", correlationId: correlationId)
+            await reportProgress(.initializing, correlationId: correlationId)
             logger.error("🎬 VIDEO_LOADING: ❌ URL loading failed [\(correlationId)]: \(error)")
             throw error
         }
@@ -225,22 +224,23 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         currentCorrelationId = correlationId
 
         logger.info("🎬 VIDEO_LOADING: 🚀 Loading from PHAsset [\(correlationId)]: \(phAsset.localIdentifier)")
-        await reportProgress(.initializing, progress: 0.0, message: "Starting PHAsset loading", correlationId: correlationId)
+        await reportProgress(.initializing, correlationId: correlationId)
 
         let startTime = Date()
 
         do {
-            await reportProgress(.transferring, progress: 0.3, message: "Loading from PHAsset", correlationId: correlationId)
+            let fileSize = await getPHAssetFileSize(phAsset)
+            await reportProgress(.transferring, correlationId: correlationId)
 
             let result = try await loadFromPHAsset(phAsset, correlationId: correlationId)
 
-            await reportProgress(.completed, progress: 1.0, message: "PHAsset loading completed", correlationId: correlationId)
+            await reportProgress(.creatingAsset, correlationId: correlationId)
             logCompletion(result: result, startTime: startTime, method: "phasset")
 
             return result
 
         } catch {
-            await reportProgress(.failed(error), progress: 0.0, message: "PHAsset loading failed: \(error.localizedDescription)", correlationId: correlationId)
+            await reportProgress(.initializing, correlationId: correlationId)
             logger.error("🎬 VIDEO_LOADING: ❌ PHAsset loading failed [\(correlationId)]: \(error)")
             throw error
         }
@@ -265,7 +265,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
     // MARK: - Private Loading Methods
 
     /// Load via streaming URL transfer (memory-efficient)
-    private func loadViaStreaming(from item: PhotosPickerItem, correlationId: String) async throws -> VideoLoadingResult? {
+    private func loadViaStreaming(from item: PhotosPickerItem, totalBytes: Int64, correlationId: String) async throws -> VideoLoadingResult? {
         logger.info("🎬 VIDEO_LOADING: 🔄 Attempting streaming URL transfer [\(correlationId)]")
 
         let streamingStart = Date()
@@ -283,22 +283,19 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
             let tempURL = createTemporaryURL(filename: sourceURL.lastPathComponent)
             temporaryFiles.insert(tempURL)
 
-            // Stream copy without loading into memory
-            await reportProgress(.transferring, progress: 0.5, message: "Streaming file copy", correlationId: correlationId)
+            // Stream copy without loading into memory - simulate progress for atomic operation
+            await reportProgress(.transferring, correlationId: correlationId)
 
             try await streamCopy(from: sourceURL, to: tempURL, correlationId: correlationId)
 
             // Create AVAsset from streamed file
-            await reportProgress(.creatingAsset, progress: 0.8, message: "Creating video asset", correlationId: correlationId)
+            await reportProgress(.creatingAsset, correlationId: correlationId)
 
             let asset = AVURLAsset(url: tempURL)
             let duration = try await asset.load(.duration)
 
             // Validate the asset
             try await validateAsset(asset, correlationId: correlationId)
-
-            // Get file size
-            let fileSize = try await getFileSize(tempURL)
 
             let result = VideoLoadingResult(
                 asset: asset,
@@ -307,7 +304,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
                 filename: sourceURL.lastPathComponent,
                 temporaryFileURL: tempURL,
                 sourceType: .directPicker,
-                fileSize: fileSize,
+                fileSize: totalBytes,
                 duration: duration,
                 correlationId: correlationId
             )
@@ -357,7 +354,8 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         options.isNetworkAccessAllowed = true
         options.deliveryMode = .highQualityFormat
 
-        await reportProgress(.transferring, progress: 0.6, message: "Requesting AVAsset from Photos", correlationId: correlationId)
+        let fileSize = await getPHAssetFileSize(phAsset)
+        await reportProgress(.transferring, correlationId: correlationId)
 
         let asset = try await requestAVAsset(for: phAsset, options: options, correlationId: correlationId)
 
@@ -368,7 +366,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         // Extract cloud identifier if available
         let cloudIdentifier = await extractCloudIdentifier(from: phAsset, correlationId: correlationId)
 
-        await reportProgress(.validating, progress: 0.9, message: "Validating asset", correlationId: correlationId)
+        await reportProgress(.validating, correlationId: correlationId)
 
         // Validate the asset
         try await validateAsset(asset, correlationId: correlationId)
@@ -402,12 +400,13 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         temporaryFiles.insert(tempURL)
 
         // Stream copy
-        await reportProgress(.transferring, progress: 0.5, message: "Streaming from URL", correlationId: correlationId)
+        let fileSize = try await getFileSize(url)
+        await reportProgress(.transferring, correlationId: correlationId)
 
         try await streamCopy(from: url, to: tempURL, correlationId: correlationId)
 
         // Create AVAsset
-        await reportProgress(.creatingAsset, progress: 0.8, message: "Creating video asset", correlationId: correlationId)
+        await reportProgress(.creatingAsset, correlationId: correlationId)
 
         let asset = AVURLAsset(url: tempURL)
         let duration = try await asset.load(.duration)
@@ -416,7 +415,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         try await validateAsset(asset, correlationId: correlationId)
 
         // Get file size
-        let fileSize = try await getFileSize(tempURL)
+        let urlFileSize = try await getFileSize(tempURL)
 
         let result = VideoLoadingResult(
             asset: asset,
@@ -425,7 +424,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
             filename: url.lastPathComponent,
             temporaryFileURL: tempURL,
             sourceType: .fileURL,
-            fileSize: fileSize,
+            fileSize: urlFileSize,
             duration: duration,
             correlationId: correlationId
         )
@@ -568,25 +567,57 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
             .appendingPathExtension(fileExtension.isEmpty ? "mov" : fileExtension)
     }
 
+    /// Get file size from PhotosPickerItem before transfer
+    private func getFileSize(from item: PhotosPickerItem, correlationId: String) async throws -> Int64 {
+        logger.info("🎬 VIDEO_LOADING: 📏 Getting file size from PhotosPickerItem [\(correlationId)]")
+
+        do {
+            // Try to get file size from URL transfer first
+            if let url = try await item.loadTransferable(type: URL.self) {
+                let fileSize = try await getFileSize(url)
+                logger.info("🎬 VIDEO_LOADING: ✅ Got file size from URL transfer [\(correlationId)]: \(fileSize) bytes")
+                return fileSize
+            }
+
+            // Fallback: try to get size from PHAsset
+            guard let itemIdentifier = item.itemIdentifier else {
+                logger.warning("🎬 VIDEO_LOADING: ⚠️ No item identifier, using default size [\(correlationId)]")
+                return 50 * 1024 * 1024 // 50MB default
+            }
+
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [itemIdentifier], options: nil)
+            guard let phAsset = fetchResult.firstObject else {
+                logger.warning("🎬 VIDEO_LOADING: ⚠️ No PHAsset found, using default size [\(correlationId)]")
+                return 50 * 1024 * 1024 // 50MB default
+            }
+
+            let assetSize = await getPHAssetFileSize(phAsset)
+            logger.info("🎬 VIDEO_LOADING: ✅ Got file size from PHAsset [\(correlationId)]: \(assetSize) bytes")
+            return assetSize > 0 ? assetSize : 50 * 1024 * 1024
+
+        } catch {
+            logger.warning("🎬 VIDEO_LOADING: ⚠️ Failed to get file size, using default [\(correlationId)]: \(error)")
+            return 50 * 1024 * 1024 // 50MB default
+        }
+    }
+
     /// Generate correlation ID
     private func generateCorrelationId() -> String {
         return memoryLogger.generateCorrelationId(for: "VideoLoadingService")
     }
 
     /// Report progress
-    private func reportProgress(_ phase: VideoLoadingProgress.LoadingPhase, progress: Double, message: String, correlationId: String) async {
+    private func reportProgress(_ phase: VideoLoadingProgress.LoadingPhase, correlationId: String) async {
         let progressReport = VideoLoadingProgress(
             phase: phase,
-            progress: progress,
-            message: message,
             correlationId: correlationId
         )
 
         progressSubject.send(progressReport)
 
-        let progressPercentage = Int(progress * 100)
+        let progressPercentage = Int(progressReport.progress * 100)
         let phaseString = "\(phase)"
-        logger.info("🎬 VIDEO_LOADING: 📊 Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(message)")
+        logger.info("🎬 VIDEO_LOADING: 📊 Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(progressReport.message)")
     }
 
     /// Log completion

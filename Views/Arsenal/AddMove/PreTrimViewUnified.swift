@@ -26,14 +26,14 @@ struct PreTrimViewUnified: View {
     // MARK: - Body
     var body: some View {
         Group {
-            if let playerViewModel = unifiedState.currentPlayerViewModel {
+            if let playerViewModel = unifiedState.unifiedPlayerManager.currentPlayer {
                 mainContent(with: playerViewModel)
             } else {
                 loadingView
             }
         }
         .onAppear {
-            logger.info("🎬 PRE_TRIM_UNIFIED: View appeared - player available: \(unifiedState.currentPlayerViewModel != nil)")
+            logger.info("🎬 PRE_TRIM_UNIFIED: View appeared - player available: \(unifiedState.unifiedPlayerManager.currentPlayer != nil)")
         }
         .onDisappear {
             logger.info("🎬 PRE_TRIM_UNIFIED: View disappeared - preparing for transition")
@@ -160,7 +160,7 @@ struct PreTrimViewUnified: View {
         logger.info("🎬 PRE_TRIM_UNIFIED: Back button tapped - resetting to ready state")
         
         // Pause player before transition
-        unifiedState.currentPlayerViewModel?.avPlayer?.pause()
+        unifiedState.unifiedPlayerManager.currentPlayer?.avPlayer?.pause()
         
         // Reset unified state
         unifiedState.reset()

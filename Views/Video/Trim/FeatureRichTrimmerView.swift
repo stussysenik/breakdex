@@ -4,6 +4,19 @@ import Combine
 import OSLog
 import PhotosUI
 
+// MARK: - Timeout Error
+struct TimeoutError: Error, LocalizedError {
+    let seconds: Double
+
+    var errorDescription: String? {
+        return "Operation timed out after \(seconds) seconds"
+    }
+
+    var recoverySuggestion: String? {
+        return "Please try again or check your network connection"
+    }
+}
+
 
 // MARK: - HandleType Enum (internal use)
 enum HandleType {
@@ -53,13 +66,14 @@ struct TrimmerPlayerView: View {
     
     private var videoPlayerWithContent: some View {
         CustomVideoPlayerView(
-            viewModel: unifiedState.currentPlayerViewModel!,
+            viewModel: unifiedState.currentPlayerViewModel as! any VideoPlayerViewModelProtocol,
             shouldAutoplay: false
         )
         .rotationEffect(.degrees(previewRotationDegrees))
         .animation(.easeInOut(duration: 0.3), value: previewRotationDegrees)
         .onAppear {
-            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(unifiedState.currentPlayerViewModel!.state), rotation: \(unifiedState.rotationQuarterTurns), preview_degrees: \(previewRotationDegrees)"
+            let playerViewModel = unifiedState.currentPlayerViewModel as! any VideoPlayerViewModelProtocol
+            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(playerViewModel.state), rotation: \(unifiedState.rotationQuarterTurns), preview_degrees: \(previewRotationDegrees)"
             logger.info("\(message)")
         }
     }
@@ -285,11 +299,12 @@ struct FeatureRichTrimmerView: View {
         }
         .background(Color.backgroundPrimary.ignoresSafeArea())
         .onAppear {
+            let playerViewModel = unifiedState.currentPlayerViewModel as? (any VideoPlayerViewModelProtocol)
             diagnosticLogger.logInfo("🎬 Body appeared", metadata: [
                 "trimmer_vm_available": "true",
                 "trimmer_vm_ready": "\(viewModel.isReady)",
                 "show_warning": "\(viewModel.showMinimumDurationWarning)",
-                "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
+                "player_ready": "\(playerViewModel?.isPlayerReady ?? false)",
                 "combined_ready": "\(isReadyToShowTrimmer)"
             ])
 
@@ -314,7 +329,7 @@ struct FeatureRichTrimmerView: View {
 
             // 🎯 CRITICAL: Local loading overlay preserves render layer during async operations
             if isFinalizing {
-                LoadingOverlayView(progress: 0.9, status: "Preparing Trimmed Video...")
+                LoadingOverlayView(progressPhase: .creatingAsset, unifiedState: unifiedState)
             }
         }
         .photosPicker(
@@ -818,7 +833,7 @@ struct FeatureRichTrimmerView: View {
             // Check if video is ready
             if currentState == .trimming && hasPlayer {
 
-                let isPlayerReady = unifiedState.currentPlayerViewModel?.isPlayerReady ?? false
+                let isPlayerReady = (unifiedState.currentPlayerViewModel as? (any VideoPlayerViewModelProtocol))?.isPlayerReady ?? false
                 let isTrimmerReady = viewModel.isReady
 
                 diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: ✅ Conditions met - PlayerReady: \(isPlayerReady), TrimmerReady: \(isTrimmerReady)")
@@ -975,7 +990,7 @@ struct FeatureRichTrimmerView: View {
         if !isReadyToShowTrimmer {
             diagnosticLogger.logDebug("⏳ Waiting for components to be ready", metadata: [
                 "validation": readyStatus,
-                "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
+                "player_ready": "\((unifiedState.currentPlayerViewModel as? (any VideoPlayerViewModelProtocol))?.isPlayerReady ?? false)",
                 "trimmer_ready": "\(trimmerVM.isReady)",
                 "duration_seconds": "\(trimmerVM.videoDuration.seconds)"
             ])
@@ -1022,7 +1037,7 @@ struct FeatureRichTrimmerView: View {
         // Final validation before proceeding
         guard isReadyToContinue() else {
             diagnosticLogger.logError("❌ Continue validation failed", metadata: [
-                "player_ready": "\(unifiedState.currentPlayerViewModel?.isPlayerReady ?? false)",
+                "player_ready": "\((unifiedState.currentPlayerViewModel as? (any VideoPlayerViewModelProtocol))?.isPlayerReady ?? false)",
                 "trimmer_ready": "\(viewModel.isReady)",
                 "combined_ready": "\(isReadyToShowTrimmer)"
             ])

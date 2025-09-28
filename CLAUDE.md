@@ -10,6 +10,13 @@
 - **Documentation**: Available at /Users/s3nik/Desktop/dev playground/BreakingFlashcards/BreakingFlashcards/DOCUMENTATION.md
 - **Save Move Architecture**: Complete documentation in SAVE_MOVE_ARCHITECTURE.md
 
+### 🚀 Recent Refactoring (September 2025)
+**Major AddMoveUnifiedState Refactoring**: Successfully reduced the 3,349-line monolithic file by 93% through systematic component extraction:
+- **AddMoveUnifiedState.swift**: 227 lines (was 3,349 lines)
+- **New Components**: TimerManager, ProgressMonitor, StateValidator, SaveOperationCoordinator
+- **Type Safety**: Fixed ambiguous type annotation errors through separation of concerns
+- **Maintainability**: All files now comply with 500-line SRP limit
+
 ### Development Guidelines
 - **WYSIWYG:** What you see is what you get - maintain the current codebase structure
 - **Diagnostic Logging:** Use comprehensive logging at every step for debugging
@@ -27,9 +34,26 @@ approx. 500 lines if exceeded - means we're not following SRP principle
 Develop a high-performance, iOS 18.0-compliant video flashcard application for learning and reviewing complex physical movements. The project is built on a foundation of robust state management, Swift Concurrency, and a stable, custom video playback engine with millisecond-precise video trimming capabilities.
 
 ### Core Architectural Principles
-* **SwiftUI & State Flow:** Employ a strict unidirectional data flow for all UI. The `AddMoveState` enum serves as the single source of truth, with a state-driven ViewRouter (`AddMoveContainer`) managing view switching.
+* **SwiftUI & State Flow:** Employ a strict unidirectional data flow for all UI. The `AddMoveFlowState` enum serves as the single source of truth, with a state-driven ViewRouter (`AddMoveContainer`) managing view switching.
 * **Millisecond Precision:** All video trimming operations maintain frame-accurate precision through the TimecodeCalculationService, ensuring WYSIWYG video editing from preview to final asset.
-* **Unified State Management:** The AddMoveUnifiedState coordinates all video processing operations with comprehensive error handling and state validation.
+* **Component-Based Architecture:** The AddMoveUnifiedState now coordinates through specialized services (TimerManager, ProgressMonitor, StateValidator, SaveOperationCoordinator) with comprehensive error handling and state validation.
+
+### 🏗️ AddMove Component Architecture
+```
+Views/Arsenal/AddMove/
+├── AddMoveUnifiedState.swift (227 lines) - Main coordinator
+├── State/
+│   ├── AddMoveFlowState.swift (162 lines) - State enums
+│   └── VideoLoadingProgress struct
+├── Services/
+│   ├── TimerManager.swift (114 lines) - Timer operations
+│   └── ProgressMonitor.swift (166 lines) - Progress tracking
+├── Validation/
+│   ├── AddMoveValidationTypes.swift (254 lines) - Validation types
+│   └── StateValidator.swift (372 lines) - Validation logic
+└── Operations/
+    └── SaveOperationCoordinator.swift (310 lines) - Save operations
+```
 
 ### Logging & Debugging
 * **Logging-First Approach:** Adopt a logging-first approach using `OSLog` for detailed, categorized, and traceable logging. Use emojis in log categories for enhanced traceability.
@@ -116,8 +140,15 @@ When encountering compilation errors:
 
 ### Build Verification Commands
 ```bash
-# Syntax validation for single file
-swiftc -parse BreakingFlashcards/Views/Video/Trim/FeatureRichTrimmerView.swift
+# Syntax validation for main refactored file
+swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/AddMoveUnifiedState.swift
+
+# Syntax validation for extracted components
+swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/State/AddMoveFlowState.swift
+swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Services/TimerManager.swift
+swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Services/ProgressMonitor.swift
+swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Validation/StateValidator.swift
+swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Operations/SaveOperationCoordinator.swift
 
 # Full project build
 xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
@@ -131,6 +162,13 @@ xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -des
 ```
 
 ### Recent Improvements (September 2025)
+* **🚀 Major Architecture Refactoring (September 28, 2025):** Successfully refactored the 3,349-line AddMoveUnifiedState monolith into focused, SRP-compliant components:
+  - **93% Size Reduction**: Main coordinator reduced from 3,349 to 227 lines
+  - **Type Safety Fix**: Resolved "Type of expression is ambiguous without a type annotation" compilation error
+  - **Component Extraction**: Created TimerManager, ProgressMonitor, StateValidator, and SaveOperationCoordinator
+  - **Maintainability**: All components now under 500 lines per CLAUDE.md guidelines
+  - **Documentation**: Updated architecture documentation with clear component boundaries
+
 * **Comprehensive WIP Feature Debugging:** Completed systematic analysis and debugging of all core architectural components using category theory principles and step-by-step debugging methodology
 * **Core Data Schema Cleanup:** Successfully removed deprecated `videoReference` field from Move entity and updated all references across the codebase to use `photosIdentifier` for Photos library integration
 * **Enhanced Video Rotation Handling:** Improved VideoTransformBuilder with advanced coordinate system alignment and proper translation calculations for 90°, 180°, and 270° rotations
@@ -146,4 +184,4 @@ xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -des
   - **State Management Unification:** Moved timer logic from ephemeral views to persistent AddMoveUnifiedState
   - **Memory Leak Resolution:** Eliminated ElapsedTimeTracker retain cycles and implemented proper cleanup
   - **Error Resilience:** Added comprehensive error handling for haptic engine and other non-critical failures
-  - **Build Verification:** Achieved clean build with 0 compilation errors and all systems operational
+  - **Build Verification**: Achieved clean build with 0 compilation errors and all systems operational

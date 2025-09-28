@@ -163,10 +163,14 @@ struct BreakingFlashcardsApp: App {
         do {
             let moves = try persistenceController.container.viewContext.fetch(fetchRequest)
             let identifiers = moves.compactMap { $0.photosIdentifier }
+            print("🔍 [DEBUG] Found \(identifiers.count) known photos identifiers")
+            print("🔍 [DEBUG] Identifiers: \(identifiers.prefix(5))\(identifiers.count > 5 ? "..." : "")")
             return Set(identifiers)
         } catch {
             print("🧹 Failed to fetch known identifiers: \(error.localizedDescription)")
-            return Set()
+            print("🔍 [DEBUG] CoreData fetch error details: \(error)")
+            // 🎯 FIX: Explicit type annotation to resolve ambiguous Set() initializer
+            return Set<String>()
         }
     }
 
