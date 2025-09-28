@@ -25,6 +25,7 @@ extension Move {
     @NSManaged public var tags: String?
     @NSManaged public var trimEndTime: Double
     @NSManaged public var trimStartTime: Double
+    @NSManaged public var videoAssetCloudIdentifier: String?
     @NSManaged public var combos: NSSet?
     @NSManaged public var reviews: NSSet?
 

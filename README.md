@@ -43,11 +43,34 @@ BreakingFlashcards is a native iOS application that allows users to:
 - **Photos Framework** - Seamless library integration
 
 ### Key Components
+- **Video Import Loading System** - Robust video asset preparation with progress tracking
 - **Video Processing Pipeline** - Frame-accurate trimming and rotation
 - **Unified State Management** - Single source of truth for app state
 - **Custom Video Player** - Optimized for learning scenarios
 - **Memory Management** - Proactive monitoring for large video files
 - **Error Handling** - Comprehensive recovery mechanisms
+
+### Video Import Loading Architecture
+The app features a sophisticated video import loading state system that handles video asset preparation with comprehensive error handling and progress tracking:
+
+**Core Services:**
+- **VideoLoadingService** - Main service for async video loading with iCloud download support
+- **VideoAssetPreparer** - High-level coordinator for video asset preparation
+- **VideoStateManager** - State machine for video processing transitions
+- **ImportManager** - Resilient import manager with retry logic and exponential backoff
+
+**State Management:**
+- Comprehensive state machine (.idle, .loading, .loaded, .processing, .ready, .error)
+- Progress tracking with detailed percentage reporting (0-70% download, 70-100% metadata)
+- Memory-aware operations with thresholds and cleanup
+- Health monitoring and race condition prevention
+
+**Key Features:**
+- Async/await based operations with timeout protection
+- Streaming file copy to prevent memory overload
+- iCloud download handling with progress reporting
+- Comprehensive diagnostic logging throughout pipeline
+- Frame-accurate video processing with millisecond precision
 
 ## 📊 Project Statistics
 
@@ -60,7 +83,8 @@ BreakingFlashcards is a native iOS application that allows users to:
 ## 🎮 Core Features
 
 ### 1. Add Move Flow
-- **Video Selection**: Import from Photos library with permission handling
+- **Video Selection**: Import from Photos library with permission handling and robust loading states
+- **Video Loading**: Comprehensive video asset preparation with progress tracking (0-70% download, 70-100% metadata)
 - **Video Trimming**: Frame-accurate timeline editor with visual feedback
 - **Video Rotation**: Quarter-turn rotation controls with live preview
 - **Move Naming**: Organize with custom names and tags
@@ -143,6 +167,7 @@ xcodebuild test -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards
 - **Dependency Injection** - Singleton AppContainer for services
 - **State Management** - Unified state system with reactive updates
 - **Protocol-Based Design** - Abstraction for testability and flexibility
+- **Video Loading Architecture** - Comprehensive video import state management with progress tracking
 
 ### Testing Strategy
 - **Unit Tests** - Cover all managers, view models, and utilities
