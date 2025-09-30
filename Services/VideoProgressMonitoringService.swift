@@ -106,7 +106,20 @@ public class VideoProgressMonitoringService {
         switch completion {
         case .finished:
             logger.info("🎬 VIDEO_PROGRESS: ✅ Progress monitoring completed successfully")
+            logger.info("🎬 VIDEO_PROGRESS: 🚀 Triggering completion callback for natural transformation")
+
+            // 🎯 CRITICAL FIX: Ensure completion callback is called immediately
+            // This is essential for the loading → previewing natural transformation
             onCompletion?(completion)
+
+            // 🎯 ENHANCEMENT: Also trigger a final completion progress update if needed
+            // This provides redundancy to ensure the natural transformation executes
+            if onProgressUpdate != nil {
+                logger.info("🎬 VIDEO_PROGRESS: 📊 Sending final completion progress update at creatingAsset phase")
+                let finalProgress = VideoLoadingProgress(phase: .creatingAsset, correlationId: "completion")
+                onProgressUpdate?(finalProgress)
+            }
+
         case .failure(let error):
             logger.error("🎬 VIDEO_PROGRESS: ❌ Progress monitoring failed: \(error.localizedDescription)")
             onCompletion?(completion)

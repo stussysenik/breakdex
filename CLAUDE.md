@@ -43,17 +43,30 @@ Develop a high-performance, iOS 18.0-compliant video flashcard application for l
 Views/Arsenal/AddMove/
 ├── AddMoveUnifiedState.swift (227 lines) - Main coordinator
 ├── State/
-│   ├── AddMoveFlowState.swift (162 lines) - State enums
-│   └── VideoLoadingProgress struct
+│   ├── AddMoveFlowState.swift (162 lines) - Simplified 5-stage state enum
+│   └── SimpleProgress struct - Progress tracking
 ├── Services/
 │   ├── TimerManager.swift (114 lines) - Timer operations
-│   └── ProgressMonitor.swift (166 lines) - Progress tracking
+│   ├── ProgressMonitor.swift (166 lines) - Progress tracking
+│   └── FlowStateManager.swift (352 lines) - 5-stage flow management
 ├── Validation/
 │   ├── AddMoveValidationTypes.swift (254 lines) - Validation types
 │   └── StateValidator.swift (372 lines) - Validation logic
 └── Operations/
     └── SaveOperationCoordinator.swift (310 lines) - Save operations
 ```
+
+### 🔄 Simplified 5-Stage State Machine
+The AddMove flow now uses a simplified 5-stage state machine following KISS principles:
+1. **loadingVideo** - Loads video from Photos library with progress tracking
+2. **trimming** - Direct transition to trimmer UI (no preview stage)
+3. **loadingTrimmedAsset** - Prepares trimmed asset for naming with progress
+4. **naming** - User names the move (NameMoveView)
+5. **saving** - Saves the move to Core Data
+
+**Terminal States**: `ready`, `success`, `error`
+
+This eliminates the complex `previewing` and `trimming_setup` states that caused 99% stuck issues.
 
 ### Logging & Debugging
 * **Logging-First Approach:** Adopt a logging-first approach using `OSLog` for detailed, categorized, and traceable logging. Use emojis in log categories for enhanced traceability.
@@ -162,6 +175,13 @@ xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -des
 ```
 
 ### Recent Improvements (September 2025)
+* **🔄 State Machine Simplification (September 30, 2025):** Simplified the complex state machine to fix 99% stuck issues:
+  - **5-Stage Flow**: Eliminated `previewing` and `trimming_setup` states, implemented direct flow: loadingVideo → trimming → loadingTrimmedAsset → naming → saving
+  - **99% Bug Fix**: Fixed the core issue where video loading got stuck at `validatingTrimmer` (99%) by using proper completion criteria (1.0 instead of 0.99)
+  - **KISS Principles**: Removed complex natural transformation logic causing race conditions
+  - **FlowStateManager**: Added dedicated flow management service with proper closure capture semantics
+  - **Progress Tracking**: Simplified with new SimpleProgress struct and direct state transitions
+
 * **🚀 Major Architecture Refactoring (September 28, 2025):** Successfully refactored the 3,349-line AddMoveUnifiedState monolith into focused, SRP-compliant components:
   - **93% Size Reduction**: Main coordinator reduced from 3,349 to 227 lines
   - **Type Safety Fix**: Resolved "Type of expression is ambiguous without a type annotation" compilation error

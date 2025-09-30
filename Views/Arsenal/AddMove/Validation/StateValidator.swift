@@ -26,13 +26,16 @@ public class StateValidator: ObservableObject {
         logger.debug("✅ Starting state consistency validation")
 
         // Validate asset duration in trimming states
-        if case .trimming_setup = flowState, case .trimming = flowState {
+        switch flowState {
+        case .trimming, .loadingTrimmedAsset:
             if let asset = videoAsset {
                 let duration = asset.duration.seconds
                 if duration <= 0 {
                     errors.append(.invalidAssetDuration(duration))
                 }
             }
+        default:
+            break
         }
 
         // Validate trim parameters
@@ -78,7 +81,7 @@ public class StateValidator: ObservableObject {
         }
 
         // Validate photos identifier
-        if case .previewing = flowState, case .trimming_setup = flowState, case .trimming = flowState {
+        if case .loadingVideo = flowState, case .trimming = flowState, case .loadingTrimmedAsset = flowState {
             if photosIdentifier?.isEmpty != false {
                 logger.warning("✅ Photos identifier is empty or nil during asset operation")
             }

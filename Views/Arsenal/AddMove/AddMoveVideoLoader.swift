@@ -45,6 +45,7 @@ public struct AddMoveVideoLoaderResult {
 }
 
 // MARK: - VideoLoader Actor
+@preconcurrency
 public actor AddMoveVideoLoader {
     private let imageManager = PHImageManager.default()
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "VideoLoader")

@@ -3,20 +3,27 @@ import OSLog
 
 /// A minimalist, data-driven overlay that provides transparent feedback on video loading progress.
 /// Designed for "The Athlete" persona who values precision and mechanical watch aesthetics.
-/// Enhanced with elapsed time display and diagnostic capabilities.
+/// Enhanced with elapsed time display, trimming setup phases, and diagnostic capabilities.
+/// Updated for simplified 5-stage state machine with SimpleProgress support.
 struct LoadingOverlayView: View {
-    let progressPhase: VideoLoadingProgress.LoadingPhase
+    let progress: SimpleProgress
     @ObservedObject var unifiedState: AddMoveUnifiedState
 
-    // Computed properties to derive UI state from the progressPhase object
-    private var progress: Double {
-        let progressObj = VideoLoadingProgress(phase: progressPhase, correlationId: "")
-        return progressObj.progress
+    // 🎯 REAL-TIME FIX: Use unifiedState progress values for real-time updates
+    // This ensures the overlay shows the latest progress from the loading service
+    private var progressValue: Double {
+        // Use the most recent progress value from the state
+        return max(progress.value, unifiedState.currentProgress)
     }
 
     private var statusMessage: String {
-        let progressObj = VideoLoadingProgress(phase: progressPhase, correlationId: "")
-        return progressObj.message
+        // Use the most recent status message from the state
+        return unifiedState.loadingStatus.isEmpty ? progress.message : unifiedState.loadingStatus
+    }
+
+    // Enhanced status message based on progress
+    private var enhancedStatusMessage: String {
+        return statusMessage
     }
 
     var body: some View {
@@ -29,28 +36,36 @@ struct LoadingOverlayView: View {
             VStack(spacing: 16) {
                 // 🎯 CRITICAL FIX: Enhanced status display with phase indicator
                 VStack(spacing: 8) {
-                    // The status message is now the primary focus.
-                    Text(statusMessage)
+                    // The enhanced status message provides context for all phases
+                    Text(enhancedStatusMessage)
                         .font(.headline)
                         .fontWeight(.medium)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
-                        .animation(nil, value: statusMessage) // Prevent animation on text change
+                        .animation(nil, value: enhancedStatusMessage) // Prevent animation on text change
 
-                    // Progress phase indicator for debugging
-                    Text("Phase: \(progressPhase.displayName)")
+                    // Progress phase indicator with enhanced descriptions
+                    Text("Loading Video")
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
+
+                    // Additional context for trimming setup phases
+                    if isTrimmingSetupPhase {
+                        Text("Setting up precise trimming tools...")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                            .multilineTextAlignment(.center)
+                    }
                 }
 
                 // A simple, clean, linear progress bar.
-                ProgressView(value: progress)
+                ProgressView(value: progressValue)
                     .progressViewStyle(LinearProgressViewStyle(tint: .white))
-                    .animation(.easeInOut, value: progress)
+                    .animation(.easeInOut(duration: 0.3), value: progressValue)
 
                 // Progress percentage
-                Text("\(Int(progress * 100))%")
+                Text("\(Int(progressValue * 100))%")
                     .font(.ibmPlexMono(size: 14, weight: .regular))
                     .foregroundColor(.white)
 
@@ -79,6 +94,11 @@ struct LoadingOverlayView: View {
 
     // MARK: - Private Methods
 
+    /// Determines if current phase is part of trimming setup
+    private var isTrimmingSetupPhase: Bool {
+        return false
+    }
+
     /// Format seconds into MM:SS format
     private func formatTime(_ seconds: TimeInterval) -> String {
         let totalSeconds = Int(seconds)
@@ -91,9 +111,13 @@ struct LoadingOverlayView: View {
     private func logLoadingOverlayAppearance() {
         let logger = Logger(subsystem: "BreakingFlashcards", category: "🎬 LOADING_OVERLAY")
         logger.info("🎬 LOADING_OVERLAY: 📱 Loading overlay appeared")
-        logger.info("🎬 LOADING_OVERLAY: 📊 Phase: \(progressPhase.displayName), Progress: \(Int(progress * 100))%")
+        logger.info("🎬 LOADING_OVERLAY: 📊 Progress: \(Int(progressValue * 100))% - \(statusMessage)")
         logger.info("🎬 LOADING_OVERLAY: ⏱️ Initial elapsed time: \(String(format: "%.1f", unifiedState.loadElapsedTime))s")
-        logger.info("🎬 LOADING_OVERLAY: 📝 Status message: \(statusMessage)")
+        logger.info("🎬 LOADING_OVERLAY: 📝 Status message: \(enhancedStatusMessage)")
+
+        if isTrimmingSetupPhase {
+            logger.info("🎬 LOADING_OVERLAY: 🎬 Trimming setup phase detected - preparing precision tools")
+        }
     }
 }
 
@@ -111,6 +135,12 @@ extension VideoLoadingProgress.LoadingPhase {
             return "Validating"
         case .creatingAsset:
             return "Creating Asset"
+        case .loadingTrimmerDuration:
+            return "Loading Trimmer Duration"
+        case .loadingTrimmerTracks:
+            return "Loading Trimmer Tracks"
+        case .validatingTrimmer:
+            return "Validating Trimmer"
         }
     }
 }

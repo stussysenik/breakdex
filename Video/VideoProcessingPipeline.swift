@@ -41,6 +41,7 @@ public protocol VideoProcessingPipeline {
 }
 
 // MARK: - Video Processing Pipeline Implementation
+@preconcurrency
 final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
     private let loadingService: BreakingFlashcards.VideoLoadingService
     private let videoProcessor: VideoProcessor

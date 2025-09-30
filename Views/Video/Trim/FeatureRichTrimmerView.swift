@@ -18,10 +18,8 @@ struct TimeoutError: Error, LocalizedError {
 }
 
 
-// MARK: - HandleType Enum (internal use)
-enum HandleType {
-    case start, end
-}
+// MARK: - HandleType Usage
+// Using public TrimmerHandleType from TrimmerViewModel to avoid duplication
 
 
 // MARK: - Isolated Trimmer Player View
@@ -329,7 +327,7 @@ struct FeatureRichTrimmerView: View {
 
             // 🎯 CRITICAL: Local loading overlay preserves render layer during async operations
             if isFinalizing {
-                LoadingOverlayView(progressPhase: .creatingAsset, unifiedState: unifiedState)
+                LoadingOverlayView(progress: SimpleProgress(value: 0.8, message: "Creating asset..."), unifiedState: unifiedState)
             }
         }
         .photosPicker(
@@ -1335,14 +1333,9 @@ struct HybridPreciseTrimmerView: View {
         return pps * viewModel.minimumDuration.seconds
     }
     
-    private func convertHandleType(_ handleType: HandleType) -> TrimmerHandleType {
-        switch handleType {
-        case .start: return .start
-        case .end: return .end
-        }
-    }
+    // Conversion function no longer needed - using TrimmerHandleType directly
     
-    private func drag(handle: HandleType, in g: GeometryProxy) -> some Gesture {
+    private func drag(handle: TrimmerHandleType, in g: GeometryProxy) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named("track"))
             .onChanged { value in
                 let trackWidth = g.size.width - handleWidth
@@ -1433,7 +1426,7 @@ struct HybridPreciseTrimmerView: View {
                     let snappedBoundaryTime = viewModel.snapToFrame(boundaryTime)
 
                     // Force the handle to stay at the boundary
-                    viewModel.proposeTime(snappedBoundaryTime, for: convertHandleType(handle))
+                    viewModel.proposeTime(snappedBoundaryTime, for: handle)
 
                     let logger = DiagnosticLoggingHelper(category: "HybridPreciseTrimmerView")
                     logger.logDebug("🚫 Physical boundary enforced", metadata: [
@@ -1482,7 +1475,7 @@ struct HybridPreciseTrimmerView: View {
                     ])
                 }
 
-                viewModel.proposeTime(snappedTime, for: convertHandleType(handle))
+                viewModel.proposeTime(snappedTime, for: handle)
 
                 // Enhanced frame-synchronized haptic feedback
                 triggerFrameSynchronizedHaptic(at: snappedTime, for: handle)
@@ -1502,7 +1495,7 @@ struct HybridPreciseTrimmerView: View {
                 let endTimeBefore = viewModel.endTime
                 let durationBefore = viewModel.endTime - viewModel.startTime
 
-                viewModel.commitTime(snappedTime, for: convertHandleType(handle))
+                viewModel.commitTime(snappedTime, for: handle)
 
                 // stopFrameAnimation() removed - no longer needed with simplified animation system
 
@@ -1546,7 +1539,7 @@ struct HybridPreciseTrimmerView: View {
     }
     
     // MARK: - Enhanced Frame-Synchronized Haptic Feedback
-    private func triggerFrameSynchronizedHaptic(at time: CMTime, for handle: HandleType) {
+    private func triggerFrameSynchronizedHaptic(at time: CMTime, for handle: TrimmerHandleType) {
         let frameNumber = viewModel.getFrameNumber(for: time)
         let lastFrameNumber = viewModel.getFrameNumber(for: lastHapticTime)
         let frameDelta = abs(frameNumber - lastFrameNumber)

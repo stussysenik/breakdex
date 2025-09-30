@@ -1,6 +1,10 @@
 import SwiftUI
 import Foundation
 import CoreData
+import OSLog
+
+// MARK: - Logger Instance
+private let logger = Logger(subsystem: "com.breakingflashcards", category: "MainView")
 
 // MARK: - Tab Selection Enum
 enum TabSelection: String, Hashable {
@@ -35,9 +39,24 @@ struct MainView: View {
 
             // Add Tab - Inline AddMoveContainer functionality
             AddMoveView(selectedTab: $selectedTab, onSaveSuccess: { savedMove in
-                // 🎯 CRITICAL FIX: Handle successful save and navigate to detail view
+                // 🎯 CRITICAL FIX: Enhanced navigation handler with comprehensive logging
+                logger.info("🎬 MAIN_VIEW: Save success callback triggered for move: \(savedMove.name ?? "unnamed")")
+
+                // Store the saved move and trigger navigation
                 self.savedMove = savedMove
                 self.navigateToMoveDetail = true
+
+                // 🎯 STRATEGIC FIX: Switch to Arsenal tab before navigation for proper NavigationStack context
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    logger.info("🎬 MAIN_VIEW: Switching to Arsenal tab for navigation context")
+                    selectedTab = .arsenal
+
+                    // Navigate after tab switch is complete
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        logger.info("🎬 MAIN_VIEW: Executing navigation to MoveDetailView for move: \(savedMove.name ?? "unnamed")")
+                        self.navigateToMoveDetail = true
+                    }
+                }
             })
                 .tabItem {
                     Label {
@@ -76,10 +95,26 @@ struct MainView: View {
                 .accessibilityLabel("Review")
                 .accessibilityHint("Review and practice your breaking moves")
             }
-        }
-        .navigationDestination(isPresented: $navigateToMoveDetail) {
-            if let move = savedMove {
-                MoveDetailView(move: move)
+            // 🎯 CRITICAL FIX: Enhanced navigationDestination with proper error handling
+            .navigationDestination(isPresented: $navigateToMoveDetail) {
+                if let move = savedMove {
+                    MoveDetailView(move: move)
+                        .onAppear {
+                            logger.info("🎬 MAIN_VIEW: MoveDetailView appeared successfully for move: \(move.name ?? "unnamed")")
+                        }
+                        .onDisappear {
+                            logger.info("🎬 MAIN_VIEW: MoveDetailView disappeared - resetting navigation state")
+                            self.navigateToMoveDetail = false
+                            self.savedMove = nil
+                        }
+                } else {
+                    // 🎯 ERROR HANDLING: Fallback view for missing move
+                    Text("Error: Move not found")
+                        .foregroundColor(.red)
+                        .onAppear {
+                            logger.error("🎬 MAIN_VIEW: ❌ Navigation triggered but savedMove is nil")
+                        }
+                }
             }
         }
     }

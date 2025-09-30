@@ -99,6 +99,7 @@ public protocol PhotosPersistenceServiceProtocol {
 
 // MARK: - Photos Persistence Service Implementation
 @MainActor
+@preconcurrency
 public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
 
     // MARK: - Properties

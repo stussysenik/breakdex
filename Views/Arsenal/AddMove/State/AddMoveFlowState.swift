@@ -1,13 +1,16 @@
 import Foundation
 import Combine
 
-// Assuming VideoLoadingProgress is defined elsewhere
+// Simplified VideoLoadingProgress for compatibility with existing services
 public struct VideoLoadingProgress {
     public enum LoadingPhase: String, Sendable {
         case initializing
         case transferring
         case validating
         case creatingAsset
+        case loadingTrimmerDuration
+        case loadingTrimmerTracks
+        case validatingTrimmer
     }
 
     public let phase: LoadingPhase
@@ -28,6 +31,9 @@ public struct VideoLoadingProgress {
         case .transferring: return 0.4
         case .validating: return 0.7
         case .creatingAsset: return 0.9
+        case .loadingTrimmerDuration: return 0.95
+        case .loadingTrimmerTracks: return 0.97
+        case .validatingTrimmer: return 1.0  // Fixed: was 0.99, now goes to 100%
         }
     }
 
@@ -37,29 +43,65 @@ public struct VideoLoadingProgress {
         case .transferring: return "Transferring video..."
         case .validating: return "Validating video..."
         case .creatingAsset: return "Creating asset..."
+        case .loadingTrimmerDuration: return "Loading trimmer duration..."
+        case .loadingTrimmerTracks: return "Loading trimmer tracks..."
+        case .validatingTrimmer: return "Validating trimmer setup..."
         }
     }
 }
 
-// MARK: - Unified Flow State
-/// Simplified flow state that eliminates the dual state system complexity
+// Simplified progress tracking for loading stages
+public struct SimpleProgress: Sendable, Equatable, Hashable {
+    public let value: Double
+    public let message: String
+
+    public init(value: Double, message: String) {
+        self.value = max(0.0, min(1.0, value)) // Clamp between 0 and 1
+        self.message = message
+    }
+
+    public var percentage: Int {
+        return Int(value * 100)
+    }
+
+    // Create from VideoLoadingProgress for compatibility
+    public init(from videoProgress: VideoLoadingProgress) {
+        self.value = videoProgress.progress
+        self.message = videoProgress.message
+    }
+}
+
+// MARK: - Simplified Flow State
+/// Simplified 5-stage flow state that eliminates complex transitions and 99% stuck issues
+/// Note: We keep the old VideoLoadingProgress struct for compatibility but use SimpleProgress in states
 public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     case ready
-    case loading(progressPhase: VideoLoadingProgress.LoadingPhase)
-    case replacingVideo(status: String)
-    case previewing
-    case trimming_setup
+    case loadingVideo(progress: SimpleProgress)
     case trimming
-    case finalizing(status: String)
+    case loadingTrimmedAsset(progress: SimpleProgress)
     case naming
     case saving
     case success(message: String)
     case error(message: String, underlyingError: String?)
 
+    // Backward compatibility - can still be created from old states
+    public init(from oldState: AddMoveFlowState) {
+        switch oldState {
+        case .ready: self = .ready
+        case .loadingVideo(let progress): self = .loadingVideo(progress: progress)
+        case .trimming: self = .trimming
+        case .loadingTrimmedAsset(let progress): self = .loadingTrimmedAsset(progress: progress)
+        case .naming: self = .naming
+        case .saving: self = .saving
+        case .success(let message): self = .success(message: message)
+        case .error(let message, let underlying): self = .error(message: message, underlyingError: underlying)
+        }
+    }
+
     // MARK: - Computed Properties
     var isLoading: Bool {
         switch self {
-        case .loading, .replacingVideo: return true
+        case .loadingVideo, .loadingTrimmedAsset: return true
         default: return false
         }
     }
@@ -67,10 +109,8 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     // Helper to get loading progress for compatibility
     var loadingProgress: Double {
         switch self {
-        case .loading(let phase):
-            let progress = VideoLoadingProgress(phase: phase, correlationId: "")
-            return progress.progress
-        case .replacingVideo: return 0.48
+        case .loadingVideo(let progress), .loadingTrimmedAsset(let progress):
+            return progress.value
         default: return 0.0
         }
     }
@@ -78,38 +118,36 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     // Helper to get loading status for compatibility
     var loadingStatus: String {
         switch self {
-        case .loading(let phase):
-            let progress = VideoLoadingProgress(phase: phase, correlationId: "")
+        case .loadingVideo(let progress), .loadingTrimmedAsset(let progress):
             return progress.message
-        case .replacingVideo(let status): return status
         default: return ""
         }
     }
 
     var canShowPlayer: Bool {
         switch self {
-        case .previewing, .trimming_setup, .trimming: return true
+        case .trimming, .loadingTrimmedAsset: return true
         default: return false
         }
     }
 
     var canShowTrimmer: Bool {
         switch self {
-        case .trimming_setup, .trimming: return true
+        case .trimming: return true
         default: return false
         }
     }
 
     var isFinalizing: Bool {
         switch self {
-        case .finalizing, .saving, .success: return true
+        case .saving, .success: return true
         default: return false
         }
     }
 
     var isInteractive: Bool {
         switch self {
-        case .ready, .previewing, .trimming_setup, .trimming, .naming: return true
+        case .ready, .trimming, .naming: return true
         default: return false
         }
     }

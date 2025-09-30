@@ -247,12 +247,9 @@ public class StateTransitionCoordinator {
     private func getStateBase(_ state: AddMoveFlowState) -> String {
         switch state {
         case .ready: return "ready"
-        case .loading: return "loading"
-        case .replacingVideo: return "replacing_video"
-        case .previewing: return "previewing"
-        case .trimming_setup: return "trimming_setup"
+        case .loadingVideo: return "loading_video"
         case .trimming: return "trimming"
-        case .finalizing: return "finalizing"
+        case .loadingTrimmedAsset: return "loading_trimmed_asset"
         case .naming: return "naming"
         case .saving: return "saving"
         case .success: return "success"

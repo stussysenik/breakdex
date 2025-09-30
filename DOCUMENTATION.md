@@ -144,18 +144,20 @@ final class AppContainer {
 ```swift
 enum AddMoveFlowState: Equatable, Hashable, Sendable {
     case ready
-    case loading(progressPhase: VideoLoadingProgress.LoadingPhase)
-    case replacingVideo(status: String)
-    case previewing
-    case trimming_setup
+    case loadingVideo(progress: SimpleProgress)
     case trimming
-    case finalizing(status: String)
+    case loadingTrimmedAsset(progress: SimpleProgress)
     case naming
     case saving
     case success(message: String)
     case error(message: String, underlyingError: String?)
 }
 ```
+
+**🔄 Simplified State Machine (September 30, 2025):**
+- **5-Stage Flow**: Eliminated `previewing` and `trimming_setup` states for KISS simplicity
+- **Direct Transitions**: loadingVideo → trimming → loadingTrimmedAsset → naming → saving
+- **99% Bug Fix**: Fixed stuck loading by using proper completion criteria (1.0 instead of 0.99)
 
 **🚀 Major Refactoring (September 28, 2025):**
 - **93% Size Reduction**: From 3,349 lines to 227 lines
@@ -172,10 +174,15 @@ enum AddMoveFlowState: Equatable, Hashable, Sendable {
 
 ### State Flow Diagram
 ```
-Ready → Loading → Previewing → Trimming → Naming → Saving → Success
-  ↑                                                ↓
-  └───────────────── Error ←──────────────────────┘
+Ready → LoadingVideo → Trimming → LoadingTrimmedAsset → Naming → Saving → Success
+  ↑                                                              ↓
+  └────────────────────────── Error ←───────────────────────────┘
 ```
+
+**🔄 Simplified 5-Stage Flow (September 30, 2025):**
+- **Eliminated States**: Removed `previewing` and `trimming_setup` states that caused 99% stuck issues
+- **Direct Flow**: Simpler, more reliable state transitions following KISS principles
+- **Fixed Bug**: Loading now properly completes at 100% instead of getting stuck at 99%
 
 ## Feature Modules
 
@@ -837,14 +844,25 @@ final class CoreDataErrorHandler {
 
 ## Data Flow
 
-### Add Move Flow
+### Add Move Flow (🔄 Simplified 5-Stage State Machine)
 1. **Ready State** → User selects video via PhotosPicker
-2. **Loading State** → Video asset loading and validation (with progressive progress updates: 0.1 → 0.8 → 0.85 → 0.9 → 0.95 → 0.96 → 0.98 → 1.0)
-3. **Trimming State** → Set trim points and rotation using FeatureRichTrimmerView with frame-by-frame scrubbing and reactive time code displays
-4. **Asset Transformation** → Seamless transition to naming view with AssetInheritanceCoordinator handling rotation and trim settings inheritance
-5. **Naming State** → Enter move name with WYSIWYG preview of transformed asset
+2. **LoadingVideo State** → Video asset loading and validation (progress: 0.1 → 0.8 → 0.85 → 0.9 → 0.95 → 0.96 → 0.98 → 1.0)
+   - **Fixed Bug**: Now properly completes at 100% instead of getting stuck at 99%
+3. **Trimming State** → Direct transition to trimmer UI (no preview stage)
+   - Set trim points and rotation using FeatureRichTrimmerView
+   - Frame-by-frame scrubbing with reactive time code displays
+4. **LoadingTrimmedAsset State** → Prepare trimmed asset for naming (progress: 0.0 → 0.3 → 0.8 → 1.0)
+   - Creates trimmed player item and replaces player content
+   - WYSIWYG preview preparation
+5. **Naming State** → Enter move name with preview of trimmed asset
 6. **Saving State** → Process video and save to Photos + Core Data
 7. **Success State** → Confirmation and return to ready state
+
+**Key Improvements**:
+- **Eliminated `previewing` state** that caused confusion and delays
+- **Eliminated `trimming_setup` state** that created race conditions
+- **Direct transitions** following KISS principles
+- **Fixed 99% stuck issue** through proper completion criteria
 
 #### Enhanced Trimming Features (NEW)
 - **Frame-Accurate Scrubbing**: Frame-by-frame navigation with CADisplayLink synchronization

@@ -48,7 +48,8 @@ struct AddMoveContainer: View {
             videoProcessingPipeline: appContainer.videoProcessingPipeline,
             timecodeCalculationService: TimecodeCalculationService(),
             persistentContainer: PersistenceController.shared.container,
-            movePersistenceService: appContainer.movePersistenceService
+            movePersistenceService: appContainer.movePersistenceService,
+            appContainer: appContainer
         )
 
         self.init(
@@ -67,7 +68,8 @@ struct AddMoveContainer: View {
             videoProcessingPipeline: appContainer.videoProcessingPipeline,
             timecodeCalculationService: TimecodeCalculationService(),
             persistentContainer: PersistenceController.shared.container,
-            movePersistenceService: appContainer.movePersistenceService
+            movePersistenceService: appContainer.movePersistenceService,
+            appContainer: appContainer
         )
 
         self.init(context: viewContext, selectedTab: selectedTab, unifiedState: unifiedState, onSaveSuccess: onSaveSuccess)
@@ -138,9 +140,154 @@ struct AddMoveContainer: View {
     private func handleStateChange(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) {
         logger.info("🎬 CONTAINER: Flow state change observed - From: \(String(describing: oldState)) To: \(String(describing: newState))")
 
+        // 🎯 STRATEGIC LOGGING: Enhanced diagnostics for natural transformation tracking
+        switch (oldState, newState) {
+        case (.loadingVideo, .trimming):
+            logger.info("🎬 CONTAINER: 🔄 Simplified transition: loadingVideo → trimming")
+            logger.info("🎬 CONTAINER: 📊 Memory usage at trimming entry: \(getMemoryUsage())")
+
+        case (.trimming, .loadingTrimmedAsset):
+            logger.info("🎬 CONTAINER: ✅ Asset preparation: trimming → loadingTrimmedAsset")
+
+        case (.loadingTrimmedAsset, .naming):
+            logger.info("🎬 CONTAINER: ✅ Asset ready: loadingTrimmedAsset → naming")
+
+        case (.trimming, .naming):
+            logger.info("🎬 CONTAINER: ✅ Trimming complete: trimming → naming")
+
+        case (.naming, .saving):
+            logger.info("🎬 CONTAINER: ✅ Naming complete: naming → saving")
+
+        case (.saving, .success):
+            logger.info("🎬 CONTAINER: ✅ Save complete: saving → success")
+
+        default:
+            logger.info("🎬 CONTAINER: 📝 Standard transition: \(String(describing: oldState)) → \(String(describing: newState))")
+        }
+
+        // 🎯 CATEGORY THEORY: Monitor state invariants at each transition
+        validateStateInvariants(from: oldState, to: newState)
+
+        // 🎯 NAVIGATION FLOW: Trace navigation path for debugging
+        traceNavigationFlow(from: oldState, to: newState)
+
         // ✅ REFACTOR: The validation now happens inside AddMoveUnifiedState, where it belongs.
         // The container's job is to react to the state, not validate it.
         // If an invalid transition somehow occurs, the UnifiedState will log it and move to an error state itself.
+    }
+
+    // MARK: - State Invariant Monitoring
+
+    /// Validates state invariants using category theory principles
+    /// Ensures universal properties are maintained across state transitions
+    private func validateStateInvariants(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) {
+        logger.info("🎬 CONTAINER: 🔍 Validating state invariants for transition: \(String(describing: oldState)) → \(String(describing: newState))")
+
+        var invariantViolations: [String] = []
+
+        // Invariant 1: Video asset availability
+        if case .trimming = newState, unifiedState.videoAsset == nil {
+            invariantViolations.append("Video asset missing in trimming state")
+        }
+
+        // Invariant 2: Player state consistency
+        if case .loadingTrimmedAsset = newState, unifiedState.currentPlayerViewModel == nil {
+            invariantViolations.append("Player view model missing in loadingTrimmedAsset state")
+        }
+
+        // Invariant 3: Timer state consistency
+        let loadTimerRunning = unifiedState.loadElapsedTime > 0
+        if case .trimming = newState, loadTimerRunning {
+            invariantViolations.append("Load timer still running in trimming state")
+        }
+
+        // Invariant 4: Flow state coherence
+        if case .success = newState, unifiedState.moveName.isEmpty {
+            invariantViolations.append("Move name empty in success state")
+        }
+
+        // Log invariant validation results
+        if invariantViolations.isEmpty {
+            logger.info("🎬 CONTAINER: ✅ All state invariants maintained")
+        } else {
+            logger.error("🎬 CONTAINER: ❌ State invariant violations detected:")
+            for violation in invariantViolations {
+                logger.error("🎬 CONTAINER:   - \(violation)")
+            }
+        }
+
+        // Log invariant metrics
+        logInvariantMetrics(state: newState)
+    }
+
+    /// Logs detailed invariant metrics for debugging
+    private func logInvariantMetrics(state: AddMoveFlowState) {
+        let memoryUsage = getMemoryUsage()
+        let loadElapsed = unifiedState.loadElapsedTime
+        let saveElapsed = unifiedState.saveElapsedTime
+
+        var metrics: [String: String] = [
+            "state": String(describing: state),
+            "memory_usage": memoryUsage,
+            "load_elapsed": String(format: "%.2f", loadElapsed),
+            "save_elapsed": String(format: "%.2f", saveElapsed),
+            "video_asset_available": unifiedState.videoAsset != nil ? "true" : "false",
+            "player_available": unifiedState.currentPlayerViewModel != nil ? "true" : "false"
+        ]
+
+        logger.info("🎬 CONTAINER: 📊 Invariant metrics - \(metrics)")
+    }
+
+    // MARK: - Navigation Flow Tracing
+
+    /// Traces navigation flow for systematic debugging
+    /// Maps category theory morphisms to actual user flow
+    private func traceNavigationFlow(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) {
+        logger.info("🎬 CONTAINER: 🧭 Tracing navigation flow: \(String(describing: oldState)) → \(String(describing: newState))")
+
+        // Critical navigation milestones
+        switch (oldState, newState) {
+        case (.ready, .loadingVideo):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: User selected video")
+
+        case (.loadingVideo, .trimming):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: Video loading completed - entering trimming")
+
+        case (.trimming, .loadingTrimmedAsset):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: User completed trimming")
+
+        case (.trimming, .naming):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: User completed trimming")
+
+        case (.naming, .saving):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: User initiated save")
+
+        case (.saving, .success):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: Save completed - ready for navigation to MoveDetailView")
+
+        case (.success, _):
+            logger.info("🎬 CONTAINER: 🎯 Navigation milestone: Exiting success state - navigation flow complete")
+
+        default:
+            logger.info("🎬 CONTAINER: 📝 Navigation step: \(String(describing: oldState)) → \(String(describing: newState))")
+        }
+
+        // Trace functor composition path
+        traceFunctorCompositionPath(from: oldState, to: newState)
+    }
+
+    /// Traces the functor composition path through the category
+    private func traceFunctorCompositionPath(from oldState: AddMoveFlowState, to newState: AddMoveFlowState) {
+        let path = FunctorPathAnalyzer.analyzePath(from: oldState, to: newState)
+        logger.info("🎬 CONTAINER: 📐 Functor composition path: \(path.description)")
+
+        if path.hasNaturalTransformations {
+            logger.info("🎬 CONTAINER: 🌟 Path contains natural transformations: \(path.naturalTransformations.joined(separator: " → "))")
+        }
+
+        if path.isReversible {
+            logger.info("🎬 CONTAINER: 🔄 Path is reversible - adjoint functors available")
+        }
     }
     
     private var mainContent: some View {
@@ -155,23 +302,12 @@ struct AddMoveContainer: View {
                 case .ready:
                     AddMoveSelectClipViewUnified(unifiedState: unifiedState)
 
-                case .loading(let progressPhase):
-                    LoadingOverlayView(progressPhase: progressPhase, unifiedState: unifiedState)
+                case .loadingVideo(let progress):
+                    LoadingOverlayView(progress: progress, unifiedState: unifiedState)
 
-                case .replacingVideo(let status):
-                    LoadingView(progress: 0.48, status: status, unifiedState: unifiedState)
-
-                case .previewing:
-                    // 🎯 CRITICAL FIX: Automatic transition from previewing to trimming_setup
-                    EmptyView()
-                        .onAppear {
-                            Task {
-                                await unifiedState.setupTrimmerAfterPreview()
-                            }
-                        }
-
-                case .trimming_setup:
-                    LoadingView(progress: 1.0, status: "Finalizing setup...", unifiedState: unifiedState)
+                case .trimming:
+                    // 🎯 CRITICAL FIX: Enhanced previewing state with auto-progression support
+                    PreviewToTrimTransitionView(unifiedState: unifiedState)
 
                 case .trimming:
                     if let viewModel = unifiedState.trimmerViewModel as? TrimmerViewModel {
@@ -181,8 +317,8 @@ struct AddMoveContainer: View {
                         LoadingView(progress: 1.0, status: "Initializing Trimmer...", unifiedState: unifiedState)
                     }
 
-                case .finalizing(let status):
-                    LoadingOverlayView(progressPhase: .creatingAsset, unifiedState: unifiedState)
+                case .loadingTrimmedAsset(let progress):
+                    LoadingView(progress: progress.value, status: progress.message, unifiedState: unifiedState)
 
                 case .naming:
                     NameMoveViewUnified(unifiedState: unifiedState)
@@ -241,6 +377,13 @@ struct AddMoveContainer: View {
         let memoryInfo = ProcessInfo.processInfo
         logger.info("🎬 [\(context)] State: \(String(describing: flowState)), Mem: \(memoryInfo.physicalMemory / (1024*1024*1024))GB")
     }
+
+    // MARK: - Diagnostic Helpers
+    private func getMemoryUsage() -> String {
+        let memoryInfo = ProcessInfo.processInfo
+        let totalGB = memoryInfo.physicalMemory / (1024*1024*1024)
+        return "\(totalGB)GB"
+    }
     
     private func renderContainerFallbackUI() -> some View {
         VStack {
@@ -264,6 +407,73 @@ struct AddMoveContainer: View {
             Spacer()
         }
         .background(Color.black.ignoresSafeArea())
+    }
+}
+
+// MARK: - Natural Transformation Views
+
+/// Preview-to-Trim Transition View
+/// Enhanced transition view that supports auto-progression and proper state management
+/// This view shows during previewing and automatically transitions to trimming setup
+struct PreviewToTrimTransitionView: View {
+    @ObservedObject var unifiedState: AddMoveUnifiedState
+    @State private var hasTriggeredSetup = false
+
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "PreviewToTrimTransition")
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            // Loading indicator during transition
+            ProgressView()
+                .progressViewStyle(.circular)
+                .scaleEffect(1.2)
+
+            VStack(spacing: 8) {
+                Text("Preparing Trimmer")
+                    .font(.headline)
+                    .foregroundColor(.white)
+
+                Text("Setting up video trimming tools...")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+        }
+        .background(Color.black.ignoresSafeArea())
+        .onAppear {
+            logger.info("🎬 PREVIEW_TO_TRIM: 🚀 Transition view appeared - checking if setup needed")
+
+            // Only trigger setup if we haven't already done so
+            if !hasTriggeredSetup {
+                hasTriggeredSetup = true
+                logger.info("🎬 PREVIEW_TO_TRIM: 📡 Triggering trimmer setup")
+
+                // Small delay to ensure the view is fully visible
+                Task {
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+                    await unifiedState.setupTrimmerAfterPreview()
+                }
+            } else {
+                logger.info("🎬 PREVIEW_TO_TRIM: ℹ️ Setup already triggered, skipping")
+            }
+        }
+        .onDisappear {
+            logger.info("🎬 PREVIEW_TO_TRIM: Transition view disappeared")
+            // Reset the flag for next time
+            hasTriggeredSetup = false
+        }
+        .onChange(of: unifiedState.flowState) { newState in
+            logger.info("🎬 CONTAINER: State changed to \(String(describing: newState))")
+
+            // Reset flag when we leave trimming state
+            if case .trimming = newState {
+                hasTriggeredSetup = false
+            }
+        }
     }
 }
 

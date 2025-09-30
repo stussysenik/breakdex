@@ -120,6 +120,7 @@ public protocol ModernVideoLoadingServiceProtocol: AnyObject {
 
 // MARK: - Unified Video Loading Service
 @MainActor
+@preconcurrency
 public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol {
 
     // MARK: - Properties
@@ -641,6 +642,14 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
             correlationId: result.correlationId,
             component: "VideoLoadingService"
         )
+
+        // 🎯 CRITICAL FIX: Send final completion progress signal
+        let finalProgress = VideoLoadingProgress(
+            phase: .validatingTrimmer,
+            correlationId: result.correlationId
+        )
+        progressSubject.send(finalProgress)
+        logger.info("🎬 VIDEO_LOADING: ✅ Final completion signal sent [\(result.correlationId)]")
 
         // Clean up correlation ID
         memoryLogger.clearCorrelationId(for: "VideoLoadingService")

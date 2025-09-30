@@ -5,6 +5,44 @@ import OSLog
 import Foundation
 import BreakingFlashcards // Import the module to access TimecodeFormatter
 
+// MARK: - TrimmerSetupProgressDelegate Protocol
+
+/// Protocol for reporting progress during TrimmerViewModel setup operations
+/// Provides lightweight callbacks for progress updates during asset loading
+public protocol TrimmerSetupProgressDelegate: AnyObject {
+
+    /// Called when trimmer setup progress updates
+    /// - Parameters:
+    ///   - progress: Progress value between 0.0 and 1.0
+    ///   - status: Human-readable status message describing current operation
+    func trimmerDidUpdateProgress(_ progress: Double, status: String)
+
+    /// Called when trimmer setup completes successfully
+    /// - Parameter totalTime: Total time taken for setup completion (optional)
+    func trimmerDidCompleteSetup(totalTime: TimeInterval?)
+
+    /// Called when trimmer setup encounters an error
+    /// - Parameters:
+    ///   - error: The error that occurred during setup
+    ///   - context: Additional context about when/where the error occurred
+    func trimmerDidEncounterError(_ error: Error, context: String)
+}
+
+// MARK: - Default Implementation (Optional)
+public extension TrimmerSetupProgressDelegate {
+
+    /// Default implementation - optional to implement
+    func trimmerDidCompleteSetup(totalTime: TimeInterval?) {
+        // Default: no action required
+    }
+
+    /// Default implementation - optional to implement
+    func trimmerDidEncounterError(_ error: Error, context: String) {
+        // Default: no action required - just log
+        print("Trimmer setup error: \(error.localizedDescription) in context: \(context)")
+    }
+}
+
 // MemoryHelper is available as a static utility - no import needed
 
 // MARK: - HandleType Enum
@@ -65,6 +103,9 @@ public final class TrimmerViewModel: ObservableObject {
     
     // MARK: - Enhanced Diagnostic Logging
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "TrimmerViewModel")
+
+    // MARK: - Progress Reporting
+    public weak var progressDelegate: TrimmerSetupProgressDelegate?
 
     // MARK: - Timecode Service Integration
     private let timecodeService = TimecodeCalculationService()
@@ -358,12 +399,22 @@ public final class TrimmerViewModel: ObservableObject {
         ])
 
         do {
+            // Report initial progress (95%)
+            await MainActor.run {
+                progressDelegate?.trimmerDidUpdateProgress(0.95, status: "Loading trimmer duration...")
+            }
+
             let loadedDuration = try await asset.load(.duration)
             diagnosticLogger.logInfo("📊 Asset duration loaded successfully", metadata: [
                 "loaded_duration": "\(loadedDuration.seconds)",
                 "asset_timescale": "\(loadedDuration.timescale)",
                 "asset_value": "\(loadedDuration.value)"
             ])
+
+            // Report intermediate progress (97%)
+            await MainActor.run {
+                progressDelegate?.trimmerDidUpdateProgress(0.97, status: "Loading trimmer tracks...")
+            }
 
             let videoTracks = try await asset.loadTracks(withMediaType: .video)
             let frameRate = (try? await videoTracks.first?.load(.nominalFrameRate)) ?? 30
@@ -372,6 +423,11 @@ public final class TrimmerViewModel: ObservableObject {
                 "track_count": "\(videoTracks.count)",
                 "frame_rate": "\(frameRate)"
             ])
+
+            // Report validation progress (99%)
+            await MainActor.run {
+                progressDelegate?.trimmerDidUpdateProgress(0.99, status: "Validating trimmer setup...")
+            }
 
             // 🎯 CRITICAL FIX: Update all properties atomically to prevent race conditions
             await MainActor.run {
@@ -401,12 +457,24 @@ public final class TrimmerViewModel: ObservableObject {
 
             diagnosticLogger.stopTiming("trimmer_setup")
 
+            // Report completion (100%) and call completion delegate
+            await MainActor.run {
+                progressDelegate?.trimmerDidUpdateProgress(1.0, status: "Trimmer setup complete")
+                progressDelegate?.trimmerDidCompleteSetup(totalTime: nil)
+            }
+
         } catch {
             diagnosticLogger.logError("❌ Trimmer setup failed during asset loading", error: error, metadata: [
                 "asset_duration_before_error": "\(asset.duration.seconds)",
                 "is_ready_after_error": "\(isReady)",
                 "setup_complete_after_error": "\(isSetupComplete)"
             ])
+
+            // Report error to delegate
+            await MainActor.run {
+                progressDelegate?.trimmerDidEncounterError(error, context: "setupAsync asset loading")
+            }
+
             throw error
         }
     }
