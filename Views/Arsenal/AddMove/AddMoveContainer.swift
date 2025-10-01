@@ -111,6 +111,14 @@ struct AddMoveContainer: View {
                 self.onSaveSuccess?(move)
             }
         }
+
+        // 🎯 BACK BUTTON FIX: Set up the return to trimming closure
+        unifiedState.returnToTrimming = {
+            logger.info("🎬 CONTAINER: 🔙 Return to trimming closure triggered")
+            handleReturnToTrimming()
+        }
+
+        logger.info("🎬 CONTAINER: ✅ Return to trimming closure configured")
     }
     
     private func handleViewDisappear() {
@@ -306,15 +314,13 @@ struct AddMoveContainer: View {
                     LoadingOverlayView(progress: progress, unifiedState: unifiedState)
 
                 case .trimming:
-                    // 🎯 CRITICAL FIX: Enhanced previewing state with auto-progression support
-                    PreviewToTrimTransitionView(unifiedState: unifiedState)
-
-                case .trimming:
+                    // 🎯 CRITICAL FIX: Consolidated trimming case with proper conditional logic
                     if let viewModel = unifiedState.trimmerViewModel as? TrimmerViewModel {
                         FeatureRichTrimmerView(unifiedState: unifiedState, viewModel: viewModel)
                             .id(unifiedState.photosIdentifier ?? UUID().uuidString)
                     } else {
-                        LoadingView(progress: 1.0, status: "Initializing Trimmer...", unifiedState: unifiedState)
+                        // Show transition view while trimmer is being set up
+                        PreviewToTrimTransitionView(unifiedState: unifiedState)
                     }
 
                 case .loadingTrimmedAsset(let progress):
@@ -372,13 +378,344 @@ struct AddMoveContainer: View {
     
     // ✅ REFACTOR: Removed duplicate isValidFlowStateTransition function.
     // Validation now happens in AddMoveUnifiedState, the single source of truth for state transitions.
-    
+
+    // MARK: - Back Button Implementation
+
+    /// Handle the back button press from naming state to return to trimming
+    /// This method properly reconstructs the trimming state with all necessary data
+    @MainActor
+    private func handleReturnToTrimming() {
+        logger.info("🎬 CONTAINER: 🔙 Handling return to trimming from naming state")
+        logger.info("🎬 CONTAINER: 📊 Current state: \(String(describing: unifiedState.flowState))")
+
+        // 🎯 DIAGNOSTIC: Log current state details for debugging
+        logCurrentStateDetails("BACK_BUTTON_PRESSED")
+
+        // Validate we're in the expected state
+        guard case .naming = unifiedState.flowState else {
+            logger.warning("🎬 CONTAINER: ⚠️ Cannot return to trimming - not in naming state: \(String(describing: unifiedState.flowState))")
+            return
+        }
+
+        // Validate required data is available for trimming reconstruction
+        guard validateTrimmingReconstructionData() else {
+            logger.error("🎬 CONTAINER: ❌ Cannot return to trimming - missing required data")
+            Task {
+                await unifiedState.setError(message: "Cannot return to trimming", underlying: "Missing video data")
+            }
+            return
+        }
+
+        logger.info("🎬 CONTAINER: ✅ Validation passed - beginning trimming reconstruction")
+
+        // Perform the state transition with proper cleanup and reconstruction
+        Task {
+            await performReturnToTrimmingTransition()
+        }
+    }
+
+    /// Validate that all required data is available for trimming reconstruction
+    @MainActor
+    private func validateTrimmingReconstructionData() -> Bool {
+        logger.info("🎬 CONTAINER: 🔍 Validating trimming reconstruction data")
+
+        // 🎯 BACK BUTTON FIX: First try to restore from preserved state
+        if unifiedState.canRestoreTrimmingState() {
+            logger.info("🎬 CONTAINER: 🔄 Preserved trimming state available - attempting restoration")
+
+            if unifiedState.attemptTrimmingStateRestoration() {
+                logger.info("🎬 CONTAINER: ✅ Trimming state restored from preserved data")
+                logCurrentStateDetails("AFTER_PRESERVED_RESTORATION")
+                return true
+            } else {
+                logger.warning("🎬 CONTAINER: ⚠️ Failed to restore trimming state from preserved data")
+                logCurrentStateDetails("PRESERVED_RESTORATION_FAILED")
+            }
+        } else {
+            logger.info("🎬 CONTAINER: 📝 No preserved trimming state available - validating current data")
+        }
+
+        // Fallback to current state validation
+        var validationResults: [String: Bool] = [:]
+
+        // Check video asset
+        if unifiedState.videoAsset != nil {
+            validationResults["videoAsset"] = true
+            logger.info("🎬 CONTAINER: ✅ Video asset available")
+        } else {
+            validationResults["videoAsset"] = false
+            logger.error("🎬 CONTAINER: ❌ Video asset missing")
+        }
+
+        // Check photos identifier
+        if let photosId = unifiedState.photosIdentifier, !photosId.isEmpty {
+            validationResults["photosIdentifier"] = true
+            logger.info("🎬 CONTAINER: ✅ Photos identifier available: \(photosId)")
+        } else {
+            validationResults["photosIdentifier"] = false
+            logger.error("🎬 CONTAINER: ❌ Photos identifier missing")
+        }
+
+        // Check current player view model
+        if unifiedState.currentPlayerViewModel != nil {
+            validationResults["currentPlayerViewModel"] = true
+            logger.info("🎬 CONTAINER: ✅ Current player view model available")
+        } else {
+            validationResults["currentPlayerViewModel"] = false
+            logger.error("🎬 CONTAINER: ❌ Current player view model missing")
+        }
+
+        // Check trim time values
+        if unifiedState.trimStartTime >= 0 && unifiedState.trimEndTime > unifiedState.trimStartTime {
+            validationResults["trimTimeValues"] = true
+            logger.info("🎬 CONTAINER: ✅ Trim time values valid: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
+        } else {
+            validationResults["trimTimeValues"] = false
+            logger.error("🎬 CONTAINER: ❌ Invalid trim time values: start=\(unifiedState.trimStartTime), end=\(unifiedState.trimEndTime)")
+        }
+
+        let allValid = validationResults.values.allSatisfy { $0 }
+        logger.info("🎬 CONTAINER: 📊 Trimming reconstruction validation result: \(allValid ? "✅ PASSED" : "❌ FAILED")")
+
+        return allValid
+    }
+
+    /// Perform the actual transition back to trimming state with proper reconstruction
+    @MainActor
+    private func performReturnToTrimmingTransition() async {
+        logger.info("🎬 CONTAINER: 🚀 Starting return to trimming transition")
+        let transitionStartTime = Date()
+
+        // 🎯 BACK BUTTON FIX: Use FlowStateManager for proper rollback with state preservation
+        logger.info("🎬 CONTAINER: 🔄 Delegating to FlowStateManager for rollback")
+        await unifiedState.flowStateManager?.rollbackToTrimming()
+
+        // Verify transition success
+        let transitionTime = Date().timeIntervalSince(transitionStartTime)
+        logger.info("🎬 CONTAINER: ✅ Return to trimming transition completed in \(String(format: "%.3f", transitionTime))s")
+
+        // Verify we're in the correct state
+        if case .trimming = unifiedState.flowState {
+            logger.info("🎬 CONTAINER: ✅ Successfully returned to trimming state")
+
+            // Log final state for debugging
+            logTrimmingStateReconstruction()
+        } else {
+            logger.error("🎬 CONTAINER: ❌ Failed to transition to trimming state - current: \(String(describing: unifiedState.flowState))")
+        }
+    }
+
+    /// Clean up naming state resources
+    @MainActor
+    private func cleanupNamingState() async {
+        logger.info("🎬 CONTAINER: 🧹 Cleaning up naming state")
+
+        // Clear move name (user will need to re-enter it)
+        unifiedState.moveName = ""
+        logger.info("🎬 CONTAINER: 🧹 Move name cleared")
+
+        // Reset save-related properties
+        unifiedState.saveElapsedTime = 0.0
+        unifiedState.saveProgress = 0.0
+        logger.info("🎬 CONTAINER: 🧹 Save timers reset")
+
+        // Clear save readiness validation
+        unifiedState.saveReadiness = nil
+        logger.info("🎬 CONTAINER: 🧹 Save readiness validation cleared")
+    }
+
+    /// Reconstruct trimmer view model if it was cleaned up
+    @MainActor
+    private func reconstructTrimmerIfNeeded() async {
+        logger.info("🎬 CONTAINER: 🔧 Checking if trimmer reconstruction is needed")
+
+        // Check if trimmer view model exists and is valid
+        if let existingTrimmer = unifiedState.trimmerViewModel as? TrimmerViewModel {
+            logger.info("🎬 CONTAINER: ✅ Existing trimmer view model found - validating")
+
+            // Validate trimmer has correct asset and time values
+            if await validateTrimmerViewModel(existingTrimmer) {
+                logger.info("🎬 CONTAINER: ✅ Existing trimmer view model is valid - updating time values")
+
+                // Update trim time values to match current state
+                let duration = try? await unifiedState.videoAsset?.load(.duration)
+                let totalDuration = duration?.seconds ?? 0.0
+                let startTime = CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600)
+                let endTime = CMTime(seconds: unifiedState.trimEndTime > 0 ? unifiedState.trimEndTime : totalDuration, preferredTimescale: 600)
+
+                existingTrimmer.startTime = startTime
+                existingTrimmer.endTime = endTime
+
+                logger.info("🎬 CONTAINER: ✅ Trimmer time values updated: \(startTime.seconds)s - \(endTime.seconds)s")
+            } else {
+                logger.warning("🎬 CONTAINER: ⚠️ Existing trimmer view model invalid - recreating")
+                await createNewTrimmerViewModel()
+            }
+        } else {
+            logger.info("🎬 CONTAINER: 📝 No existing trimmer view model - creating new one")
+            await createNewTrimmerViewModel()
+        }
+    }
+
+    /// Validate that a trimmer view model is in a good state
+    @MainActor
+    private func validateTrimmerViewModel(_ trimmerVM: TrimmerViewModel) async -> Bool {
+        logger.info("🎬 CONTAINER: 🔍 Validating trimmer view model")
+
+        // Check if the trimmer's asset matches our current asset
+        do {
+            let trimmerAssetDuration = try await trimmerVM.asset.load(.duration)
+            let currentAssetDuration = try await unifiedState.videoAsset?.load(.duration) ?? CMTime.zero
+
+            let durationMatch = abs(trimmerAssetDuration.seconds - currentAssetDuration.seconds) < 0.1
+            logger.info("🎬 CONTAINER: 📊 Asset duration comparison - Trimmer: \(String(format: "%.2f", trimmerAssetDuration.seconds))s, Current: \(String(format: "%.2f", currentAssetDuration.seconds))s")
+
+            if durationMatch {
+                logger.info("🎬 CONTAINER: ✅ Trimmer asset validation passed")
+                return true
+            } else {
+                logger.warning("🎬 CONTAINER: ⚠️ Trimmer asset duration mismatch - needs reconstruction")
+                return false
+            }
+        } catch {
+            logger.error("🎬 CONTAINER: ❌ Trimmer validation failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Create a new trimmer view model
+    @MainActor
+    private func createNewTrimmerViewModel() async {
+        logger.info("🎬 CONTAINER: 🔨 Creating new trimmer view model")
+
+        guard let videoAsset = unifiedState.videoAsset,
+              let photosIdentifier = unifiedState.photosIdentifier,
+              let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel else {
+            logger.error("🎬 CONTAINER: ❌ Cannot create trimmer - missing required dependencies")
+            return
+        }
+
+        do {
+            // Create new trimmer view model
+            let newTrimmerVM = TrimmerViewModel(
+                asset: videoAsset,
+                photosIdentifier: photosIdentifier,
+                rotationQuarterTurns: unifiedState.rotationQuarterTurns,
+                playerViewModel: playerViewModel
+            )
+
+            // Set progress delegate
+            newTrimmerVM.progressDelegate = unifiedState
+
+            // Update published property
+            unifiedState.trimmerViewModel = newTrimmerVM
+
+            // Set trim time values
+            let duration = try await videoAsset.load(.duration).seconds
+            let startTime = CMTime(seconds: unifiedState.trimStartTime >= 0 ? unifiedState.trimStartTime : 0, preferredTimescale: 600)
+            let endTime = CMTime(seconds: unifiedState.trimEndTime > 0 ? unifiedState.trimEndTime : duration, preferredTimescale: 600)
+
+            newTrimmerVM.startTime = startTime
+            newTrimmerVM.endTime = endTime
+
+            logger.info("🎬 CONTAINER: ✅ New trimmer view model created and configured")
+            logger.info("🎬 CONTAINER: 📊 Trim range set: \(startTime.seconds)s - \(endTime.seconds)s")
+
+        } catch {
+            logger.error("🎬 CONTAINER: ❌ Failed to create new trimmer view model: \(error.localizedDescription)")
+        }
+    }
+
+    /// Log comprehensive debugging information about the trimming state reconstruction
+    @MainActor
+    private func logTrimmingStateReconstruction() {
+        logger.info("🎬 CONTAINER: 📊 TRIMMING STATE RECONSTRUCTION SUMMARY")
+        logger.info("🎬 CONTAINER: 📊 ======================================")
+        logger.info("🎬 CONTAINER: 📊 Flow State: \(String(describing: unifiedState.flowState))")
+        logger.info("🎬 CONTAINER: 📊 Video Asset: \(unifiedState.videoAsset != nil ? "✅ Available" : "❌ Missing")")
+        logger.info("🎬 CONTAINER: 📊 Photos ID: \(unifiedState.photosIdentifier ?? "❌ Missing")")
+        logger.info("🎬 CONTAINER: 📊 Player VM: \(unifiedState.currentPlayerViewModel != nil ? "✅ Available" : "❌ Missing")")
+        logger.info("🎬 CONTAINER: 📊 Trimmer VM: \(unifiedState.trimmerViewModel != nil ? "✅ Available" : "❌ Missing")")
+        logger.info("🎬 CONTAINER: 📊 Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
+        logger.info("🎬 CONTAINER: 📊 Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+        logger.info("🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'")
+        logger.info("🎬 CONTAINER: 📊 Timestamp: \(Date())")
+        logger.info("🎬 CONTAINER: 📊 ======================================")
+        logger.info("🎬 CONTAINER: 📊 TRIMMING STATE RECONSTRUCTION COMPLETE")
+    }
+
     private func logState(_ context: String, flowState: AddMoveFlowState) {
         let memoryInfo = ProcessInfo.processInfo
         logger.info("🎬 [\(context)] State: \(String(describing: flowState)), Mem: \(memoryInfo.physicalMemory / (1024*1024*1024))GB")
     }
 
     // MARK: - Diagnostic Helpers
+
+    /// 🎯 DIAGNOSTIC: Log comprehensive current state details for debugging
+    @MainActor
+    private func logCurrentStateDetails(_ context: String) {
+        logger.info("🎬 CONTAINER: 📊 DIAGNOSTIC STATE LOG [\(context)]")
+        logger.info("🎬 CONTAINER: 📊 ======================================")
+
+        // Flow state details
+        logger.info("🎬 CONTAINER: 📊 Flow State: \(String(describing: unifiedState.flowState))")
+        logger.info("🎬 CONTAINER: 📊 Player State: \(String(describing: unifiedState.playerState))")
+
+        // Video asset details
+        if let asset = unifiedState.videoAsset {
+            Task {
+                do {
+                    let duration = try await asset.load(.duration)
+                    logger.info("🎬 CONTAINER: 📊 Video Asset: ✅ Available - Duration: \(String(format: "%.2f", duration.seconds))s")
+                } catch {
+                    logger.info("🎬 CONTAINER: 📊 Video Asset: ✅ Available - Duration: Load failed (\(error.localizedDescription))")
+                }
+            }
+        } else {
+            logger.info("🎬 CONTAINER: 📊 Video Asset: ❌ Missing")
+        }
+
+        // Photos identifier
+        logger.info("🎬 CONTAINER: 📊 Photos ID: \(unifiedState.photosIdentifier ?? "❌ Missing")")
+
+        // Player view model details
+        if let playerVM = unifiedState.currentPlayerViewModel {
+            logger.info("🎬 CONTAINER: 📊 Player VM: ✅ Available - Type: \(type(of: playerVM))")
+
+            if let unifiedPlayerVM = playerVM as? UnifiedVideoPlayerViewModel {
+                logger.info("🎬 CONTAINER: 📊 Unified Player: Ready: \(unifiedPlayerVM.isPlayerReady), Has Player: \(unifiedPlayerVM.avPlayer != nil)")
+            }
+        } else {
+            logger.info("🎬 CONTAINER: 📊 Player VM: ❌ Missing")
+        }
+
+        // Trimmer view model details
+        if let trimmerVM = unifiedState.trimmerViewModel {
+            logger.info("🎬 CONTAINER: 📊 Trimmer VM: ✅ Available - Type: \(type(of: trimmerVM))")
+        } else {
+            logger.info("🎬 CONTAINER: 📊 Trimmer VM: ❌ Missing")
+        }
+
+        // Trim values
+        logger.info("🎬 CONTAINER: 📊 Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
+        logger.info("🎬 CONTAINER: 📊 Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+
+        // Move name
+        logger.info("🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'")
+
+        // Progress and timers
+        logger.info("🎬 CONTAINER: 📊 Load Progress: \(String(format: "%.1f", unifiedState.loadingProgress * 100))%")
+        logger.info("🎬 CONTAINER: 📊 Load Timer: \(String(format: "%.2f", unifiedState.loadElapsedTime))s")
+        logger.info("🎬 CONTAINER: 📊 Save Timer: \(String(format: "%.2f", unifiedState.saveElapsedTime))s")
+
+        // Memory usage
+        logger.info("🎬 CONTAINER: 📊 Memory: \(getMemoryUsage())")
+
+        // Timestamp
+        logger.info("🎬 CONTAINER: 📊 Timestamp: \(Date())")
+        logger.info("🎬 CONTAINER: 📊 ======================================")
+    }
+
     private func getMemoryUsage() -> String {
         let memoryInfo = ProcessInfo.processInfo
         let totalGB = memoryInfo.physicalMemory / (1024*1024*1024)

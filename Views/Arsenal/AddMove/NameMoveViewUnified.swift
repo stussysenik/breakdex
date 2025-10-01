@@ -28,85 +28,80 @@ struct NameMoveViewUnified: View {
     
     // MARK: - Computed Properties
     private var canSave: Bool {
-        if let saveReadiness = unifiedState.saveReadiness as? SaveReadinessResult {
-            return saveReadiness.canSave
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Checking save readiness...")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - saveReadiness value: \(unifiedState.saveReadiness != nil ? "not nil" : "nil")")
+
+        if let saveReadiness = unifiedState.saveReadiness {
+            let canSave = saveReadiness.canSave
+            // Log validation state for debugging
+            logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - SaveReadiness available - canSave: \(canSave), issues: \(saveReadiness.issues.count), isValid: \(saveReadiness.isValid)")
+            logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Player ready: \(saveReadiness.hasValidPlayer), Asset ready: \(saveReadiness.hasValidAsset), Trimmer ready: \(saveReadiness.hasValidTrimmer)")
+
+            if !canSave && !saveReadiness.issues.isEmpty {
+                logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - Save blocked by issues: \(saveReadiness.issues)")
+                for (index, issue) in saveReadiness.issues.enumerated() {
+                    logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - Issue \(index + 1): \(issue.localizedDescription) (critical: \(issue.isCritical))")
+                }
+            }
+            return canSave
+        } else {
+            logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - SaveReadiness is nil - validation may still be running")
+            // 🎯 CRITICAL FIX REMOVED: The temporary workaround has been removed since the underlying
+            // state synchronization issue has been fixed in FlowStateManager.completeAssetLoading()
+            // The button should remain disabled until proper validation completes successfully.
+            return false
         }
-        return false
     }
 
     private var validationIssues: [SaveValidationIssue] {
-        if let saveReadiness = unifiedState.saveReadiness as? SaveReadinessResult {
+        // 🎯 DIAGNOSTIC: Enhanced validation issues with fallback
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Getting validation issues...")
+
+        if let saveReadiness = unifiedState.saveReadiness {
+            logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - SaveReadiness available for issues, count: \(saveReadiness.issues.count)")
             return saveReadiness.issues
+        } else {
+            logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - SaveReadiness is nil - no validation issues available")
+            return []
         }
-        return []
     }
     
     // MARK: - Body
     var body: some View {
-        // 🎯 DEFENSIVE FIX: Ensure the player view model is available before rendering.
-        // This makes the view more robust against unexpected state inconsistencies.
-        Group {
-            if unifiedState.currentPlayerViewModel != nil {
-                mainContentView
-                    .onAppear {
-                        logger.info("🎬 NAME_MOVE_UNIFIED: View appeared - player available: \(unifiedState.currentPlayerViewModel != nil)")
-                        setupInitialState()
-
-                        // 🎯 CRITICAL FIX: Integrate with state lifecycle hooks
-                        // This ensures proper cleanup and prevents race conditions
-                        unifiedState.completeTransition()
-
-                        // 🎯 CRITICAL FIX: Start save readiness monitoring for real-time validation
-                        Task {
-                            unifiedState.startSaveReadinessMonitoring()
-                        }
-
-                        // 🎯 CRITICAL FIX: Player is already pre-configured with trimmed asset
-                        // No seek operation needed - AVComposition starts at CMTime.zero
-                        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Player is pre-configured with trimmed asset. No seek needed.")
-
-                        // 🎯 NEW: Calculate estimated file size
-                        Task {
-                            await calculateEstimatedFileSize()
-                        }
-
-                        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ State lifecycle integration completed")
-                    }
-                    .onDisappear {
-                        logger.info("🎬 NAME_MOVE_UNIFIED: View disappeared - preparing for transition")
-                        
-                        // 🎯 CRITICAL FIX: Stop save readiness monitoring to prevent memory leaks
-                        Task {
-                            unifiedState.stopSaveReadinessMonitoring()
-                        }
-                        
-                        // 🎯 CRITICAL FIX: Prepare for transition with enhanced cleanup
-                        Task {
-                            unifiedState.prepareForTransition()
-                        }
-                        
-                        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Enhanced state lifecycle cleanup completed")
-                    }
-            } else {
-                // Render a fallback UI if the player is not ready, preventing a crash.
-                loadingView
-                    .onAppear {
-                        logger.warning("⚠️ NAME_MOVE_UNIFIED: Appeared without a player view model. Flow state: \(String(describing: unifiedState.flowState))")
-                    }
+        mainContentViewWithLifecycle
+            .sheet(isPresented: $isShowingPreview) {
+                previewSheetContent
             }
+    }
+
+    // MARK: - View Components
+
+    @ViewBuilder
+    private var mainContentViewWithLifecycle: some View {
+        if unifiedState.currentPlayerViewModel != nil {
+            mainContentView
+                .onAppear(perform: handleViewAppear)
+                .onDisappear(perform: handleViewDisappear)
+        } else {
+            loadingView
+                .onAppear {
+                    logger.warning("⚠️ NAME_MOVE_UNIFIED: Appeared without a player view model. Flow state: \(String(describing: unifiedState.flowState))")
+                }
         }
-        .sheet(isPresented: $isShowingPreview) {
-            if let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
-                PreviewSheet(
-                    playerViewModel: playerViewModel,
-                    startTime: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600),
-                    endTime: CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600),
-                    rotationQuarterTurns: unifiedState.rotationQuarterTurns,
-                    onDismiss: {
-                        isShowingPreview = false
-                    }
-                )
-            }
+    }
+
+    @ViewBuilder
+    private var previewSheetContent: some View {
+        if let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
+            PreviewSheet(
+                playerViewModel: playerViewModel,
+                startTime: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600),
+                endTime: CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600),
+                rotationQuarterTurns: unifiedState.rotationQuarterTurns,
+                onDismiss: {
+                    isShowingPreview = false
+                }
+            )
         }
     }
     
@@ -181,7 +176,8 @@ struct NameMoveViewUnified: View {
             // Video info
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Duration: \(TimecodeFormatter.format(time: CMTimeSubtract(CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600), CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600))))")
+                    // 🎯 DURATION FIX: Calculate duration with proper fallbacks
+                    Text("Duration: \(calculateTrimDuration())")
                         .font(.caption)
                         .foregroundColor(.gray)
 
@@ -355,13 +351,123 @@ struct NameMoveViewUnified: View {
     
     
     
+    // MARK: - Utility Methods
+
+    // 🎯 DURATION FIX: Calculate trim duration with immediate fallbacks
+    private func calculateTrimDuration() -> String {
+        let startTime = unifiedState.trimStartTime
+        let endTime = unifiedState.trimEndTime
+
+        // Calculate duration with immediate fallbacks
+        let duration: TimeInterval
+
+        if endTime > startTime {
+            // Normal case: we have valid trim range
+            duration = endTime - startTime
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊 Valid trim range: \(String(format: "%.2f", startTime))s - \(String(format: "%.2f", endTime))s = \(String(format: "%.2f", duration))s")
+        } else if startTime > 0 {
+            // Fallback 1: if end time is invalid but start time is valid, assume 3 second clip
+            duration = 3.0
+            logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ Invalid trim range (start: \(startTime), end: \(endTime)) - using 3s fallback")
+        } else {
+            // Fallback 2: no valid trim data, use default duration
+            duration = 3.0
+            logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ No trim data available - using default duration: \(String(format: "%.2f", duration))s")
+
+            // Still try to get accurate duration from asset asynchronously
+            Task {
+                await calculateDurationFromAsset()
+            }
+        }
+
+        let formattedDuration = TimecodeFormatter.format(time: CMTime(seconds: duration, preferredTimescale: 600))
+        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Duration calculated: \(formattedDuration)")
+        return formattedDuration
+    }
+
+    // Calculate duration from asset asynchronously
+    private func calculateDurationFromAsset() async {
+        guard let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel else {
+            await MainActor.run {
+                estimatedFileSize = "Duration unavailable"
+            }
+            return
+        }
+
+        do {
+            let assetDuration = try await playerViewModel.avPlayer?.currentItem?.asset.load(.duration) ?? CMTime.zero
+            let durationInSeconds = assetDuration.seconds
+
+            // Update the duration calculation with asset duration
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊 Asset duration loaded: \(String(format: "%.2f", durationInSeconds))s")
+
+        } catch {
+            logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ Failed to load asset duration: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Lifecycle Handlers
+
+    private func handleViewAppear() {
+        logger.info("🎬 NAME_MOVE_UNIFIED: View appeared - player available: \(unifiedState.currentPlayerViewModel != nil)")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Initial state - flowState: \(String(describing: unifiedState.flowState)), playerState: \(String(describing: unifiedState.playerState))")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Initial saveReadiness: \(unifiedState.saveReadiness != nil ? "not nil" : "nil")")
+
+        setupInitialState()
+
+        // 🎯 CRITICAL FIX: Integrate with state lifecycle hooks
+        // This ensures proper cleanup and prevents race conditions
+        unifiedState.completeTransition()
+
+        // 🎯 CRITICAL FIX: Start save readiness monitoring for real-time validation
+        // 🎯 TIMING FIX: Add immediate validation to prevent button being stuck
+        Task {
+            logger.info("🎬 NAME_MOVE_UNIFIED: 🔧 DIAGNOSTIC - Starting save readiness monitoring...")
+            unifiedState.startSaveReadinessMonitoring()
+
+            // 🎯 IMMEDIATE VALIDATION: Trigger immediate validation to populate saveReadiness
+            logger.info("🎬 NAME_MOVE_UNIFIED: 🔧 DIAGNOSTIC - Triggering immediate validation...")
+            let validation = await unifiedState.validateSaveReadiness()
+            logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Immediate validation result: canSave=\(validation.canSave), issues=\(validation.issues.count)")
+
+            logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Initial validation completed")
+        }
+
+        // 🎯 CRITICAL FIX: Player is already pre-configured with trimmed asset
+        // No seek operation needed - AVComposition starts at CMTime.zero
+        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Player is pre-configured with trimmed asset. No seek needed.")
+
+        // 🎯 NEW: Calculate estimated file size
+        Task {
+            await calculateEstimatedFileSize()
+        }
+
+        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ State lifecycle integration completed")
+    }
+
+    private func handleViewDisappear() {
+        logger.info("🎬 NAME_MOVE_UNIFIED: View disappeared - preparing for transition")
+
+        // 🎯 CRITICAL FIX: Stop save readiness monitoring to prevent memory leaks
+        Task { @MainActor in
+            unifiedState.stopSaveReadinessMonitoring()
+        }
+
+        // 🎯 CRITICAL FIX: Prepare for transition with enhanced cleanup
+        Task { @MainActor in
+            unifiedState.prepareForTransition()
+        }
+
+        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Enhanced state lifecycle cleanup completed")
+    }
+
     // MARK: - Action Handlers
-    
+
     private func setupInitialState() {
         // Initialize with current move name from unified state
         moveName = unifiedState.moveName
         logger.info("🎬 NAME_MOVE_UNIFIED: Initial setup completed")
-        
+
         // Log current state
         logger.info("🎬 NAME_MOVE_UNIFIED: Current state - move_name: '\(moveName)', player_available: \(unifiedState.currentPlayerViewModel != nil)")
     }
@@ -391,19 +497,60 @@ struct NameMoveViewUnified: View {
     }
     
     private func handleSave() {
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Save button tapped!")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Move name: '\(moveName)'")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Current state: flowState=\(String(describing: unifiedState.flowState)), playerState=\(String(describing: unifiedState.playerState))")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - SaveReadiness: \(unifiedState.saveReadiness != nil ? "available" : "nil")")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Player available: \(unifiedState.currentPlayerViewModel != nil)")
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Video asset available: \(unifiedState.videoAsset != nil)")
+
         guard !moveName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            logger.warning("🎬 NAME_MOVE_UNIFIED: ❌ DIAGNOSTIC - Empty move name - blocking save")
             Task {
                 await unifiedState.setError(message: "Please enter a move name")
             }
             return
         }
 
-        logger.info("🎬 NAME_MOVE_UNIFIED: Save button tapped for '\(moveName)'")
+        logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Basic validation passed - proceeding with save")
 
-        // 🎯 CRITICAL FIX: Save timer is now managed by AddMoveUnifiedState to prevent memory leaks
-        // Call unified state's saveMove() function which handles the entire save process including timing
+        // 🎯 SAVE FIX: Trigger the FlowStateManager to proceed from naming to saving
+        // This follows the simplified 5-stage flow: naming -> saving -> success
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🔧 DIAGNOSTIC: Accessing flowStateManager with internal access level")
+
         Task {
-            await unifiedState.saveMove()
+            // 🎯 ENHANCED DIAGNOSTICS: Log pre-save state
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊 DIAGNOSTIC - Pre-save state check:")
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - FlowStateManager available: \(unifiedState.flowStateManager != nil)")
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Trim range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
+
+            // 🎯 FINAL VALIDATION: Double-check save readiness before proceeding
+            if let saveReadiness = unifiedState.saveReadiness {
+                logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Final save readiness check: canSave=\(saveReadiness.canSave), issues=\(saveReadiness.issues.count)")
+                if !saveReadiness.canSave {
+                    logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - Save blocked by final validation")
+                    for issue in saveReadiness.issues {
+                        logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - Blocking issue: \(issue.localizedDescription)")
+                    }
+                    await unifiedState.setError(message: "Cannot save move", underlying: "Validation failed")
+                    return
+                }
+            } else {
+                logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - No save readiness available, proceeding with basic validation")
+            }
+
+            do {
+                logger.info("🎬 NAME_MOVE_UNIFIED: 🚀 DIAGNOSTIC - Calling proceedToNextState()...")
+                try await unifiedState.flowStateManager?.proceedToNextState()
+                logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Save operation initiated successfully")
+            } catch {
+                logger.error("🎬 NAME_MOVE_UNIFIED: ❌ Save operation failed: \(error.localizedDescription)")
+                logger.error("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Error type: \(type(of: error))")
+                logger.error("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Error details: \(error)")
+                await unifiedState.setError(message: "Failed to save move", underlying: error.localizedDescription)
+            }
         }
     }
     

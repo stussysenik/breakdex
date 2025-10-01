@@ -98,6 +98,28 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
         }
     }
 
+    // MARK: - State Properties
+
+    /// Check if this is a terminal state (success or error)
+    public var isTerminalState: Bool {
+        switch self {
+        case .success, .error:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Check if this state allows user interaction
+    public var isInteractive: Bool {
+        switch self {
+        case .trimming, .naming:
+            return true
+        case .ready, .loadingVideo, .loadingTrimmedAsset, .saving, .success, .error:
+            return false
+        }
+    }
+
     // MARK: - Computed Properties
     var isLoading: Bool {
         switch self {
@@ -141,13 +163,6 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     var isFinalizing: Bool {
         switch self {
         case .saving, .success: return true
-        default: return false
-        }
-    }
-
-    var isInteractive: Bool {
-        switch self {
-        case .ready, .trimming, .naming: return true
         default: return false
         }
     }

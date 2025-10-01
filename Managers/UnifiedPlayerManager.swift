@@ -97,17 +97,46 @@ public class UnifiedPlayerManager: ObservableObject {
             currentPlayer = nil
         }
         
-        // Create new player with optimized lifecycle
-        let playerItem = AVPlayerItem(asset: asset)
+        // 🎯 CRITICAL FIX: Validate asset preconditions before creating AVPlayerItem
+        try await validateAssetForPlayerCreation(asset)
+
+        // 🎯 ENHANCED: Create player item with cancellation support
+        let playerItem: AVPlayerItem
+        let playerCreationStart = Date()
+
+        do {
+            playerItem = try await withCheckedThrowingContinuation { continuation in
+                Task {
+                    do {
+                        // 🎯 CRITICAL FIX: Create player item on background thread to prevent blocking
+                        let createdPlayerItem = await Task.detached(priority: .userInitiated) {
+                            AVPlayerItem(asset: asset)
+                        }.value
+
+                        continuation.resume(returning: createdPlayerItem)
+                    } catch {
+                        continuation.resume(throwing: VideoProcessingError.playerInitializationFailed)
+                    }
+                }
+            }
+
+            let creationTime = Date().timeIntervalSince(playerCreationStart)
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ PlayerItem created in \(String(format: "%.3f", creationTime))s")
+
+        } catch {
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ PlayerItem creation failed: \(error.localizedDescription)")
+            throw VideoProcessingError.playerInitializationFailed
+        }
+
         let player = AVPlayer(playerItem: playerItem)
-        
+
         let newPlayer = UnifiedVideoPlayerViewModel(
             player: player,
             mode: .preview,
             appContainer: appContainer
         )
-        
-        // Wait for player to be ready with timeout protection
+
+        // 🎯 CRITICAL FIX: Enhanced player readiness wait with timeout protection
         try await waitForPlayerReady(newPlayer)
         
         // Store player state
@@ -116,8 +145,15 @@ public class UnifiedPlayerManager: ObservableObject {
         currentRotation = rotationQuarterTurns
         currentPhotosIdentifier = photosIdentifier
         isInitialized = true
-        
+
+        // 🎯 DIAGNOSTIC: Enhanced logging for player state synchronization debugging
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ New player created and ready (asset changed)")
+
+        // Fix: Move async call out of string interpolation to avoid 'await' in autoclosure error
+        let playerReadyStatus = await newPlayer.isPlayerReady
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Player isPlayerReady: \(playerReadyStatus)")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Player initialization completed - AddMoveUnifiedState should synchronize with this state")
+
         return newPlayer
     }
     
@@ -244,6 +280,13 @@ public class UnifiedPlayerManager: ObservableObject {
             // 💡 ENHANCEMENT: Complete transition with comprehensive success logging
             isTransitioning = false
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Enhanced trim application completed successfully")
+
+            // 🎯 DIAGNOSTIC: Enhanced logging for player state synchronization debugging
+
+            // Fix: Move async call out of string interpolation to avoid 'await' in autoclosure error
+            let postTrimPlayerReadyStatus = await currentPlayer.isPlayerReady
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Post-trim player isPlayerReady: \(postTrimPlayerReadyStatus)")
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Trim operation completed - AddMoveUnifiedState should synchronize with this state")
 
         } catch {
             // 💡 ENHANCEMENT: Enhanced error handling with recovery attempts
@@ -511,49 +554,146 @@ public class UnifiedPlayerManager: ObservableObject {
     }
     
     // MARK: - Private Methods
-    
-    /// Waits for player to be ready with improved timeout and backoff
+
+    /// 🎯 CRITICAL FIX: Validate asset is ready for player creation to prevent timeout issues
+    private func validateAssetForPlayerCreation(_ asset: AVAsset) async throws {
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 Validating asset for player creation")
+
+        let validationStart = Date()
+
+        do {
+            // 🎯 CRITICAL: Check asset duration - this can fail if asset is not fully loaded
+            let duration = try await asset.load(.duration)
+            guard duration.seconds > 0 else {
+                throw VideoProcessingError.assetCreationFailed
+            }
+
+            // 🎯 CRITICAL: Check asset has playable tracks
+            let tracks = try await asset.load(.tracks)
+            guard !tracks.isEmpty else {
+                throw VideoProcessingError.assetCreationFailed
+            }
+
+            // 🎯 ENHANCED: Check if tracks are media tracks with playable media
+            let mediaTracks = tracks.filter { track in
+                track.mediaType == .video || track.mediaType == .audio
+            }
+            guard !mediaTracks.isEmpty else {
+                throw VideoProcessingError.assetCreationFailed
+            }
+
+            let validationTime = Date().timeIntervalSince(validationStart)
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Asset validation passed in \(String(format: "%.3f", validationTime))s - Duration: \(duration.seconds)s, Media Tracks: \(mediaTracks.count)")
+
+        } catch {
+            let validationTime = Date().timeIntervalSince(validationStart)
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Asset validation failed after \(String(format: "%.3f", validationTime))s: \(error.localizedDescription)")
+            throw VideoProcessingError.assetCreationFailed
+        }
+    }
+
+    /// 🎯 CRITICAL FIX: Enhanced player readiness wait with improved concurrency and proper natural transformation
     private func waitForPlayerReady(_ player: UnifiedVideoPlayerViewModel) async throws {
-        let timeout: TimeInterval = 15.0 // Increased timeout for reliability
-        let checkInterval: TimeInterval = 0.1 // 100ms initial check
-        let maxBackoff: TimeInterval = 1.0 // Maximum backoff to 1 second
-        
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Waiting for player readiness (timeout: \(timeout)s)")
-        
+        let timeout: TimeInterval = 10.0 // Reduced timeout for faster feedback
+        let checkInterval: TimeInterval = 0.05 // More frequent checks
+        let maxBackoff: TimeInterval = 0.5 // Reduced backoff for faster response
+
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 ENHANCED player readiness monitoring (timeout: \(timeout)s)")
+
         let startTime = Date()
         var currentBackoff = checkInterval
-        
-        return try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask {
-                // Wait for player to be ready with exponential backoff
-                while await !player.isPlayerReady {
-                    let elapsed = Date().timeIntervalSince(startTime)
-                    
-                    if elapsed > timeout {
-                        self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: Player readiness timeout after \(elapsed)s")
-                        throw VideoProcessingError.readinessTimeout
-                    }
-                    
-                    // Exponential backoff to reduce CPU usage during long waits
-                    try await Task.sleep(nanoseconds: UInt64(currentBackoff * 1_000_000_000))
-                    currentBackoff = min(currentBackoff * 1.5, maxBackoff) // Exponential backoff with ceiling
-                    
-                    self.logger.debug("🎬 UNIFIED_PLAYER_MANAGER: Still waiting for player readiness... (\(String(format: "%.1f", elapsed))s elapsed)")
-                }
-                
-                let totalTime = Date().timeIntervalSince(startTime)
-                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player became ready after \(String(format: "%.2f", totalTime))s")
-            }
-            
-            group.addTask {
-                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: Hard timeout reached after \(timeout)s")
+        var lastKnownReadyState = false
+        var consecutiveReadyCount = 0
+        let readyThreshold = 2 // Reduced threshold for faster completion
+
+        // 🎯 ENHANCED: Simple sequential monitoring with timeout
+        while true {
+            let elapsed = Date().timeIntervalSince(startTime)
+
+            if elapsed > timeout {
+                self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ TIMEOUT after \(String(format: "%.3f", elapsed))s - last ready state: \(lastKnownReadyState)")
                 throw VideoProcessingError.readinessTimeout
             }
-            
-            for try await _ in group {
+
+            // 🎯 ENHANCED: Check player ready state with multiple validation layers
+            let isReady = await player.isPlayerReady
+
+            if isReady {
+                consecutiveReadyCount += 1
+                self.logger.debug("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player ready check \(consecutiveReadyCount)/\(readyThreshold)")
+
+                // Require multiple consecutive ready checks to ensure stability
+                if consecutiveReadyCount >= readyThreshold {
+                    let totalTime = Date().timeIntervalSince(startTime)
+                    self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Player STABLY ready after \(String(format: "%.3f", totalTime))s")
+
+                    // 🎯 CRITICAL: Quick asset validation
+                    await validatePlayerItem(player)
+
+                    self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Enhanced player readiness monitoring completed successfully")
+                    return
+                }
+            } else {
+                if consecutiveReadyCount > 0 {
+                    self.logger.warning("🎬 UNIFIED_PLAYER_MANAGER: ⚠️ Player readiness LOST - was ready \(consecutiveReadyCount) times")
+                }
+                consecutiveReadyCount = 0
+            }
+
+            lastKnownReadyState = isReady
+
+            // 🎯 ENHANCED: Dynamic backoff with reduced intervals for faster response
+            let sleepTime = currentBackoff
+            try await Task.sleep(nanoseconds: UInt64(sleepTime * 1_000_000_000))
+            currentBackoff = min(currentBackoff * 1.2, maxBackoff)
+
+            if elapsed.truncatingRemainder(dividingBy: 0.5) < 0.05 { // Log every 0.5 seconds
+                self.logger.debug("🎬 UNIFIED_PLAYER_MANAGER: ⏳ Monitoring... (\(String(format: "%.1f", elapsed))s elapsed, ready: \(isReady))")
+            }
+        }
+    }
+
+    /// 🎯 ENHANCED: Quick asset validation helper
+    private func validatePlayerItem(_ player: UnifiedVideoPlayerViewModel) async {
+        guard let playerItem = player.avPlayer?.currentItem else {
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Player item is nil during validation")
+            return
+        }
+
+        do {
+            // Simple duration check with timeout
+            let duration = try await withThrowingTaskGroup(of: CMTime.self) { group in
+                group.addTask {
+                    try await playerItem.asset.load(.duration)
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 2_000_000_000) // 2 second timeout
+                    throw VideoProcessingError.assetCreationFailed
+                }
+
+                if let result = try await group.next() {
+                    group.cancelAll()
+                    return result
+                } else {
+                    throw VideoProcessingError.assetCreationFailed
+                }
+            }
+
+            guard duration.seconds > 0 else {
+                self.logger.warning("🎬 UNIFIED_PLAYER_MANAGER: ⚠️ Asset validation failed - invalid duration")
                 return
             }
+
+            let tracks = try await playerItem.asset.load(.tracks)
+            guard !tracks.isEmpty else {
+                self.logger.warning("🎬 UNIFIED_PLAYER_MANAGER: ⚠️ Asset validation failed - no tracks")
+                return
+            }
+
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ FAST Asset validation passed - Duration: \(duration.seconds)s, Tracks: \(tracks.count)")
+
+        } catch {
+            self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Asset validation failed: \(error.localizedDescription)")
         }
     }
 }

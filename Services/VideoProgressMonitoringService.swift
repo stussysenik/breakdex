@@ -103,27 +103,48 @@ public class VideoProgressMonitoringService {
     // MARK: - Private Methods
 
     private func handleCompletion(_ completion: Subscribers.Completion<Never>) {
+        logger.info("🎬 VIDEO_PROGRESS: 🔄 COMPLETION HANDLER TRIGGERED")
+        logger.info("🎬 VIDEO_PROGRESS: 📊 Completion type: \((completion == .finished) ? "finished" : "failure")")
+        logger.info("🎬 VIDEO_PROGRESS: 📊 Callback configured: \(self.onCompletion != nil)")
+
         switch completion {
         case .finished:
             logger.info("🎬 VIDEO_PROGRESS: ✅ Progress monitoring completed successfully")
-            logger.info("🎬 VIDEO_PROGRESS: 🚀 Triggering completion callback for natural transformation")
+            logger.info("🎬 VIDEO_PROGRESS: 🚀 Triggering completion callback for atomic transformation")
 
-            // 🎯 CRITICAL FIX: Ensure completion callback is called immediately
-            // This is essential for the loading → previewing natural transformation
-            onCompletion?(completion)
+            // 🎯 ENHANCED DIAGNOSTIC: Log completion callback state
+            if let completionCallback = self.onCompletion {
+                logger.info("🎬 VIDEO_PROGRESS: 📡 Executing completion callback")
+                completionCallback(completion)
+                logger.info("🎬 VIDEO_PROGRESS: ✅ Completion callback executed")
+            } else {
+                logger.warning("🎬 VIDEO_PROGRESS: ⚠️ No completion callback configured")
+            }
 
-            // 🎯 ENHANCEMENT: Also trigger a final completion progress update if needed
-            // This provides redundancy to ensure the natural transformation executes
-            if onProgressUpdate != nil {
+            // 🎯 CRITICAL DIAGNOSTIC: Also trigger a final completion progress update if needed
+            if let progressCallback = self.onProgressUpdate {
                 logger.info("🎬 VIDEO_PROGRESS: 📊 Sending final completion progress update at creatingAsset phase")
-                let finalProgress = VideoLoadingProgress(phase: .creatingAsset, correlationId: "completion")
-                onProgressUpdate?(finalProgress)
+                let finalProgress = VideoLoadingProgress(phase: .creatingAsset, correlationId: "completion_\(UUID().uuidString)")
+                progressCallback(finalProgress)
+                logger.info("🎬 VIDEO_PROGRESS: ✅ Final completion progress update sent")
+            } else {
+                logger.warning("🎬 VIDEO_PROGRESS: ⚠️ No progress callback configured for final update")
             }
 
         case .failure(let error):
             logger.error("🎬 VIDEO_PROGRESS: ❌ Progress monitoring failed: \(error.localizedDescription)")
-            onCompletion?(completion)
+            if let completionCallback = self.onCompletion {
+                completionCallback(completion)
+            } else {
+                logger.warning("🎬 VIDEO_PROGRESS: ⚠️ No completion callback configured for error")
+            }
         }
+
+        // 🎯 DIAGNOSTIC: Log final state
+        logger.info("🎬 VIDEO_PROGRESS: 📈 Final state after completion handling")
+        logger.info("🎬 VIDEO_PROGRESS:   - Progress callback: \(self.onProgressUpdate != nil)")
+        logger.info("🎬 VIDEO_PROGRESS:   - Completion callback: \(self.onCompletion != nil)")
+        logger.info("🎬 VIDEO_PROGRESS:   - Active subscriptions: \(self.cancellables.count)")
     }
 
     private func handleProgressUpdate(_ progress: VideoLoadingProgress) {

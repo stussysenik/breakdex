@@ -108,6 +108,7 @@ public enum VideoProcessingError: LocalizedError {
     case assetCreationFailed
     case playerInitializationFailed
     case readinessTimeout
+    case playerCreationTimeout
     case exportFailed(operation: String, underlyingError: Error)
     case trimOperationFailed(startTime: Double, endTime: Double, underlyingError: Error)
     case assetNotReadable
@@ -143,6 +144,8 @@ public enum VideoProcessingError: LocalizedError {
             return "Failed to initialize video player"
         case .readinessTimeout:
             return "Video player readiness timeout"
+        case .playerCreationTimeout:
+            return "Video player creation timeout"
         case .exportFailed(let operation, _):
             return "Failed to export video during: \(operation)"
         case .trimOperationFailed(let startTime, let endTime, _):
@@ -198,6 +201,8 @@ public enum VideoProcessingError: LocalizedError {
             return "Restart the app and try again"
         case .readinessTimeout:
             return "Check your internet connection and try again"
+        case .playerCreationTimeout:
+            return "Check your internet connection and try again"
         case .exportFailed:
             return "Try reducing video quality or use a shorter video segment"
         case .trimOperationFailed:
@@ -240,7 +245,7 @@ public enum VideoProcessingError: LocalizedError {
     public var isRecoverable: Bool {
         switch self {
         case .memoryLimitExceeded, .invalidStateTransition, .videoLoadingFailed, .videoProcessingFailed,
-             .assetCreationFailed, .playerInitializationFailed, .readinessTimeout, .exportFailed,
+             .assetCreationFailed, .playerInitializationFailed, .readinessTimeout, .playerCreationTimeout, .exportFailed,
              .trimOperationFailed, .assetNotReadable, .codecNotSupported, .invalidVideoFormat,
              .insufficientPermissions, .diskSpaceFull, .networkError, .concurrentOperationLimitReached,
              .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied, .photosSaveFailed,
@@ -258,7 +263,7 @@ public enum VideoProcessingError: LocalizedError {
              .invalidVideoDimensions, .frameRateNotSupported, .photosPermissionDenied,
              .noValidVideoTrackFound, .compositionTrackCreationFailed:
             return .critical
-        case .videoLoadingFailed, .videoProcessingFailed, .readinessTimeout, .exportFailed,
+        case .videoLoadingFailed, .videoProcessingFailed, .readinessTimeout, .playerCreationTimeout, .exportFailed,
              .trimOperationFailed, .assetNotReadable, .networkError, .concurrentOperationLimitReached,
              .photosSaveFailed, .trackInsertionFailed:
             return .warning
@@ -272,7 +277,7 @@ public enum VideoProcessingError: LocalizedError {
         case .videoLoadingFailed: return .loading
         case .videoProcessingFailed, .exportFailed, .trimOperationFailed: return .processing
         case .assetCreationFailed, .playerInitializationFailed: return .initialization
-        case .memoryLimitExceeded, .readinessTimeout, .diskSpaceFull, .concurrentOperationLimitReached: return .resource
+        case .memoryLimitExceeded, .readinessTimeout, .playerCreationTimeout, .diskSpaceFull, .concurrentOperationLimitReached: return .resource
         case .codecNotSupported, .invalidVideoFormat, .invalidVideoDimensions, .frameRateNotSupported: return .format
         case .insufficientPermissions: return .permission
         case .networkError: return .network
