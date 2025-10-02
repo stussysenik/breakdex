@@ -3,8 +3,9 @@ import Combine
 
 // Simplified VideoLoadingProgress for compatibility with existing services
 public struct VideoLoadingProgress {
-    public enum LoadingPhase: String, Sendable {
+    public enum LoadingPhase: Sendable, Equatable {
         case initializing
+        case downloadingFromCloud(progress: Double)
         case transferring
         case validating
         case creatingAsset
@@ -27,8 +28,9 @@ public struct VideoLoadingProgress {
 
     private static func calculateProgress(for phase: LoadingPhase) -> Double {
         switch phase {
-        case .initializing: return 0.1
-        case .transferring: return 0.4
+        case .initializing: return 0.05
+        case .downloadingFromCloud(let progress): return 0.1 + (progress * 0.3) // Maps 0-100% download to 10-40% of total
+        case .transferring: return 0.45
         case .validating: return 0.7
         case .creatingAsset: return 0.9
         case .loadingTrimmerDuration: return 0.95
@@ -40,6 +42,7 @@ public struct VideoLoadingProgress {
     private static func getMessage(for phase: LoadingPhase) -> String {
         switch phase {
         case .initializing: return "Initializing..."
+        case .downloadingFromCloud(let progress): return "Downloading from iCloud... (\(Int(progress * 100))%)"
         case .transferring: return "Transferring video..."
         case .validating: return "Validating video..."
         case .creatingAsset: return "Creating asset..."

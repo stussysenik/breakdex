@@ -32,7 +32,13 @@ public class StateValidator: ObservableObject {
                 let duration = asset.duration.seconds
                 if duration <= 0 {
                     errors.append(.invalidAssetDuration(duration))
+                    logger.error("✅ State validation failed: Invalid asset duration (\(duration)s) in \(String(describing: flowState)) state")
+                } else {
+                    logger.debug("✅ Asset duration validation passed: \(String(format: "%.2f", duration))s")
                 }
+            } else {
+                errors.append(.invalidAssetDuration(0.0))
+                logger.error("✅ State validation failed: Video asset is nil in \(String(describing: flowState)) state")
             }
         default:
             break
@@ -44,47 +50,71 @@ public class StateValidator: ObservableObject {
             let endTime = trimmerVM.endTime.seconds
             let assetDuration = trimmerVM.videoDuration.seconds
 
+            logger.debug("✅ TrimmerViewModel validation: startTime=\(String(format: "%.3f", startTime))s, endTime=\(String(format: "%.3f", endTime))s, duration=\(String(format: "%.3f", assetDuration))s")
+
             if startTime < 0 {
                 errors.append(.invalidStartTime(startTime))
+                logger.error("✅ State validation failed: Start time is negative (\(String(format: "%.3f", startTime))s)")
             }
 
             if endTime > assetDuration {
                 errors.append(.endTimeExceedsAsset(endTime, assetDuration))
+                logger.error("✅ State validation failed: End time (\(String(format: "%.3f", endTime))s) exceeds asset duration (\(String(format: "%.3f", assetDuration))s)")
             }
 
             if startTime >= endTime {
                 errors.append(.startTimeAfterEndTime(startTime, endTime))
+                logger.error("✅ State validation failed: Start time (\(String(format: "%.3f", startTime))s) is after or equal to end time (\(String(format: "%.3f", endTime))s)")
             }
 
             let duration = endTime - startTime
             let minimumDuration = 3.0
             if duration < minimumDuration {
                 errors.append(.durationTooShort(duration, minimumDuration))
+                logger.error("✅ State validation failed: Duration too short (\(String(format: "%.3f", duration))s < \(String(format: "%.1f", minimumDuration))s minimum)")
+            } else {
+                logger.debug("✅ Trim duration validation passed: \(String(format: "%.3f", duration))s")
             }
+        } else {
+            logger.error("✅ State validation failed: TrimmerViewModel is nil")
         }
 
         // Validate player state consistency
         if case .trimming = flowState {
             if case .idle = playerState {
                 errors.append(.playerNotReadyInTrimmingState)
+                logger.error("✅ State validation failed: Player state is .idle in trimming state (should be .ready)")
+            } else {
+                logger.debug("✅ Player state validation passed for trimming: \(String(describing: playerState))")
             }
 
             if trimmerViewModel == nil {
                 errors.append(.missingTrimmerInTrimmingState)
+                logger.error("✅ State validation failed: TrimmerViewModel is nil in trimming state")
+            } else {
+                logger.debug("✅ TrimmerViewModel validation passed for trimming state")
             }
         }
 
         if case .naming = flowState {
             if playerViewModel == nil {
                 errors.append(.missingPlayerInNamingState)
+                logger.error("✅ State validation failed: PlayerViewModel is nil in naming state")
+            } else {
+                logger.debug("✅ PlayerViewModel validation passed for naming state")
             }
         }
 
         // Validate photos identifier
-        if case .loadingVideo = flowState, case .trimming = flowState, case .loadingTrimmedAsset = flowState {
+        switch flowState {
+        case .loadingVideo, .trimming, .loadingTrimmedAsset:
             if photosIdentifier?.isEmpty != false {
-                logger.warning("✅ Photos identifier is empty or nil during asset operation")
+                logger.warning("✅ Photos identifier is empty or nil during asset operation in \(String(describing: flowState)) state")
+            } else {
+                logger.debug("✅ Photos identifier validation passed for \(String(describing: flowState)) state")
             }
+        default:
+            break
         }
 
         logger.info("✅ State validation completed with \(errors.count) errors")

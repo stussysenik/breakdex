@@ -200,7 +200,7 @@ struct PreTrimViewUnified: View {
             try await unifiedState.applyTrimSettings(
                 startTime: .zero,
                 endTime: asset.duration,
-                rotation: unifiedState.rotationQuarterTurns
+                rotation: unifiedState.totalRotationQuarterTurns
             )
 
             // Transition to naming state

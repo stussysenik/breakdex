@@ -97,7 +97,7 @@ struct NameMoveViewUnified: View {
                 playerViewModel: playerViewModel,
                 startTime: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600),
                 endTime: CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600),
-                rotationQuarterTurns: unifiedState.rotationQuarterTurns,
+                rotationQuarterTurns: unifiedState.totalRotationQuarterTurns,
                 onDismiss: {
                     isShowingPreview = false
                 }
@@ -189,8 +189,8 @@ struct NameMoveViewUnified: View {
                 }
 
                 HStack {
-                    if unifiedState.rotationQuarterTurns > 0 {
-                        Text("Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+                    if unifiedState.totalRotationQuarterTurns > 0 {
+                        Text("Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
@@ -200,7 +200,7 @@ struct NameMoveViewUnified: View {
                     Text("Rotation applied during export ✓")
                         .font(.caption2)
                         .foregroundColor(.green)
-                        .opacity(unifiedState.rotationQuarterTurns > 0 ? 1.0 : 0.0)
+                        .opacity(unifiedState.totalRotationQuarterTurns > 0 ? 1.0 : 0.0)
                 }
             }
             .padding(.top, 4)
@@ -523,7 +523,7 @@ struct NameMoveViewUnified: View {
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊 DIAGNOSTIC - Pre-save state check:")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - FlowStateManager available: \(unifiedState.flowStateManager != nil)")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Trim range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
 
             // 🎯 FINAL VALIDATION: Double-check save readiness before proceeding
@@ -580,7 +580,7 @@ struct NameMoveViewUnified: View {
             let baseBitrateMbps: Double = 5.0 // 5 Mbps for standard quality
 
             // Adjust for rotation (rotated videos may require different encoding)
-            let rotationMultiplier = unifiedState.rotationQuarterTurns > 0 ? 1.1 : 1.0 // 10% overhead for rotation
+            let rotationMultiplier = unifiedState.totalRotationQuarterTurns > 0 ? 1.1 : 1.0 // 10% overhead for rotation
 
             // Calculate file size in bytes
             let bitratebps = baseBitrateMbps * 1_000_000 * rotationMultiplier

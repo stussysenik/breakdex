@@ -1,6 +1,7 @@
 // In CreateComboView.swift
 import SwiftUI
 import AVKit
+import CoreData
 import OSLog
 
 struct CreateComboView: View {
@@ -153,6 +154,37 @@ struct CreateComboView: View {
     
     private func saveCombo(name: String) {
         logger.info("🚀 CREATE_COMBO_VIEW: Starting combo save process for '\(name)' with \(comboMoves.count) moves")
+
+        // 🎯 NEW: Validate combo name uniqueness (case-insensitive)
+        logger.info("🚀 CREATE_COMBO_VIEW: 🔍 Validating combo name uniqueness")
+        let fetchRequest: NSFetchRequest<Combo> = Combo.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name CONTAINS[cd] %@", name)
+
+        do {
+            let existingCombos = try viewContext.fetch(fetchRequest)
+            if !existingCombos.isEmpty {
+                logger.error("🚀 CREATE_COMBO_VIEW: ❌ A combo named '\(name)' already exists (\(existingCombos.count) duplicates found)")
+                logger.error("🚀 CREATE_COMBO_VIEW: ❌ Duplicate combo IDs: \(existingCombos.map { $0.id ?? UUID() })")
+                errorMessage = "A combo named '\(name)' already exists. Please use a different name."
+                showErrorMessage = true
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    showErrorMessage = false
+                }
+                return
+            }
+
+            logger.info("🚀 CREATE_COMBO_VIEW: ✅ Combo name uniqueness validated - no duplicates found")
+        } catch {
+            logger.error("🚀 CREATE_COMBO_VIEW: ❌ Error checking for duplicate combo names: \(error)")
+            errorMessage = "Failed to validate combo name. Please try again."
+            showErrorMessage = true
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                showErrorMessage = false
+            }
+            return
+        }
 
         let newCombo = Combo(context: viewContext)
         // Note: We don't set the id as it's managed by Core Data

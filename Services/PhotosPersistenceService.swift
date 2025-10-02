@@ -127,7 +127,13 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
     public init() {
         logger.info("📸 PHOTOS_PERSISTENCE: 🚀 Initialized - atomic photo persistence service")
         Task {
-            await albumManager.setup()
+            do {
+                try await albumManager.setup()
+                logger.info("📸 PHOTOS_PERSISTENCE: ✅ Album manager setup completed successfully")
+            } catch {
+                logger.error("📸 PHOTOS_PERSISTENCE: ⚠️ Album manager setup failed: \(error.localizedDescription)")
+                // Note: Setup failure will be handled lazily when album operations are attempted
+            }
         }
     }
 
@@ -214,12 +220,63 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
         }
     }
 
-    /// Get BreakDex album with atomic operations
+    /// Get BreakDex album with enhanced atomic operations
     public func getBreakDexAlbum() async throws -> PHAssetCollection {
         let correlationId = generateCorrelationId()
-        logger.info("📸 PHOTOS_PERSISTENCE: 📚 Getting BreakDex album [\(correlationId)]")
+        logger.info("📸 PHOTOS_PERSISTENCE: 📚 Getting BreakDex album with enhanced atomic operations [\(correlationId)]")
 
-        return try await ensureBreakDexAlbum(correlationId: correlationId)
+        let startTime = Date()
+
+        do {
+            // 🎯 CRITICAL: Use enhanced atomic AlbumManager
+            let album = try await albumManager.getBreakDexAlbum()
+
+            let duration = Date().timeIntervalSince(startTime)
+            logger.info("📸 PHOTOS_PERSISTENCE: ✅ BreakDex album retrieved successfully [\(correlationId)]: \(album.localIdentifier) (\(String(format: "%.3f", duration))s)")
+
+            // Log detailed metrics for monitoring
+            let metrics = albumManager.getOperationMetrics()
+            if !metrics.isEmpty {
+                let recentMetrics = Array(metrics.suffix(5))
+                logger.info("📸 PHOTOS_PERSISTENCE: 📊 Recent album operations [\(correlationId)]:")
+                for metric in recentMetrics {
+                    logger.info("📸 PHOTOS_PERSISTENCE:   - \(metric.operationType): \(String(format: "%.3f", metric.duration))s, Success: \(metric.success), Cache Hit: \(metric.cacheHit), Retries: \(metric.retryCount)")
+                }
+            }
+
+            return album
+
+        } catch let albumError as AlbumManagerError {
+            let duration = Date().timeIntervalSince(startTime)
+            logger.error("📸 PHOTOS_PERSISTENCE: ❌ Enhanced album operation failed [\(correlationId)] (\(String(format: "%.3f", duration))s): \(albumError)")
+
+            // Map AlbumManager errors to PhotosPersistenceError
+            switch albumError {
+            case .permissionDenied:
+                throw PhotosPersistenceError.permissionDenied
+            case .albumCreationFailed(let error):
+                throw PhotosPersistenceError.albumCreationFailed(error)
+            case .albumNotFound:
+                throw PhotosPersistenceError.albumCreationFailed(albumError)
+            case .atomicOperationFailed(let error):
+                throw PhotosPersistenceError.atomicOperationFailed(error)
+            case .photoLibraryUnavailable:
+                throw PhotosPersistenceError.albumCreationFailed(albumError)
+            case .transientFailure(let error):
+                throw PhotosPersistenceError.cloudSyncFailed(error)
+            case .duplicateCreationAttempt:
+                // This is actually a success - duplicate was prevented
+                logger.info("📸 PHOTOS_PERSISTENCE: ✅ Duplicate creation prevented - retrying to get existing album [\(correlationId)]")
+                return try await albumManager.getBreakDexAlbum()
+            case .invalidAlbumState:
+                throw PhotosPersistenceError.albumCreationFailed(albumError)
+            }
+
+        } catch {
+            let duration = Date().timeIntervalSince(startTime)
+            logger.error("📸 PHOTOS_PERSISTENCE: ❌ Unexpected error getting BreakDex album [\(correlationId)] (\(String(format: "%.3f", duration))s): \(error)")
+            throw PhotosPersistenceError.albumCreationFailed(error)
+        }
     }
 
     /// Check cloud sync status for asset
@@ -239,9 +296,9 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
 
     // MARK: - Private Atomic Operations
 
-    /// Ensure BreakDex album exists with atomic operations
+    /// 🎯 CRITICAL: Ensure BreakDex album exists with enhanced atomic operations
     private func ensureBreakDexAlbum(correlationId: String) async throws -> PHAssetCollection {
-        logger.info("📸 PHOTOS_PERSISTENCE: 🔒 Ensuring BreakDex album exists atomically [\(correlationId)]")
+        logger.info("📸 PHOTOS_PERSISTENCE: 🔒 Ensuring BreakDex album exists with enhanced atomic operations [\(correlationId)]")
 
         let albumStart = Date()
 
@@ -249,27 +306,54 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
         operationLock.lock()
         defer { operationLock.unlock() }
 
-        // Check if album already exists
-        if let existingAlbum = await albumManager.getBreakDexAlbum() {
-            operationTimings["album_ensure"] = Date().timeIntervalSince(albumStart)
-            logger.info("📸 PHOTOS_PERSISTENCE: ✅ Existing BreakDex album found [\(correlationId)]: \(existingAlbum.localIdentifier)")
-            return existingAlbum
-        }
-
-        // Create new album if it doesn't exist
         do {
-            await albumManager.setup()
+            // 🎯 CRITICAL: Use enhanced atomic AlbumManager with comprehensive error handling
+            let album = try await albumManager.getBreakDexAlbum()
 
-            guard let newAlbum = await albumManager.getBreakDexAlbum() else {
-                throw PhotosPersistenceError.albumCreationFailed(NSError(domain: "PhotosPersistenceService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create BreakDex album"]))
+            operationTimings["album_ensure"] = Date().timeIntervalSince(albumStart)
+            logger.info("📸 PHOTOS_PERSISTENCE: ✅ BreakDex album obtained atomically [\(correlationId)]: \(album.localIdentifier)")
+
+            // Log album manager metrics for monitoring
+            let metrics = albumManager.getOperationMetrics()
+            if let latestMetric = metrics.last {
+                logger.info("📸 PHOTOS_PERSISTENCE: 📊 Album operation metrics [\(correlationId)]: \(latestMetric.operationType) - \(String(format: "%.3f", latestMetric.duration))s - Success: \(latestMetric.success)")
+            }
+
+            return album
+
+        } catch let albumError as AlbumManagerError {
+            // Handle specific AlbumManager errors with proper mapping
+            let persistenceError: PhotosPersistenceError
+            switch albumError {
+            case .permissionDenied:
+                persistenceError = .permissionDenied
+            case .albumCreationFailed(let underlyingError):
+                persistenceError = .albumCreationFailed(underlyingError)
+            case .albumNotFound:
+                persistenceError = .albumCreationFailed(albumError)
+            case .atomicOperationFailed(let underlyingError):
+                persistenceError = .atomicOperationFailed(underlyingError)
+            case .photoLibraryUnavailable:
+                persistenceError = .albumCreationFailed(albumError)
+            case .transientFailure(let underlyingError):
+                persistenceError = .cloudSyncFailed(underlyingError)
+            case .duplicateCreationAttempt:
+                // This is actually good - duplicate was prevented
+                logger.info("📸 PHOTOS_PERSISTENCE: ✅ Duplicate album creation prevented [\(correlationId)]")
+                // Try to get the existing album again
+                return try await albumManager.getBreakDexAlbum()
+            case .invalidAlbumState:
+                persistenceError = .albumCreationFailed(albumError)
             }
 
             operationTimings["album_ensure"] = Date().timeIntervalSince(albumStart)
-            logger.info("📸 PHOTOS_PERSISTENCE: ✅ New BreakDex album created atomically [\(correlationId)]: \(newAlbum.localIdentifier)")
-            return newAlbum
+            logger.error("📸 PHOTOS_PERSISTENCE: ❌ Enhanced album operation failed [\(correlationId)]: \(albumError)")
+            throw persistenceError
 
         } catch {
-            logger.error("📸 PHOTOS_PERSISTENCE: ❌ Album creation failed [\(correlationId)]: \(error)")
+            // Handle any other unexpected errors
+            operationTimings["album_ensure"] = Date().timeIntervalSince(albumStart)
+            logger.error("📸 PHOTOS_PERSISTENCE: ❌ Unexpected album operation error [\(correlationId)]: \(error)")
             throw PhotosPersistenceError.albumCreationFailed(error)
         }
     }

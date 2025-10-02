@@ -129,6 +129,8 @@ extension VideoLoadingProgress.LoadingPhase {
         switch self {
         case .initializing:
             return "Initializing"
+        case .downloadingFromCloud(progress: _):
+            return "Downloading from Cloud"
         case .transferring:
             return "Transferring"
         case .validating:

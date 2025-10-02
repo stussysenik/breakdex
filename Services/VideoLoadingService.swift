@@ -457,9 +457,24 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         }
     }
 
-    /// Request AVAsset from PHAsset
+    /// Request AVAsset from PHAsset with iCloud download progress tracking
     private func requestAVAsset(for phAsset: PHAsset, options: PHVideoRequestOptions, correlationId: String) async throws -> AVAsset {
         logger.info("🎬 VIDEO_LOADING: 📡 Requesting AVAsset from PHAsset [\(correlationId)]")
+
+        // ✅ ENHANCEMENT: Add iCloud download progress tracking
+        // This progress handler will emit the new downloadingFromCloud progress state
+        options.progressHandler = { progress, _, _, _ in
+            Task { @MainActor in
+                let downloadProgress = VideoLoadingProgress(
+                    phase: .downloadingFromCloud(progress: progress),
+                    correlationId: correlationId
+                )
+                self.progressSubject.send(downloadProgress)
+
+                let progressPercentage = Int(progress * 100)
+                self.logger.info("🎬 VIDEO_LOADING: ☁️ iCloud download progress [\(correlationId)]: \(progressPercentage)%")
+            }
+        }
 
         return try await withCheckedThrowingContinuation { continuation in
             imageManager.requestAVAsset(forVideo: phAsset, options: options) { avAsset, _, info in

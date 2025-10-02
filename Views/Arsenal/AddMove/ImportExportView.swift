@@ -3,6 +3,17 @@ import UniformTypeIdentifiers
 import CoreData
 import Photos
 
+enum ExportError: Error, LocalizedError {
+    case albumAccessFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .albumAccessFailed(let message):
+            return message
+        }
+    }
+}
+
 struct ImportExportView: View {
     @State private var exportURL: URL? = nil
     @State private var showingExporter = false
@@ -152,7 +163,13 @@ struct ImportExportView: View {
         let context = viewContext
         
         // Get BreakDex album identifier
-        let breakDexAlbumId = await AlbumManager.shared.getBreakDexAlbum()?.localIdentifier
+        let breakDexAlbum: PHAssetCollection
+        do {
+            breakDexAlbum = try await AlbumManager.shared.getBreakDexAlbum()
+        } catch {
+            throw ExportError.albumAccessFailed("Failed to access BreakDex album: \(error.localizedDescription)")
+        }
+        let breakDexAlbumId = breakDexAlbum.localIdentifier
         
         // Fetch all moves synchronously in Core Data context
         let moveExports = try await context.perform {

@@ -48,21 +48,25 @@ struct BreakingFlashcardsApp: App {
             MainView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .task {
-                    // MARK: - BreakDex System Initialization
-                    let context = persistenceController.container.viewContext
+                    do {
+                        // MARK: - BreakDex System Initialization
+                        let context = persistenceController.container.viewContext
 
-                    // Configure managers with Core Data context
-                    VideoRelinkManager.shared.configure(with: context)
-                    AlbumSyncManager.shared.configure(with: context)
+                        // Configure managers with Core Data context
+                        VideoRelinkManager.shared.configure(with: context)
+                        AlbumSyncManager.shared.configure(with: context)
 
-                    // MARK: - Initialize AlbumManager (single source of truth for BreakDex album)
-                    await AlbumManager.shared.setup()
+                        // MARK: - Initialize AlbumManager (single source of truth for BreakDex album)
+                        try await AlbumManager.shared.setup()
 
-                    // MARK: - Orphaned Asset Reconciliation
-                    await performOrphanedAssetReconciliation()
+                        // MARK: - Orphaned Asset Reconciliation
+                        await performOrphanedAssetReconciliation()
 
-                    // MARK: - BreakDex Health Checks
-                    await performBreakDexHealthChecks()
+                        // MARK: - BreakDex Health Checks
+                        await performBreakDexHealthChecks()
+                    } catch {
+                        print("❌ Failed to initialize BreakDex system: \(error.localizedDescription)")
+                    }
                 }
             // Handle system-level errors gracefully
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
@@ -127,17 +131,21 @@ struct BreakingFlashcardsApp: App {
 
         // Count Photos assets in BreakDex album
         var photosAssets = 0
-        if let breakDexAlbum = await AlbumManager.shared.getBreakDexAlbum() {
+        do {
+            let breakDexAlbum = try await AlbumManager.shared.getBreakDexAlbum()
             let fetchOptions = PHFetchOptions()
             let assets = PHAsset.fetchAssets(in: breakDexAlbum, options: fetchOptions)
             photosAssets = assets.count
+        } catch {
+            print("❌ Failed to get BreakDex album for counting: \(error.localizedDescription)")
         }
 
         // Count mismatches
         let knownIdentifiers = await getKnownPhotosIdentifiers()
         var mismatches = 0
 
-        if let breakDexAlbum = await AlbumManager.shared.getBreakDexAlbum() {
+        do {
+            let breakDexAlbum = try await AlbumManager.shared.getBreakDexAlbum()
             let fetchOptions = PHFetchOptions()
             let assets = PHAsset.fetchAssets(in: breakDexAlbum, options: fetchOptions)
 
@@ -146,6 +154,8 @@ struct BreakingFlashcardsApp: App {
                     mismatches += 1
                 }
             }
+        } catch {
+            print("❌ Failed to get BreakDex album for mismatch counting: \(error.localizedDescription)")
         }
 
         return ConsistencyResults(
@@ -217,19 +227,21 @@ struct BreakingFlashcardsApp: App {
     private func checkBreakDexAlbum() async {
         let albumManager = AlbumManager.shared
 
-        let album = await albumManager.getBreakDexAlbum()
-        if album != nil {
+        do {
+            let album = try await albumManager.getBreakDexAlbum()
             print("✅ BreakDex album: Ready")
-        } else {
+        } catch {
             print("❌ BreakDex album: Error - Album not available")
             print("   Suggestion: Check Photos permissions and storage space")
+            print("   Error details: \(error.localizedDescription)")
         }
     }
     
     private func logBreakDexStatus() async {
         let albumManager = AlbumManager.shared
 
-        if let album = await albumManager.getBreakDexAlbum() {
+        do {
+            let album = try await albumManager.getBreakDexAlbum()
             // Count videos in the BreakDex album
             let fetchOptions = PHFetchOptions()
             let assets = PHAsset.fetchAssets(in: album, options: fetchOptions)
@@ -250,8 +262,9 @@ struct BreakingFlashcardsApp: App {
             } catch {
                 print("❌ Error checking Core Data migration status: \(error.localizedDescription)")
             }
-        } else {
+        } catch {
             print("📊 BreakDex status: Album not available")
+            print("   Error details: \(error.localizedDescription)")
         }
     }
     

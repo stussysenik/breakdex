@@ -23,22 +23,25 @@ class VideoRelinkManager: ObservableObject {
     }
     
     func scanBreakDexForMatches(_ originalIdentifier: String) async -> [PHAsset] {
-        guard let album = await AlbumManager.shared.getBreakDexAlbum() else {
+        do {
+            let album = try await AlbumManager.shared.getBreakDexAlbum()
+
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
+            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+
+            let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
+            var videos: [PHAsset] = []
+
+            fetchResult.enumerateObjects { asset, _, _ in
+                videos.append(asset)
+            }
+
+            return videos
+        } catch {
+            print("❌ Failed to get BreakDex album for scanning: \(error.localizedDescription)")
             return []
         }
-
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-
-        let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
-        var videos: [PHAsset] = []
-
-        fetchResult.enumerateObjects { asset, _, _ in
-            videos.append(asset)
-        }
-
-        return videos
     }
     
     func relinkMove(_ move: Move, with newPhotosIdentifier: String) async throws {
@@ -86,22 +89,25 @@ class VideoRelinkManager: ObservableObject {
     }
     
     func findPotentialMatches(for move: Move) async -> [PHAsset] {
-        guard let album = await AlbumManager.shared.getBreakDexAlbum() else {
+        do {
+            let album = try await AlbumManager.shared.getBreakDexAlbum()
+
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
+            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+
+            let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
+            var videos: [PHAsset] = []
+
+            fetchResult.enumerateObjects { asset, _, _ in
+                videos.append(asset)
+            }
+
+            return videos
+        } catch {
+            print("❌ Failed to get BreakDex album for finding matches: \(error.localizedDescription)")
             return []
         }
-
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-
-        let fetchResult = PHAsset.fetchAssets(in: album, options: fetchOptions)
-        var videos: [PHAsset] = []
-
-        fetchResult.enumerateObjects { asset, _, _ in
-            videos.append(asset)
-        }
-
-        return videos
     }
     
     func processImportRelinks(_ importedMoves: [MoveExport]) async throws {

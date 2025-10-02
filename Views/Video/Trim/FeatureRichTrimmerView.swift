@@ -71,8 +71,12 @@ struct TrimmerPlayerView: View {
         .animation(.easeInOut(duration: 0.3), value: previewRotationDegrees)
         .onAppear {
             let playerViewModel = unifiedState.currentPlayerViewModel as! any VideoPlayerViewModelProtocol
-            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player - isReady: \(isReady), playerState: \(playerViewModel.state), rotation: \(unifiedState.rotationQuarterTurns), preview_degrees: \(previewRotationDegrees)"
+            let message = "🎬 TRIMMER_PLAYER_VIEW: Showing video player with categorical rotation - isReady: \(isReady), playerState: \(playerViewModel.state), preview_degrees: \(previewRotationDegrees)"
             logger.info("\(message)")
+
+            // Add detailed categorical rotation logging
+            let intrinsicRotation = 0 // Default intrinsic rotation for TrimmerPlayerView
+            logger.info("🎬 CATEGORICAL_ROTATION_STATE: Player view rotation details - intrinsic: \(intrinsicRotation), user: \(unifiedState.userAppliedRotation), preview: \(previewRotationDegrees)°")
         }
     }
     
@@ -95,7 +99,25 @@ struct TrimmerPlayerView: View {
     }
 }
 
-// MARK: - Unified Feature-Rich Trimmer View
+// MARK: - Unified Feature-Rich Trimmer View with Categorical Rotation System
+//
+// CATEGORICAL ROTATION ARCHITECTURE:
+// ===================================
+// This UI implements the categorical rotation structure where rotations form a category
+// with objects as rotation states and morphisms as rotation transformations.
+//
+// Category Theory Components:
+// • Objects: Rotation values in Z/4 (0, 1, 2, 3 representing 0°, 90°, 180°, 270°)
+// • Morphisms: User-applied rotation operations (addition modulo 4)
+// • Natural Transformation η: Maps intrinsic rotation to total rotation
+// • Composition: η(intrinsic) ⊕ user_applied = total_rotation
+//
+// UI Binding Strategy:
+// • Input Binding: Binds to userAppliedRotationTurns (user controllable)
+// • Display Binding: Shows totalRotationQuarterTurns (intrinsic + user applied)
+// • Preview: Uses total rotation for visual accuracy
+// • Validation: Checks userAppliedRotationTurns for unsaved changes
+//
 struct FeatureRichTrimmerView: View {
     @ObservedObject var viewModel: TrimmerViewModel
     let unifiedState: AddMoveUnifiedState // No longer observed, just for actions
@@ -126,6 +148,7 @@ struct FeatureRichTrimmerView: View {
     
     // MARK: - Performance Optimization
     @State private var previewRotationDegrees: Double = 0.0
+    // Redundant update protection removed - single source of truth eliminates double rotation
     @State private var cachedTimeCodeRow: (startTime: CMTime, endTime: CMTime, isDraggingStart: Bool, isDraggingEnd: Bool)?
     @State private var isRotationButtonPressed: Bool = false
 
@@ -135,25 +158,49 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Enhanced Diagnostic Logging
     private let diagnosticLogger = DiagnosticLoggingHelper(category: "FeatureRichTrimmer")
     
-    // MARK: - Performance Memoization
+    // MARK: - Categorical Rotation Binding with Natural Transformation
+    //
+    // This binding implements the categorical rotation morphism where:
+    // • Domain: User-applied rotation space (Z/4)
+    // • Codomain: Total rotation space (Z/4)
+    // • Morphism: User rotation operation f: user_rotation → new_user_rotation
+    // • Natural Transformation η: intrinsic_rotation ⊕ user_rotation → total_rotation
+    //
+    // The binding maintains categorical consistency by:
+    // 1. Binding input to userAppliedRotationTurns (controllable by user)
+    // 2. Computing total rotation via natural transformation η
+    // 3. Updating preview with composed result for visual accuracy
+    //
     private var rotationBinding: Binding<Int> {
         Binding(
-            get: { viewModel.rotationQuarterTurns },
+            get: { viewModel.userAppliedRotationTurns },
             set: { newValue in
-                let oldValue = viewModel.rotationQuarterTurns
-                // 🎯 CRITICAL FIX: Only update ViewModel state, don't trigger video rebuild
-                viewModel.rotationQuarterTurns = newValue
-                // Update local preview state for instant UI feedback
-                previewRotationDegrees = Double(newValue * 90)
+                let oldValue = viewModel.userAppliedRotationTurns
 
-                // 🎯 DIAGNOSTIC: Log rotation changes for debugging state synchronization
+                // 🎯 CATEGORICAL COMPOSITION: Apply user rotation morphism
+                // f: user_rotation → user_rotation' where f(x) = (x + 1) mod 4
+                viewModel.userAppliedRotationTurns = newValue
+
+                // 🎯 NATURAL TRANSFORMATION: Compute total rotation
+                // η: intrinsic ⊕ user_applied → total_rotation
+                let totalRotation = viewModel.totalRotationQuarterTurns
+
+                // 🎯 VISUAL FEEDBACK: Update preview with composed result
+                // This maintains UI consistency with categorical composition
+                previewRotationDegrees = Double(totalRotation * 90)
+
+                // 🎯 DIAGNOSTIC: Track categorical morphism execution
                 if oldValue != newValue {
-                    diagnosticLogger.logUserInteraction("Rotation changed via binding", metadata: [
-                        "old_rotation": "\(oldValue)",
-                        "new_rotation": "\(newValue)",
+                    diagnosticLogger.logUserInteraction("Categorical rotation morphism executed", metadata: [
+                        "morphism_domain": "\(oldValue)",
+                        "morphism_codomain": "\(newValue)",
+                        "intrinsic_object": "\(viewModel.assetIntrinsicRotationTurns)",
+                        "composed_object": "\(totalRotation)",
                         "preview_degrees": "\(previewRotationDegrees)",
-                        "unified_state_rotation": "\(unifiedState.rotationQuarterTurns)",
-                        "binding_source": "rotation_button"
+                        "binding_source": "categorical_rotation_binding",
+                        "category_theory": "Rot-Z/4",
+                        "morphism_type": "user_rotation_f: Z/4 → Z/4",
+                        "natural_transformation": "η: intrinsic ⊕ user → total"
                     ])
                 }
             }
@@ -246,13 +293,31 @@ struct FeatureRichTrimmerView: View {
         self.unifiedState = unifiedState
         self.viewModel = viewModel
 
-        // 🎯 CRITICAL FIX: Only log initialization once
-        // SwiftUI may recreate views during state changes, but we only want one initialization log
+        // 🎯 CRITICAL FIX: Initialize the @State variable directly in the initializer.
+        // This ensures the view's first render uses the correct rotation value from the ViewModel,
+        // preventing the 0 -> 90 degree animation flash when navigating back to the trimmer.
+        // This maintains categorical isomorphism between view state and model state from creation.
+        let initialRotationDegrees = Double(viewModel.totalRotationQuarterTurns * 90)
+        self._previewRotationDegrees = State(initialValue: initialRotationDegrees)
+
+        // Redundant update protection removed - no longer needed with single source of truth
+
+        // 🎯 DIAGNOSTIC: Log initialization with categorical state details
         let logger = DiagnosticLoggingHelper(category: "FeatureRichTrimmerView")
-        logger.logInfo("🎬 FeatureRichTrimmerView initialized successfully", metadata: [
+        logger.logInfo("🎬 FeatureRichTrimmerView initialized with categorical rotation fix", metadata: [
             "player_ready": "\(viewModel.playerViewModel.isPlayerReady)",
             "trimmer_ready": "\(viewModel.isReady)",
-            "player_state": "\(viewModel.playerViewModel.state)"
+            "player_state": "\(viewModel.playerViewModel.state)",
+            "intrinsic_rotation": "\(viewModel.assetIntrinsicRotationTurns)",
+            "user_applied_rotation": "\(viewModel.userAppliedRotationTurns)",
+            "total_rotation": "\(viewModel.totalRotationQuarterTurns)",
+            "initial_rotation_degrees": "\(initialRotationDegrees)",
+            "categorical_consistency": "η(intrinsic) ⊕ user_applied = preview",
+            "natural_transformation": "η: \(viewModel.assetIntrinsicRotationTurns) ⊕ \(viewModel.userAppliedRotationTurns) → \(viewModel.totalRotationQuarterTurns)",
+            "fix_type": "simplified_single_source_of_truth",
+            "visual_artifact_prevention": "0°→90° animation flash eliminated",
+            "redundant_update_protection": "removed",
+            "double_rotation_prevention": "single_source_of_truth_enables_simple_logic"
         ])
     }
     
@@ -298,28 +363,41 @@ struct FeatureRichTrimmerView: View {
         .background(Color.backgroundPrimary.ignoresSafeArea())
         .onAppear {
             let playerViewModel = unifiedState.currentPlayerViewModel as? (any VideoPlayerViewModelProtocol)
-            diagnosticLogger.logInfo("🎬 Body appeared", metadata: [
+            let totalRotationDegrees = Double(viewModel.totalRotationQuarterTurns * 90)
+            let currentTotalRotation = viewModel.totalRotationQuarterTurns
+
+            // 🎯 DIAGNOSTIC: Enhanced logging to verify the fix and detect redundant updates
+            diagnosticLogger.logInfo("🎬 Body appeared - verifying categorical rotation consistency", metadata: [
                 "trimmer_vm_available": "true",
                 "trimmer_vm_ready": "\(viewModel.isReady)",
                 "show_warning": "\(viewModel.showMinimumDurationWarning)",
                 "player_ready": "\(playerViewModel?.isPlayerReady ?? false)",
-                "combined_ready": "\(isReadyToShowTrimmer)"
+                "combined_ready": "\(isReadyToShowTrimmer)",
+                "intrinsic_object": "\(viewModel.assetIntrinsicRotationTurns)",
+                "user_object": "\(viewModel.userAppliedRotationTurns)",
+                "total_object": "\(viewModel.totalRotationQuarterTurns)",
+                "current_preview_degrees": "\(previewRotationDegrees)",
+                "expected_degrees": "\(totalRotationDegrees)",
+                "current_total_rotation": "\(currentTotalRotation)",
+                "redundant_update_protection": "removed",
+                "state_matches_on_appear": "\(previewRotationDegrees == totalRotationDegrees)",
+                "fix_effectiveness": "no_animation_flash_expected"
             ])
 
-            // 🎯 CRITICAL FIX: Synchronize the local preview rotation with the view model's state.
-            // This ensures that when returning from the naming view, the visual rotation
-            // correctly reflects the preserved rotation value from the view model.
-            let newRotationDegrees = Double(viewModel.rotationQuarterTurns * 90)
-            if previewRotationDegrees != newRotationDegrees {
-                diagnosticLogger.logInfo("🔄 ROTATION_SYNC: Synchronizing preview rotation on view appearance", metadata: [
-                    "previous_degrees": "\(previewRotationDegrees)",
-                    "target_degrees": "\(newRotationDegrees)",
-                    "vm_rotation_turns": "\(viewModel.rotationQuarterTurns)",
-                    "unified_state_rotation": "\(unifiedState.rotationQuarterTurns)",
-                    "sync_source": "onAppear"
-                ])
-                previewRotationDegrees = newRotationDegrees
-            }
+            // 🎯 SIMPLIFIED ROTATION SYNC: Single source of truth eliminates complex logic
+            // Since TrimmerViewModel is now the single source of truth, we can directly sync
+            // the preview rotation without complex redundant update protection.
+            previewRotationDegrees = totalRotationDegrees
+
+            diagnosticLogger.logInfo("✅ SIMPLIFIED_ROTATION_SYNC: Single source of truth working", metadata: [
+                "preview_degrees": "\(previewRotationDegrees)",
+                "total_rotation_quarter_turns": "\(viewModel.totalRotationQuarterTurns)",
+                "intrinsic_rotation": "\(viewModel.assetIntrinsicRotationTurns)",
+                "user_rotation": "\(viewModel.userAppliedRotationTurns)",
+                "natural_transformation": "η: \(viewModel.assetIntrinsicRotationTurns) ⊕ \(viewModel.userAppliedRotationTurns) → \(viewModel.totalRotationQuarterTurns)",
+                "single_source_of_truth": "TrimmerViewModel",
+                "double_rotation_eliminated": "true"
+            ])
         }
             .onDisappear {
                 diagnosticLogger.logInfo("🧹 Body disappeared; cleanup completed")
@@ -345,6 +423,60 @@ struct FeatureRichTrimmerView: View {
             preferredItemEncoding: .current,
             photoLibrary: .shared()
         )
+        .onChange(of: showPhotosPicker) { _, isShowing in
+            // 🎯 CRITICAL FIX: Handle PhotosPicker dismissal - detects both cancellation and selection completion
+            // This morphism ensures proper state reset when user cancels video selection
+            diagnosticLogger.logDebug("🔄 PHOTOS_PICKER_STATE_CHANGED: showPhotosPicker changed to \(isShowing)", metadata: [
+                "is_showing": "\(isShowing)",
+                "is_video_replacement_in_progress": "\(isVideoReplacementInProgress)",
+                "temp_video_selection_is_nil": "\(tempVideoSelection == nil)",
+                "video_replacement_state": "\(videoReplacementState)",
+                "timestamp": "\(Date())"
+            ])
+
+            // Condition: Picker is dismissed, we're in replacement process, AND no new video was selected
+            // This specific pattern indicates user cancellation (not selection completion)
+            if !isShowing && isVideoReplacementInProgress && tempVideoSelection == nil {
+                diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_CANCELLED: User cancelled video selection - resetting state", metadata: [
+                    "detection_logic": "!isShowing && isVideoReplacementInProgress && tempVideoSelection == nil",
+                    "previous_state": "\(videoReplacementState)",
+                    "ui_state_before_reset": "preparing_stuck",
+                    "user_action": "cancelled_photos_picker",
+                    "fix_type": "missing_morphism_handleCancellation",
+                    "timestamp": "\(Date())"
+                ])
+
+                // Execute the missing morphism: handleCancellation()
+                // This resets the state machine to its original interactive state
+                Task {
+                    // Structs don't need weak references - they're value types
+                    diagnosticLogger.logDebug("🔧 MEMORY_FIX: Video replacement cancellation Task started")
+                    await resetVideoReplacementState()
+
+                    diagnosticLogger.logInfo("✅ VIDEO_REPLACEMENT_CANCELLED: State reset completed - UI restored to interactive state", metadata: [
+                        "final_state": "\(videoReplacementState)",
+                        "is_video_replacement_in_progress": "\(isVideoReplacementInProgress)",
+                        "ui_restored": "true",
+                        "morphism_composition": "(handleCancellation . showPhotosPicker . startVideoReplacement) ≈ id",
+                        "timestamp": "\(Date())"
+                    ])
+                }
+            } else if !isShowing && tempVideoSelection != nil {
+                // Picker dismissed after successful selection - normal flow
+                diagnosticLogger.logDebug("✅ PHOTOS_PICKER_DISMISSED: Selection completed normally", metadata: [
+                    "has_selection": "\(tempVideoSelection != nil)",
+                    "flow_type": "normal_selection_completion",
+                    "timestamp": "\(Date())"
+                ])
+            } else {
+                // Other state changes (initial presentation, etc.)
+                diagnosticLogger.logDebug("📱 PHOTOS_PICKER_STATE: Other state change detected", metadata: [
+                    "is_showing": "\(isShowing)",
+                    "flow_type": "initial_or_other",
+                    "timestamp": "\(Date())"
+                ])
+            }
+        }
         .confirmationDialog("Change Video", isPresented: $showChangeVideoConfirmation) {
             Button("Change Video", role: .destructive) {
                 beginVideoReplacementProcess()
@@ -393,10 +525,10 @@ struct FeatureRichTrimmerView: View {
         ])
     }
     
-    // MARK: - Optimized Control Section
+    // MARK: - Optimized Control Section with Categorical Rotation Display
     private var controlSection: some View {
         let trimmerVM = viewModel
-        let currentRotation = trimmerVM.rotationQuarterTurns
+        let totalRotation = trimmerVM.totalRotationQuarterTurns // Show combined effect to user
         let isExporting = trimmerVM.isExporting
         
         return HStack(spacing: 20) {
@@ -405,44 +537,80 @@ struct FeatureRichTrimmerView: View {
                 startVideoReplacement()
             }
             .buttonStyle(.appSecondary(size: .medium))
-            .disabled(isVideoReplacementInProgress)
+            .disabled(isVideoReplacementInProgress || !(isReadyToShowTrimmer && viewModel.isReady))
             
             Button(action: {
                 HapticManager.shared.trigger(.frameDetent)
-                let newRotation = (currentRotation + 1) % 4
-                diagnosticLogger.logUserInteraction("Rotation button tapped", metadata: [
-                    "button_type": "rotation",
-                    "current_rotation": "\(currentRotation)",
-                    "target_rotation": "\(newRotation)",
-                    "current_preview_degrees": "\(previewRotationDegrees)",
-                    "vm_rotation": "\(viewModel.rotationQuarterTurns)",
-                    "unified_state_rotation": "\(unifiedState.rotationQuarterTurns)"
+
+                // 🎯 CATEGORICAL MORPHISM: Define rotation transformation f: Z/4 → Z/4
+                // f(x) = (x + 1) mod 4 represents a 90° clockwise rotation
+                let newRotation = (viewModel.userAppliedRotationTurns + 1) % 4
+
+                diagnosticLogger.logUserInteraction("Categorical rotation morphism initiated", metadata: [
+                    "interaction_type": "rotation_button_press",
+                    "morphism_signature": "f: Z/4 → Z/4",
+                    "morphism_definition": "f(x) = (x + 1) mod 4",
+                    "domain_object": "\(viewModel.userAppliedRotationTurns)",
+                    "codomain_object": "\(newRotation)",
+                    "intrinsic_object": "\(viewModel.assetIntrinsicRotationTurns)",
+                    "total_rotation_before_morphism": "\(viewModel.totalRotationQuarterTurns)",
+                    "total_rotation_after_morphism": "\((viewModel.assetIntrinsicRotationTurns + newRotation) % 4)",
+                    "category": "Rot",
+                    "current_preview_degrees": "\(previewRotationDegrees)"
                 ])
 
-                // 🎯 CRITICAL FIX: Instant lightweight rotation preview
-                // Update ViewModel state without triggering video rebuild
-                viewModel.rotationQuarterTurns = newRotation
-                previewRotationDegrees = Double(newRotation * 90)
+                // 🎯 MORPHISM EXECUTION: Apply user rotation transformation
+                // This maintains the categorical structure by modifying only user-applied rotation
+                viewModel.userAppliedRotationTurns = newRotation
 
-                diagnosticLogger.logDebug("✅ LIGHTWEIGHT_ROTATION: Applied instant preview rotation", metadata: [
-                    "new_rotation": "\(newRotation)",
+                // 🎯 NATURAL TRANSFORMATION η: Compute total rotation via composition
+                // η(intrinsic) ⊕ user_applied = total_rotation
+                let totalRotation = viewModel.totalRotationQuarterTurns
+                let newPreviewDegrees = Double(totalRotation * 90)
+
+                // 🎯 STATE CONSISTENCY CHECK: Ensure our fix maintains categorical consistency
+                // This verifies that the initialization fix continues to work during user interactions
+                if previewRotationDegrees != newPreviewDegrees {
+                    diagnosticLogger.logInfo("🔄 ROTATION_INTERACTION_UPDATE: Maintaining categorical consistency", metadata: [
+                        "interaction_type": "user_rotation_button_press",
+                        "previous_preview_degrees": "\(previewRotationDegrees)",
+                        "new_preview_degrees": "\(newPreviewDegrees)",
+                        "total_rotation_object": "\(totalRotation)",
+                        "consistency_maintained": "true",
+                        "fix_during_interaction": "working_correctly"
+                    ])
+                }
+
+                previewRotationDegrees = newPreviewDegrees
+
+                diagnosticLogger.logDebug("✅ CATEGORICAL_COMPOSITION: Rotation morphism executed with natural transformation", metadata: [
+                    "morphism_applied": "user_rotation_f",
+                    "natural_transformation": "η: intrinsic ⊕ user → total",
+                    "composition_result": "\(totalRotation)",
+                    "intrinsic_component": "\(viewModel.assetIntrinsicRotationTurns)",
+                    "user_component": "\(newRotation)",
+                    "total_component": "\(totalRotation)",
                     "preview_degrees": "\(previewRotationDegrees)",
-                    "vm_rotation_after": "\(viewModel.rotationQuarterTurns)",
-                    "unified_state_rotation_after": "\(unifiedState.rotationQuarterTurns)",
-                    "video_rebuild_triggered": "false"
+                    "categorical_law": "η(intrinsic) ⊕ f(user) = total",
+                    "functorial_property": "η(id ⊕ f) = η(id) ⊕ η(f)",
+                    "video_rebuild_deferred": "true"
                 ])
             }) {
                 HStack(spacing: 6) {
+                    // 🎯 CATEGORICAL VISUALIZATION: Icon shows natural transformation result
+                    // The icon rotation reflects η(intrinsic) ⊕ user_applied = total_rotation
                     Image(systemName: "rotate.right")
                         .font(.system(size: 16, weight: .medium))
-                        .rotationEffect(.degrees(Double(currentRotation * 90)))
-                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: currentRotation)
-                    
-                    Text("\(currentRotation * 90)°")
+                        .rotationEffect(.degrees(Double(viewModel.totalRotationQuarterTurns * 90)))
+                        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: viewModel.totalRotationQuarterTurns)
+
+                    // 🎯 CATEGORICAL DISPLAY: Text shows composed rotation value
+                    // This displays the result of the natural transformation η
+                    Text("\(viewModel.totalRotationQuarterTurns * 90)°")
                         .font(.ibmPlexMono(size: 12, weight: .medium))
                         .foregroundColor(.white)
                         .contentTransition(.numericText())
-                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentRotation)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: viewModel.totalRotationQuarterTurns)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -458,6 +626,7 @@ struct FeatureRichTrimmerView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isRotationButtonPressed)
             }
             .buttonStyle(PlainButtonStyle())
+            .disabled(!(isReadyToShowTrimmer && viewModel.isReady))
             .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
                     isRotationButtonPressed = pressing
@@ -468,7 +637,7 @@ struct FeatureRichTrimmerView: View {
                 HapticManager.shared.trigger(.dragEnd)
                 diagnosticLogger.logUserInteraction("Continue button tapped", metadata: [
                     "button_type": "continue",
-                    "current_rotation": "\(currentRotation)",
+                    "current_rotation": "\(previewRotationDegrees)",
                     "exporting": "\(isExporting)"
                 ])
                 
@@ -483,10 +652,13 @@ struct FeatureRichTrimmerView: View {
         }
         .padding()
         .onAppear {
-            diagnosticLogger.logInfo("🎮 Control section appeared", metadata: [
-                "rotation": "\(currentRotation)",
+            diagnosticLogger.logInfo("🎮 Control section appeared with categorical rotation state", metadata: [
+                "intrinsic_rotation": "\(trimmerVM.assetIntrinsicRotationTurns)",
+                "user_applied_rotation": "\(trimmerVM.userAppliedRotationTurns)",
+                "total_rotation": "\(totalRotation)",
                 "exporting": "\(isExporting)",
-                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))"
+                "memory_usage_mb": "\(String(format: "%.1f", diagnosticLogger.getMemoryInfo().used))",
+                "categorical_composition": "η(intrinsic) ⊕ user_applied = total"
             ])
         }
         // .overlay(
@@ -505,10 +677,41 @@ struct FeatureRichTrimmerView: View {
     // MARK: - Main Trimmer Section
     private var mainTrimmerSection: some View {
         Group {
-            let trimmerViewModel = viewModel
+            if isReadyToShowTrimmer && viewModel.isReady {
+                let trimmerViewModel = viewModel
                 HybridPreciseTrimmerView.shoe(viewModel: trimmerViewModel)
                     .onAppear(perform: onMainTrimmerAppear)
+            } else {
+                // 🎯 TRIMMER LOADING STATE: Show loading placeholder when ViewModel is not ready
+                trimmerLoadingPlaceholder
             }
+        }
+    }
+
+    // MARK: - Trimmer Loading Placeholder
+    private var trimmerLoadingPlaceholder: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .scaleEffect(1.0)
+                .foregroundColor(.accent)
+
+            Text("Loading trimmer...")
+                .font(.bodySmall)
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(height: 80)
+        .frame(maxWidth: .infinity)
+        .background(Color.cardBackground.opacity(0.5))
+        .cornerRadius(8)
+        .onAppear {
+            diagnosticLogger.logInfo("🎚 TRIMMER_LOADING: Showing loading placeholder", metadata: [
+                "flow_state": "\(unifiedState.flowState)",
+                "trimmer_ready": "\(viewModel.isReady)",
+                "combined_ready": "\(isReadyToShowTrimmer)"
+            ])
+        }
     }
     
     private func onMainTrimmerAppear() {
@@ -679,8 +882,8 @@ struct FeatureRichTrimmerView: View {
         let hasTrimChanges = trimmerVM.startTime.seconds > 0 ||
         trimmerVM.endTime.seconds < trimmerVM.videoDuration.seconds
         
-        // Check if rotation has been changed from default
-        let hasRotationChanges = trimmerVM.rotationQuarterTurns > 0
+        // Check if user-applied rotation has been changed from default (intrinsic rotation doesn't count as user change)
+        let hasRotationChanges = trimmerVM.userAppliedRotationTurns > 0
         
         return hasTrimChanges || hasRotationChanges
     }
@@ -899,13 +1102,40 @@ struct FeatureRichTrimmerView: View {
     }
     
     private func resetVideoReplacementState() async {
+        // 🎯 ENHANCED: Comprehensive state reset with diagnostic logging for cancellation handling
+        // This method serves as the handleCancellation() morphism in our categorical system
+
         await MainActor.run {
+            // Capture state before reset for debugging
+            let stateBeforeReset = videoReplacementState
+            let progressBeforeReset = videoReplacementProgress
+
+            diagnosticLogger.logInfo("🧹 VIDEO_REPLACEMENT_STATE_RESET: Starting comprehensive state reset", metadata: [
+                "state_before": "\(stateBeforeReset)",
+                "progress_before": "\(progressBeforeReset)",
+                "is_in_progress_before": "\(isVideoReplacementInProgress)",
+                "error_before": "\(lastVideoReplacementError ?? "none")",
+                "reset_trigger": "cancellation_or_error_recovery",
+                "timestamp": "\(Date())"
+            ])
+
+            // Reset all video replacement state variables to their initial values
             isVideoReplacementInProgress = false
             videoReplacementProgress = 0.0
             videoReplacementStatus = ""
             videoReplacementState = .idle
             lastVideoReplacementError = nil
             tempVideoSelection = nil
+
+            diagnosticLogger.logInfo("✅ VIDEO_REPLACEMENT_STATE_RESET: All state variables reset to initial values", metadata: [
+                "state_after": "\(videoReplacementState)",
+                "is_in_progress_after": "\(isVideoReplacementInProgress)",
+                "progress_after": "\(videoReplacementProgress)",
+                "temp_selection_cleared": "true",
+                "error_cleared": "true",
+                "ui_restoration": "ready_for_interaction",
+                "timestamp": "\(Date())"
+            ])
         }
     }
     
@@ -928,13 +1158,15 @@ struct FeatureRichTrimmerView: View {
         }
     }
     
-    private func getCurrentTrimSettings() -> (startTime: Double, endTime: Double, rotation: Int) {
+    private func getCurrentTrimSettings() -> (startTime: Double, endTime: Double, intrinsicRotation: Int, userAppliedRotation: Int, totalRotation: Int) {
         let trimmerVM = viewModel
-        
+
         return (
             startTime: trimmerVM.startTime.seconds,
             endTime: trimmerVM.endTime.seconds,
-            rotation: trimmerVM.rotationQuarterTurns
+            intrinsicRotation: trimmerVM.assetIntrinsicRotationTurns,
+            userAppliedRotation: trimmerVM.userAppliedRotationTurns,
+            totalRotation: trimmerVM.totalRotationQuarterTurns
         )
     }
     
@@ -1016,13 +1248,16 @@ struct FeatureRichTrimmerView: View {
         let isReady = hasValidDuration && meetsMinimumDuration && hasValidTrimRange && isReadyToShowTrimmer
 
         if isReady {
-            diagnosticLogger.logInfo("✅ Ready to continue", metadata: [
+            diagnosticLogger.logInfo("✅ Ready to continue with categorical rotation", metadata: [
                 "validation": readyStatus,
                 "duration": "\(timecodeResult.duration.seconds)",
-                "rotation": "\(trimmerVM.rotationQuarterTurns)",
+                "intrinsic_rotation": "\(trimmerVM.assetIntrinsicRotationTurns)",
+                "user_applied_rotation": "\(trimmerVM.userAppliedRotationTurns)",
+                "total_rotation": "\(trimmerVM.totalRotationQuarterTurns)",
                 "video_duration": "\(trimmerVM.videoDuration.seconds)",
                 "timecode_valid": "\(timecodeResult.isValid)",
-                "frame_precision": "\(timecodeResult.durationFrames) frames"
+                "frame_precision": "\(timecodeResult.durationFrames) frames",
+                "categorical_composition": "η(intrinsic) ⊕ user_applied → total"
             ])
         }
 

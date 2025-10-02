@@ -596,11 +596,19 @@ struct AddMoveContainer: View {
         }
 
         do {
-            // Create new trimmer view model
+            // Create new trimmer view model with atomic initialization
+            let duration = try await videoAsset.load(.duration).seconds
+            let startTime = CMTime(seconds: unifiedState.trimStartTime >= 0 ? unifiedState.trimStartTime : 0, preferredTimescale: 600)
+            let endTime = CMTime(seconds: unifiedState.trimEndTime > 0 ? unifiedState.trimEndTime : duration, preferredTimescale: 600)
+
+            // ✅ ROLLBACK INTEGRITY FIX: Create TrimmerViewModel with restored times to prevent race condition
             let newTrimmerVM = TrimmerViewModel(
                 asset: videoAsset,
                 photosIdentifier: photosIdentifier,
-                rotationQuarterTurns: unifiedState.rotationQuarterTurns,
+                initialIntrinsicRotation: unifiedState.intrinsicAssetRotation,
+                initialUserRotation: unifiedState.userAppliedRotation,
+                initialStartTime: startTime,    // ✅ PASS restored start time
+                initialEndTime: endTime,        // ✅ PASS restored end time
                 playerViewModel: playerViewModel
             )
 
@@ -610,13 +618,7 @@ struct AddMoveContainer: View {
             // Update published property
             unifiedState.trimmerViewModel = newTrimmerVM
 
-            // Set trim time values
-            let duration = try await videoAsset.load(.duration).seconds
-            let startTime = CMTime(seconds: unifiedState.trimStartTime >= 0 ? unifiedState.trimStartTime : 0, preferredTimescale: 600)
-            let endTime = CMTime(seconds: unifiedState.trimEndTime > 0 ? unifiedState.trimEndTime : duration, preferredTimescale: 600)
-
-            newTrimmerVM.startTime = startTime
-            newTrimmerVM.endTime = endTime
+            logger.info("🎬 CONTAINER: ✅ Created new TrimmerViewModel with rollback integrity fix - start_time: \(startTime.seconds)s, end_time: \(endTime.seconds)s, rotation: \(unifiedState.totalRotationQuarterTurns * 90)°, rollback_integrity_fix: atomic_initialization_with_restored_times")
 
             logger.info("🎬 CONTAINER: ✅ New trimmer view model created and configured")
             logger.info("🎬 CONTAINER: 📊 Trim range set: \(startTime.seconds)s - \(endTime.seconds)s")
@@ -637,7 +639,7 @@ struct AddMoveContainer: View {
         logger.info("🎬 CONTAINER: 📊 Player VM: \(unifiedState.currentPlayerViewModel != nil ? "✅ Available" : "❌ Missing")")
         logger.info("🎬 CONTAINER: 📊 Trimmer VM: \(unifiedState.trimmerViewModel != nil ? "✅ Available" : "❌ Missing")")
         logger.info("🎬 CONTAINER: 📊 Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
-        logger.info("🎬 CONTAINER: 📊 Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+        logger.info("🎬 CONTAINER: 📊 Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
         logger.info("🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'")
         logger.info("🎬 CONTAINER: 📊 Timestamp: \(Date())")
         logger.info("🎬 CONTAINER: 📊 ======================================")
@@ -698,7 +700,7 @@ struct AddMoveContainer: View {
 
         // Trim values
         logger.info("🎬 CONTAINER: 📊 Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
-        logger.info("🎬 CONTAINER: 📊 Rotation: \(unifiedState.rotationQuarterTurns * 90)°")
+        logger.info("🎬 CONTAINER: 📊 Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
 
         // Move name
         logger.info("🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'")
