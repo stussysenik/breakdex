@@ -256,25 +256,29 @@ final class VideoTransformBuilder {
         }
 
         // 🎯 CRITICAL FIX: Apply transforms in correct mathematical order
-        // For AVFoundation: rotation first, then translation, then preferredTransform
+        // For AVFoundation: rotation first, then translation
+        // FIX: Remove preferredTransform concatenation to prevent double rotation
+        // The calculated transform based on quarterTurns is already the complete final transform
         transform = rotationTransform.concatenating(translationTransform)
 
-        // Finally apply the source video's preferred transform (handles device orientation)
-        transform = preferredTransform.concatenating(transform)
+        // REMOVED: transform = preferredTransform.concatenating(transform)
+        // This line was causing double rotation by applying intrinsic rotation twice
 
         logger.info("🎬 BUILDER: 🔧 Transform composition complete:")
         logger.info("🎬 BUILDER:   - Rotation transform: [\(rotationTransform.a), \(rotationTransform.b), \(rotationTransform.c), \(rotationTransform.d), \(rotationTransform.tx), \(rotationTransform.ty)]")
         logger.info("🎬 BUILDER:   - Translation transform: [\(translationTransform.a), \(translationTransform.b), \(translationTransform.c), \(translationTransform.d), \(translationTransform.tx), \(translationTransform.ty)]")
-        logger.info("🎬 BUILDER:   - Preferred transform: [\(preferredTransform.a), \(preferredTransform.b), \(preferredTransform.c), \(preferredTransform.d), \(preferredTransform.tx), \(preferredTransform.ty)]")
+        logger.info("🎬 BUILDER:   - Preferred transform: [\(preferredTransform.a), \(preferredTransform.b), \(preferredTransform.c), \(preferredTransform.d), \(preferredTransform.tx), \(preferredTransform.ty)] (INFO ONLY)")
         logger.info("🎬 BUILDER:   - Final combined transform: [\(transform.a), \(transform.b), \(transform.c), \(transform.d), \(transform.tx), \(transform.ty)]")
+        logger.info("🎬 BUILDER:   - DOUBLE ROTATION FIX: preferredTransform NOT concatenated to prevent double application")
         logger.info("🎬 BUILDER:   - WYSIWYG verification: Total rotation \(quarterTurns * 90)° encoded in final asset")
 
         layerInstruction.setTransform(transform, at: .zero)
 
         print("🎬 VideoTransformBuilder: Enhanced transform constructed for \(quarterTurns * 90)° rotation")
-        print("🎬 VideoTransformBuilder: - Source preferred transform: \(preferredTransform)")
+        print("🎬 VideoTransformBuilder: - Source preferred transform: \(preferredTransform) (INFO ONLY)")
         print("🎬 VideoTransformBuilder: - Rotation transform: \(rotationTransform)")
         print("🎬 VideoTransformBuilder: - Translation transform: \(translationTransform)")
+        print("🎬 VideoTransformBuilder: - DOUBLE ROTATION FIX: preferredTransform NOT concatenated")
         print("🎬 VideoTransformBuilder: - Final combined transform: \(transform)")
 
         // Step F: Create main instruction with precise time range
