@@ -223,6 +223,22 @@ public class FlowStateManager: ObservableObject {
                     logger.info("🔄 FLOW_STATE: 🎯 MORPHISM SUCCESS: naming → trimming isomorphism preserved")
                     logger.info("🔄 FLOW_STATE: 📊 Rollback performance: \(String(format: "%.3f", rollbackDuration))s")
 
+                    // ========================= START OF THE FIX =========================
+                    // After successful ViewModel restoration, synchronize the player's visual state.
+                    guard let trimmerVM = self.unifiedState.trimmerViewModel as? TrimmerViewModel else {
+                        logger.error("❌ ROLLBACK FAILED: TrimmerViewModel not available after restoration.")
+                        throw FlowStateError.missingViewModel("TrimmerViewModel after restoration")
+                    }
+
+                    logger.info("🔧 SYNCING PLAYER: Regenerating AVPlayerItem to match restored TrimmerViewModel state.")
+                    try await self.unifiedState.unifiedPlayerManager.applyTrimToCurrentPlayer(
+                        startTime: trimmerVM.startTime,
+                        endTime: trimmerVM.endTime,
+                        rotation: trimmerVM.totalRotationQuarterTurns // Use restored total rotation
+                    )
+                    logger.info("✅ PLAYER SYNCED: AVPlayerItem now matches restored rotation: \(trimmerVM.totalRotationQuarterTurns * 90)°")
+                    // ========================== END OF THE FIX ==========================
+
                     // Proceed to transition ONLY on success
                     await performTransition(to: .trimming, triggeredBy: "rollback_to_trimming_preserved")
 
@@ -930,21 +946,10 @@ public class FlowStateManager: ObservableObject {
             return false
         }
 
-        // 🎯 DOUBLE ROTATION FIX: Revert the player's content to the original, untransformed asset.
-        // This acts as the inverse morphism to `prepareTrimmedAsset`, ensuring a true rollback isomorphism.
-        logger.info("🔄 FLOW_STATE: 🔧 DOUBLE ROTATION FIX - Reverting player to original untransformed asset")
-        do {
-            let originalPlayerItem = AVPlayerItem(asset: preservedState.videoAsset)
-            if let playerVM = self.unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
-                try await playerVM.replacePlayerItemAndWaitForReady(originalPlayerItem)
-                logger.info("🔄 FLOW_STATE: ✅ Player item successfully reverted to original asset.")
-            } else {
-                throw FlowStateError.missingViewModel("UnifiedVideoPlayerViewModel")
-            }
-        } catch {
-            logger.error("🔄 FLOW_STATE: ❌ Failed to revert player item to original asset: \(error.localizedDescription).")
-            throw error // Propagate error to halt the inconsistent rollback.
-        }
+        // 🎯 PLAYER SYNCHRONIZATION FIX: Removed faulty player reversion logic
+        // The original logic was causing desynchronization between TrimmerViewModel rotation state
+        // and AVPlayerItem visual state. Player synchronization now happens in rollbackToTrimming()
+        // after successful TrimmerViewModel restoration to maintain proper isomorphism.
 
         // 🎯 BACK BUTTON FIX: Restore player state as well to ensure consistency
         logger.info("🔄 FLOW_STATE: 🔧 BACK BUTTON FIX - Restoring player state for trimming consistency")
