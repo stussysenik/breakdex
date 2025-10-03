@@ -24,6 +24,32 @@
 - **Principles:** Follow KISS, DRY, and YAGNI development principles
 - **File Creation:** Always ask permission before creating new files to avoid "unknown project Target issues"
 
+### Code Formatting Configuration
+
+The project uses Prettier for consistent code formatting with the following configuration in `.prettierrc`:
+
+```json
+{
+  "tabWidth": 2,
+  "useTabs": false,
+  "printWidth": 80,
+  "trailingComma": "es5",
+  "semi": true,
+  "singleQuote": false,
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "proseWrap": "preserve",
+  "htmlWhitespaceSensitivity": "css",
+  "embeddedLanguageFormatting": "auto"
+}
+```
+
+**Markdown Support:** The `.prettierrc` configuration includes `proseWrap: "preserve"` and `embeddedLanguageFormatting: "auto"` to ensure proper formatting of markdown files while preserving code blocks and embedded syntax highlighting.
+
 ### Design style
 DesignSystem.swift or Color+Extensions.swift
 

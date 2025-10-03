@@ -922,6 +922,22 @@ public class FlowStateManager: ObservableObject {
             return false
         }
 
+        // 🎯 DOUBLE ROTATION FIX: Revert the player's content to the original, untransformed asset.
+        // This acts as the inverse morphism to `prepareTrimmedAsset`, ensuring a true rollback isomorphism.
+        logger.info("🔄 FLOW_STATE: 🔧 DOUBLE ROTATION FIX - Reverting player to original untransformed asset")
+        do {
+            let originalPlayerItem = AVPlayerItem(asset: preservedState.videoAsset)
+            if let playerVM = self.unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel {
+                try await playerVM.replacePlayerItemAndWaitForReady(originalPlayerItem)
+                logger.info("🔄 FLOW_STATE: ✅ Player item successfully reverted to original asset.")
+            } else {
+                throw FlowStateError.missingViewModel("UnifiedVideoPlayerViewModel")
+            }
+        } catch {
+            logger.error("🔄 FLOW_STATE: ❌ Failed to revert player item to original asset: \(error.localizedDescription).")
+            throw error // Propagate error to halt the inconsistent rollback.
+        }
+
         // 🎯 BACK BUTTON FIX: Restore player state as well to ensure consistency
         logger.info("🔄 FLOW_STATE: 🔧 BACK BUTTON FIX - Restoring player state for trimming consistency")
         let oldPlayerState = self.unifiedState.playerState

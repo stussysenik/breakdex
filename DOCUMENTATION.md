@@ -172,6 +172,51 @@ enum AddMoveFlowState: Equatable, Hashable, Sendable {
 - **SaveOperationCoordinator.swift** - Save operation coordination
 - **FeatureFlag.swift** - Controlled feature rollout system
 
+#### FlowStateManager Rollback and Restoration Functions
+
+The FlowStateManager provides sophisticated state rollback and restoration capabilities that ensure seamless user experience during view transitions:
+
+**Primary Rollback Functions:**
+- **FlowStateManager.rollbackToTrimming()** (lines 175-356) - Core rollback function that manages state transition from naming back to trimming:
+  - Preserves user context including trim ranges, rotation settings, and playback position
+  - Coordinates with UnifiedPlayerManager for video player recreation
+  - Handles state validation and error recovery during rollback
+  - Ensures proper cleanup of resources before state transition
+
+- **FlowStateManager.attemptDirectTrimmingStateRestoration()** (lines 895-1066) - Advanced restoration function for seamless state recovery:
+  - Attempts to restore previous trimming state without losing user context
+  - Uses state preservation mechanisms to maintain continuity
+  - Provides fallback mechanisms when direct restoration fails
+  - Includes comprehensive error handling and validation
+
+**State Synchronization Functions:**
+- **FlowStateManager.synchronizeTrimmingStateToUnifiedState()** (lines 542-590) - Ensures state consistency across components:
+  - Synchronizes trimming state with unified state management system
+  - Validates state integrity before and after synchronization
+  - Coordinates with UI components for consistent state representation
+  - Handles edge cases and race conditions in state updates
+
+- **FlowStateManager.proceedToNextState()** (lines 50-144) - Manages controlled state progression:
+  - Validates state transitions before execution
+  - Coordinates with all dependent components
+  - Provides rollback capabilities for failed transitions
+  - Includes comprehensive error handling and recovery
+
+**Fallback and Error Recovery:**
+- **FlowStateManager.createTrimmerViewModelForFallback()** (lines 361-435) - Fallback creation mechanism:
+  - Creates new TrimmerViewModel instances during rollback scenarios
+  - Provides error recovery when primary restoration fails
+  - Maintains functionality even with partial state restoration
+  - Includes comprehensive logging for debugging issues
+
+**Key Architectural Benefits:**
+- **State Continuity**: Maintains user context during view transitions and rollbacks
+- **Error Recovery**: Robust fallback mechanisms for handling restoration failures
+- **Resource Management**: Proper cleanup and resource management during state transitions
+- **Performance**: Efficient state operations without unnecessary reinitialization
+- **Debugging Support**: Comprehensive logging and diagnostic capabilities
+- **User Experience**: Seamless transitions with preserved context and settings
+
 ### State Flow Diagram
 ```
 Ready → LoadingVideo → Trimming → LoadingTrimmedAsset → Naming → Saving → Success
@@ -880,13 +925,107 @@ final class CoreDataErrorHandler {
 - **Memory Management**: Proactive monitoring and cleanup during video operations
 - **Error Recovery**: Comprehensive error states with proper cleanup and retry mechanisms
 
+### Video Player Reinitialization Architecture
+
+The BreakingFlashcards app implements a sophisticated video player reinitialization system that ensures seamless video playback continuity when users navigate between views, particularly when moving from NameMoveView to TrimmerView during the add move workflow.
+
+#### Reinitialization Flow Architecture
+
+**State Management Layer:**
+- **FlowStateManager.rollbackToTrimming()** (lines 175-356) - Primary rollback function that manages state transition from naming back to trimming, preserving user context and trim settings
+- **FlowStateManager.attemptDirectTrimmingStateRestoration()** (lines 895-1066) - Attempts to restore previous trimming state without losing user context, using state preservation mechanisms
+- **FlowStateManager.synchronizeTrimmingStateToUnifiedState()** (lines 542-590) - Synchronizes trimming state with the unified state management system for consistency across components
+- **FlowStateManager.proceedToNextState()** (lines 50-144) - Manages state progression in the flow with proper validation and error handling
+
+**Video Player Recreation Layer:**
+- **UnifiedPlayerManager.createOrUpdatePlayer()** (lines 42-158) - Creates new AVPlayer instances and UnifiedVideoPlayerViewModel wrappers with proper lifecycle management
+- **VideoTransformBuilder.createPlayerItem()** (lines 335-391) - Creates transformed AVPlayerItem instances with rotation/trimming applied, ensuring WYSIWYG behavior
+- **TrimmerViewModel.setupAsync()** (lines 573-760) - Initializes video duration, tracks, and trim ranges for the trimmer interface with async setup coordination
+- **UnifiedVideoPlayerViewModel.init()** (lines 99-132) - Wraps AVPlayer in observable view models with health monitoring and diagnostic logging
+- **FlowStateManager.createTrimmerViewModelForFallback()** (lines 361-435) - Creates new TrimmerViewModel instances during rollback scenarios with error recovery
+
+#### State Preservation and Restoration Process
+
+The reinitialization process works through sophisticated state preservation mechanisms:
+
+1. **State Capture Phase**: Before navigation from NameMoveView to TrimmerView, the current trimmer state is captured:
+   - Trim range values (startTime, endTime)
+   - Rotation settings (quarterTurns)
+   - Playback position and timing
+   - Video asset references
+
+2. **State Transfer Phase**: The captured state is transferred through the FlowStateManager's state synchronization mechanisms:
+   - State serialization to preserve during view transitions
+   - Validation of state integrity before transfer
+   - Coordination with unified state management system
+
+3. **Player Recreation Phase**: Upon returning to TrimmerView, the video player is recreated using the preserved state:
+   - AVPlayer instance creation through UnifiedPlayerManager
+   - AVPlayerItem creation with applied transformations
+   - TrimmerViewModel initialization with preserved settings
+
+4. **Seamless Restoration Phase**: Users experience seamless continuity with their previous trimming context intact:
+   - UI state synchronization with video player state
+   - Position restoration to previous trim points
+   - Playback state recovery
+
+#### Error Handling and Fallback Mechanisms
+
+**Robust Error Recovery:**
+- **Fallback Trimmer Creation**: When primary recreation fails, createTrimmerViewModelForFallback() provides backup mechanisms
+- **State Validation**: Comprehensive validation ensures state consistency before and after recreation
+- **Graceful Degradation**: System maintains functionality even with partial state restoration
+- **Diagnostic Logging**: Comprehensive logging for debugging recreation failures
+
+#### Key Architectural Benefits
+
+- **User Experience**: No loss of trimming context when navigating between views
+- **Performance**: Efficient player recreation without reloading entire video assets
+- **State Consistency**: Maintains synchronization between UI state and video player state
+- **Error Recovery**: Robust fallback mechanisms for handling recreation failures
+- **Memory Management**: Proper cleanup and resource management during player transitions
+- **Debugging Support**: Comprehensive logging and diagnostic capabilities
+
 ### Video Processing Pipeline
+
+#### Standard Processing Flow
 1. **Asset Loading** → `VideoAssetLoader` loads and validates video
 2. **Memory Check** → `MemoryManager` ensures sufficient resources
 3. **Transform Processing** → `VideoTransformBuilder` applies trims/rotations
 4. **Export** → Creates final video file
 5. **Photos Save** → `MovePersistenceService` saves to BreakDex album
 6. **Core Data Persistence** → Creates move entity with metadata
+
+#### Key Player Recreation Functions
+
+The video processing pipeline includes sophisticated player recreation mechanisms for seamless view transitions:
+
+**Primary Player Creation Functions:**
+- **UnifiedPlayerManager.createOrUpdatePlayer()** (lines 42-158) - Central function for creating AVPlayer instances and UnifiedVideoPlayerViewModel wrappers
+- **VideoTransformBuilder.createPlayerItem()** (lines 335-391) - Creates transformed AVPlayerItem instances with rotation/trimming applied for WYSIWYG behavior
+
+**Trimmer Setup and Initialization:**
+- **TrimmerViewModel.setupAsync()** (lines 573-760) - Initializes video duration, tracks, and trim ranges with async coordination
+- **UnifiedVideoPlayerViewModel.init()** (lines 99-132) - Wraps AVPlayer in observable view models with health monitoring
+
+**State Management Integration:**
+- **FlowStateManager.createTrimmerViewModelForFallback()** (lines 361-435) - Creates new TrimmerViewModel instances during rollback scenarios
+- **FlowStateManager.rollbackToTrimming()** (lines 175-356) - Orchestrates complete player recreation during view transitions
+
+**Recreation Process Flow:**
+1. **State Preservation** - Capture current trim settings, rotation, and playback position
+2. **Player Teardown** - Proper cleanup of existing AVPlayer instances and resources
+3. **Asset Processing** - Apply trim/rotation transformations using VideoTransformBuilder
+4. **Player Creation** - Create new AVPlayer instances through UnifiedPlayerManager
+5. **State Restoration** - Reapply preserved settings and synchronize UI state
+6. **Trimmer Setup** - Initialize TrimmerViewModel with restored video assets
+
+**Key Features:**
+- **State Continuity**: Maintains user context during view transitions
+- **Performance**: Efficient recreation without full asset reloading
+- **Error Recovery**: Robust fallback mechanisms for failed recreations
+- **Memory Management**: Proper cleanup and resource management
+- **Diagnostic Logging**: Comprehensive logging for debugging recreation issues
 
 ### Error Handling
 - Comprehensive error states at each step
