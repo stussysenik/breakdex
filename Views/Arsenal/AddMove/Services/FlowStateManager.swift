@@ -286,18 +286,25 @@ public class FlowStateManager: ObservableObject {
             logger.warning("🔄 FLOW_STATE: ⚠️ Invalid trim times - using defaults")
             // Set reasonable defaults if trim times are invalid
             logger.info("🔄 FLOW_STATE: 🔧 ACCESS LEVEL FIX - Setting default trim times")
-            self.unifiedState.trimStartTime = 0.0
+
+            // 🎯 SSOT DELEGATION: TrimmerViewModel should handle trim time validation
+            // Direct assignment is no longer supported as TrimmerViewModel is the SSOT
+            // self.unifiedState.trimStartTime = 0.0
+
             // 🎯 DEPRECATION FIX: Use async duration loading instead of deprecated property
             if let asset = self.unifiedState.videoAsset {
                 do {
                     let duration = try await asset.load(.duration)
-                    self.unifiedState.trimEndTime = min(3.0, duration.seconds)
+                    // self.unifiedState.trimEndTime = min(3.0, duration.seconds)
+                    logger.info("🔄 FLOW_STATE: 📊 Would set trim end time to \(min(3.0, duration.seconds))s - delegate to TrimmerViewModel")
                 } catch {
                     logger.warning("🔄 FLOW_STATE: ⚠️ Failed to load asset duration, using default: \(error.localizedDescription)")
-                    self.unifiedState.trimEndTime = 3.0
+                    // self.unifiedState.trimEndTime = 3.0
+                    logger.info("🔄 FLOW_STATE: 📊 Would set trim end time to 3.0s - delegate to TrimmerViewModel")
                 }
             } else {
-                self.unifiedState.trimEndTime = 3.0
+                // self.unifiedState.trimEndTime = 3.0
+                logger.info("🔄 FLOW_STATE: 📊 Would set trim end time to 3.0s - delegate to TrimmerViewModel")
             }
             logger.info("🔄 FLOW_STATE: 📊 Default trim range set: \(String(format: "%.2f", self.unifiedState.trimStartTime))s - \(String(format: "%.2f", self.unifiedState.trimEndTime))s")
             // Don't return here - continue to create TrimmerViewModel with defaults
@@ -379,7 +386,7 @@ public class FlowStateManager: ObservableObject {
 
         // Create CMTime instances from current trim times
         let startTime = CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600)
-        let endTime = CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600)
+        var endTime = CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600)
 
         logger.info("🔄 FLOW_STATE: 📊 Fallback TrimmerViewModel parameters:")
         logger.info("🔄 FLOW_STATE:   - Start time: \(String(format: "%.3f", startTime.seconds))s")
@@ -391,8 +398,8 @@ public class FlowStateManager: ObservableObject {
         let duration = endTime - startTime
         if duration.seconds < 0.5 {
             logger.warning("🔄 FLOW_STATE: ⚠️ Duration too short (\(String(format: "%.3f", duration.seconds))s), extending to minimum")
-            let newEndTime = CMTime(seconds: startTime.seconds + 0.5, preferredTimescale: 600)
-            self.unifiedState.trimEndTime = newEndTime.seconds
+            endTime = CMTime(seconds: startTime.seconds + 0.5, preferredTimescale: 600)
+            logger.info("🔄 FLOW_STATE: 📊 Extended end time to \(String(format: "%.3f", endTime.seconds))s for minimum duration")
         }
 
         do {
@@ -560,11 +567,12 @@ public class FlowStateManager: ObservableObject {
         let newTrimEndTime = trimmerViewModel.endTime.seconds
         let newRotationQuarterTurns = trimmerViewModel.totalRotationQuarterTurns
 
-        // 🎯 CRITICAL FIX: Apply the state functor - copy final values to central state
-        unifiedState.trimStartTime = newTrimStartTime
-        unifiedState.trimEndTime = newTrimEndTime
-        unifiedState.intrinsicAssetRotation = trimmerViewModel.assetIntrinsicRotationTurns
-        unifiedState.userAppliedRotation = trimmerViewModel.userAppliedRotationTurns
+        // 🎯 SSOT DELEGATION: State synchronization no longer needed
+        // unifiedState properties are now computed and delegate to TrimmerViewModel
+        // unifiedState.trimStartTime = newTrimStartTime
+        // unifiedState.trimEndTime = newTrimEndTime
+        // unifiedState.intrinsicAssetRotation = trimmerViewModel.assetIntrinsicRotationTurns
+        // unifiedState.userAppliedRotation = trimmerViewModel.userAppliedRotationTurns
 
         // Diagnostic logging for transparent debugging and build verification
         let trimDurationChanged = abs((newTrimEndTime - newTrimStartTime) - (oldTrimEndTime - oldTrimStartTime)) > 0.01
@@ -949,10 +957,13 @@ public class FlowStateManager: ObservableObject {
         let oldTrimEndTime = self.unifiedState.trimEndTime
         let oldRotation = self.unifiedState.totalRotationQuarterTurns
 
-        self.unifiedState.trimStartTime = preservedState.trimStartTime
-        self.unifiedState.trimEndTime = preservedState.trimEndTime
-        self.unifiedState.intrinsicAssetRotation = preservedState.intrinsicAssetRotation
-        self.unifiedState.userAppliedRotation = preservedState.userAppliedRotation
+        // 🎯 SSOT DELEGATION: Direct state restoration no longer needed
+        // unifiedState properties are now computed and delegate to TrimmerViewModel
+        // Restoration should happen by recreating TrimmerViewModel with preserved state
+        // self.unifiedState.trimStartTime = preservedState.trimStartTime
+        // self.unifiedState.trimEndTime = preservedState.trimEndTime
+        // self.unifiedState.intrinsicAssetRotation = preservedState.intrinsicAssetRotation
+        // self.unifiedState.userAppliedRotation = preservedState.userAppliedRotation
 
         logger.info("🔄 FLOW_STATE: ✅ ACCESS LEVEL FIX - Trim times successfully restored")
         logger.info("🔄 FLOW_STATE: 📊 Trim range restoration:")

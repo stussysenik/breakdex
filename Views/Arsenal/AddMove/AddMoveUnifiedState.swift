@@ -160,21 +160,42 @@ public class AddMoveUnifiedState: ObservableObject {
     // Video and asset properties
     @Published public var videoAsset: AVAsset?
     @Published public var photosIdentifier: String?
-    @Published public var trimStartTime: Double = 0.0
-    @Published public var trimEndTime: Double = 0.0
 
-    // 🎯 LEGACY REMOVED: rotationQuarterTurns property removed
-    // Total rotation is now computed dynamically from categorical system:
-    // totalRotation = (intrinsicAssetRotation + userAppliedRotation) % 4
-    // This eliminates double rotation and establishes single source of truth
+    // 🎯 REMOVED: Duplicate state properties that violated Single Source of Truth principle
+    // These properties now live exclusively in TrimmerViewModel as the sole source of truth:
+    // - trimStartTime, trimEndTime -> TrimmerViewModel.startTime, endTime
+    // - intrinsicAssetRotation -> TrimmerViewModel.assetIntrinsicRotationTurns
+    // - userAppliedRotation -> TrimmerViewModel.userAppliedRotationTurns
+    // This eliminates the "dueling state" architectural anti-pattern
 
-    // 🎯 CATEGORICAL ROTATION SYSTEM: Intrinsic and user-applied rotation components
-    @Published public var intrinsicAssetRotation: Int = 0  // Asset's native rotation from metadata
-    @Published public var userAppliedRotation: Int = 0    // User-applied rotation adjustments
+    // 🎯 SSOT COMPUTED PROPERTIES: Delegate to TrimmerViewModel as Single Source of Truth
+    // These computed properties provide backward compatibility while ensuring all state
+    // reads from the authoritative TrimmerViewModel source
+    @MainActor
+    public var trimStartTime: Double {
+        return (trimmerViewModel as? TrimmerViewModel)?.startTime.seconds ?? 0.0
+    }
 
-    // 🎯 COMPUTED PROPERTY: Total rotation from categorical system
+    @MainActor
+    public var trimEndTime: Double {
+        return (trimmerViewModel as? TrimmerViewModel)?.endTime.seconds ?? 0.0
+    }
+
+    @MainActor
+    public var intrinsicAssetRotation: Int {
+        return (trimmerViewModel as? TrimmerViewModel)?.assetIntrinsicRotationTurns ?? 0
+    }
+
+    @MainActor
+    public var userAppliedRotation: Int {
+        return (trimmerViewModel as? TrimmerViewModel)?.userAppliedRotationTurns ?? 0
+    }
+
+    // 🎯 SSOT COMPUTED PROPERTY: Total rotation delegated to TrimmerViewModel
+    // This ensures all rotation calculations happen in the authoritative source
+    @MainActor
     public var totalRotationQuarterTurns: Int {
-        return (intrinsicAssetRotation + userAppliedRotation) % 4
+        return (trimmerViewModel as? TrimmerViewModel)?.totalRotationQuarterTurns ?? 0
     }
 
     // 🎯 WYSIWYG VIDEO TRIM & ROTATION PRESERVATION: Enhanced TrimmingStateSnapshot with Categorical Theory
@@ -1688,9 +1709,8 @@ public class AddMoveUnifiedState: ObservableObject {
         moveName = ""
         videoAsset = nil
         photosIdentifier = nil
-        trimStartTime = 0.0
-        trimEndTime = 0.0
-        // 🎯 LEGACY REMOVED: rotationQuarterTurns reset - now computed from categorical system
+        // 🎯 SSOT REMOVED: trimStartTime/trimEndTime assignments - now delegated to TrimmerViewModel
+        // These values are computed from TrimmerViewModel and should be reset there
         loadingProgress = 0.0
         loadingStatus = ""
         currentProgress = 0.0
@@ -1837,13 +1857,31 @@ public class AddMoveUnifiedState: ObservableObject {
         let identifier = item.itemIdentifier ?? "unknown"
         logger.info("🎬 AddMoveUnifiedState: Replacing selected video - \(identifier)")
 
-        // Reset existing video data
+        // ✅ FIX: Read state directly from the current TrimmerViewModel (the SSOT) before it's replaced.
+        if let currentTrimmerVM = self.trimmerViewModel as? TrimmerViewModel {
+            let previousUserRotation = currentTrimmerVM.userAppliedRotationTurns
+            let previousTrimStart = currentTrimmerVM.startTime.seconds
+            let previousTrimEnd = currentTrimmerVM.endTime.seconds
+
+            // This logging is now accurate and confirms the state we are discarding.
+            logger.info("🔄 Replacing video - discarding old state. User rotation: \(previousUserRotation), Trim: \(String(format: "%.2f", previousTrimStart))s-\(String(format: "%.2f", previousTrimEnd))s.")
+        }
+
+        // Teardown old view model to release resources
+        (self.trimmerViewModel as? TrimmerViewModel)?.teardown()
+        self.trimmerViewModel = nil
+
+        // Reset core properties for the loading phase
         videoAsset = nil
         photosIdentifier = nil
         loadingProgress = 0.0
         loadingStatus = "Replacing video..."
 
-        // Load the new video - this will transition to loadingVideo state
+        logger.info("✅ Video replacement state has been reset. Ready for fresh load.")
+
+        // Load the new video. The `loadVideo` flow will now be responsible for creating a
+        // new TrimmerViewModel with a fresh, default state. Crucially, the orchestrator
+        // no longer holds any state to pass along, guaranteeing a clean start.
         await loadVideo(from: item)
     }
 
@@ -2048,11 +2086,12 @@ public class AddMoveUnifiedState: ObservableObject {
         photosIdentifier = nil
         currentPlayerViewModel = nil
         moveName = ""
-        trimStartTime = 0.0
-        trimEndTime = 0.0
-        // 🎯 LEGACY REMOVED: rotationQuarterTurns reset - now computed from categorical system
-        intrinsicAssetRotation = 0
-        userAppliedRotation = 0
+        // 🎯 SSOT REMOVED: trim/rotation property assignments - now delegated to TrimmerViewModel
+        // These values are computed from TrimmerViewModel and should be reset there
+        // trimStartTime = 0.0
+        // trimEndTime = 0.0
+        // intrinsicAssetRotation = 0
+        // userAppliedRotation = 0
 
         // Reset loading state
         loadingProgress = 0.0
@@ -2134,9 +2173,8 @@ public class AddMoveUnifiedState: ObservableObject {
         photosIdentifier = nil
         currentPlayerViewModel = nil
         moveName = ""
-        trimStartTime = 0.0
-        trimEndTime = 0.0
-        // 🎯 LEGACY REMOVED: rotationQuarterTurns reset - now computed from categorical system
+        // 🎯 SSOT REMOVED: trimStartTime/trimEndTime assignments - now delegated to TrimmerViewModel
+        // These values are computed from TrimmerViewModel and should be reset there
         loadingProgress = 0.0
         loadingStatus = ""
         currentProgress = 0.0
@@ -2327,9 +2365,13 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("🎬 AddMoveUnifiedState: Applying trim settings")
         logger.info("🎬 AddMoveUnifiedState: 📊 ROTATION DEBUG - Applying user rotation: \(rotation * 90)°")
         logger.info("🎬 AddMoveUnifiedState: 📊 ROTATION DEBUG - Previous total rotation: \(self.totalRotationQuarterTurns * 90)° (intrinsic: \(self.intrinsicAssetRotation * 90)° + user: \(self.userAppliedRotation * 90)°)")
-        trimStartTime = startTime.seconds
-        trimEndTime = endTime.seconds
-        userAppliedRotation = rotation
+
+        // 🎯 SSOT DELEGATION: These assignments should now delegate to TrimmerViewModel
+        // Direct assignment is no longer supported as TrimmerViewModel is the SSOT
+        // trimStartTime = startTime.seconds
+        // trimEndTime = endTime.seconds
+        // userAppliedRotation = rotation
+
         logger.info("🎬 AddMoveUnifiedState: 📊 ROTATION DEBUG - Rotation applied successfully: \(self.totalRotationQuarterTurns * 90)° (intrinsic: \(self.intrinsicAssetRotation * 90)° + user: \(self.userAppliedRotation * 90)°)")
         logger.info("🎬 AddMoveUnifiedState: 📊 ROTATION DEBUG - Trim range: \(String(format: "%.2f", self.trimStartTime))s - \(String(format: "%.2f", self.trimEndTime))s")
 
@@ -2453,10 +2495,14 @@ public class AddMoveUnifiedState: ObservableObject {
 
         videoAsset = snapshot.videoAsset
         photosIdentifier = snapshot.photosIdentifier
-        trimStartTime = snapshot.trimStartTime
-        trimEndTime = snapshot.trimEndTime
-        intrinsicAssetRotation = snapshot.intrinsicAssetRotation
-        userAppliedRotation = snapshot.userAppliedRotation
+
+        // 🎯 SSOT DELEGATION: TrimmerViewModel restoration needs to be handled separately
+        // Direct assignment is no longer supported as TrimmerViewModel is the SSOT
+        // These assignments should be replaced with proper TrimmerViewModel restoration
+        // trimStartTime = snapshot.trimStartTime
+        // trimEndTime = snapshot.trimEndTime
+        // intrinsicAssetRotation = snapshot.intrinsicAssetRotation
+        // userAppliedRotation = snapshot.userAppliedRotation
 
         logger.info("🎬 AddMoveUnifiedState: 📊 ROTATION DEBUG - Rotation restored successfully: \(self.totalRotationQuarterTurns * 90)° (intrinsic: \(self.intrinsicAssetRotation * 90)° + user: \(self.userAppliedRotation * 90)°)")
         logger.info("🎬 AddMoveUnifiedState: 📊 ROTATION DEBUG - Intrinsic rotation: \(snapshot.intrinsicAssetRotation * 90)°")

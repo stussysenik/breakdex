@@ -125,18 +125,19 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
     
     func updateUIView(_ uiView: PlayerView, context: Context) {
         diagnosticLogger.startTiming("update_uiview")
-        logger.info("🎬 AV_PLAYER_VIEW: updateUIView called (Simplified)")
+        logger.info("🎬 AV_PLAYER_VIEW: updateUIView called (Race Condition Hardened)")
 
-        // SIMPLIFIED: Synchronize the view's player with the ViewModel's player.
-        // This is the core of the fix. It relies on SwiftUI's update cycle.
-        if uiView.playerLayer.player !== viewModel.avPlayer {
-            if viewModel.isPlayerReady {
-                logger.info("🎬 AV_PLAYER_VIEW: Syncing player to layer.")
-                uiView.playerLayer.player = viewModel.avPlayer
-            } else {
-                // If the player isn't ready, ensure we don't show a stale frame.
-                logger.info("🎬 AV_PLAYER_VIEW: Player not ready, clearing layer.")
+        // 🎯 THE FIX: Make view a pure function of ViewModel state
+        // This prevents race conditions between SwiftUI rendering and AVPlayer's asynchronous item replacement
+        if !viewModel.isPlayerReady {
+            if uiView.playerLayer.player != nil {
+                logger.warning("🎬 AV_PLAYER_VIEW: Player not ready, clearing layer to prevent stale frame.")
                 uiView.playerLayer.player = nil
+            }
+        } else {
+            if uiView.playerLayer.player !== viewModel.avPlayer {
+                logger.info("🎬 AV_PLAYER_VIEW: Player is ready, syncing player instance to layer.")
+                uiView.playerLayer.player = viewModel.avPlayer
             }
         }
 
