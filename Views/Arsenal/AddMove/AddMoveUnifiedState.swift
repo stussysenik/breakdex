@@ -1969,9 +1969,28 @@ public class AddMoveUnifiedState: ObservableObject {
 
         logger.info("✅ Video replacement state has been reset. Ready for fresh load.")
 
-        // Load the new video. The `loadVideo` flow will now be responsible for creating a
-        // new TrimmerViewModel with a fresh, default state. Crucially, the orchestrator
-        // no longer holds any state to pass along, guaranteeing a clean start.
+        // ========================= START OF THE FIX =========================
+        //
+        // **Root Cause**: The `loadVideo` method requires the `flowState` to be `.loadingVideo`
+        // before it's called. The initial selection flow (`didSelectVideo`) does this, but the
+        // replacement flow did not, causing the state validation error seen in the logs.
+        //
+        // **Solution**: We explicitly perform a synchronous state transition to `.loadingVideo` here.
+        // This makes the `replace_video_request` morphism correctly compose with the `load_video`
+        // morphism, creating a valid sequence: .trimming -> .loadingVideo -> .trimming.
+        //
+        logger.info("🔄 MORPHISM FIX: Performing synchronous transition from .trimming to .loadingVideo before async loading.")
+        let initialProgress = SimpleProgress(value: 0.0, message: "Replacing video...")
+
+        // This is the missing state transition that satisfies the precondition for `loadVideo`.
+        self.flowState = .loadingVideo(progress: initialProgress)
+
+        logger.info("✅ MORPHISM FIX: State is now .loadingVideo. Proceeding with async load.")
+        //
+        // ========================== END OF THE FIX ==========================
+
+        // Now, the call to loadVideo will find the system in the expected state, and the
+        // rest of the existing loading and transition logic will function correctly.
         await loadVideo(from: item)
     }
 
