@@ -3,7 +3,7 @@ import AVKit
 import Combine
 import OSLog
 import Foundation
-import BreakingFlashcards // Import the module to access TimecodeFormatter
+import breakdex // Import the module to access TimecodeFormatter
 
 // MARK: - TrimmerSetupProgressDelegate Protocol
 

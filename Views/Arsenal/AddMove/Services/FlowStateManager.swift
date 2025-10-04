@@ -1,6 +1,6 @@
 //
 //  FlowStateManager.swift
-//  BreakingFlashcards
+//  breakdex
 //
 //  Created by Claude Code on 9/30/25.
 //
@@ -19,7 +19,7 @@ public class FlowStateManager: ObservableObject {
 
     // MARK: - Properties
 
-    private let logger = Logger(subsystem: "BreakingFlashcards", category: "🔄 FLOW_STATE")
+    private let logger = Logger(subsystem: "breakdex", category: "🔄 FLOW_STATE")
 
     // MARK: - Service Dependencies
 
@@ -77,7 +77,7 @@ public class FlowStateManager: ObservableObject {
         case .ready:
             // Should not happen - this means video loading hasn't started
             logger.warning("🔄 FLOW_STATE: ⚠️ proceedToNextState called from ready state")
-            throw FlowStateError.invalidTransition(from: currentState, to: .loadingVideo(progress: SimpleProgress(value: 0.0, message: "")))
+            throw FlowStateError.invalidTransition(from: currentState, to: .loadingVideo)
 
         case .loadingVideo:
             // Loading should complete automatically and transition to trimming
@@ -682,7 +682,7 @@ public class FlowStateManager: ObservableObject {
         switch state {
         case .loadingVideo, .loadingTrimmedAsset:
             // Loading states should have progress
-            return unifiedState.loadingProgress > 0.0 && unifiedState.loadingProgress < 1.0
+            return unifiedState.unifiedProgressEngine.unifiedProgress > 0.0 && unifiedState.unifiedProgressEngine.unifiedProgress < 1.0
         case .saving:
             // Saving state should have elapsed time
             return unifiedState.saveElapsedTime > 0.0 && unifiedState.saveElapsedTime < transitionTimeout

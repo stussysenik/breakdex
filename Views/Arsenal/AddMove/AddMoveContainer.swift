@@ -310,9 +310,9 @@ struct AddMoveContainer: View {
                     let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: Rendering ready state - AddMoveSelectClipViewUnified")
                     AddMoveSelectClipViewUnified(unifiedState: unifiedState)
 
-                case .loadingVideo(let progress):
-                    let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: Rendering loadingVideo state - LoadingOverlayView with progress: \(String(format: "%.1f", progress.value * 100))%")
-                    LoadingOverlayView(progress: progress, unifiedState: unifiedState)
+                case .loadingVideo:
+                    let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: Rendering loadingVideo state - LoadingOverlayView with unified state (progress decoupled)")
+                    LoadingOverlayView(unifiedState: unifiedState)
 
                 case .trimming:
                     // 🎯 CRITICAL FIX: Enhanced isomorphic rollback with proper state preservation and type safety
@@ -748,7 +748,7 @@ struct AddMoveContainer: View {
         logger.info("🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'")
 
         // Progress and timers
-        logger.info("🎬 CONTAINER: 📊 Load Progress: \(String(format: "%.1f", unifiedState.loadingProgress * 100))%")
+        logger.info("🎬 CONTAINER: 📊 Load Progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%")
         logger.info("🎬 CONTAINER: 📊 Load Timer: \(String(format: "%.2f", unifiedState.loadElapsedTime))s")
         logger.info("🎬 CONTAINER: 📊 Save Timer: \(String(format: "%.2f", unifiedState.saveElapsedTime))s")
 

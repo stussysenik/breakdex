@@ -374,167 +374,182 @@ struct FeatureRichTrimmerView: View {
     }
     
     var body: some View {
+        mainContent
+            .background(backgroundStyle)
+            .onAppear(perform: onMainViewAppear)
+            .onDisappear(perform: onMainViewDisappear)
+            .overlay(loadingOverlay)
+            .photosPicker(
+                isPresented: $showPhotosPicker,
+                selection: Binding(
+                    get: { tempVideoSelection },
+                    set: { newItem in
+                        if let newItem = newItem {
+                            handleVideoSelection(newItem)
+                        }
+                        tempVideoSelection = newItem
+                    }
+                ),
+                matching: .videos,
+                preferredItemEncoding: .current,
+                photoLibrary: .shared()
+            )
+            .onChange(of: showPhotosPicker, perform: onPhotosPickerChange)
+            .confirmationDialog("Change Video", isPresented: $showChangeVideoConfirmation) {
+                Button("Change Video", role: .destructive) {
+                    beginVideoReplacementProcess()
+                }
+                Button("Cancel", role: .cancel) {
+                    videoReplacementState = .idle
+                }
+            } message: {
+                Text("You have unsaved trim changes. Changing videos will discard these changes.")
+            }
+            .alert("Minimum Duration", isPresented: Binding(
+                get: { viewModel.showMinDurationAlert },
+                set: { newValue in
+                    if !newValue {
+                        viewModel.showMinDurationAlert = false
+                    }
+                }
+            )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("The minimum video duration is 3.000 seconds.")
+            }
+    }
+  
+    // MARK: - Extracted View Components
+
+    private var mainContent: some View {
         ZStack {
             VStack(spacing: 0) {
                 Spacer()
-                // MARK: - Video Player Section with Replacement Support
-                Group {
-                    if isVideoReplacementInProgress {
-                        videoReplacementView
-                    } else {
-                        // TrimmerPlayerView is now created unconditionally to give it a stable identity.
-                        // The loading logic is moved inside it.
-                        TrimmerPlayerView(
-                            unifiedState: unifiedState,
-                            isReady: isReadyToShowTrimmer,
-                            previewRotationDegrees: 0.0 // 🎯 CRITICAL FIX: Fixed at 0° - AVPlayerItem handles rotation
-                        )
-                    }
-                }
-                // MARK: - Enhanced Trimmer Interface
+                videoPlayerSection
                 Spacer()
-                VStack(spacing: 8) {
-                    Spacer()
-                    // Minimum duration warning (positioned above timecode for better visibility)
-                    if viewModel.showMinimumDurationWarning == true {
-                    minimumDurationWarning
-                }
-
-                // Time code display
-                timeCodeDisplay
-
-                // Main trimmer with shoe handles
-                mainTrimmerSection
-
-                // Enhanced controls
-                controlSection
+                trimmerInterfaceSection
                 Spacer()
             }
             .padding(10)
         }
-        .background(Color.backgroundPrimary.ignoresSafeArea())
-        .onAppear {
-            // 🎯 CRITICAL FIX: 180-DEGREE FLIP - Removed reactive state synchronization
-            // The AVPlayerItem handles all rotation internally - no SwiftUI sync needed
-            let logger = DiagnosticLoggingHelper(category: "FeatureRichTrimmerView")
-            logger.logInfo("🎯 DOUBLE_ROTATION_FIX: View appeared with identity morphism - no SwiftUI rotation sync needed", metadata: [
-                "intrinsic_rotation": "\(viewModel.assetIntrinsicRotationTurns * 90)°",
-                "user_rotation": "\(viewModel.userAppliedRotationTurns * 90)°",
-                "total_rotation": "\(viewModel.totalRotationQuarterTurns * 90)°",
-                "swiftui_rotation": "DISABLED",
-                "avplayer_rotation": "ENABLED",
-                "double_rotation_fixed": "true"
-            ])
-        }
-            .onDisappear {
-                diagnosticLogger.logInfo("🧹 Body disappeared; cleanup completed")
-            }
+    }
 
-            // 🎯 CRITICAL: Local loading overlay preserves render layer during async operations
-            if isFinalizing {
-                LoadingOverlayView(progress: SimpleProgress(value: 0.8, message: "Creating asset..."), unifiedState: unifiedState)
-            }
-        }
-        .photosPicker(
-            isPresented: $showPhotosPicker,
-            selection: Binding(
-                get: { tempVideoSelection },
-                set: { newItem in
-                    if let newItem = newItem {
-                        handleVideoSelection(newItem)
-                    }
-                    tempVideoSelection = newItem
-                }
-            ),
-            matching: .videos,
-            preferredItemEncoding: .current,
-            photoLibrary: .shared()
-        )
-        .onChange(of: showPhotosPicker) { _, isShowing in
-            // 🎯 CRITICAL FIX: Handle PhotosPicker dismissal - detects both cancellation and selection completion
-            // This morphism ensures proper state reset when user cancels video selection
-            diagnosticLogger.logDebug("🔄 PHOTOS_PICKER_STATE_CHANGED: showPhotosPicker changed to \(isShowing)", metadata: [
-                "is_showing": "\(isShowing)",
-                "is_video_replacement_in_progress": "\(isVideoReplacementInProgress)",
-                "temp_video_selection_is_nil": "\(tempVideoSelection == nil)",
-                "video_replacement_state": "\(videoReplacementState)",
-                "timestamp": "\(Date())"
-            ])
-
-            // Condition: Picker is dismissed, we're in replacement process, AND no new video was selected
-            // This specific pattern indicates user cancellation (not selection completion)
-            if !isShowing && isVideoReplacementInProgress && tempVideoSelection == nil {
-                diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_CANCELLED: User cancelled video selection - resetting state", metadata: [
-                    "detection_logic": "!isShowing && isVideoReplacementInProgress && tempVideoSelection == nil",
-                    "previous_state": "\(videoReplacementState)",
-                    "ui_state_before_reset": "preparing_stuck",
-                    "user_action": "cancelled_photos_picker",
-                    "fix_type": "missing_morphism_handleCancellation",
-                    "timestamp": "\(Date())"
-                ])
-
-                // Execute the missing morphism: handleCancellation()
-                // This resets the state machine to its original interactive state
-                Task {
-                    // Structs don't need weak references - they're value types
-                    diagnosticLogger.logDebug("🔧 MEMORY_FIX: Video replacement cancellation Task started")
-                    await resetVideoReplacementState()
-
-                    diagnosticLogger.logInfo("✅ VIDEO_REPLACEMENT_CANCELLED: State reset completed - UI restored to interactive state", metadata: [
-                        "final_state": "\(videoReplacementState)",
-                        "is_video_replacement_in_progress": "\(isVideoReplacementInProgress)",
-                        "ui_restored": "true",
-                        "morphism_composition": "(handleCancellation . showPhotosPicker . startVideoReplacement) ≈ id",
-                        "timestamp": "\(Date())"
-                    ])
-                }
-            } else if !isShowing && tempVideoSelection != nil {
-                // Picker dismissed after successful selection - normal flow
-                diagnosticLogger.logDebug("✅ PHOTOS_PICKER_DISMISSED: Selection completed normally", metadata: [
-                    "has_selection": "\(tempVideoSelection != nil)",
-                    "flow_type": "normal_selection_completion",
-                    "timestamp": "\(Date())"
-                ])
+    private var videoPlayerSection: some View {
+        Group {
+            if isVideoReplacementInProgress {
+                videoReplacementView
             } else {
-                // Other state changes (initial presentation, etc.)
-                diagnosticLogger.logDebug("📱 PHOTOS_PICKER_STATE: Other state change detected", metadata: [
-                    "is_showing": "\(isShowing)",
-                    "flow_type": "initial_or_other",
-                    "timestamp": "\(Date())"
-                ])
+                TrimmerPlayerView(
+                    unifiedState: unifiedState,
+                    isReady: isReadyToShowTrimmer,
+                    previewRotationDegrees: 0.0
+                )
             }
-        }
-        .confirmationDialog("Change Video", isPresented: $showChangeVideoConfirmation) {
-            Button("Change Video", role: .destructive) {
-                beginVideoReplacementProcess()
-            }
-            Button("Cancel", role: .cancel) {
-                videoReplacementState = .idle
-            }
-        } message: {
-            Text("You have unsaved trim changes. Changing videos will discard these changes.")
-        }
-
-        // MARK: - NEW: State-Driven Alert
-        // Add this modifier to the main VStack or parent container.
-        .alert("Minimum Duration", isPresented: Binding(
-            get: { viewModel.showMinDurationAlert },
-            set: { newValue in
-                if !newValue {
-                    // Allow the user to dismiss the alert.
-                    viewModel.showMinDurationAlert = false
-                }
-            }
-        )) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            // Precise and clear messaging.
-            Text("The minimum video duration is 3.000 seconds.")
         }
     }
+
+    private var trimmerInterfaceSection: some View {
+        VStack(spacing: 8) {
+            Spacer()
+            if viewModel.showMinimumDurationWarning == true {
+                minimumDurationWarning
+            }
+            timeCodeDisplay
+            mainTrimmerSection
+            controlSection
+            Spacer()
+        }
+    }
+
+    private var backgroundStyle: some View {
+        Color.backgroundPrimary.ignoresSafeArea()
+    }
+
+    private var loadingOverlay: some View {
+        Group {
+            if isFinalizing {
+                LoadingOverlayView(unifiedState: unifiedState)
+            }
+        }
+    }
+
     
-    
-    
+    // MARK: - Extracted Action Handlers
+
+    private func onMainViewAppear() {
+        let logger = DiagnosticLoggingHelper(category: "FeatureRichTrimmerView")
+        logger.logInfo("🎯 DOUBLE_ROTATION_FIX: View appeared with identity morphism - no SwiftUI rotation sync needed", metadata: [
+            "intrinsic_rotation": "\(viewModel.assetIntrinsicRotationTurns * 90)°",
+            "user_rotation": "\(viewModel.userAppliedRotationTurns * 90)°",
+            "total_rotation": "\(viewModel.totalRotationQuarterTurns * 90)°",
+            "swiftui_rotation": "DISABLED",
+            "avplayer_rotation": "ENABLED",
+            "double_rotation_fixed": "true"
+        ])
+    }
+
+    private func onMainViewDisappear() {
+        diagnosticLogger.logInfo("🧹 Body disappeared; cleanup completed")
+    }
+
+    private func onPhotosPickerChange(isShowing: Bool) {
+        diagnosticLogger.logDebug("🔄 PHOTOS_PICKER_STATE_CHANGED: showPhotosPicker changed to \(isShowing)", metadata: [
+            "is_showing": "\(isShowing)",
+            "is_video_replacement_in_progress": "\(isVideoReplacementInProgress)",
+            "temp_video_selection_is_nil": "\(tempVideoSelection == nil)",
+            "video_replacement_state": "\(videoReplacementState)",
+            "timestamp": "\(Date())"
+        ])
+
+        if !isShowing && isVideoReplacementInProgress && tempVideoSelection == nil {
+            handleVideoReplacementCancellation()
+        } else if !isShowing && tempVideoSelection != nil {
+            handleNormalSelectionCompletion()
+        } else {
+            handleOtherPhotosPickerStateChanges(isShowing: isShowing)
+        }
+    }
+
+    private func handleVideoReplacementCancellation() {
+        diagnosticLogger.logInfo("🔄 VIDEO_REPLACEMENT_CANCELLED: User cancelled video selection - resetting state", metadata: [
+            "detection_logic": "!isShowing && isVideoReplacementInProgress && tempVideoSelection == nil",
+            "previous_state": "\(videoReplacementState)",
+            "ui_state_before_reset": "preparing_stuck",
+            "user_action": "cancelled_photos_picker",
+            "fix_type": "missing_morphism_handleCancellation",
+            "timestamp": "\(Date())"
+        ])
+
+        Task {
+            diagnosticLogger.logDebug("🔧 MEMORY_FIX: Video replacement cancellation Task started")
+            await resetVideoReplacementState()
+
+            diagnosticLogger.logInfo("✅ VIDEO_REPLACEMENT_CANCELLED: State reset completed - UI restored to interactive state", metadata: [
+                "final_state": "\(videoReplacementState)",
+                "is_video_replacement_in_progress": "\(isVideoReplacementInProgress)",
+                "ui_restored": "true",
+                "morphism_composition": "(handleCancellation . showPhotosPicker . startVideoReplacement) ≈ id",
+                "timestamp": "\(Date())"
+            ])
+        }
+    }
+
+    private func handleNormalSelectionCompletion() {
+        diagnosticLogger.logDebug("✅ PHOTOS_PICKER_DISMISSED: Selection completed normally", metadata: [
+            "has_selection": "\(tempVideoSelection != nil)",
+            "flow_type": "normal_selection_completion",
+            "timestamp": "\(Date())"
+        ])
+    }
+
+    private func handleOtherPhotosPickerStateChanges(isShowing: Bool) {
+        diagnosticLogger.logDebug("📱 PHOTOS_PICKER_STATE: Other state change detected", metadata: [
+            "is_showing": "\(isShowing)",
+            "flow_type": "initial_or_other",
+            "timestamp": "\(Date())"
+        ])
+    }
+
     // MARK: - Time Code Display
     private var timeCodeDisplay: some View {
         VStack(spacing: 12) {

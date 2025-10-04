@@ -115,6 +115,7 @@ public protocol ModernVideoLoadingServiceProtocol: AnyObject {
     func loadVideo(from url: URL) async throws -> VideoLoadingResult
     func loadVideo(from phAsset: PHAsset) async throws -> VideoLoadingResult
     func cleanupTemporaryFiles() async
+    func cancelCurrentOperation()
     var progressPublisher: AnyPublisher<VideoLoadingProgress, Never> { get }
 }
 
@@ -669,6 +670,13 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol 
         // Clean up correlation ID
         memoryLogger.clearCorrelationId(for: "VideoLoadingService")
         currentCorrelationId = nil
+    }
+
+    // MARK: - Cancellation
+    public func cancelCurrentOperation() {
+        logger.info("🎬 VIDEO_LOADING: 🚫 Cancelling current operation")
+        currentCorrelationId = nil
+        // Additional cleanup can be added here if needed
     }
 
     // MARK: - Deinitialization

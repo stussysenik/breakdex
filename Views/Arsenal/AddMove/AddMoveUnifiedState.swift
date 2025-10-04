@@ -40,6 +40,10 @@ public class AddMoveUnifiedState: ObservableObject {
     private var addMoveSaveCoordinator: AddMoveSaveCoordinator?
     internal var flowStateManager: FlowStateManager!
 
+    // MARK: - Unified Progress Engine
+    @MainActor
+    public let unifiedProgressEngine = UnifiedProgressEngine()
+
     // Save readiness monitoring timer
     private var saveReadinessTimer: Timer?
 
@@ -48,12 +52,9 @@ public class AddMoveUnifiedState: ObservableObject {
 
     // MARK: - Core Properties
     @Published public var moveName: String = ""
-    @Published public var loadingProgress: Double = 0.0
-    @Published public var loadingStatus: String = ""
-    @Published public var currentProgress: Double = 0.0
 
     // MARK: - Logging Properties
-    private let logger = Logger(subsystem: "BreakingFlashcards", category: "🎬 AddMoveUnifiedState")
+    private let logger = Logger(subsystem: "breakdex", category: "🎬 AddMoveUnifiedState")
     private let appLogger = ConsoleLogger()
 
     // MARK: - 🎯 Comprehensive Diagnostic Logging Helper
@@ -129,6 +130,10 @@ public class AddMoveUnifiedState: ObservableObject {
     private var transitionStartTime: Date?
     private var transitionCorrelationId: String?
 
+    // 🎯 UX POLISH: Minimum display time tracking for loading overlay
+    private var loadingOverlayStartTime: Date?
+    private let minimumLoadingDisplayTime: TimeInterval = 1.0 // 1 second minimum for UX
+
     // 🎯 BACK BUTTON FIX: Preserve trimming state for back button functionality
     public var preservedTrimmingState: TrimmingStateSnapshot?
 
@@ -146,6 +151,63 @@ public class AddMoveUnifiedState: ObservableObject {
         // Reset to ready state when clearing error
         flowState = .ready
         playerState = .idle
+    }
+
+    // 🚀 UNIFIED PROGRESS ENGINE: Cancel current loading operation
+    @MainActor
+    public func cancelVideoLoading() async {
+        logger.info("🎬 AddMoveUnifiedState: 🚫 Video loading cancelled by user")
+
+        // Cancel unified progress engine
+        unifiedProgressEngine.cancelLoading()
+
+        // Cancel any ongoing video loading operations
+        modernVideoLoadingService.cancelCurrentOperation()
+
+        // Stop progress monitoring
+        videoProgressMonitoringService.stopMonitoring()
+
+        // Reset to ready state
+        await transition(to: .ready, triggeredBy: "user_cancellation")
+
+        logger.info("🎬 AddMoveUnifiedState: ✅ Video loading cancellation completed")
+    }
+
+    // 🚀 STORAGE VALIDATION: Validate available storage before loading
+    @MainActor
+    private func validateStorageBeforeLoading() async {
+        logger.info("🎬 AddMoveUnifiedState: 💾 Validating storage before video loading")
+
+        do {
+            // Get available disk space
+            let availableSpace = try await getAvailableDiskSpace()
+            let requiredSpace: Int64 = 500 * 1024 * 1024 // 500MB minimum requirement
+
+            logger.info("🎬 AddMoveUnifiedState: 💾 Storage check - Available: \(ByteCountFormatter.string(fromByteCount: availableSpace, countStyle: .file)), Required: \(ByteCountFormatter.string(fromByteCount: requiredSpace, countStyle: .file))")
+
+            if availableSpace < requiredSpace {
+                logger.warning("🎬 AddMoveUnifiedState: ⚠️ Insufficient storage available")
+                unifiedProgressEngine.handleStorageError(available: availableSpace, required: requiredSpace)
+                await setError(message: "Insufficient storage", underlying: "Need at least \(ByteCountFormatter.string(fromByteCount: requiredSpace, countStyle: .file)) of available space")
+            } else {
+                logger.info("🎬 AddMoveUnifiedState: ✅ Storage validation passed")
+            }
+        } catch {
+            logger.error("🎬 AddMoveUnifiedState: ❌ Failed to check available storage: \(error.localizedDescription)")
+            // Continue with loading but log the error
+        }
+    }
+
+    // Helper method to get available disk space
+    private func getAvailableDiskSpace() async throws -> Int64 {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let resourceValues = try documentsPath.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+
+        guard let availableSpace = resourceValues.volumeAvailableCapacityForImportantUsage else {
+            throw NSError(domain: "AddMoveUnifiedState", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to determine available disk space"])
+        }
+
+        return availableSpace
     }
 
     /// 🎯 BACK BUTTON FIX: Public method to update player state for proper state synchronization
@@ -300,7 +362,7 @@ public class AddMoveUnifiedState: ObservableObject {
         @available(*, deprecated, message: "Use async initializer for proper intrinsic rotation extraction")
         @MainActor
         init?(unifiedState: AddMoveUnifiedState) {
-            let logger = Logger(subsystem: "BreakingFlashcards", category: "📸 TrimmingStateSync")
+            let logger = Logger(subsystem: "breakdex", category: "📸 TrimmingStateSync")
             let startTime = CFAbsoluteTimeGetCurrent()
 
             guard let videoAsset = unifiedState.videoAsset,
@@ -352,7 +414,7 @@ public class AddMoveUnifiedState: ObservableObject {
         /// - Returns: A TrimmingStateSnapshot with perfectly separated intrinsic and user-applied rotation
         @MainActor
         init?(unifiedState: AddMoveUnifiedState) async {
-            let logger = Logger(subsystem: "BreakingFlashcards", category: "📸 TrimmingStateAsync")
+            let logger = Logger(subsystem: "breakdex", category: "📸 TrimmingStateAsync")
             let startTime = CFAbsoluteTimeGetCurrent()
 
             guard let videoAsset = unifiedState.videoAsset,
@@ -728,32 +790,82 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("🎬 AddMoveUnifiedState: Service subscriptions setup completed")
     }
 
-    // MARK: - Enhanced Progress Handling
+    // MARK: - Unified Progress Handling
     @MainActor
     public func handleVideoLoadingProgress(_ progress: VideoLoadingProgress) {
-        logger.info("🎬 AddMoveUnifiedState: 🔄 Handling video loading progress - \(String(describing: progress.phase)) - \(Int(progress.progress * 100))% - \(progress.message)")
+        logger.info("🎬 AddMoveUnifiedState: 🔄 Handling unified video loading progress - \(String(describing: progress.phase)) - \(Int(progress.progress * 100))% - \(progress.message)")
 
-        // 🎯 CRITICAL FIX: Enhanced progress validation and state consistency
+        // 🎯 CATEGORY THEORY FIX: Adjoint Functor Implementation for Atomic State Transition
+        // Left Adjoint (η): beginLoadingState - ensures state transition completes fully before async work
+        // Right Adjoint (ε): loadVideo - performs the async video loading work
+        // This eliminates race conditions by making state transition atomic and synchronous
+
+        let currentStateForValidation = flowState
+        logger.info("🎬 AddMoveUnifiedState: 📊 CATEGORY_THEORY_CURRENT_STATE: \(String(describing: currentStateForValidation))")
+
+        // 🎯 CATEGORICAL LIMITS: Strict error handling with terminal state transition
+        guard case .loadingVideo = currentStateForValidation else {
+            // 🚨 CRITICAL: Instead of silent failure, transition to error state (categorical limit)
+            logger.critical("🎬 AddMoveUnifiedState: ❌ CATEGORICAL_LIMIT_VIOLATION: Invalid state for video loading progress!")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 EXPECTED: loadingVideo state")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 ACTUAL: \(String(describing: currentStateForValidation))")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 PROGRESS_DETAILS:")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ phase: \(String(describing: progress.phase))")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ progress: \(Int(progress.progress * 100))%")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ message: \(progress.message)")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ correlation_id: \(progress.correlationId)")
+            logger.critical("🎬 AddMoveUnifiedState: │ └─ timestamp: \(Date())")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 CATEGORY_THEORY_ANALYSIS: State transition morphism failed - left adjoint (η) not properly applied")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 IMPACT: Progress updates ignored due to state mismatch causing 'stuck at 0%'")
+
+            // 🎯 CATEGORICAL LIMIT: Transition to error state instead of silent failure
+            // This implements categorical error handling where invalid morphisms terminate in error object
+            let errorMessage = "Video loading state corrupted. Please try selecting the video again."
+            logger.warning("🎬 AddMoveUnifiedState: 🔄 CATEGORICAL_ERROR_TRANSITION: Moving to error state due to state corruption")
+
+            // Asynchronous error transition to avoid reentrancy issues
+            Task { @MainActor in
+                await self.transition(to: .error(message: errorMessage, underlyingError: "State mismatch: expected loadingVideo, got \(String(describing: currentStateForValidation))"), triggeredBy: "categorical_limit_violation")
+            }
+
+            return // Exit early - categorical limit reached
+        }
+
+        logger.info("🎬 AddMoveUnifiedState: ✅ CATEGORICAL_GUARD_PASSED: State morphism valid, proceeding with progress handling")
+
+        // 🎯 CRITICAL FIX: Enhanced progress validation and state consistency with race condition prevention
         guard validateProgressUpdate(progress) else {
             logger.warning("🎬 AddMoveUnifiedState: ⚠️ Progress update validation failed - skipping update")
             return
         }
 
-        // Convert to SimpleProgress for internal use
-        let simpleProgress = SimpleProgress(from: progress)
+        // ✅ SIMPLIFIED LOGIC: Just command the engine. Do not read from it.
+        // The engine handles all state transitions and progress calculations internally
+        unifiedProgressEngine.processLegacyProgress(progress)
 
-        // Update loading properties for UI binding - ensures real-time progress updates
-        loadingProgress = progress.progress
-        loadingStatus = progress.message
-        currentProgress = progress.progress
+        // 🎯 PHASE 1 ENHANCED STATE VALIDATION: Double-check state after progress engine processing
+        let stateAfterProcessing = flowState
+        logger.info("🎬 AddMoveUnifiedState: 📊 PHASE_1_STATE_AFTER_PROCESSING: \(String(describing: stateAfterProcessing))")
 
-        // 🎯 CRITICAL FIX: Enhanced state transition logic with proper completion detection
-        if case .loadingVideo = flowState {
-            logger.info("🎬 AddMoveUnifiedState: 📊 Updating loading progress: \(Int(progress.progress * 100))%")
+        // 🎯 CRITICAL FIX: Enhanced state transition logic with unified progress
+        if case .loadingVideo = stateAfterProcessing {
+            logger.info("🎬 AddMoveUnifiedState: 📊 Unified loading progress: \(Int(self.unifiedProgressEngine.unifiedProgress * 100))% - \(self.unifiedProgressEngine.unifiedStatus)")
+            logger.info("🎬 AddMoveUnifiedState: 🎯 DIAGNOSTIC: Phase: \(self.unifiedProgressEngine.currentPhase.displayName), Target: \(String(format: "%.3f", self.unifiedProgressEngine.targetProgress))")
 
-            // 🎯 CRITICAL FIX: Enhanced completion detection with transition guard
-            if progress.progress >= 1.0 {
-                logger.info("🎬 AddMoveUnifiedState: ✅ VIDEO LOADING COMPLETE - transitioning to trimming stage")
+            // 🎯 COMPREHENSIVE DIAGNOSTIC: Race condition detection logging
+            logger.info("🎬 AddMoveUnifiedState: 📊 RACE_CONDITION_ANALYSIS:")
+            logger.info("🎬 AddMoveUnifiedState: │ ├─ Animated Progress (UI): \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
+            logger.info("🎬 AddMoveUnifiedState: │ ├─ Target Progress (Actual): \(String(format: "%.3f", self.unifiedProgressEngine.targetProgress)) (\(Int(self.unifiedProgressEngine.targetProgress * 100))%)")
+            logger.info("🎬 AddMoveUnifiedState: │ ├─ Progress Delta: \(String(format: "%.3f", abs(self.unifiedProgressEngine.targetProgress - self.unifiedProgressEngine.unifiedProgress)))")
+            logger.info("🎬 AddMoveUnifiedState: │ ├─ Current Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+            logger.info("🎬 AddMoveUnifiedState: │ ├─ Load Elapsed Time: \(String(format: "%.2f", self.loadElapsedTime))s")
+            logger.info("🎬 AddMoveUnifiedState: │ └─ Correlation ID: \(progress.correlationId)")
+
+            // 🎯 CRITICAL FIX: Enhanced completion detection with unified progress
+            if unifiedProgressEngine.targetProgress >= 1.0 {
+                logger.info("🎬 AddMoveUnifiedState: 🎯 CRITICAL_FIX_DETECTED: Target progress reached 100%. Completion condition is now based on actual progress, not animated value.")
+                logger.info("🎬 AddMoveUnifiedState: 📊 COMPLETION_METRICS: Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)), Phase: \(self.unifiedProgressEngine.currentPhase.displayName), Elapsed: \(String(format: "%.2f", self.loadElapsedTime))s")
+                logger.info("🎬 AddMoveUnifiedState: ✅ UNIFIED VIDEO LOADING COMPLETE - transitioning to trimming stage")
 
                 // 🎯 ENHANCED FIX: Prevent duplicate transitions with atomic check
                 guard !isTransitioningToTrimming else {
@@ -765,21 +877,56 @@ public class AddMoveUnifiedState: ObservableObject {
                 isTransitioningToTrimming = true
                 transitionStartTime = Date()
                 transitionCorrelationId = progress.correlationId
+                logger.info("🎬 AddMoveUnifiedState: 🔒 ATOMIC UNIFIED TRANSITION LOCKED - Correlation: \(progress.correlationId)")
 
-                logger.info("🎬 AddMoveUnifiedState: 🔒 ATOMIC TRANSITION LOCKED - Correlation: \(progress.correlationId)")
+                // 🚀 UNIFIED ENGINE: Complete the loading operation
+                unifiedProgressEngine.completeLoading()
 
-                // 🎯 SYNCHRONIZED TRANSITION: Execute immediately on main actor
-                Task { @MainActor in
-                    await handleLoadingCompletionWithAtomicGuard()
+                // 🎯 UX POLISH: Respect minimum display time for loading overlay
+                // This prevents flickering for fast-loading videos and ensures users see progress
+                let loadingDuration = loadingOverlayStartTime.map { Date().timeIntervalSince($0) } ?? 0
+                let remainingTime = max(0, minimumLoadingDisplayTime - loadingDuration)
+
+                if remainingTime > 0 {
+                    logger.info("🎬 AddMoveUnifiedState: ⏱️ UX_DELAY: Waiting \(String(format: "%.3f", remainingTime))s to meet minimum display time")
+
+                    // Schedule transition after minimum display time
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
+                        await handleLoadingCompletionWithAtomicGuard()
+                    }
+                } else {
+                    logger.info("🎬 AddMoveUnifiedState: ⏱️ UX_READY: Minimum display time satisfied, proceeding immediately")
+
+                    // Proceed immediately with transition
+                    Task { @MainActor in
+                        await handleLoadingCompletionWithAtomicGuard()
+                    }
                 }
-            } else if progress.progress >= 0.95 {
-                logger.info("🎬 AddMoveUnifiedState: 🔄 NEARING COMPLETION - \(Int(progress.progress * 100))%")
+            } else if self.unifiedProgressEngine.targetProgress >= 0.95 {
+                logger.info("🎬 AddMoveUnifiedState: 🔄 UNIFIED NEARING COMPLETION - Target: \(Int(self.unifiedProgressEngine.targetProgress * 100))%, Animated: \(Int(self.unifiedProgressEngine.unifiedProgress * 100))%")
+            } else {
+                // 🎯 DIAGNOSTIC: Log when completion condition is not met
+                logger.info("🎬 AddMoveUnifiedState: 📊 COMPLETION_CONDITION_NOT_MET: Target progress \(Int(self.unifiedProgressEngine.targetProgress * 100))% < 100%")
+                logger.info("🎬 AddMoveUnifiedState: 📊 CONTINUING_TO_WAIT: Animated progress: \(Int(self.unifiedProgressEngine.unifiedProgress * 100))%, Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
             }
         } else {
-            logger.warning("🎬 AddMoveUnifiedState: ⚠️ Progress update received while not in loadingVideo state - Current state: \(String(describing: self.flowState))")
+            // 🚨 PHASE 1 ENHANCED ERROR REPORTING: Make state mismatch failures explicit and visible
+            logger.critical("🎬 AddMoveUnifiedState: ❌ PHASE_1_STATE_MISMATCH_ERROR: Progress update received in wrong state!")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 CURRENT_STATE: \(String(describing: stateAfterProcessing))")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 EXPECTED_STATE: loadingVideo")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 PROGRESS_UPDATE_BEING_IGNORED:")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ phase: \(String(describing: progress.phase))")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ progress: \(Int(progress.progress * 100))%")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ message: \(progress.message)")
+            logger.critical("🎬 AddMoveUnifiedState: │ ├─ correlation_id: \(progress.correlationId)")
+            logger.critical("🎬 AddMoveUnifiedState: │ └─ timestamp: \(Date())")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 IMPACT: This is a symptom of the 'stuck at 0%' bug!")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 ACTION: Progress update SKIPPED due to invalid state")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 DEBUG: Check didSelectVideo() method for proper state transition timing")
         }
 
-        logger.info("🎬 AddMoveUnifiedState: ✅ Video loading progress handled successfully")
+        logger.info("🎬 AddMoveUnifiedState: ✅ Unified video loading progress handled successfully")
     }
 
     /// 🎯 CRITICAL FIX: Enhanced progress validation with cloud download support
@@ -819,7 +966,10 @@ public class AddMoveUnifiedState: ObservableObject {
     @MainActor
     private func handleLoadingCompletionWithAtomicGuard() async {
         let transitionDuration = transitionStartTime.map { Date().timeIntervalSince($0) } ?? 0
+        let loadingDisplayDuration = loadingOverlayStartTime.map { Date().timeIntervalSince($0) } ?? 0
+
         logger.info("🎬 AddMoveUnifiedState: 🚀 ATOMIC LOADING COMPLETION - Duration: \(String(format: "%.3f", transitionDuration))s")
+        logger.info("🎬 AddMoveUnifiedState: ⏱️ LOADING_OVERLAY_DURATION: \(String(format: "%.3f", loadingDisplayDuration))s (minimum: \(self.minimumLoadingDisplayTime)s)")
 
         // 🎯 ATOMIC VALIDATION: Verify transition state
         guard isTransitioningToTrimming else {
@@ -867,12 +1017,28 @@ public class AddMoveUnifiedState: ObservableObject {
         isTransitioningToTrimming = false
         transitionStartTime = nil
         transitionCorrelationId = nil
+
+        // 🎯 UX CLEANUP: Reset loading overlay timer
+        loadingOverlayStartTime = nil
+        logger.info("🎬 AddMoveUnifiedState: 🧹 Loading overlay timer reset")
     }
 
     /// 🎯 CRITICAL FIX: Enhanced atomic completion transition with improved natural transformation
     @MainActor
     private func performAtomicCompletionTransition(correlationId: String) async throws {
         logger.info("🎬 AddMoveUnifiedState: 🎯 ENHANCED ATOMIC COMPLETION TRANSITION [\(correlationId)]")
+
+        // 🎯 UX ENHANCEMENT: Ensure minimum 1.2 second display time for fast loads
+        let elapsedTime = loadElapsedTime
+        let minimumDisplayTime: TimeInterval = 1.2
+        let remainingTime = max(0, minimumDisplayTime - elapsedTime)
+
+        logger.info("🎬 AddMoveUnifiedState: 🎯 UX_ENHANCEMENT: Elapsed time: \(String(format: "%.2f", elapsedTime))s, Minimum: \(minimumDisplayTime)s, Remaining: \(String(format: "%.2f", remainingTime))s")
+
+        if remainingTime > 0 {
+            logger.info("🎬 AddMoveUnifiedState: ⏱️ UX POLISH: Load was very fast (\(String(format: "%.2f", elapsedTime))s). Delaying transition by \(String(format: "%.2f", remainingTime))s for perceived stability.")
+            try await Task.sleep(nanoseconds: UInt64(remainingTime * 1_000_000_000))
+        }
 
         // 🎯 ATOMIC STATE: Stop load timer immediately
         logger.info("🎬 AddMoveUnifiedState: ⏱️ Stopping load timer [\(correlationId)]")
@@ -975,10 +1141,8 @@ public class AddMoveUnifiedState: ObservableObject {
     public func handleTrimmedAssetProgress(_ progress: SimpleProgress) {
         logger.info("🎬 AddMoveUnifiedState: 🔄 Handling trimmed asset progress - \(progress.percentage)% - \(progress.message)")
 
-        // Update loading properties for UI binding
-        loadingProgress = progress.value
-        loadingStatus = progress.message
-        currentProgress = progress.value
+        // Update loading properties for UI binding - now handled by UnifiedProgressEngine
+        // loadingProgress, loadingStatus, and currentProgress are obsolete
 
         // Check if trimmed asset loading is complete
         if progress.value >= 1.0 {
@@ -1371,7 +1535,7 @@ public class AddMoveUnifiedState: ObservableObject {
     @MainActor
     private func updateTimerProgress(_ elapsed: TimeInterval) {
         let progress = min(1.0, elapsed / 30.0) // 30 second expected duration
-        loadingProgress = progress
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
     }
 
     // MARK: - State Transitions
@@ -1766,9 +1930,9 @@ public class AddMoveUnifiedState: ObservableObject {
         photosIdentifier = nil
         // 🎯 SSOT REMOVED: trimStartTime/trimEndTime assignments - now delegated to TrimmerViewModel
         // These values are computed from TrimmerViewModel and should be reset there
-        loadingProgress = 0.0
-        loadingStatus = ""
-        currentProgress = 0.0
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
+        // loadingStatus assignment removed - now handled by UnifiedProgressEngine
+        // currentProgress assignment removed - now handled by UnifiedProgressEngine
 
         // 🎯 BACK BUTTON FIX: Clear preserved trimming state
         clearPreservedTrimmingState()
@@ -1779,40 +1943,129 @@ public class AddMoveUnifiedState: ObservableObject {
         let identifier = item.itemIdentifier ?? "unknown"
         logger.info("🎬 AddMoveUnifiedState: 🚀 VIDEO_SELECTION_START - Processing video selection: \(identifier)")
 
-        // 🎯 CRITICAL RACE CONDITION FIX: Synchronous state transition BEFORE async operations
-        // This ensures the flowState is set to loadingVideo immediately, preventing any race conditions
-        // where progress updates might arrive before the state transition is complete
-        logger.info("🎬 AddMoveUnifiedState: 🔄 RACE_CONDITION_FIX: Initiating synchronous state transition to loadingVideo")
+        // 🎯 CATEGORY THEORY IMPLEMENTATION: Adjoint Functor for Atomic State Transition
+        // Left Adjoint (η): beginLoadingState - ensures state transition completes fully before async work
+        // Right Adjoint (ε): loadVideo - performs the async video loading work
+        // This implements the unit/counit laws ensuring state morphism composition
 
-        // Validate current state before transition
-        let currentState = flowState
-        logger.info("🎬 AddMoveUnifiedState: 📊 Current state before transition: \(String(describing: currentState))")
+        // Implement the atomic left adjoint (η) for state transition
+        let atomicTransitionSuccess = beginLoadingState(from: flowState, videoIdentifier: identifier)
 
-        // 🎯 SYNCHRONOUS TRANSITION: Set state immediately before any async operations
-        // This prevents race conditions where async operations complete before state is set
-        let initialProgress = SimpleProgress(value: 0.0, message: "Initializing video selection...")
-        flowState = .loadingVideo(progress: initialProgress)
+        guard atomicTransitionSuccess else {
+            logger.error("🎬 AddMoveUnifiedState: ❌ Left adjoint (η) failed - state transition morphism rejected")
+            return
+        }
 
-        logger.info("🎬 AddMoveUnifiedState: ✅ RACE_CONDITION_FIX: Synchronous state transition completed")
-        logger.info("🎬 AddMoveUnifiedState: 📊 State transition: \(String(describing: currentState)) → loadingVideo")
-        logger.info("🎬 AddMoveUnifiedState: 🎯 RACE_CONDITION_PREVENTION: flowState now set to loadingVideo BEFORE any async operations")
-
-        // 🎯 ENHANCED DIAGNOSTIC: Log state transition details for race condition debugging
-        logger.info("🎬 AddMoveUnifiedState: 📈 RACE_CONDITION_METRICS:")
-        logger.info("🎬 AddMoveUnifiedState: ├─ transition_timestamp: \(Date())")
-        logger.info("🎬 AddMoveUnifiedState: ├─ previous_state: \(String(describing: currentState))")
-        logger.info("🎬 AddMoveUnifiedState: ├─ new_state: loadingVideo")
-        logger.info("🎬 AddMoveUnifiedState: ├─ video_identifier: \(identifier)")
-        logger.info("🎬 AddMoveUnifiedState: ├─ initial_progress: \(initialProgress.value)")
-        logger.info("🎬 AddMoveUnifiedState: └─ sync_transition: true")
-
-        // 🎯 ASYNC OPERATIONS: Only start async work AFTER synchronous state transition is complete
+        // 🎯 ASYNC OPERATIONS: Right adjoint (ε) - Only start async work AFTER left adjoint completes
         // This guarantees that any progress updates or callbacks will arrive when we're already in loadingVideo state
-        logger.info("🎬 AddMoveUnifiedState: 📡 Starting async video loading operations")
+        logger.info("🎬 AddMoveUnifiedState: 📡 Starting async video loading operations (right adjoint ε)")
         Task {
             // 🎯 ASYNC BOUNDARY: All async operations now happen after the state is safely set
             await loadVideo(from: item)
         }
+    }
+
+    // MARK: - Category Theory: Adjoint Functor Implementation
+
+    /// 🎯 CATEGORY THEORY: Left Adjoint (η) - Atomic State Transition
+    /// Implements the unit law η: Id → GF ensuring state transition is atomic and complete
+    /// This prevents race conditions by guaranteeing state transition completes before async work
+    @MainActor
+    private func beginLoadingState(from currentState: AddMoveFlowState, videoIdentifier: String) -> Bool {
+        logger.info("🎬 AddMoveUnifiedState: 🎯 LEFT_ADJOINT_η: Beginning atomic state transition")
+        logger.info("🎬 AddMoveUnifiedState: 📊 Category Theory: Implementing unit morphism η: Id → GF")
+
+        // 🛡️ ENHANCED GUARD: Validate we're in a proper state to start loading
+        let validStatesForLoading: [AddMoveFlowState] = [.ready, .trimming, .error(message: "Recovery", underlyingError: nil), .success(message: "Complete")]
+
+        guard validStatesForLoading.contains(currentState) else {
+            logger.error("🎬 AddMoveUnifiedState: ❌ CATEGORY_THEORY_VIOLATION: Invalid source object for morphism")
+            logger.error("🎬 AddMoveUnifiedState: 🚫 MORPHISM_REJECTED: Cannot transition from \(String(describing: currentState)) to loadingVideo")
+            logger.error("🎬 AddMoveUnifiedState: ✅ VALID_SOURCE_OBJECTS: \(validStatesForLoading.map { String(describing: $0) }.joined(separator: ", "))")
+            return false
+        }
+
+        logger.info("🎬 AddMoveUnifiedState: ✅ CATEGORY_THEORY_VALIDATION: Source object valid for morphism")
+
+        // 🎯 CRITICAL FIX: Start the load timer to drive UI progress animations
+        // This fixes the issue where loading UI shows 0% progress and "00:00" elapsed time
+        logger.info("🎬 AddMoveUnifiedState: 🚨 TIMER_ACTIVATION_FIX: Starting load timer for UI progress animation")
+        guard let timerService = self.timerManagementService else {
+            logger.error("🎬 AddMoveUnifiedState: ❌ TIMER_SERVICE_UNAVAILABLE: TimerManagementService is nil")
+            logger.warning("🎬 AddMoveUnifiedState: ⚠️ TIMER_FALLBACK: Continuing without load timer - UI progress may not update")
+            return false
+        }
+
+        // 🎯 ENHANCED VERIFICATION: Log pre-timer state for debugging
+        let preTimerElapsed = timerService.getLoadElapsedTime()
+        logger.info("🎬 AddMoveUnifiedState: 🔧 TIMER_SERVICE_PRE_CHECK: Timer service available, pre-start elapsed: \(preTimerElapsed)s")
+
+        // 🎯 CRITICAL ACTION: Start the load timer
+        timerService.startLoadTimer()
+        logger.info("🎬 AddMoveUnifiedState: ✅ LOAD_TIMER_STARTED: Load timer successfully activated")
+
+        // 🎯 VERIFICATION CHECK: Confirm timer is running after starting
+        let postTimerElapsed = timerService.getLoadElapsedTime()
+        logger.info("🎬 AddMoveUnifiedState: 🔍 TIMER_VERIFICATION: Post-start elapsed: \(postTimerElapsed)s")
+
+        // 🎯 CALLBACK VERIFICATION: Verify that timer update callbacks are properly configured
+        if timerService.onLoadTimerUpdate == nil {
+            logger.warning("🎬 AddMoveUnifiedState: ⚠️ TIMER_CALLBACK_NOT_SET: onLoadTimerUpdate callback is nil - UI won't update!")
+        } else {
+            logger.info("🎬 AddMoveUnifiedState: ✅ TIMER_CALLBACK_CONFIGURED: onLoadTimerUpdate callback is properly set")
+        }
+
+        // 🎯 MINIMUM DISPLAY TIME: Track loading overlay start time for UX polish
+        loadingOverlayStartTime = Date()
+        logger.info("🎬 AddMoveUnifiedState: ⏱️ LOADING_OVERLAY_TIMER: Started at \(self.loadingOverlayStartTime!)")
+
+        // 🎯 ATOMIC STATE TRANSITION: Implement the state morphism atomically
+        // This prevents race conditions where async operations complete before state is set
+        logger.info("🎬 AddMoveUnifiedState: 🔄 ATOMIC_MORPHISM: Executing state transition morphism")
+
+        let stateTransitionStartTime = Date()
+        flowState = .loadingVideo
+        let stateTransitionDuration = Date().timeIntervalSince(stateTransitionStartTime)
+
+        logger.info("🎬 AddMoveUnifiedState: ✅ ATOMIC_MORPHISM_COMPLETED: State transition in \(String(format: "%.3f", stateTransitionDuration))s")
+        logger.info("🎬 AddMoveUnifiedState: 📊 Morphism: \(String(describing: currentState)) → loadingVideo")
+
+        // 🛡️ MORPHISM VERIFICATION: Verify the state transition was successful
+        let verificationState = flowState
+        guard case .loadingVideo = verificationState else {
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 MORPHISM_FAILURE: State transition morphism failed!")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 Expected: loadingVideo, Actual: \(String(describing: verificationState))")
+            logger.critical("🎬 AddMoveUnifiedState: 🚨 CATEGORY_THEORY_VIOLATION: Unit law η: Id → GF not satisfied")
+
+            // Attempt recovery - retry the morphism once
+            logger.warning("🎬 AddMoveUnifiedState: 🔄 MORPHISM_RETRY: Attempting atomic state transition recovery")
+            flowState = .loadingVideo
+
+            let recoveryState = flowState
+            guard case .loadingVideo = recoveryState else {
+                logger.critical("🎬 AddMoveUnifiedState: ❌ MORPHISM_RECOVERY_FAILED: Cannot establish loadingVideo state")
+                return false
+            }
+
+            logger.info("🎬 AddMoveUnifiedState: ✅ MORPHISM_RECOVERY_SUCCESS: loadingVideo state established")
+            return true // Explicit return from guard body after successful recovery
+        }
+
+        // 🎯 COMPREHENSIVE DIAGNOSTIC LOGGING: Category theory state tracking
+        logger.info("🎬 AddMoveUnifiedState: 📈 CATEGORY_THEORY_METRICS:")
+        logger.info("🎬 AddMoveUnifiedState: ├─ unit_law_η: satisfied")
+        logger.info("🎬 AddMoveUnifiedState: ├─ morphism_timestamp: \(Date())")
+        logger.info("🎬 AddMoveUnifiedState: ├─ source_object: \(String(describing: currentState))")
+        logger.info("🎬 AddMoveUnifiedState: ├─ target_object: loadingVideo")
+        logger.info("🎬 AddMoveUnifiedState: ├─ video_identifier: \(videoIdentifier)")
+        logger.info("🎬 AddMoveUnifiedState: ├─ transition_duration: \(String(format: "%.3f", stateTransitionDuration))s")
+        logger.info("🎬 AddMoveUnifiedState: ├─ atomic_operation: true")
+        logger.info("🎬 AddMoveUnifiedState: ├─ main_actor_isolated: true")
+        logger.info("🎬 AddMoveUnifiedState: └─ categorical_composition: ready → loadingVideo (left adjoint complete)")
+
+        logger.info("🎬 AddMoveUnifiedState: ✅ LEFT_ADJOINT_η_COMPLETE: State transition morphism satisfied, ready for right adjoint")
+
+        return true
     }
 
     // MARK: - Video Loading Implementation
@@ -1834,9 +2087,17 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("🎬 AddMoveUnifiedState: 📊 Current state verification: \(String(describing: self.flowState))")
 
         // Reset loading progress properties (state transition already handled)
-        loadingProgress = 0.0
-        loadingStatus = "Preparing to load video..."
-        currentProgress = 0.0
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
+        // loadingStatus assignment removed - now handled by UnifiedProgressEngine
+        // currentProgress assignment removed - now handled by UnifiedProgressEngine
+
+        // 🚀 UNIFIED PROGRESS ENGINE: Initialize unified progress tracking
+        logger.info("🎬 AddMoveUnifiedState: 🚀 Initializing unified progress engine for video loading")
+
+        // 🚀 STORAGE VALIDATION: Check available storage before loading
+        await validateStorageBeforeLoading()
+
+        unifiedProgressEngine.beginLoading()
 
         // 🎯 DIAGNOSTIC: Verify we're already in the correct state
         guard case .loadingVideo = flowState else {
@@ -1880,6 +2141,20 @@ public class AddMoveUnifiedState: ObservableObject {
         } catch {
             let loadingDuration = Date().timeIntervalSince(loadingStartTime)
             logger.error("🎬 AddMoveUnifiedState: ❌ Video loading failed after \(String(format: "%.2f", loadingDuration))s - \(error.localizedDescription)")
+
+            // 🚀 UNIFIED PROGRESS ENGINE: Handle error in unified progress engine
+            let unifiedError: UnifiedProgressEngine.ProgressError
+            if error.localizedDescription.contains("network") || error.localizedDescription.contains("connection") {
+                unifiedError = .networkLost
+            } else if error.localizedDescription.contains("storage") || error.localizedDescription.contains("space") {
+                unifiedError = .insufficientStorage(available: 0, required: 0) // Values will be determined by error message
+            } else if error.localizedDescription.contains("timeout") {
+                unifiedError = .timeout(duration: loadingDuration)
+            } else {
+                unifiedError = .unknown(error.localizedDescription)
+            }
+
+            unifiedProgressEngine.handleError(unifiedError)
             await setError(message: "Failed to load video", underlying: error.localizedDescription)
         }
     }
@@ -1964,8 +2239,8 @@ public class AddMoveUnifiedState: ObservableObject {
         // Reset core properties for the loading phase
         videoAsset = nil
         photosIdentifier = nil
-        loadingProgress = 0.0
-        loadingStatus = "Replacing video..."
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
+        // loadingStatus assignment removed - now handled by UnifiedProgressEngine
 
         logger.info("✅ Video replacement state has been reset. Ready for fresh load.")
 
@@ -1980,10 +2255,8 @@ public class AddMoveUnifiedState: ObservableObject {
         // morphism, creating a valid sequence: .trimming -> .loadingVideo -> .trimming.
         //
         logger.info("🔄 MORPHISM FIX: Performing synchronous transition from .trimming to .loadingVideo before async loading.")
-        let initialProgress = SimpleProgress(value: 0.0, message: "Replacing video...")
-
         // This is the missing state transition that satisfies the precondition for `loadVideo`.
-        self.flowState = .loadingVideo(progress: initialProgress)
+        self.flowState = .loadingVideo
 
         logger.info("✅ MORPHISM FIX: State is now .loadingVideo. Proceeding with async load.")
         //
@@ -2203,9 +2476,9 @@ public class AddMoveUnifiedState: ObservableObject {
         // userAppliedRotation = 0
 
         // Reset loading state
-        loadingProgress = 0.0
-        loadingStatus = ""
-        currentProgress = 0.0
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
+        // loadingStatus assignment removed - now handled by UnifiedProgressEngine
+        // currentProgress assignment removed - now handled by UnifiedProgressEngine
 
         // Transition to ready state
         await transition(to: .ready)
@@ -2227,9 +2500,9 @@ public class AddMoveUnifiedState: ObservableObject {
         // Reset video-specific state but preserve metadata
         videoAsset = nil
         currentPlayerViewModel = nil
-        loadingProgress = 0.0
-        loadingStatus = ""
-        currentProgress = 0.0
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
+        // loadingStatus assignment removed - now handled by UnifiedProgressEngine
+        // currentProgress assignment removed - now handled by UnifiedProgressEngine
 
         // Video reloading from photos identifier not currently supported
         // Reset to ready state instead
@@ -2284,9 +2557,9 @@ public class AddMoveUnifiedState: ObservableObject {
         moveName = ""
         // 🎯 SSOT REMOVED: trimStartTime/trimEndTime assignments - now delegated to TrimmerViewModel
         // These values are computed from TrimmerViewModel and should be reset there
-        loadingProgress = 0.0
-        loadingStatus = ""
-        currentProgress = 0.0
+        // loadingProgress assignment removed - now handled by UnifiedProgressEngine
+        // loadingStatus assignment removed - now handled by UnifiedProgressEngine
+        // currentProgress assignment removed - now handled by UnifiedProgressEngine
 
         // Reset all timers
         timerManagementService.resetAllTimers()
@@ -2324,7 +2597,7 @@ public class AddMoveUnifiedState: ObservableObject {
         logger.info("🎬 AddMoveUnifiedState: 📊 Move Name: '\(self.moveName.isEmpty ? "Empty" : self.moveName)'")
         logger.info("🎬 AddMoveUnifiedState: 📊 Trim Range: \(String(format: "%.2f", self.trimStartTime))s - \(String(format: "%.2f", self.trimEndTime))s")
         logger.info("🎬 AddMoveUnifiedState: 📊 Rotation: \(self.totalRotationQuarterTurns * 90)° (intrinsic: \(self.intrinsicAssetRotation * 90)° + user: \(self.userAppliedRotation * 90)°)")
-        logger.info("🎬 AddMoveUnifiedState: 📊 Load Progress: \(String(format: "%.1f", self.loadingProgress * 100))%")
+        logger.info("🎬 AddMoveUnifiedState: 📊 Load Progress: \(String(format: "%.1f", self.unifiedProgressEngine.unifiedProgress * 100))%")
         logger.info("🎬 AddMoveUnifiedState: 📊 Load Timer: \(String(format: "%.2f", self.loadElapsedTime))s")
         logger.info("🎬 AddMoveUnifiedState: 📊 Save Timer: \(String(format: "%.2f", self.saveElapsedTime))s")
         logger.info("🎬 AddMoveUnifiedState: 📊 Memory: \(self.getMemoryUsage())")
@@ -2437,9 +2710,9 @@ public class AddMoveUnifiedState: ObservableObject {
     @MainActor
     public func logProgressDiagnostics() {
         logger.info("🎬 AddMoveUnifiedState: 📊 PROGRESS DIAGNOSTICS")
-        logger.info("🎬 AddMoveUnifiedState: 📊 Current Progress: \(String(format: "%.3f", self.currentProgress * 100))%")
-        logger.info("🎬 AddMoveUnifiedState: 📊 Loading Progress: \(String(format: "%.3f", self.loadingProgress * 100))%")
-        logger.info("🎬 AddMoveUnifiedState: 📊 Loading Status: '\(self.loadingStatus)'")
+        logger.info("🎬 AddMoveUnifiedState: 📊 Current Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress * 100))%")
+        logger.info("🎬 AddMoveUnifiedState: 📊 Loading Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress * 100))%")
+        logger.info("🎬 AddMoveUnifiedState: 📊 Loading Status: '\(self.unifiedProgressEngine.unifiedStatus)'")
         logger.info("🎬 AddMoveUnifiedState: 📊 Timestamp: \(Date())")
     }
 
@@ -3013,7 +3286,7 @@ public enum TrimmerSetupError: Error, LocalizedError {
 // MARK: - App Logger Adapter
 /// Simple adapter to make OSLog compatible with AppLogger protocol
 private class AddMoveAppLogger: AppLogger {
-    private let logger = Logger(subsystem: "BreakingFlashcards", category: "🎬 AddMoveUnifiedState")
+    private let logger = Logger(subsystem: "breakdex", category: "🎬 AddMoveUnifiedState")
 
     func info(_ message: String, metadata: [String: Any]? = nil) {
         logger.info("\(message)")

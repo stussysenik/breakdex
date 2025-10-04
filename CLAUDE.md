@@ -1,4 +1,4 @@
-## Claude.md — BreakingFlashcards Video App (iOS 18.0)
+## Claude.md — breakdex Video App (iOS 18.0)
 
 # * **Single Responsibility Principle (SRP):** Enforce SRP across all components. Views remain "dumb," containing no business logic and forwarding all user actions to the ViewModel.
 
@@ -57,7 +57,7 @@ DesignSystem.swift or Color+Extensions.swift
 approx. 500 lines if exceeded - means we're not following SRP principle
 
 ### App Purpose
-Develop a high-performance, iOS 18.0-compliant video flashcard application for learning and reviewing complex physical movements. The project is built on a foundation of robust state management, Swift Concurrency, and a stable, custom video playback engine with millisecond-precise video trimming capabilities.
+Develop a high-performance, iOS 18.0-compliant video flashcard application called breakdex for learning and reviewing complex physical movements. The project is built on a foundation of robust state management, Swift Concurrency, and a stable, custom video playback engine with millisecond-precise video trimming capabilities.
 
 ### Core Architectural Principles
 * **SwiftUI & State Flow:** Employ a strict unidirectional data flow for all UI. The `AddMoveFlowState` enum serves as the single source of truth, with a state-driven ViewRouter (`AddMoveContainer`) managing view switching.
@@ -117,7 +117,7 @@ This eliminates the complex `previewing` and `trimming_setup` states that caused
 ### Testing & Compliance
 * All new code must include companion unit tests (XCTest) for models and utilities, and UI tests (XCUITest) for video playback, flashcard navigation, and error states.
 * The app must be fully functional and compliant with iOS 18.0 APIs.
-* Verify builds using the command: `xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build`.
+* Verify builds using the command: `xcodebuild -project BreakingFlashcards.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build`.
 * Retain cycle prevention must be verified through Instruments profiling for all ViewModel lifecycle management.
 
 ### Feature Flags
@@ -126,7 +126,7 @@ This eliminates the complex `previewing` and `trimming_setup` states that caused
 
 ### Syntax Validation & Code Quality
 * **Pre-Commit Checks:** Always run `swiftc -parse` on modified files before committing
-* **Build Verification:** Execute `xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards build` to verify compilation
+* **Build Verification:** Execute `xcodebuild -project breakdex.xcodeproj -scheme breakdex build` to verify compilation
 * **Scope Management:** Use IDE code folding to verify struct/class/function boundaries - extra closing braces are a common source of "initializers may only be declared within a type" errors
 * **Optional Safety:** Only use optional chaining (`?.`) on truly optional types; avoid unnecessary nil-coalescing (`??`) on non-optional values
 * **Component Dependencies:** Ensure child components have access to required dependencies through proper property injection
@@ -180,24 +180,24 @@ When encountering compilation errors:
 ### Build Verification Commands
 ```bash
 # Syntax validation for main refactored file
-swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/AddMoveUnifiedState.swift
+swiftc -parse breakdex/Views/Arsenal/AddMove/AddMoveUnifiedState.swift
 
 # Syntax validation for extracted components
-swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/State/AddMoveFlowState.swift
-swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Services/TimerManager.swift
-swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Services/ProgressMonitor.swift
-swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Validation/StateValidator.swift
-swiftc -parse BreakingFlashcards/Views/Arsenal/AddMove/Operations/SaveOperationCoordinator.swift
+swiftc -parse breakdex/Views/Arsenal/AddMove/State/AddMoveFlowState.swift
+swiftc -parse breakdex/Views/Arsenal/AddMove/Services/TimerManager.swift
+swiftc -parse breakdex/Views/Arsenal/AddMove/Services/ProgressMonitor.swift
+swiftc -parse breakdex/Views/Arsenal/AddMove/Validation/StateValidator.swift
+swiftc -parse breakdex/Views/Arsenal/AddMove/Operations/SaveOperationCoordinator.swift
 
 # Full project build
-xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 # Clean build verification
-xcodebuild clean -project BreakingFlashcards.xcodeproj
-xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild clean -project breakdex.xcodeproj
+xcodebuild -project BreakingFlashcards.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 # Build with specific simulator (useful when multiple simulators available)
-xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,id=86FFC075-5BA3-4125-9534-C9F8B525E72A' build
+xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,id=86FFC075-5BA3-4125-9534-C9F8B525E72A' build
 ```
 
 ### Recent Improvements (September 2025)

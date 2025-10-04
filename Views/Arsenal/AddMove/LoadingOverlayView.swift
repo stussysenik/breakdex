@@ -5,20 +5,18 @@ import OSLog
 /// Designed for "The Athlete" persona who values precision and mechanical watch aesthetics.
 /// Enhanced with elapsed time display, trimming setup phases, and diagnostic capabilities.
 /// Updated for simplified 5-stage state machine with SimpleProgress support.
+/// 🎯 CRITICAL FIX: Progress decoupled from state enum - now only depends on unified state
 struct LoadingOverlayView: View {
-    let progress: SimpleProgress
     @ObservedObject var unifiedState: AddMoveUnifiedState
 
-    // 🎯 REAL-TIME FIX: Use unifiedState progress values for real-time updates
-    // This ensures the overlay shows the latest progress from the loading service
+    // ✅ BIND DIRECTLY to the engine's properties for real-time updates
+    // This eliminates the stale value issue by observing the single source of truth
     private var progressValue: Double {
-        // Use the most recent progress value from the state
-        return max(progress.value, unifiedState.currentProgress)
+        return unifiedState.unifiedProgressEngine.unifiedProgress
     }
 
     private var statusMessage: String {
-        // Use the most recent status message from the state
-        return unifiedState.loadingStatus.isEmpty ? progress.message : unifiedState.loadingStatus
+        return unifiedState.unifiedProgressEngine.unifiedStatus
     }
 
     // Enhanced status message based on progress
@@ -28,21 +26,21 @@ struct LoadingOverlayView: View {
 
     var body: some View {
         ZStack {
-            // A subtle background to dim the underlying content.
-            Color.black.opacity(0.75)
-                .ignoresSafeArea()
-                .transition(.opacity)
+            // 🚀 UNIFIED PROGRESS: Subtle background with smooth fade-in animation
+            // Color.black.opacity(0.75)
+            //     .ignoresSafeArea()
+            //     .transition(.opacity.combined(with: .scale(scale: 0.95)))
 
             VStack(spacing: 16) {
                 // 🎯 CRITICAL FIX: Enhanced status display with phase indicator
                 VStack(spacing: 8) {
-                    // The enhanced status message provides context for all phases
+                    // 🚀 UNIFIED PROGRESS: Enhanced status message with smooth transitions
                     Text(enhancedStatusMessage)
                         .font(.headline)
                         .fontWeight(.medium)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
-                        .animation(nil, value: enhancedStatusMessage) // Prevent animation on text change
+                        .animation(.easeInOut(duration: 0.25), value: enhancedStatusMessage)
 
                     // Progress phase indicator with enhanced descriptions
                     Text("Loading Video")
@@ -59,15 +57,17 @@ struct LoadingOverlayView: View {
                     }
                 }
 
-                // A simple, clean, linear progress bar.
+                // ✅ BIND DIRECTLY to the engine's progress with simple animation
+                // The engine's internal timer already provides smoothness
                 ProgressView(value: progressValue)
                     .progressViewStyle(LinearProgressViewStyle(tint: .white))
-                    .animation(.easeInOut(duration: 0.3), value: progressValue)
+                    .animation(.linear(duration: 0.1), value: progressValue)
 
-                // Progress percentage
+                // ✅ BIND DIRECTLY to the engine's progress percentage
                 Text("\(Int(progressValue * 100))%")
                     .font(.ibmPlexMono(size: 14, weight: .regular))
                     .foregroundColor(.white)
+                    .animation(.linear(duration: 0.1), value: progressValue)
 
                 // 🎯 STRATEGIC FIX: Enhanced elapsed time display for large video loading
                 HStack(spacing: 4) {
@@ -85,6 +85,8 @@ struct LoadingOverlayView: View {
             .cornerRadius(16)
             .shadow(color: .black.opacity(0.3), radius: 20)
             .padding(.horizontal, 40)
+            .scaleEffect(1.0)
+            .animation(.easeInOut(duration: 0.4), value: progressValue)
         }
         .onAppear {
             // 🎯 STRATEGIC FIX: Diagnostic logging for loading overlay appearance
@@ -114,6 +116,8 @@ struct LoadingOverlayView: View {
         logger.info("🎬 LOADING_OVERLAY: 📊 Progress: \(Int(progressValue * 100))% - \(statusMessage)")
         logger.info("🎬 LOADING_OVERLAY: ⏱️ Initial elapsed time: \(String(format: "%.1f", unifiedState.loadElapsedTime))s")
         logger.info("🎬 LOADING_OVERLAY: 📝 Status message: \(enhancedStatusMessage)")
+        logger.info("🎬 LOADING_OVERLAY: 🎯 CRITICAL_FIX_LOG: State decoupled - loading overlay now depends only on unified state")
+        logger.info("🎬 LOADING_OVERLAY: 📊 Engine Status: \(unifiedState.unifiedProgressEngine.unifiedStatus)")
 
         if isTrimmingSetupPhase {
             logger.info("🎬 LOADING_OVERLAY: 🎬 Trimming setup phase detected - preparing precision tools")

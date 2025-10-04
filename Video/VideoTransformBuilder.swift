@@ -7,7 +7,7 @@ import OSLog
 @MainActor
 final class VideoTransformBuilder {
 
-    private static let logger = Logger(subsystem: "BreakingFlashcards", category: "VideoTransformBuilder")
+    private static let logger = Logger(subsystem: "breakdex", category: "VideoTransformBuilder")
 
     /// Builds AVMutableComposition and AVMutableVideoComposition with rotation and trimming applied
     /// - Parameters:

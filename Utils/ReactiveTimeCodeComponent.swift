@@ -4,7 +4,7 @@ import Combine
 import OSLog
 
 // Local import for memory utilities
-import BreakingFlashcards // Import the module to access TimecodeFormatter
+import breakdex // Import the module to access TimecodeFormatter
 
 /// Enhanced reactive time code component that provides smooth animated time displays
 /// with frame-accurate timing and visual feedback for active states

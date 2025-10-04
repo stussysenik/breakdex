@@ -1,8 +1,8 @@
-# BreakingFlashcards Technical Architecture
+# breakdex Technical Architecture
 
 ## 📋 Overview
 
-BreakingFlashcards is a comprehensive video flashcard application for learning and reviewing complex physical movements, built with iOS 18.0, SwiftUI, and modern Swift concurrency patterns. The app follows KISS, DRY, YAGNI, and WYSIWYG principles to maintain a clean, maintainable codebase.
+breakdex is a comprehensive video flashcard application for learning and reviewing complex physical movements, built with iOS 18.0, SwiftUI, and modern Swift concurrency patterns. The app follows KISS, DRY, YAGNI, and WYSIWYG principles to maintain a clean, maintainable codebase.
 
 **Current State**: 100+ Swift files with production-ready video processing, comprehensive state management, enhanced user experience features, robust save move functionality, and newly refactored component architecture.
 

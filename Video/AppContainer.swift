@@ -31,7 +31,7 @@ public final class AppContainer {
         return ModernVideoLoadingService()
     }()
 
-    private(set) lazy var videoLoadingService: BreakingFlashcards.VideoLoadingService = {
+    private(set) lazy var videoLoadingService: breakdex.VideoLoadingService = {
         return LiveVideoLoadingService(memoryManager: memoryManager, logger: logger)
     }()
     

@@ -19,14 +19,23 @@ public struct VideoLoadingProgress {
     public let progress: Double
     public let message: String
 
+    public init(phase: LoadingPhase, correlationId: String, unifiedProgress: Double = 0.0, unifiedStatus: String = "") {
+        self.phase = phase
+        self.correlationId = correlationId
+        self.progress = unifiedProgress
+        self.message = unifiedStatus.isEmpty ? Self.getDefaultMessage(for: phase) : unifiedStatus
+    }
+
+    // Legacy initializer for backward compatibility
     public init(phase: LoadingPhase, correlationId: String) {
         self.phase = phase
         self.correlationId = correlationId
-        self.progress = Self.calculateProgress(for: phase)
-        self.message = Self.getMessage(for: phase)
+        self.progress = Self.getLegacyProgress(for: phase)
+        self.message = Self.getDefaultMessage(for: phase)
     }
 
-    private static func calculateProgress(for phase: LoadingPhase) -> Double {
+    // Legacy progress calculation for backward compatibility only
+    private static func getLegacyProgress(for phase: LoadingPhase) -> Double {
         switch phase {
         case .initializing: return 0.05
         case .downloadingFromCloud(let progress): return 0.1 + (progress * 0.3) // Maps 0-100% download to 10-40% of total
@@ -39,7 +48,7 @@ public struct VideoLoadingProgress {
         }
     }
 
-    private static func getMessage(for phase: LoadingPhase) -> String {
+    private static func getDefaultMessage(for phase: LoadingPhase) -> String {
         switch phase {
         case .initializing: return "Initializing..."
         case .downloadingFromCloud(let progress): return "Downloading from iCloud... (\(Int(progress * 100))%)"
@@ -50,6 +59,14 @@ public struct VideoLoadingProgress {
         case .loadingTrimmerTracks: return "Loading trimmer tracks..."
         case .validatingTrimmer: return "Validating trimmer setup..."
         }
+    }
+
+    // Create from UnifiedProgressEngine for modern unified progress tracking
+    public init(unifiedProgress: Double, unifiedStatus: String, phase: LoadingPhase = .initializing, correlationId: String = UUID().uuidString) {
+        self.phase = phase
+        self.correlationId = correlationId
+        self.progress = unifiedProgress
+        self.message = unifiedStatus
     }
 }
 
@@ -79,7 +96,7 @@ public struct SimpleProgress: Sendable, Equatable, Hashable {
 /// Note: We keep the old VideoLoadingProgress struct for compatibility but use SimpleProgress in states
 public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     case ready
-    case loadingVideo(progress: SimpleProgress)
+    case loadingVideo
     case trimming
     case loadingTrimmedAsset(progress: SimpleProgress)
     case naming
@@ -91,7 +108,7 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     public init(from oldState: AddMoveFlowState) {
         switch oldState {
         case .ready: self = .ready
-        case .loadingVideo(let progress): self = .loadingVideo(progress: progress)
+        case .loadingVideo: self = .loadingVideo
         case .trimming: self = .trimming
         case .loadingTrimmedAsset(let progress): self = .loadingTrimmedAsset(progress: progress)
         case .naming: self = .naming
@@ -132,18 +149,24 @@ public enum AddMoveFlowState: Equatable, Hashable, Sendable {
     }
 
     // Helper to get loading progress for compatibility
+    // Note: .loadingVideo no longer carries progress - it's managed by AddMoveUnifiedState.unifiedProgressEngine
     var loadingProgress: Double {
         switch self {
-        case .loadingVideo(let progress), .loadingTrimmedAsset(let progress):
+        case .loadingVideo:
+            return 0.0 // Progress managed externally by UnifiedProgressEngine
+        case .loadingTrimmedAsset(let progress):
             return progress.value
         default: return 0.0
         }
     }
 
     // Helper to get loading status for compatibility
+    // Note: .loadingVideo no longer carries status - it's managed by AddMoveUnifiedState.unifiedProgressEngine
     var loadingStatus: String {
         switch self {
-        case .loadingVideo(let progress), .loadingTrimmedAsset(let progress):
+        case .loadingVideo:
+            return "" // Status managed externally by UnifiedProgressEngine
+        case .loadingTrimmedAsset(let progress):
             return progress.message
         default: return ""
         }
