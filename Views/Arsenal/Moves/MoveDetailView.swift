@@ -2,6 +2,20 @@ import SwiftUI
 import AVKit
 import OSLog
 
+// MARK: - Critical Fixes Applied
+//
+// 🎯 ISSUE 1 FIX: MoveDetailView Flicker
+// ROOT CAUSE: loadVideoAsset() function updated @State properties in multiple stages, causing intermediate render states
+// SOLUTION: Modified loadVideoAsset() to perform ALL async operations first, then update state atomically
+// IMPACT: Prevents video player flicker by ensuring view only renders when all components are ready
+//
+// 📋 Fix Details:
+// • Atomic operation: Asset loading + player creation before any @State updates
+// • Single MainActor.run block: Updates isLoading, videoAsset, and playerViewModel together
+// • Comprehensive logging: OSLog diagnostics for debugging transparency
+// • Architecture preservation: Maintains existing UnifiedPlayerManager integration
+// • Error handling: Atomic error states with consistent UI presentation
+
 struct MoveDetailView: View {
     let move: Move
 
@@ -28,6 +42,27 @@ struct MoveDetailView: View {
             .onAppear {
                 MotionCatalog.Accessibility.selectionHaptic()
                 logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 View appeared for move: \(move.name ?? "Untitled Move")")
+                logger.info("🎬 MOVE_DETAIL_VIEW: 📋 Move ID: \(move.id ?? UUID())")
+                logger.info("🎬 MOVE_DETAIL_VIEW: 📸 Photos identifier: \(move.photosIdentifier ?? "NONE")")
+                logger.info("🎬 MOVE_DETAIL_VIEW: 🔍 Initial state - isLoading: \(isLoading), videoAsset: \(videoAsset != nil), playerViewModel: \(playerViewModel != nil)")
+            }
+            .onDisappear {
+                // 🎯 ENHANCED: Simplified cleanup using shared UnifiedPlayerManager
+                // This prevents memory leaks and retains cycles through proper resource management
+                logger.info("🎬 MOVE_DETAIL_VIEW: 🚨 View disappeared, pausing playback for move: \(move.name ?? "Untitled Move")")
+                logger.info("🎬 MOVE_DETAIL_VIEW: 📋 Cleanup state - playerViewModel: \(playerViewModel != nil), videoAsset: \(videoAsset != nil)")
+
+                // Just pause playback - let the UnifiedPlayerManager handle cleanup
+                AppContainer.shared.unifiedPlayerManager.currentPlayer?.avPlayer?.pause()
+                logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Playback paused, UnifiedPlayerManager handles resource cleanup")
+
+                // 🎯 CRITICAL FIX: Clear local playerViewModel to ensure clean state
+                Task { @MainActor in
+                    self.playerViewModel = nil
+                    logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Local playerViewModel cleared")
+                }
+
+                logger.info("🎬 MOVE_DETAIL_VIEW: 🎉 View teardown completed")
             }
             .task {
                 await loadVideoAsset()
@@ -100,9 +135,15 @@ struct MoveDetailView: View {
             if let viewModel = playerViewModel {
                 CustomVideoPlayerView(viewModel: viewModel)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .onAppear {
+                        logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Using local playerViewModel for display")
+                    }
             } else {
-                // Still initializing player
+                // Still initializing player or requesting from unified manager
                 loadingView
+                    .onAppear {
+                        logger.info("🎬 MOVE_DETAIL_VIEW: ⏳ Local playerViewModel is nil, showing loading view")
+                    }
             }
         }
     }
@@ -126,16 +167,21 @@ struct MoveDetailView: View {
 
     // MARK: - Video Asset Loading
     /// Asynchronously loads the video asset from the Photos library
-    /// This replaces the deprecated synchronous getVideoAsset(for:) method
+    /// 🎯 CRITICAL FIX: Atomic operation to prevent view flicker
+    /// ROOT CAUSE: Previously updated @State properties in multiple stages, causing intermediate render states
+    /// SOLUTION: Await both asset loading AND player creation before updating any @State properties
     private func loadVideoAsset() async {
-        logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 Starting video asset load")
+        logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 Starting ATOMIC video asset load")
+        logger.info("🎬 MOVE_DETAIL_VIEW: 🔧 CRITICAL_FIX_APPLIED: Making loadVideoAsset() atomic to prevent flicker")
 
         // Check if we have a valid photosIdentifier
         guard let photosIdentifier = move.photosIdentifier else {
             logger.error("🎬 MOVE_DETAIL_VIEW: ❌ No photosIdentifier found for move: \(move.name ?? "Untitled Move")")
             logger.error("🎬 MOVE_DETAIL_VIEW: ❌ Move ID: \(move.id ?? UUID())")
+            logger.error("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_FIX: Setting final state immediately (no intermediate states)")
             await MainActor.run {
                 isLoading = false
+                logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_FIX: Final state set - isLoading: false, videoAsset: nil, playerViewModel: nil")
             }
             return
         }
@@ -147,53 +193,101 @@ struct MoveDetailView: View {
         if !assetExists {
             logger.error("🎬 MOVE_DETAIL_VIEW: ❌ Asset does not exist in Photos library")
             logger.error("🎬 MOVE_DETAIL_VIEW: ❌ This could indicate the video was deleted from Photos")
+            logger.error("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_FIX: Setting final state immediately (no intermediate states)")
             await MainActor.run {
                 isLoading = false
+                logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_FIX: Final state set - isLoading: false, videoAsset: nil, playerViewModel: nil")
             }
             return
         }
 
-        logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Asset exists in Photos library, proceeding to load")
+        logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Asset exists in Photos library, proceeding to ATOMIC load")
+        logger.info("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_APPROACH: Will complete ALL operations before state update")
 
-        // Fetch the asset asynchronously
-        let asset = await PhotosAssetLoader.fetchAsset(with: photosIdentifier)
+        // 🎯 CRITICAL FIX: Perform ALL async operations FIRST, then update state atomically
+        var loadedAsset: AVAsset?
+        var createdPlayerViewModel: UnifiedVideoPlayerViewModel?
+        var loadError: Error?
 
-        await MainActor.run {
-            self.videoAsset = asset
-            self.isLoading = false
+        do {
+            // Step 1: Load the asset
+            logger.info("🎬 MOVE_DETAIL_VIEW: 📥 ATOMIC_STEP_1: Loading video asset...")
+            loadedAsset = await PhotosAssetLoader.fetchAsset(with: photosIdentifier)
 
-            if let asset = asset {
-                logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Video asset loaded successfully")
-                logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))")
-                logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Asset is playable: \(asset.isPlayable)")
-
-                // Initialize the player view model
-                initializePlayerViewModel(with: asset)
-            } else {
-                logger.error("🎬 MOVE_DETAIL_VIEW: ❌ Failed to load video asset")
+            guard let asset = loadedAsset else {
+                throw NSError(domain: "MoveDetailView", code: -1, userInfo: [
+                    NSLocalizedDescriptionKey: "Failed to load video asset from Photos"
+                ])
             }
+
+            logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_STEP_1_COMPLETE: Video asset loaded successfully")
+
+            // Step 2: Load asset properties for validation
+            logger.info("🎬 MOVE_DETAIL_VIEW: 📊 ATOMIC_STEP_2: Loading asset properties...")
+            let duration = try await asset.load(.duration)
+            let isPlayable = try await asset.load(.isPlayable)
+            logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Asset properties - duration: \(CMTimeGetSeconds(duration))s, playable: \(isPlayable)")
+            logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_STEP_2_COMPLETE: Asset properties loaded and validated")
+
+            // Step 3: Create player from unified manager
+            logger.info("🎬 MOVE_DETAIL_VIEW: 🎮 ATOMIC_STEP_3: Creating player from UnifiedPlayerManager...")
+
+            // Use rotation = 0 for MoveDetailView (default orientation)
+            let rotation = 0
+            logger.info("🎬 MOVE_DETAIL_VIEW: 🔄 Using rotation: \(rotation) quarter turns for MoveDetailView")
+
+            createdPlayerViewModel = try await AppContainer.shared.unifiedPlayerManager.createOrUpdatePlayer(
+                asset: asset,
+                photosIdentifier: move.photosIdentifier,
+                rotationQuarterTurns: rotation,
+                appContainer: AppContainer.shared
+            )
+
+            logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_STEP_3_COMPLETE: Player created/retrieved successfully")
+            logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Player ready status: \(createdPlayerViewModel?.isPlayerReady ?? false)")
+
+        } catch {
+            logger.error("🎬 MOVE_DETAIL_VIEW: ❌ ATOMIC_LOAD_ERROR: \(error.localizedDescription)")
+            loadError = error
+        }
+
+        // 🎯 CRITICAL FIX: ATOMIC STATE UPDATE - Update ALL @State properties in ONE MainActor.run
+        // This prevents intermediate render states that cause flicker
+        await MainActor.run {
+            logger.info("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_STATE_UPDATE: Starting atomic state update")
+            logger.info("🎬 MOVE_DETAIL_VIEW: 🔍 Pre-update state - isLoading: \(self.isLoading), videoAsset: \(self.videoAsset != nil), playerViewModel: \(self.playerViewModel != nil)")
+
+            if let asset = loadedAsset, let playerViewModel = createdPlayerViewModel {
+                // SUCCESS: Set all properties atomically
+                self.videoAsset = asset
+                self.playerViewModel = playerViewModel
+                self.isLoading = false
+
+                logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_SUCCESS: All state properties set atomically")
+                logger.info("🎬 MOVE_DETAIL_VIEW: 🔍 Post-update state - isLoading: \(self.isLoading), videoAsset: \(self.videoAsset != nil), playerViewModel: \(self.playerViewModel != nil)")
+                logger.info("🎬 MOVE_DETAIL_VIEW: 🎉 ATOMIC_COMPLETE: Video asset and player loaded without flicker")
+
+            } else {
+                // FAILURE: Set error state atomically
+                self.videoAsset = loadedAsset
+                self.playerViewModel = nil
+                self.isLoading = false
+
+                logger.error("🎬 MOVE_DETAIL_VIEW: ❌ ATOMIC_FAILURE: Error state set atomically")
+                logger.error("🎬 MOVE_DETAIL_VIEW: 🔍 Post-update state - isLoading: \(self.isLoading), videoAsset: \(self.videoAsset != nil), playerViewModel: \(self.playerViewModel != nil)")
+                if let error = loadError {
+                    logger.error("🎬 MOVE_DETAIL_VIEW: ❌ Load error details: \(error.localizedDescription)")
+                }
+            }
+
+            logger.info("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_STATE_UPDATE: Complete - no intermediate states exposed to UI")
         }
     }
 
-    // MARK: - Player View Model Initialization
-    /// Initializes the player view model with the loaded asset
-    /// This replaces the deprecated Timer-based polling approach
-    private func initializePlayerViewModel(with asset: AVAsset) {
-        logger.info("🎬 MOVE_DETAIL_VIEW: 🎮 Initializing player view model")
-
-        let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
-        let viewModel = UnifiedVideoPlayerViewModel(
-            player: player,
-            mode: .main,
-            appContainer: AppContainer.shared
-        )
-
-        self.playerViewModel = viewModel
-        logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Player view model initialized")
-
-        // Log player readiness status for debugging
-        logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Player ready status: \(viewModel.isPlayerReady)")
-    }
+    // MARK: - Legacy Player Request Method (Removed)
+    /// 🎯 CRITICAL FIX: This method has been removed and incorporated into the atomic loadVideoAsset() function
+    /// ROOT CAUSE: Separating asset loading from player creation caused intermediate UI states
+    /// SOLUTION: Atomic operation performs both steps before any @State updates
 }
 
 // MARK: - Preview

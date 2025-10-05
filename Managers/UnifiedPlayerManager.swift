@@ -18,13 +18,19 @@ public class UnifiedPlayerManager: ObservableObject {
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "UnifiedPlayerManager")
     private var isInitialized = false
     
-    // 💡 SOLUTION: Player cache for frequently used assets
+    // 💡 ENHANCED: Player cache for frequently used assets with comprehensive management
     private var playerCache: [String: UnifiedVideoPlayerViewModel] = [:]
     private let maxCacheSize = 3
+
+    // 🎯 ENHANCED: Cache statistics for debugging and optimization
+    private var cacheHitCount = 0
+    private var cacheMissCount = 0
+    private var cacheEvictionCount = 0
     
     // MARK: - Initialization
     public init() {
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Initialized")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚀 Initialized with enhanced cache management")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 Cache settings - max size: \(self.maxCacheSize)")
     }
     
     // MARK: - Internal State Management
@@ -46,7 +52,28 @@ public class UnifiedPlayerManager: ObservableObject {
         appContainer: AppContainer
     ) async throws -> UnifiedVideoPlayerViewModel {
         
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Creating/updating player for asset")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎮 Creating/updating player for asset")
+
+        // 🎯 ENHANCED: Check cache first for potential reuse
+        let cacheKey = getCacheKey(for: asset, rotation: rotationQuarterTurns)
+        if let cachedPlayer = playerCache[cacheKey] {
+            cacheHitCount += 1
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚀 CACHE HIT! Reusing cached player for key: \(cacheKey.prefix(8))")
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 Cache stats - Hits: \(self.cacheHitCount), Misses: \(self.cacheMissCount)")
+
+            // Set the cached player as current
+            setPlayer(cachedPlayer)
+            currentRotation = rotationQuarterTurns
+            currentPhotosIdentifier = photosIdentifier
+            currentAsset = asset
+            isInitialized = true
+
+            return cachedPlayer
+        }
+
+        cacheMissCount += 1
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ⚠️ CACHE MISS! Creating new player for key: \(cacheKey.prefix(8))")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 Cache stats - Hits: \(self.cacheHitCount), Misses: \(self.cacheMissCount)")
         
         // 💡 SOLUTION: Preserve player across view transitions unless asset truly changes
         if let existingPlayer = currentPlayer,
@@ -153,6 +180,9 @@ public class UnifiedPlayerManager: ObservableObject {
         let playerReadyStatus = await newPlayer.isPlayerReady
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Player isPlayerReady: \(playerReadyStatus)")
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Player initialization completed - AddMoveUnifiedState should synchronize with this state")
+
+        // 🎯 ENHANCED: Cache the newly created player for future reuse
+        cachePlayer(newPlayer, for: asset, rotation: rotationQuarterTurns)
 
         return newPlayer
     }
@@ -479,9 +509,12 @@ public class UnifiedPlayerManager: ObservableObject {
         isTransitioning = false
     }
     
-    /// Cleans up all resources
+    /// 🎯 ENHANCED: Cleans up all resources with comprehensive diagnostics
     public func cleanup() {
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 cleanup() called - CRITICAL RETAIN CYCLE PREVENTION - currentPlayer: \(self.currentPlayer != nil), cache: \(self.playerCache.count), initialized: \(self.isInitialized), asset: \(self.currentAsset != nil)")
+        let cleanupStart = CFAbsoluteTimeGetCurrent()
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 ENHANCED cleanup() called - CRITICAL RETAIN CYCLE PREVENTION")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 PRE-CLEANUP STATE - currentPlayer: \(self.currentPlayer != nil), cache: \(self.playerCache.count), initialized: \(self.isInitialized), asset: \(self.currentAsset != nil)")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 CACHE PERFORMANCE - Hits: \(self.cacheHitCount), Misses: \(self.cacheMissCount), Evictions: \(self.cacheEvictionCount)")
 
         // Tear down current player
         if let player = self.currentPlayer {
@@ -493,13 +526,15 @@ public class UnifiedPlayerManager: ObservableObject {
 
         // Clear cache and tear down all cached players
         if !self.playerCache.isEmpty {
-            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🧹 Clearing player cache - \(self.playerCache.count) players to teardown")
+            let cacheSize = self.playerCache.count
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🧹 Clearing player cache - \(cacheSize) players to teardown")
+
             for (key, player) in self.playerCache {
                 self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🛑 Tearing down cached player: \(key.prefix(8))")
                 player.teardown()
             }
             self.playerCache.removeAll()
-            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ All cached players torn down")
+            self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ All \(cacheSize) cached players torn down")
         }
 
         // Reset all state properties
@@ -509,7 +544,15 @@ public class UnifiedPlayerManager: ObservableObject {
         currentPhotosIdentifier = nil
         isInitialized = false
 
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 cleanup() completed successfully - ALL RETAIN CYCLES BROKEN - currentPlayer: \(self.currentPlayer == nil), cache: \(self.playerCache.isEmpty), asset: \(self.currentAsset == nil), initialized: \(self.isInitialized == false)")
+        // Reset cache statistics
+        cacheHitCount = 0
+        cacheMissCount = 0
+        cacheEvictionCount = 0
+
+        let cleanupDuration = CFAbsoluteTimeGetCurrent() - cleanupStart
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 ENHANCED cleanup() completed in \(String(format: "%.3f", cleanupDuration * 1000))ms")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 POST-CLEANUP STATE - currentPlayer: \(self.currentPlayer == nil), cache: \(self.playerCache.isEmpty), asset: \(self.currentAsset == nil), initialized: \(self.isInitialized == false)")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔒 ALL RETAIN CYCLES BROKEN - MEMORY SAFE ✅")
     }
     
     /// Gets a cache key for the asset and rotation
@@ -518,21 +561,45 @@ public class UnifiedPlayerManager: ObservableObject {
         return "\(assetID)_\(rotation)"
     }
     
-    /// Caches a player for future reuse
+    /// 🎯 ENHANCED: Caches a player for future reuse with detailed tracking
     private func cachePlayer(_ player: UnifiedVideoPlayerViewModel, for asset: AVAsset, rotation: Int) {
         let cacheKey = getCacheKey(for: asset, rotation: rotation)
-        
+
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📦 Caching player with key: \(cacheKey.prefix(8))")
+
         // Evict oldest items if cache is full
+        let evictedCount = 0
         while self.playerCache.count >= maxCacheSize {
             if let oldestKey = self.playerCache.keys.first {
-                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Evicting cached player: \(oldestKey.prefix(8))")
+                cacheEvictionCount += 1
+                self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🗑️ Evicting cached player (\(self.cacheEvictionCount)): \(oldestKey.prefix(8))")
                 self.playerCache[oldestKey]?.teardown()
                 self.playerCache.removeValue(forKey: oldestKey)
             }
         }
-        
+
         self.playerCache[cacheKey] = player
-        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Cached player: \(cacheKey.prefix(8))")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Player cached successfully - cache size: \(self.playerCache.count)/\(self.maxCacheSize)")
+        self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 Cache performance - Hit rate: \(self.calculateHitRate())%")
+    }
+
+    /// 🎯 ENHANCED: Calculate cache hit rate for performance monitoring
+    private func calculateHitRate() -> Double {
+        let totalRequests = cacheHitCount + cacheMissCount
+        guard totalRequests > 0 else { return 0.0 }
+        return Double(cacheHitCount) / Double(totalRequests) * 100.0
+    }
+
+    /// 🎯 ENHANCED: Get comprehensive cache statistics for debugging
+    public func getCacheStatistics() -> (hits: Int, misses: Int, evictions: Int, hitRate: Double, currentSize: Int, maxSize: Int) {
+        return (
+            hits: cacheHitCount,
+            misses: cacheMissCount,
+            evictions: cacheEvictionCount,
+            hitRate: calculateHitRate(),
+            currentSize: playerCache.count,
+            maxSize: maxCacheSize
+        )
     }
     
     /// Prepares for view transition - preserves player

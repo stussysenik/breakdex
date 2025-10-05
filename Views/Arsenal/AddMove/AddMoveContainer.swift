@@ -329,6 +329,13 @@ struct AddMoveContainer: View {
                                 let _ = logger.info("🎬 CONTAINER: 🎯 DOUBLE_ROTATION_FIX: SwiftUI identity morphism active - no rotation layer applied")
                                 let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: TrimmerView type confirmed - TrimmerViewModel")
 
+                                // 🎯 PHASE 3: Trigger trimmer environment setup when view appears
+                                // This implements the decoupled architecture where loading only loads the asset
+                                // and trimmer setup happens when the trimming view appears
+                                Task {
+                                    await unifiedState.prepareTrimmerEnvironment()
+                                }
+
                                 // 🎯 ENHANCED DIAGNOSTIC: Log comprehensive isomorphic rollback details with type safety
                                 let _ = logger.info("🎬 CONTAINER: 🎯 ISOMORPHIC_ROLLBACK: Rendering FeatureRichTrimmerView with preserved state")
                                 let _ = logger.info("🎬 CONTAINER: ┌─ Enhanced State Preservation Details")
@@ -341,6 +348,7 @@ struct AddMoveContainer: View {
                                 let _ = logger.info("🎬 CONTAINER: ├─ total_rotation: \(viewModel.totalRotationQuarterTurns * 90)°")
                                 let _ = logger.info("🎬 CONTAINER: ├─ swiftui_identity: enforced")
                                 let _ = logger.info("🎬 CONTAINER: ├─ type_erasure: AnyView_active")
+                                let _ = logger.info("🎬 CONTAINER: ├─ prepareTrimmerEnvironment: triggered")
                                 let _ = logger.info("🎬 CONTAINER: └─ isomorphic_rollback: perfect_preservation")
                             }
                     } else {

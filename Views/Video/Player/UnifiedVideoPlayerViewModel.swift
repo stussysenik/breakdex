@@ -274,7 +274,17 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             .store(in: &cancellables)
     }
 
+    /// 🚨 CRITICAL: Idempotent teardown method for explicit resource cleanup and retain cycle prevention
+    /// This method must be called explicitly when the view disappears to ensure proper cleanup
     public func teardown() {
+        // 🎯 CRITICAL: Check if already torn down to make method idempotent
+        guard state != .idle else {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⏭️ teardown() called but already idle - skipping", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+            return
+        }
+
         logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🚨 teardown() called - CRITICAL RETAIN CYCLE PREVENTION", metadata: [
             "correlationId": correlationId ?? "unknown",
             "healthMonitorTask_exists": "\(healthMonitorTask != nil)",
@@ -403,51 +413,119 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
         // 🎯 CRITICAL FIX: Invalidate the persistent KVO observer on the OLD item before replacing it.
         // This is the root cause of the crash, as it prevents the "message sent to deallocated instance"
         // error when the old view's coordinator is dismantled during the state transition.
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Invalidating persistent KVO observer to prevent race condition", metadata: [
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 PRE-REPLACEMENT: Invalidating persistent KVO observer to prevent race condition", metadata: [
             "correlationId": correlationId ?? "unknown",
             "observer_exists": "\(itemStatusObserver != nil)",
-            "old_item_duration": "\(player.currentItem?.asset.duration.seconds ?? 0)"
-        ])
-
-        itemStatusObserver?.invalidate()
-        itemStatusObserver = nil
-
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ KVO observer invalidated safely", metadata: [
-            "correlationId": correlationId ?? "unknown"
-        ])
-
-        // 💡 ENHANCEMENT: Clear any existing observation subscriptions to prevent race conditions
-        cancellables.removeAll()
-
-        // 🎯 CRITICAL ADDITION: Verify KVO observer is fully invalidated before replacement
-        // This ensures atomic operation - no observer should exist during item replacement
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔍 Verifying KVO observer invalidation", metadata: [
-            "correlationId": correlationId ?? "unknown",
-            "observer_still_exists": "\(itemStatusObserver != nil)",
+            "old_item_duration": "\(player.currentItem?.asset.duration.seconds ?? 0)",
+            "old_item_status": "\(player.currentItem?.status.rawValue ?? -1)",
             "cancellables_count": "\(cancellables.count)"
         ])
 
-        // 💡 ENHANCEMENT: Replace the player item with detailed logging
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Replacing player item", metadata: [
+        // 🚨 DEFENSIVE: Capture reference to old observer for verification
+        let oldObserver = itemStatusObserver
+
+        // 🎯 ATOMIC OPERATION: Invalidate KVO observer synchronously to prevent race conditions
+        // This must happen BEFORE any player item manipulation to ensure no observer is watching deallocated items
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+
+        // 🔍 VERIFICATION: Ensure observer is properly invalidated before proceeding
+        if oldObserver != nil {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ KVO observer invalidated safely - old observer was non-nil", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "verification_passed": "\(itemStatusObserver == nil)"
+            ])
+        } else {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ KVO observer was already nil - no invalidation needed", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+        }
+
+        // 💡 ENHANCEMENT: Clear any existing observation subscriptions to prevent race conditions
+        // This must happen after KVO invalidation to avoid race conditions between Combine and KVO systems
+        let cancellableCount = cancellables.count
+        cancellables.removeAll()
+
+        if cancellableCount > 0 {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Cleared \(cancellableCount) Combine subscriptions to prevent observer conflicts", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "cancellables_cleared": "\(cancellableCount)"
+            ])
+        }
+
+        // 🎯 CRITICAL ADDITION: Final verification before player item replacement
+        // This ensures atomic operation - no observer should exist during item replacement
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔍 PRE-REPLACEMENT VERIFICATION: Ensuring all observers are cleared", metadata: [
             "correlationId": correlationId ?? "unknown",
-            "old_item_duration": "\(player.currentItem?.asset.duration.seconds ?? 0)",
-            "new_item_duration": "\(newItem.asset.duration.seconds)"
+            "kvo_observer_cleared": "\(itemStatusObserver == nil)",
+            "cancellables_cleared": "\(cancellables.isEmpty)",
+            "old_player_item": "\(player.currentItem != nil)",
+            "new_item_ready": "\(newItem.status.rawValue)"
         ])
 
-        // 🎯 CRITICAL: Atomic replacement - clear nil first, then assign new item
-        // This ensures no intermediate state where both old and new items could be observed
-        player.replaceCurrentItem(with: nil) // Clear first to prevent reference cycles
+        // 🚨 DEFENSIVE CHECK: Ensure no observers exist before proceeding with replacement
+        if itemStatusObserver != nil || !cancellables.isEmpty {
+            // This should never happen, but if it does, we have a serious race condition
+            let errorMessage = "Observer cleanup failed - KVO: \(itemStatusObserver != nil), Cancellables: \(cancellables.count)"
+            logger.error("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🚨 CRITICAL RACE CONDITION DETECTED - Observer cleanup failed", metadata: [
+                "correlationId": correlationId ?? "unknown",
+                "error": errorMessage,
+                "kvo_observer_exists": "\(itemStatusObserver != nil)",
+                "cancellables_count": "\(cancellables.count)"
+            ])
+
+            // Force cleanup as last resort
+            itemStatusObserver?.invalidate()
+            itemStatusObserver = nil
+            cancellables.removeAll()
+
+            logger.warning("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ⚠️ Forced cleanup completed - proceeding with caution", metadata: [
+                "correlationId": correlationId ?? "unknown"
+            ])
+
+            // Continue execution after forced cleanup
+        }
+
+        // 💡 ENHANCEMENT: Replace the player item with comprehensive logging and safety checks
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 ATOMIC REPLACEMENT: Starting player item replacement", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "old_item_duration": "\(player.currentItem?.asset.duration.seconds ?? 0)",
+            "old_item_status": "\(player.currentItem?.status.rawValue ?? -1)",
+            "new_item_duration": "\(newItem.asset.duration.seconds)",
+            "new_item_status": "\(newItem.status.rawValue)",
+            "player_rate": "\(player.rate)"
+        ])
+
+        // 🎯 CRITICAL: Atomic replacement with defensive programming
+        // Step 1: Pause playback to prevent race conditions during item transition
+        player.pause()
+
+        // Step 2: Clear current item first to prevent reference cycles and ensure clean state
+        let oldItem = player.currentItem
+        player.replaceCurrentItem(with: nil)
+
+        // Step 3: Verify clearing was successful
+        let clearingSuccessful = player.currentItem == nil
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🧹 Player item clearing completed", metadata: [
+            "correlationId": correlationId ?? "unknown",
+            "clearing_successful": "\(clearingSuccessful)",
+            "old_item_duration": "\(oldItem?.asset.duration.seconds ?? 0)"
+        ])
+
+        // Step 4: Replace with new item
         player.replaceCurrentItem(with: newItem)
         self.playerItem = newItem
 
-        // 🎯 CRITICAL: Verification logging to confirm atomic operation
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ Player item replacement completed atomically", metadata: [
+        // Step 5: Verify replacement was successful
+        let replacementSuccessful = player.currentItem === newItem
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): ✅ ATOMIC REPLACEMENT: Player item replacement completed", metadata: [
             "correlationId": correlationId ?? "unknown",
-            "new_player_item": "\(player.currentItem === newItem)",
-            "old_observer_cleared": "\(itemStatusObserver == nil)",
-            "cancellables_cleared": "\(cancellables.isEmpty)"
+            "replacement_successful": "\(replacementSuccessful)",
+            "new_player_item_valid": "\(player.currentItem != nil)",
+            "player_item_assigned": "\(self.playerItem === newItem)"
         ])
 
+  
         // 💡 ENHANCEMENT: Wait for the new item to become ready with enhanced timeout and progress monitoring
         let monitor = PlayerItemStatusMonitor(playerItem: newItem)
 
@@ -1083,56 +1161,66 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol, @p
             "correlationId": correlationId ?? "unknown"
         ])
 
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Creating LiveVideoLoadingService", metadata: [
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Creating ModernVideoLoadingService", metadata: [
             "correlationId": correlationId ?? "unknown"
         ])
-        let loadingService = LiveVideoLoadingService(memoryManager: memoryManager, logger: logger) // As per 2. plan.md, this is the main loading service
-        
-        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Starting video loading stream", metadata: [
+        let loadingService = ModernVideoLoadingService() // Using modern unified loading service
+
+        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Starting video loading with progress monitoring", metadata: [
             "correlationId": correlationId ?? "unknown"
         ])
-        let progressStream = loadingService.loadPHAssetWithProgress(phAsset)
 
-        do {
-            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Entering progress stream processing", metadata: [
-                "correlationId": correlationId ?? "unknown"
-            ])
-            for try await event in progressStream {
-                await MainActor.run {
-                    switch event {
-                    case .progress(let fraction, let status):
-                        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Progress update", metadata: [
-                            "progress": fraction,
-                            "status": status,
-                            "correlationId": correlationId ?? "unknown"
-                        ])
-                        self.state = .loading(progress: fraction, etaSeconds: nil, status: status)
-                    case .success(let asset):
-                        logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Loading successful", metadata: [
-                            "assetDuration": CMTimeGetSeconds(asset.duration),
-                            "correlationId": correlationId ?? "unknown"
-                        ])
-
-                        // Create a new AVPlayerItem from the loaded asset
-                        let newPlayerItem = AVPlayerItem(asset: asset)
-                        
-                        // Diagnostic Check: Log before replacement
-                        logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player reference is valid. Replacing item.", metadata: ["correlationId": correlationId ?? "unknown"])
-
-                        // Use the stable `self.player` reference to replace the item
-                        self.player.replaceCurrentItem(with: newPlayerItem)
-                        self.playerItem = newPlayerItem
-                        
-                        // Diagnostic Check: Log after replacement and transition to ready state
-                        logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player item replaced successfully. Transitioning to ready state.", metadata: ["correlationId": correlationId ?? "unknown"])
-                        self.state = .ready(player: self.player)
-                        
-                        videoHealthMonitor.startMonitoring(asset: asset)
-                    }
+        // Set up progress monitoring
+        var progressCancellable: AnyCancellable?
+        progressCancellable = loadingService.progressPublisher
+            .sink { [weak self] progress in
+                Task { @MainActor in
+                    let modeDescription = self?.mode != nil ? "\(self!.mode)" : "unknown"
+                    self?.logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(modeDescription)): Progress update", metadata: [
+                        "progress": progress.progress,
+                        "phase": "\(progress.phase)",
+                        "correlationId": self?.correlationId ?? "unknown"
+                    ])
+                    self?.state = .loading(progress: progress.progress, etaSeconds: nil, status: "\(progress.phase)")
                 }
             }
-            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Progress stream completed successfully", metadata: [
+
+        do {
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Starting video loading operation", metadata: [
                 "correlationId": correlationId ?? "unknown"
+            ])
+            let result = try await loadingService.loadVideo(from: phAsset)
+
+            // Cancel progress monitoring
+            progressCancellable?.cancel()
+
+            // Process successful result
+            let assetDuration = try await result.asset.load(.duration)
+            await MainActor.run {
+                logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Loading successful", metadata: [
+                    "assetDuration": CMTimeGetSeconds(assetDuration),
+                    "correlationId": result.correlationId
+                ])
+
+                // Create a new AVPlayerItem from the loaded asset
+                let newPlayerItem = AVPlayerItem(asset: result.asset)
+
+                // Diagnostic Check: Log before replacement
+                logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player reference is valid. Replacing item.", metadata: ["correlationId": result.correlationId])
+
+                // Use the stable `self.player` reference to replace the item
+                self.player.replaceCurrentItem(with: newPlayerItem)
+                self.playerItem = newPlayerItem
+
+                // Diagnostic Check: Log after replacement and transition to ready state
+                logger.info("✅ UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Player item replaced successfully. Transitioning to ready state.", metadata: ["correlationId": result.correlationId])
+                self.state = .ready(player: self.player)
+
+                videoHealthMonitor.startMonitoring(asset: result.asset)
+            }
+
+            logger.info("🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): Video loading completed successfully", metadata: [
+                "correlationId": result.correlationId
             ])
         } catch {
             let errorMessage = "Failed to load video asset: \(error.localizedDescription)"

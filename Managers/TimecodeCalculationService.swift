@@ -26,6 +26,22 @@ public final class TimecodeCalculationService {
     ) -> TimecodeCalculationResult {
         logger.info("🧮 Calculating timecode: start=\(startTime.seconds), end=\(endTime.seconds), duration=\(assetDuration.seconds), frameRate=\(frameRate)")
 
+        // 🚨 CRITICAL FIX: Validate frame rate to prevent crashes with NaN/infinite values
+        let validFrameRate: Double
+        if frameRate.isFinite && frameRate > 0 {
+            validFrameRate = frameRate
+        } else {
+            logger.warning("🧮 ⚠️ Invalid frame rate detected: \(frameRate), falling back to 30.0 FPS")
+            diagnosticLogger.logWarning("🧮 Invalid frame rate detected, using fallback", metadata: [
+                "frameRate": "\(frameRate)",
+                "frameRate_isFinite": "\(frameRate.isFinite)",
+                "frameRate_isNaN": "\(frameRate.isNaN)",
+                "frameRate_isZero": "\(frameRate == 0)",
+                "fallback_frameRate": "30.0"
+            ])
+            validFrameRate = 30.0
+        }
+
         // Calculate duration
         let duration = endTime - startTime
 
@@ -38,12 +54,12 @@ public final class TimecodeCalculationService {
             errors: &validationErrors
         )
 
-        // Calculate frame information
-        let startFrame = Int(startTime.seconds * frameRate)
-        let endFrame = Int(endTime.seconds * frameRate)
-        let durationFrames = Int(duration.seconds * frameRate)
+        // Calculate frame information using validated frame rate
+        let startFrame = Int(startTime.seconds * validFrameRate)
+        let endFrame = Int(endTime.seconds * validFrameRate)
+        let durationFrames = Int(duration.seconds * validFrameRate)
 
-        // Create calculation result
+        // Create calculation result using validated frame rate
         let result = TimecodeCalculationResult(
             startTime: startTime,
             endTime: endTime,
@@ -51,7 +67,7 @@ public final class TimecodeCalculationService {
             startFrame: startFrame,
             endFrame: endFrame,
             durationFrames: durationFrames,
-            frameRate: frameRate,
+            frameRate: validFrameRate,
             assetDuration: assetDuration,
             isValid: isValid,
             minimumDuration: minimumDuration,

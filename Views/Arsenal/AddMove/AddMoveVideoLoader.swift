@@ -51,7 +51,7 @@ public actor AddMoveVideoLoader {
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "VideoLoader")
     private var diagnosticLogger: DiagnosticLoggingHelper!
     // private let enhancedVideoLogger: EnhancedVideoLogger - will be added back when file is properly included in build
-    private let memoryLogger = CentralizedMemoryLogger.shared
+    @MainActor private let memoryLogger = CentralizedMemoryLogger.shared
 
     // MARK: - Performance Tracking
     private var operationTimings: [String: TimeInterval] = [:]

@@ -43,19 +43,19 @@ public protocol VideoProcessingPipeline {
 // MARK: - Video Processing Pipeline Implementation
 @preconcurrency
 final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
-    private let loadingService: breakdex.VideoLoadingService
+    private let loadingService: ModernVideoLoadingService
     private let videoProcessor: VideoProcessor
     private let videoSaver: VideoSaver
     private let memoryManager: MemoryManager
     private let stateManager: VideoStateManager
     private let logger: AppLogger
-    private let memoryLogger = CentralizedMemoryLogger.shared
+    @MainActor private let memoryLogger = CentralizedMemoryLogger.shared
     
     private var currentTask: Task<Void, Never>?
     private var correlationId: String?
     
     init(
-        loadingService: breakdex.VideoLoadingService,
+        loadingService: ModernVideoLoadingService,
         videoProcessor: VideoProcessor,
         videoSaver: VideoSaver,
         memoryManager: MemoryManager,
@@ -138,25 +138,8 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
                 }
                 
                 // Use the loading service to load the video asset
-                let progressStream = loadingService.loadPHAssetWithProgress(phAsset)
-                
-                // Wait for completion and get the final asset
-                var finalAsset: AVAsset?
-                for try await event in progressStream {
-                    switch event {
-                    case .progress(let fraction, _):
-                        // Continue processing
-                        continue
-                    case .success(let asset):
-                        finalAsset = asset
-                        break
-                    }
-                }
-                
-                // Ensure we have an asset
-                guard let asset = finalAsset else {
-                    throw NSError(domain: "VideoProcessingPipeline", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load video asset"])
-                }
+                let loadingResult = try await loadingService.loadVideo(from: phAsset)
+                let asset = loadingResult.asset
                 
                 result = try await VideoAsset(
                     avAsset: asset,

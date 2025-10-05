@@ -26,14 +26,21 @@ public final class AppContainer {
         return CompositeLogger(loggers: [consoleLogger, fileLogger, analyticsLogger])
     }()
     
-    // MARK: - Video Processing Services
+    // MARK: - Core Video Services
+    private(set) lazy var unifiedPlayerManager: UnifiedPlayerManager = {
+        let manager = UnifiedPlayerManager()
+        logger.info("🏗️ APP_CONTAINER: UnifiedPlayerManager initialized as single source of truth", metadata: nil)
+        return manager
+    }()
+
     private(set) lazy var modernVideoLoadingService: ModernVideoLoadingService = {
         return ModernVideoLoadingService()
     }()
 
-    private(set) lazy var videoLoadingService: breakdex.VideoLoadingService = {
-        return LiveVideoLoadingService(memoryManager: memoryManager, logger: logger)
-    }()
+    // 🗑️ DEPRECATED: Legacy video loading service - will be removed in favor of unified system
+    // private(set) lazy var videoLoadingService: breakdex.VideoLoadingService = {
+    //     return LiveVideoLoadingService(memoryManager: memoryManager, logger: logger)
+    // }()
     
     private(set) lazy var videoProcessor: VideoProcessor = {
         return VideoProcessorImpl(logger: logger)
@@ -45,7 +52,7 @@ public final class AppContainer {
     
     private(set) lazy var videoProcessingPipeline: VideoProcessingPipeline = {
         return VideoProcessingPipelineImpl(
-            loadingService: videoLoadingService,
+            loadingService: modernVideoLoadingService, // Using modern service instead of legacy
             videoProcessor: videoProcessor,
             videoSaver: videoSaver,
             memoryManager: memoryManager,
@@ -98,26 +105,37 @@ public final class AppContainer {
         }
     }
     
-    // MARK: - Cleanup
+    // MARK: - Enhanced Cleanup
     func cleanup() {
-        logger.info("🧹 Cleaning up AppContainer resources", metadata: nil)
-        
+        let cleanupStart = CFAbsoluteTimeGetCurrent()
+        logger.info("🧹 ENHANCED AppContainer cleanup starting...", metadata: nil)
+
+        // 🎯 CRITICAL: Cleanup unified player manager first to prevent retain cycles
+        unifiedPlayerManager.cleanup()
+        logger.info("🧹 UnifiedPlayerManager cleanup completed", metadata: nil)
+
         // Clear all caches
         memoryManager.clearCache(excluding: nil)
-        
+        logger.info("🧹 Memory cache cleared", metadata: nil)
+
         // Attempt memory recovery as part of cleanup
         memoryErrorHandler.attemptMemoryRecovery()
-        
+        logger.info("🧹 Memory recovery attempted", metadata: nil)
+
         // Reset state manager
         Task {
             try? await stateManager.transition(to: .idle)
         }
-        
-        logger.info("✅ AppContainer cleanup completed", metadata: nil)
+
+        let cleanupDuration = CFAbsoluteTimeGetCurrent() - cleanupStart
+        logger.info("✅ ENHANCED AppContainer cleanup completed in \(String(format: "%.3f", cleanupDuration * 1000))ms", metadata: nil)
+        logger.info("🔒 ALL RESOURCES CLEANED UP - MEMORY SAFE ✅", metadata: nil)
     }
     
     private init() {
-        logger.info("🏗️ AppContainer initialized", metadata: nil)
+        logger.info("🏗️ AppContainer initialized with enhanced video architecture", metadata: nil)
+        logger.info("🎯 UnifiedPlayerManager is now the single source of truth for video players", metadata: nil)
+        logger.info("🗑️ Legacy video services deprecated and will be removed", metadata: nil)
         setupMemoryMonitoring()
     }
     

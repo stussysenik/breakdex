@@ -35,13 +35,13 @@ extension View {
 
 extension Color {
     // PRIMARY COLORS
-    
+
     /// IBM Black 100 - Primary background (#000000)
     static let backgroundPrimary = Color.black
-    
-    /// IBM White - Primary text (#FFFFFF)
-    static let textPrimary = Color.white
-    
+
+    /// IBM White - Legacy primary text (#FFFFFF) - DEPRECATED: Use DesignSystem.Colors.textPrimary
+    static let textPrimaryLegacy = Color.white
+
     /// IBM Blue 60 - Primary accent (#0f62fe)
     static let accent = Color(red: 15/255, green: 98/255, blue: 254/255)
     
@@ -50,8 +50,8 @@ extension Color {
     
     // SECONDARY COLORS
     
-    /// IBM Cool Gray 80 - Secondary text (#606060)
-    static let textSecondary = Color(red: 96/255, green: 96/255, blue: 96/255)
+    /// IBM Cool Gray 80 - Legacy secondary text (#606060) - DEPRECATED: Use DesignSystem.Colors.textSecondary
+    static let textSecondaryLegacy = Color(red: 96/255, green: 96/255, blue: 96/255)
     
     /// IBM Cool Gray 20 - Card backgrounds (#e0e0e0)
     static let cardBackground = Color(red: 224/255, green: 224/255, blue: 224/255)
@@ -68,15 +68,33 @@ extension Color {
     static let stateMastery = Color(red: 36/255, green: 161/255, blue: 72/255)
     
     // MARK: - Action Button Colors (Updated)
-    
+
     /// The red color for the 'AGAIN' review button. (#da1e28)
     static let buttonAgain = Color(red: 218/255, green: 30/255, blue: 40/255)
-    
+
     /// The new yellow color for the 'HARD' review button. (#f1c21b)
     static let buttonHard = Color(red: 241/255, green: 194/255, blue: 27/255)
-    
+
     /// The green color for the 'GOOD' review button. (#42be65)
     static let buttonGood = Color(red: 66/255, green: 190/255, blue: 101/255)
+
+    // MARK: - LOADING OVERLAY COLORS - WCAG AA Compliant High-Contrast Theme
+
+    /// Blue 60 - Primary brand color, trustworthy and professional (#0f62fe)
+    /// Maximum contrast foundation for loading overlay background
+    static let primaryBlue = Color(hex: "0f62fe")
+
+    /// White 0 - High-contrast accent for progress and data (#ffffff)
+    /// Crisp white for maximum legibility against blue background
+    static let accentWhite = Color(hex: "ffffff")
+
+    /// Cool Gray 10 - Primary text with maximum readability (#f2f4f8)
+    /// High-contrast text for critical information display
+    static let textPrimary = Color(hex: "f2f4f8")
+
+    /// Cool Gray 30 - Secondary text and icons for clear visual hierarchy (#c1c7cd)
+    /// Subtle supporting text that maintains accessibility standards
+    static let textSecondary = Color(hex: "c1c7cd")
 }
 
 // CUSTOM FONT SYSTEM
