@@ -27,7 +27,7 @@ BreakingFlashcards is a native iOS application that allows users to:
 - Import/export functionality for TestFlight release
 - Advanced video processing features
 - **Recently completed major architecture refactoring (September 2025)**
-- **Back button functionality fully implemented with state reconstruction (October 2025)**
+- **Progress flow fixes and video loading improvements (October 2025)**
 
 **🔮 STAGE 3 - FUTURE FEATURES**
 - Computer vision integration for movement analysis
@@ -51,7 +51,7 @@ BreakingFlashcards is a native iOS application that allows users to:
 - **Custom Video Player** - Optimized for learning scenarios
 - **Memory Management** - Proactive monitoring for large video files
 - **Error Handling** - Comprehensive recovery mechanisms
-- **Modular AddMove Architecture** - Recently refactored component system with SRP compliance
+- **Modular AddMove Architecture** - Unified state management with comprehensive video loading system
 
 ### Video Import Loading Architecture
 The app features a sophisticated video import loading state system that handles video asset preparation with comprehensive error handling and progress tracking:
@@ -77,13 +77,12 @@ The app features a sophisticated video import loading state system that handles 
 
 ## 📊 Project Statistics
 
-- **119 Swift files** with modern iOS 18.0 patterns
-- **36,522 lines of code** with comprehensive functionality
-- **Recent major refactoring** - AddMoveUnifiedState reduced from 3,349 to 227 lines (93% reduction)
+- **120 Swift files** with modern iOS 18.0 patterns
+- **45,154 lines of code** with comprehensive functionality
 - **Modular architecture** with clear separation of concerns
 - **Production-ready** video processing pipeline
 - **Robust error handling** and logging system
-- **Recent bug fixes** - Back button functionality and state management improvements (October 2025)
+- **Recent bug fixes** - Progress flow fixes and video loading improvements (October 2025)
 
 ## 🎮 Core Features
 
@@ -92,10 +91,9 @@ The app features a sophisticated video import loading state system that handles 
 - **Video Loading**: Comprehensive video asset preparation with progress tracking (0-70% download, 70-100% metadata)
 - **Video Trimming**: Frame-accurate timeline editor with visual feedback
 - **Video Rotation**: Quarter-turn rotation controls with live preview
-- **Move Naming**: Organize with custom names and tags with full back button support
+- **Move Naming**: Organize with custom names and tags
 - **Asset Management**: Automatic saving to BreakDex album
-- **Simplified 5-Stage State Machine**: loadingVideo → trimming → loadingTrimmedAsset → naming → saving
-- **Back Button Navigation**: Full state reconstruction from naming back to trimming with resource cleanup and comprehensive error handling
+- **Resilient Video Loading**: Enhanced progress flow with iCloud download handling and deterministic progress tracking
 
 ### 2. Arsenal Management
 - **Move Library**: Browse and search all saved moves
@@ -122,19 +120,19 @@ The app features a sophisticated video import loading state system that handles 
 cd BreakingFlashcards
 
 # Open in Xcode
-open BreakingFlashcards.xcodeproj
+open breakdex.xcodeproj
 
 # Build from command line
-xcodebuild -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
 ### Running Tests
 ```bash
 # Run unit tests
-xcodebuild test -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16'
 
 # Run UI tests
-xcodebuild test -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:BreakingFlashcardsUITests
+xcodebuild test -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:breakdexUITests
 ```
 
 ## 📱 Device Requirements
@@ -187,8 +185,8 @@ xcodebuild test -project BreakingFlashcards.xcodeproj -scheme BreakingFlashcards
 - **[Technical Architecture](./DOCUMENTATION.md)** - Comprehensive technical documentation (89KB)
 - **[Development Guidelines](./CLAUDE.md)** - Claude AI integration guidelines (15KB)
 - **[PRD Archives](./PRD/)** - Product requirement documents and development logs
-- **[Back Button Fix Summary](../BACK_BUTTON_FIX_SUMMARY.md)** - Complete implementation details for October 2025 fix
-- **Recent Updates**: Documentation reflects September 2025 major refactoring, October 2025 back button implementation, and 119-file codebase
+- **[Progress Flow Fix Summary](../PROGRESS_FLOW_FIX_SUMMARY.md)** - Complete implementation details for October 2025 progress fixes
+- **Recent Updates**: Documentation reflects September 2025 major refactoring, October 2025 progress flow fixes, and 120-file codebase
 
 ## 🤝 Contributing
 

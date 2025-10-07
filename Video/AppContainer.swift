@@ -33,8 +33,10 @@ public final class AppContainer {
         return manager
     }()
 
-    private(set) lazy var modernVideoLoadingService: ModernVideoLoadingService = {
-        return ModernVideoLoadingService()
+    // 🎯 INTEGRATION POINT: Swap with the new, network-resilient service.
+    // This single change activates the 45s timeout, network monitoring, and retry logic.
+    private(set) lazy var modernVideoLoadingService: VideoLoadingServiceResilient = {
+        return VideoLoadingServiceResilient.createStandalone()
     }()
 
     // 🗑️ DEPRECATED: Legacy video loading service - will be removed in favor of unified system

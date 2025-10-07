@@ -9,9 +9,11 @@ public struct VideoLoadingProgress {
         case transferring
         case validating
         case creatingAsset
+        case generatingThumbnail
         case loadingTrimmerDuration
         case loadingTrimmerTracks
         case validatingTrimmer
+        case completed
     }
 
     public let phase: LoadingPhase
@@ -41,10 +43,12 @@ public struct VideoLoadingProgress {
         case .downloadingFromCloud(let progress): return 0.1 + (progress * 0.3) // Maps 0-100% download to 10-40% of total
         case .transferring: return 0.45
         case .validating: return 0.7
-        case .creatingAsset: return 0.9
+        case .creatingAsset: return 0.85
+        case .generatingThumbnail: return 0.9
         case .loadingTrimmerDuration: return 0.95
         case .loadingTrimmerTracks: return 0.97
-        case .validatingTrimmer: return 1.0  // Fixed: was 0.99, now goes to 100%
+        case .validatingTrimmer: return 0.99
+        case .completed: return 1.0
         }
     }
 
@@ -55,9 +59,11 @@ public struct VideoLoadingProgress {
         case .transferring: return "Transferring video..."
         case .validating: return "Validating video..."
         case .creatingAsset: return "Creating asset..."
+        case .generatingThumbnail: return "Generating thumbnail..."
         case .loadingTrimmerDuration: return "Loading trimmer duration..."
         case .loadingTrimmerTracks: return "Loading trimmer tracks..."
         case .validatingTrimmer: return "Validating trimmer setup..."
+        case .completed: return "Completed!"
         }
     }
 

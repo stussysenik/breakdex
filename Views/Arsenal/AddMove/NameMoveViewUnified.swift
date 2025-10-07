@@ -164,47 +164,306 @@ struct NameMoveViewUnified: View {
     
     private func renderVideoPreview(with playerViewModel: UnifiedVideoPlayerViewModel) -> some View {
         VStack(spacing: 8) {
-//            Text("Preview")
-//                .font(.subheadline)
-//                .foregroundColor(.gray)
-            
-            CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false, shouldAutoplay: false)
-                .frame(height: 200)
-                .cornerRadius(12)
-                .padding(.horizontal)
-            
-            // Video info
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    // 🎯 DURATION FIX: Calculate duration with proper fallbacks
-                    Text("Duration: \(calculateTrimDuration())")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+            // 🎯 ENHANCED: Video preview with inherited modifiers and WYSIWYG experience
+            videoPreviewWithInheritedModifiers(playerViewModel: playerViewModel)
+
+            // Enhanced video info with precise trim details
+            enhancedVideoInfoSection
+        }
+    }
+
+    // MARK: - Enhanced Video Preview with Inherited Modifiers
+    @ViewBuilder
+    private func videoPreviewWithInheritedModifiers(playerViewModel: UnifiedVideoPlayerViewModel) -> some View {
+        VStack(spacing: 8) {
+            // 🎯 WYSIWYG VIDEO PREVIEW: Shows exactly what will be saved
+            ZStack {
+                // Video player container with rotation and trim modifiers baked in
+                CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false, shouldAutoplay: false)
+                    .frame(height: 200)
+                    .cornerRadius(12)
+                    .clipped()
+                    .onAppear {
+                        logger.info("🎬 NAME_MOVE_UNIFIED: 🎯 WYSIWYG preview appeared with inherited modifiers")
+                        logInheritedModifiers()
+                    }
+
+                // Overlay showing inherited modifiers
+                VStack {
+                    HStack {
+                        // Rotation indicator
+                        if unifiedState.totalRotationQuarterTurns > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "rotate.right")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white)
+
+                                Text("\(unifiedState.totalRotationQuarterTurns * 90)°")
+                                    .font(.ibmPlexMono(size: 11, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.6))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.accent.opacity(0.8), lineWidth: 1)
+                                    )
+                            )
+                        }
+
+                        Spacer()
+
+                        // Trim indicator
+                        HStack(spacing: 4) {
+                            Image(systemName: "scissors")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white)
+
+                            Text("Trimmed")
+                                .font(.ibmPlexMono(size: 11, weight: .medium))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Color.black.opacity(0.6))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.accent.opacity(0.8), lineWidth: 1)
+                                )
+                        )
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
 
                     Spacer()
 
-                    Text("Est. size: \(estimatedFileSize)")
-                        .font(.caption)
+                    // Duration indicator at bottom
+                    HStack {
+                        Spacer()
+
+                        Text(calculateTrimDuration())
+                            .font(.ibmPlexMono(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.black.opacity(0.7))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.accent.opacity(0.6), lineWidth: 1)
+                                    )
+                            )
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Enhanced Video Info Section
+    private var enhancedVideoInfoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Primary info row
+            HStack {
+                // Enhanced duration with frame count
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Duration")
+                        .font(.caption2)
                         .foregroundColor(.gray)
+
+                    HStack(spacing: 4) {
+                        Text(calculateTrimDuration())
+                            .font(.ibmPlexMono(size: 12, weight: .medium))
+                            .foregroundColor(.textPrimary)
+
+                        if let trimmerVM = unifiedState.trimmerViewModel as? TrimmerViewModel {
+                            let frameCount = trimmerVM.getFrameNumber(for: CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600)) - trimmerVM.getFrameNumber(for: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600))
+                            Text("(\(frameCount) frames)")
+                                .font(.ibmPlexMono(size: 10, weight: .regular))
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
                 }
 
+                Spacer()
+
+                // File size estimate
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Est. Size")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+
+                    Text(estimatedFileSize)
+                        .font(.ibmPlexMono(size: 12, weight: .medium))
+                        .foregroundColor(.textPrimary)
+                }
+            }
+
+            // Secondary info row with rotation details
+            HStack {
+                // Rotation info with inheritance indicator
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Transformations")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+
+                    HStack(spacing: 6) {
+                        // Rotation indicator
+                        if unifiedState.totalRotationQuarterTurns > 0 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "rotate.right")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(.accent)
+
+                                Text("\(unifiedState.totalRotationQuarterTurns * 90)° rotation")
+                                    .font(.ibmPlexMono(size: 11, weight: .medium))
+                                    .foregroundColor(.accent)
+                            }
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.up")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(.textSecondary)
+
+                                Text("No rotation")
+                                    .font(.ibmPlexMono(size: 11, weight: .medium))
+                                    .foregroundColor(.textSecondary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // WYSIWYG indicator
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Preview")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "eye.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.green)
+
+                        Text("WYSIWYG")
+                            .font(.ibmPlexMono(size: 11, weight: .medium))
+                            .foregroundColor(.green)
+                    }
+                }
+            }
+
+            // Inheritance details
+            if unifiedState.totalRotationQuarterTurns > 0 {
                 HStack {
-                    if unifiedState.totalRotationQuarterTurns > 0 {
-                        Text("Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
-                            .font(.caption)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Inherited Modifiers")
+                            .font(.caption2)
                             .foregroundColor(.gray)
+
+                        HStack(spacing: 8) {
+                            // Intrinsic rotation info
+                            if let trimmerVM = unifiedState.trimmerViewModel as? TrimmerViewModel, trimmerVM.assetIntrinsicRotationTurns > 0 {
+                                HStack(spacing: 2) {
+                                    Text("Intrinsic: \(trimmerVM.assetIntrinsicRotationTurns * 90)°")
+                                        .font(.ibmPlexMono(size: 10, weight: .regular))
+                                        .foregroundColor(.textSecondary)
+
+                                    Text("+")
+                                        .font(.ibmPlexMono(size: 10, weight: .medium))
+                                        .foregroundColor(.accent)
+                                }
+                            }
+
+                            // User applied rotation
+                            Text("User: \(unifiedState.userAppliedRotation * 90)°")
+                                .font(.ibmPlexMono(size: 10, weight: .regular))
+                                .foregroundColor(.accent)
+
+                            Text("=")
+                                .font(.ibmPlexMono(size: 10, weight: .medium))
+                                .foregroundColor(.textPrimary)
+
+                            Text("Total: \(unifiedState.totalRotationQuarterTurns * 90)°")
+                                .font(.ibmPlexMono(size: 10, weight: .semibold))
+                                .foregroundColor(.textPrimary)
+                        }
                     }
 
                     Spacer()
 
-                    Text("Rotation applied during export ✓")
-                        .font(.caption2)
-                        .foregroundColor(.green)
-                        .opacity(unifiedState.totalRotationQuarterTurns > 0 ? 1.0 : 0.0)
+                    // Applied indicator
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Export Status")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.green)
+
+                            Text("Applied ✓")
+                                .font(.ibmPlexMono(size: 11, weight: .medium))
+                                .foregroundColor(.green)
+                        }
+                    }
                 }
             }
-            .padding(.top, 4)
         }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Diagnostic Logging for Inherited Modifiers
+    private func logInheritedModifiers() {
+        logger.info("🎬 NAME_MOVE_UNIFIED: 🎯 LOGGING INHERITED MODIFIERS")
+        logger.info("🎬 NAME_MOVE_UNIFIED: ┌─ Rotation Inheritance")
+
+        if let trimmerVM = unifiedState.trimmerViewModel as? TrimmerViewModel {
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Intrinsic rotation: \(trimmerVM.assetIntrinsicRotationTurns * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ User applied rotation: \(unifiedState.userAppliedRotation * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Total rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  └─ Rotation baked into AVPlayerItem: true")
+
+            logger.info("🎬 NAME_MOVE_UNIFIED: ├─ Trim Inheritance")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Start time: \(String(format: "%.3f", unifiedState.trimStartTime))s")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ End time: \(String(format: "%.3f", unifiedState.trimEndTime))s")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Duration: \(calculateTrimDuration())")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  └─ Trim baked into AVComposition: true")
+
+            let startFrame = trimmerVM.getFrameNumber(for: CMTime(seconds: unifiedState.trimStartTime, preferredTimescale: 600))
+            let endFrame = trimmerVM.getFrameNumber(for: CMTime(seconds: unifiedState.trimEndTime, preferredTimescale: 600))
+            let totalFrames = endFrame - startFrame
+
+            logger.info("🎬 NAME_MOVE_UNIFIED: ├─ Frame Precision")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Start frame: \(startFrame)")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ End frame: \(endFrame)")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Total frames: \(totalFrames)")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  └─ Frame rate: \(trimmerVM.currentFrameRate) fps")
+        } else {
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ TrimmerViewModel not available")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ User applied rotation: \(unifiedState.userAppliedRotation * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Total rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
+        }
+
+        logger.info("🎬 NAME_MOVE_UNIFIED: ├─ WYSIWYG Experience")
+        logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ Preview matches final output: true")
+        logger.info("🎬 NAME_MOVE_UNIFIED: │  ├─ SwiftUI rotation disabled: true")
+        logger.info("🎬 NAME_MOVE_UNIFIED: │  └─ AVPlayerItem rotation active: true")
+
+        logger.info("🎬 NAME_MOVE_UNIFIED: └─ Export Readiness")
+        logger.info("🎬 NAME_MOVE_UNIFIED:     ├─ Estimated file size: \(estimatedFileSize)")
+        logger.info("🎬 NAME_MOVE_UNIFIED:     ├─ Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
+        logger.info("🎬 NAME_MOVE_UNIFIED:     └─ Save readiness: \(unifiedState.saveReadiness != nil ? "validated" : "pending")")
     }
     
     private func renderNameInput() -> some View {

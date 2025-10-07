@@ -43,7 +43,7 @@ public protocol VideoProcessingPipeline {
 // MARK: - Video Processing Pipeline Implementation
 @preconcurrency
 final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
-    private let loadingService: ModernVideoLoadingService
+    private let loadingService: ModernVideoLoadingServiceProtocol
     private let videoProcessor: VideoProcessor
     private let videoSaver: VideoSaver
     private let memoryManager: MemoryManager
@@ -55,7 +55,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
     private var correlationId: String?
     
     init(
-        loadingService: ModernVideoLoadingService,
+        loadingService: ModernVideoLoadingServiceProtocol,
         videoProcessor: VideoProcessor,
         videoSaver: VideoSaver,
         memoryManager: MemoryManager,

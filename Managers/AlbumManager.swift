@@ -158,7 +158,7 @@ final class AlbumManager {
     private var correlationIdGenerator = 0
 
     // Constants
-    private static let albumName = "BreakDex"
+    private static let albumName = "breakdex"
     private static let maxRetryAttempts = 3
     private static let retryDelay: TimeInterval = 0.5
     private static let operationTimeout: TimeInterval = 30.0

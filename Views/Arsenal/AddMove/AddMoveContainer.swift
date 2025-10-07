@@ -14,32 +14,48 @@ private let logger = Logger(subsystem: "com.breakingflashcards", category: "AddM
 
 // MARK: - State-Driven Container
 
-/// Refactored container using unified state to eliminate State Object Churn
+/// 🚨 DEPRECATED: This container is being replaced by AddMoveStateOwner for persistent state management
+///
+/// ROOT CAUSE: This @StateObject declaration creates a second AddMoveUnifiedState instance that gets
+/// deallocated and recreated when SwiftUI recreates this view, breaking the video loading workflow.
+///
+/// SOLUTION: Use AddMoveStateOwner which maintains the single persistent @StateObject at MainView level
+/// and passes @ObservedObject to child views, eliminating the state lifecycle bug.
 struct AddMoveContainer: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Binding private var selectedTab: TabSelection
 
-    // 💡 SOLUTION: Single unified state object eliminates churn
-    @StateObject private var unifiedState: AddMoveUnifiedState
+    // 🚨 CRITICAL FIX: Changed from @StateObject to @ObservedObject to eliminate duplicate state ownership
+    // This container now receives the persistent state from AddMoveStateOwner instead of creating its own
+    @ObservedObject private var unifiedState: AddMoveUnifiedState
 
     // MARK: - Save Completion Handler
     /// Called when a move is successfully saved and ready for navigation
     private var onSaveSuccess: ((Move) -> Void)?
 
     // MARK: - Initialization
-    private init(context: NSManagedObjectContext, selectedTab: Binding<TabSelection>, unifiedState: AddMoveUnifiedState, onSaveSuccess: ((Move) -> Void)?) {
-        logger.info("🎬 CONTAINER: AddMoveContainer initialized with unified state")
+
+    // 🚨 CRITICAL FIX: This container should only be initialized with a pre-existing unifiedState
+    // Never create new AddMoveUnifiedState instances here - that causes the state lifecycle bug
+    init(selectedTab: Binding<TabSelection>, unifiedState: AddMoveUnifiedState, onSaveSuccess: ((Move) -> Void)? = nil) {
+        logger.info("🎬 CONTAINER: 🎯 CRITICAL_FIX - AddMoveContainer initialized with persistent state from AddMoveStateOwner")
+
+        let stateIdString = String(describing: ObjectIdentifier(unifiedState))
+        logger.info("🎬 CONTAINER: 🎯 PERSISTENT_STATE_ID: \(stateIdString)")
+        logger.info("🎬 CONTAINER: 📊 Container now receives state as @ObservedObject (no ownership)")
 
         _selectedTab = selectedTab
-        _unifiedState = StateObject(wrappedValue: unifiedState)
+        _unifiedState = ObservedObject(wrappedValue: unifiedState)
         self.onSaveSuccess = onSaveSuccess
 
-        logger.info("🎬 CONTAINER: AddMoveContainer initialization completed")
+        logger.info("🎬 CONTAINER: ✅ STATE_LIFECYCLE_FIXED - Container no longer owns state object")
     }
-    
+
+    // 🚨 DEPRECATED: These initializers that create new AddMoveUnifiedState instances should not be used
+    // They are kept for backward compatibility but will cause the state lifecycle bug
     init(selectedTab: Binding<TabSelection>, onSaveSuccess: ((Move) -> Void)? = nil) {
-        logger.info("🎬 CONTAINER: Convenience initializer called")
-        logger.info("🎬 CONTAINER: Using shared PersistenceController context")
+        logger.warning("🎬 CONTAINER: ⚠️ DEPRECATED_INITIALIZER - Using deprecated initializer that creates state bug")
+        logger.warning("🎬 CONTAINER: ⚠️ Use AddMoveStateOwner instead to prevent state lifecycle issues")
 
         let appContainer = AppContainer.shared
         let unifiedState = AddMoveUnifiedState(
@@ -52,15 +68,13 @@ struct AddMoveContainer: View {
             appContainer: appContainer
         )
 
-        self.init(
-            context: PersistenceController.shared.container.viewContext,
-            selectedTab: selectedTab,
-            unifiedState: unifiedState,
-            onSaveSuccess: onSaveSuccess
-        )
+        self.init(selectedTab: selectedTab, unifiedState: unifiedState, onSaveSuccess: onSaveSuccess)
     }
-    
+
     init(viewContext: NSManagedObjectContext, selectedTab: Binding<TabSelection>, onSaveSuccess: ((Move) -> Void)? = nil) {
+        logger.warning("🎬 CONTAINER: ⚠️ DEPRECATED_INITIALIZER - Using deprecated initializer that creates state bug")
+        logger.warning("🎬 CONTAINER: ⚠️ Use AddMoveStateOwner instead to prevent state lifecycle issues")
+
         let appContainer = AppContainer.shared
         let unifiedState = AddMoveUnifiedState(
             unifiedPlayerManager: UnifiedPlayerManager(),
@@ -72,7 +86,7 @@ struct AddMoveContainer: View {
             appContainer: appContainer
         )
 
-        self.init(context: viewContext, selectedTab: selectedTab, unifiedState: unifiedState, onSaveSuccess: onSaveSuccess)
+        self.init(selectedTab: selectedTab, unifiedState: unifiedState, onSaveSuccess: onSaveSuccess)
     }
     
     var body: some View {
@@ -315,51 +329,31 @@ struct AddMoveContainer: View {
                     LoadingOverlayView(unifiedState: unifiedState)
 
                 case .trimming:
-                    // 🎯 CRITICAL FIX: Enhanced isomorphic rollback with proper state preservation and type safety
-                    let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: Rendering trimming state with enhanced isomorphic rollback")
-                    if let viewModel = unifiedState.trimmerViewModel as? TrimmerViewModel {
-                        FeatureRichTrimmerView(unifiedState: unifiedState, viewModel: viewModel)
-                            // 🎯 CRITICAL FIX: SwiftUI view identity for isomorphic rollback
-                            // The .id() modifier ensures SwiftUI treats this as the same view instance
-                            // when navigating back, preserving all state (rotation, trim range, etc.)
-                            .id(unifiedState.photosIdentifier ?? UUID().uuidString)
-                            .onAppear {
-                                // 🎯 DIAGNOSTIC: Enhanced logging for successful isomorphic restoration with type safety
-                                let _ = logger.info("🎬 CONTAINER: ✅ ISOMORPHIC_ROLLBACK: FeatureRichTrimmerView appeared with perfectly preserved state")
-                                let _ = logger.info("🎬 CONTAINER: 🎯 DOUBLE_ROTATION_FIX: SwiftUI identity morphism active - no rotation layer applied")
-                                let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: TrimmerView type confirmed - TrimmerViewModel")
+                    // 🎯 PERFORMANCE OPTIMIZATION: Lazy ViewModel initialization
+                    // ROOT CAUSE: Heavy ViewModel initialization during state transition caused CPU/memory spikes
+                    // SOLUTION: FeatureRichTrimmerView now creates its own ViewModel lazily on appear
+                    let _ = logger.info("🎬 CONTAINER: 🚀 PERFORMANCE_OPTIMIZATION - Creating FeatureRichTrimmerView with lazy ViewModel initialization")
 
-                                // 🎯 PHASE 3: Trigger trimmer environment setup when view appears
-                                // This implements the decoupled architecture where loading only loads the asset
-                                // and trimmer setup happens when the trimming view appears
-                                Task {
-                                    await unifiedState.prepareTrimmerEnvironment()
-                                }
-
-                                // 🎯 ENHANCED DIAGNOSTIC: Log comprehensive isomorphic rollback details with type safety
-                                let _ = logger.info("🎬 CONTAINER: 🎯 ISOMORPHIC_ROLLBACK: Rendering FeatureRichTrimmerView with preserved state")
-                                let _ = logger.info("🎬 CONTAINER: ┌─ Enhanced State Preservation Details")
-                                let _ = logger.info("🎬 CONTAINER: ├─ photos_identifier: \(unifiedState.photosIdentifier ?? "missing")")
-                                let _ = logger.info("🎬 CONTAINER: ├─ trimmer_vm_type: \(type(of: viewModel))")
-                                let _ = logger.info("🎬 CONTAINER: ├─ trimmer_vm_available: true")
-                                let _ = logger.info("🎬 CONTAINER: ├─ trimmer_ready: \(viewModel.isReady)")
-                                let _ = logger.info("🎬 CONTAINER: ├─ trim_range: \(String(format: "%.2f", viewModel.startTime.seconds))s - \(String(format: "%.2f", viewModel.endTime.seconds))s")
-                                let _ = logger.info("🎬 CONTAINER: ├─ user_rotation: \(viewModel.userAppliedRotationTurns * 90)°")
-                                let _ = logger.info("🎬 CONTAINER: ├─ total_rotation: \(viewModel.totalRotationQuarterTurns * 90)°")
-                                let _ = logger.info("🎬 CONTAINER: ├─ swiftui_identity: enforced")
-                                let _ = logger.info("🎬 CONTAINER: ├─ type_erasure: AnyView_active")
-                                let _ = logger.info("🎬 CONTAINER: ├─ prepareTrimmerEnvironment: triggered")
-                                let _ = logger.info("🎬 CONTAINER: └─ isomorphic_rollback: perfect_preservation")
-                            }
-                    } else {
-                        // Show transition view while trimmer is being set up
-                        let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: TrimmerViewModel not ready - showing PreviewToTrimTransitionView")
-                        PreviewToTrimTransitionView(unifiedState: unifiedState)
-                            .onAppear {
-                                let _ = logger.info("🎬 CONTAINER: ⏳ ISOMORPHIC_ROLLBACK: TrimmerViewModel not ready - showing transition view")
-                                let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: Transition view type confirmed - PreviewToTrimTransitionView")
-                            }
-                    }
+                    FeatureRichTrimmerView(unifiedState: unifiedState)
+                        // 🎯 CRITICAL FIX: SwiftUI view identity for isomorphic rollback
+                        // The .id() modifier ensures SwiftUI treats this as the same view instance
+                        // when navigating back, preserving all state (rotation, trim range, etc.)
+                        .id(unifiedState.photosIdentifier ?? UUID().uuidString)
+                        .onAppear {
+                            // 🎯 DIAGNOSTIC: Enhanced logging for lazy initialization
+                            let _ = logger.info("🎬 CONTAINER: ✅ LAZY_INITIALIZATION: FeatureRichTrimmerView appeared - ViewModel will be created lazily")
+                            let _ = logger.info("🎬 CONTAINER: 🎯 PERFORMANCE_OPTIMIZATION: Heavy initialization deferred to prevent CPU/memory spikes")
+                            let _ = logger.info("🎬 CONTAINER: 🏗️ LAZY_ARCHITECTURE: TrimmerViewModel creation moved to FeatureRichTrimmerView.onAppear")
+                            let _ = logger.info("🎬 CONTAINER: ┌─ Lazy Initialization Details")
+                            let _ = logger.info("🎬 CONTAINER: ├─ photos_identifier: \(unifiedState.photosIdentifier ?? "missing")")
+                            let _ = logger.info("🎬 CONTAINER: ├─ video_asset: \(unifiedState.videoAsset != nil ? "available" : "missing")")
+                            let _ = logger.info("🎬 CONTAINER: ├─ player_viewmodel: \(unifiedState.currentPlayerViewModel != nil ? "available" : "missing")")
+                            let _ = logger.info("🎬 CONTAINER: ├─ trim_start_time: \(String(format: "%.3f", unifiedState.trimStartTime))s")
+                            let _ = logger.info("🎬 CONTAINER: ├─ trim_end_time: \(String(format: "%.3f", unifiedState.trimEndTime))s")
+                            let _ = logger.info("🎬 CONTAINER: ├─ intrinsic_rotation: \(unifiedState.intrinsicAssetRotation * 90)°")
+                            let _ = logger.info("🎬 CONTAINER: ├─ user_rotation: \(unifiedState.userAppliedRotation * 90)°")
+                            let _ = logger.info("🎬 CONTAINER: └─ performance_target: <250ms transition, <90% CPU usage")
+                        }
 
                 case .loadingTrimmedAsset(let progress):
                     let _ = logger.info("🎬 CONTAINER: 🏗️ TYPE_ERASURE: Rendering loadingTrimmedAsset state - LoadingView with progress: \(String(format: "%.1f", progress.value * 100))%, status: \(progress.message)")

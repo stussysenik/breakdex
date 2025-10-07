@@ -22,14 +22,32 @@ struct LoadingOverlayView: View {
         return unifiedState.unifiedProgressEngine.unifiedProgress
     }
 
-    // 🎯 STATUS MESSAGE UPDATE: Use unifiedState.loadingStatusMessage for new unified loading state
+    // 🎯 SINGLE SOURCE OF TRUTH: Bind exclusively to unifiedStatus from UnifiedProgressEngine
+    // This eliminates the state synchronization flaw where loadingStatusMessage overrode detailed progress
     private var statusMessage: String {
-        return unifiedState.loadingStatusMessage ?? unifiedState.unifiedProgressEngine.unifiedStatus
+        return unifiedState.unifiedProgressEngine.unifiedStatus
     }
 
     // Enhanced status message based on progress
     private var enhancedStatusMessage: String {
+        if unifiedState.unifiedProgressEngine.currentPhase == .waitingForNetwork {
+            return "Waiting for network connection..."
+        }
         return statusMessage
+    }
+
+    // Network waiting indicator
+    private var isWaitingForNetwork: Bool {
+        return unifiedState.unifiedProgressEngine.currentPhase == .waitingForNetwork
+    }
+
+    // Network status information
+    private var networkStatusInfo: String {
+        let engine = unifiedState.unifiedProgressEngine
+        if !engine.isNetworkAvailable {
+            return "No network connection"
+        }
+        return "Connected via \(engine.networkConnectionType.displayName)"
     }
 
     var body: some View {
@@ -80,6 +98,31 @@ struct LoadingOverlayView: View {
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true) // 🏗️ CONSTRAINED LAYOUT: Prevent layout overflow
                     }
+
+                    // 🌐 Network waiting indicator with enhanced visual feedback
+                    if isWaitingForNetwork {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.caption)
+                                    .foregroundColor(Color.accentWhite)
+                                    .scaleEffect(isPulsing ? 1.1 : 1.0)
+                                    .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: isPulsing)
+
+                                Text(networkStatusInfo)
+                                    .font(.systemCaption)
+                                    .foregroundColor(Color.accentWhite)
+                                    .multilineTextAlignment(.center)
+                            }
+
+                            Text("Download will resume automatically when connection is restored")
+                                .font(.systemCaption)
+                                .foregroundColor(Color.textSecondary)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
 
                 // 🎨 WCAG AA COMPLIANT: Progress bar with DesignSystem.accentWhite for energy visualization
@@ -111,6 +154,22 @@ struct LoadingOverlayView: View {
                         .fontDesign(.monospaced) // 🎯 MM:SS.ss format requires monospaced font
                 }
                 .accessibilityLabel("Elapsed time: \(formatTime(unifiedState.loadElapsedTime))")
+
+                // 📊 FILE_SIZE_DISPLAY: Show estimated file size when available
+                if !unifiedState.formattedFileSize.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.badge.gearshape")
+                            .font(.caption)
+                            .foregroundColor(Color.accentWhite.opacity(0.8))
+                            .accessibilityLabel("File size")
+                        Text(unifiedState.formattedFileSize)
+                            .font(.caption)
+                            .foregroundColor(Color.textSecondary)
+                            .fontDesign(.monospaced) // 🎯 Monospaced for consistent alignment
+                    }
+                    .accessibilityLabel("Estimated file size: \(unifiedState.formattedFileSize)")
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
 
             }
             // 🏗️ CONSTRAINED LAYOUT: Enhanced padding to ensure layout integrity
@@ -199,11 +258,11 @@ struct LoadingOverlayView: View {
         logger.info("🎬 LOADING_OVERLAY: 🏗️ CONSTRAINED_LAYOUT: ├─ Horizontal padding: 40pt to prevent overflow")
         logger.info("🎬 LOADING_OVERLAY: 🏗️ CONSTRAINED_LAYOUT: └─ Progress bar container bounds enforcement")
 
-        // 🎯 STATUS MESSAGE: Log unified loading state integration
-        logger.info("🎬 LOADING_OVERLAY: 🎯 STATUS_MESSAGE: Unified loading state integration complete")
-        logger.info("🎬 LOADING_OVERLAY: 🎯 STATUS_MESSAGE: ├─ Primary: unifiedState.loadingStatusMessage")
-        logger.info("🎬 LOADING_OVERLAY: 🎯 STATUS_MESSAGE: ├─ Fallback: unifiedState.unifiedProgressEngine.unifiedStatus")
-        logger.info("🎬 LOADING_OVERLAY: 🎯 STATUS_MESSAGE: └─ Current: \(statusMessage)")
+        // 🎯 SINGLE SOURCE OF TRUTH: Log exclusive unifiedStatus binding
+        logger.info("🎬 LOADING_OVERLAY: 🎯 SINGLE_SOURCE_OF_TRUTH: Exclusive unifiedStatus binding implemented")
+        logger.info("🎬 LOADING_OVERLAY: 🎯 SINGLE_SOURCE_OF_TRUTH: ├─ Source: unifiedState.unifiedProgressEngine.unifiedStatus")
+        logger.info("🎬 LOADING_OVERLAY: 🎯 SINGLE_SOURCE_OF_TRUTH: ├─ Status synchronization flaw eliminated")
+        logger.info("🎬 LOADING_OVERLAY: 🎯 SINGLE_SOURCE_OF_TRUTH: └─ Current: \(statusMessage)")
 
         // 🎨 WCAG AA: Typography integration logging
         logger.info("🎬 LOADING_OVERLAY: 🎨 TYPOGRAPHY_INTEGRATION: IBM Plex Mono font system maintained")
@@ -295,8 +354,17 @@ struct LoadingOverlayView: View {
         perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] ├─ Progress: \(Int(progressValue * 100))%")
         perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] ├─ Status message: '\(statusMessage)'")
         perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] ├─ Elapsed time: \(formatTime(unifiedState.loadElapsedTime))")
+        perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] ├─ File size: \(unifiedState.formattedFileSize.isEmpty ? "Not available" : unifiedState.formattedFileSize)")
+        perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] ├─ Raw file size: \(unifiedState.estimatedFileSize) bytes")
         perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] ├─ Unified state: \(String(describing: unifiedState.flowState))")
         perfLogger.info("📊 VIEW_APPEARANCE: [(sessionId)] └─ Animation state: pulsing = \(isPulsing)")
+
+        // 📊 FILE_SIZE_DISPLAY_DIAGNOSTICS: Log file size display state
+        perfLogger.info("📊 FILE_SIZE_DISPLAY: [(sessionId)] 📊 File size display verification:")
+        perfLogger.info("📊 FILE_SIZE_DISPLAY: [(sessionId)] ├─ Formatted Size Available: \(!unifiedState.formattedFileSize.isEmpty)")
+        perfLogger.info("📊 FILE_SIZE_DISPLAY: [(sessionId)] ├─ Display Will Show: \(!unifiedState.formattedFileSize.isEmpty)")
+        perfLogger.info("📊 FILE_SIZE_DISPLAY: [(sessionId)] ├─ Icon: doc.badge.gearshape")
+        perfLogger.info("📊 FILE_SIZE_DISPLAY: [(sessionId)] └─ Transition: opacity + move(edge: .top)")
 
         // 🎨 ACCESSIBILITY_COMPLIANCE: WCAG AA compliance verification
         let a11yLogger = Logger(subsystem: "BreakingFlashcards", category: "🎨 ACCESSIBILITY_COMPLIANCE")
@@ -631,12 +699,16 @@ extension VideoLoadingProgress.LoadingPhase {
             return "Validating"
         case .creatingAsset:
             return "Creating Asset"
+        case .generatingThumbnail:
+            return "Generating Thumbnail"
         case .loadingTrimmerDuration:
             return "Loading Trimmer Duration"
         case .loadingTrimmerTracks:
             return "Loading Trimmer Tracks"
         case .validatingTrimmer:
             return "Validating Trimmer"
+        case .completed:
+            return "Completed"
         }
     }
 }
@@ -683,12 +755,12 @@ extension VideoLoadingProgress.LoadingPhase {
  ├─ Progress bar container bounds enforcement
  └─ Text wrapping prevention to maintain layout integrity
 
- ✅ UNIFIED STATUS MESSAGE INTEGRATION COMPLETE:
- ├─ Primary binding: unifiedState.loadingStatusMessage
- ├─ Fallback binding: unifiedState.unifiedProgressEngine.unifiedStatus
- ├─ Seamless transition between unified and engine states
- ├─ Enhanced error handling for status display
- └─ Real-time status updates with proper fallback logic
+ ✅ SINGLE SOURCE OF TRUTH INTEGRATION COMPLETE:
+ ├─ Exclusive binding: unifiedState.unifiedProgressEngine.unifiedStatus
+ ├─ State synchronization flaw eliminated (no more dual sources)
+ ├─ Deterministic, transparent progress feedback to users
+ ├─ Real-time detailed status from UnifiedProgressEngine
+ └─ Commutative diagram restored: state → UI mapping is now unambiguous
 
  ✅ MM:SS.ss TIMER SYSTEM COMPLETE:
  ├─ Centisecond precision (0.01s) maintained from TimerManagementService

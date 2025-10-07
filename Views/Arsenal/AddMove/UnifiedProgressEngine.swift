@@ -27,12 +27,10 @@ public final class UnifiedProgressEngine: ObservableObject {
 
     // MARK: - Progress Tracking
     private var phaseProgress: Double = 0.0
-    private var _currentPhase: LoadingPhase = .initializing
 
-    /// Current loading phase (read-only public access)
-    public var currentPhase: LoadingPhase {
-        return _currentPhase
-    }
+    /// 🎯 COMPLETION_MORPHISM_FIX: Current loading phase as @Published property
+    /// This allows AddMoveUnifiedState to subscribe to phase changes and handle completion properly
+    @Published public private(set) var currentPhase: LoadingPhase = .initializing
     private var operationStartTime: Date = Date()
     private var lastProgressUpdate: Date = Date()
 
@@ -45,14 +43,17 @@ public final class UnifiedProgressEngine: ObservableObject {
     // MARK: - Deterministic Stage Weighting
     /// Fixed stage weights that sum to exactly 1.0 for deterministic progress
     private let stageWeights: [LoadingPhase: Double] = [
-        .initializing: 0.05,           // 5% - Initial setup
-        .downloadingFromCloud: 0.50,   // 50% - Download from iCloud (largest chunk)
-        .transferring: 0.20,           // 20% - Transfer and processing
-        .validating: 0.10,             // 10% - Video validation
-        .creatingAsset: 0.05,          // 5% - Asset creation
+        .initializing: 0.03,           // 3% - Initial setup
+        .requestingDownload: 0.02,     // 2% - Request download from iCloud
+        .waitingForNetwork: 0.00,      // 0% - Waiting state (no progress contribution)
+        .downloadingFromCloud: 0.45,   // 45% - Download from iCloud (largest chunk)
+        .transferring: 0.18,           // 18% - Transfer and processing
+        .validating: 0.08,             // 8% - Video validation
+        .creatingAsset: 0.04,          // 4% - Asset creation
+        .generatingThumbnail: 0.05,    // 5% - Thumbnail generation
         .loadingTrimmerDuration: 0.03, // 3% - Load trimmer duration
         .loadingTrimmerTracks: 0.02,   // 2% - Load trimmer tracks
-        .validatingTrimmer: 0.05       // 5% - Final validation (TERMINAL STATE)
+        .validatingTrimmer: 0.10       // 10% - Final validation (TERMINAL STATE)
     ]
 
     // Verify weights sum to 1.0
@@ -80,14 +81,27 @@ public final class UnifiedProgressEngine: ObservableObject {
     @Published public private(set) var currentError: ProgressError?
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - Network Monitoring
+    private let networkMonitor = NWPathMonitor()
+    private let networkQueue = DispatchQueue(label: "breakdex.network.monitor", qos: .utility)
+    @Published public private(set) var networkConnectionType: NetworkConnectionType = .unknown
+    @Published public private(set) var isNetworkAvailable: Bool = true
+    @Published public private(set) var networkQuality: NetworkQuality = .excellent
+    private var previousNetworkState: Bool = true
+    private var networkLostDuringDownload: Bool = false
+    private var pausedPhase: LoadingPhase?
+
     // MARK: - Enums
 
     public enum LoadingPhase: String, CaseIterable, Comparable {
         case initializing = "initializing"
+        case requestingDownload = "requestingDownload"
+        case waitingForNetwork = "waitingForNetwork"
         case downloadingFromCloud = "downloadingFromCloud"
         case transferring = "transferring"
         case validating = "validating"
         case creatingAsset = "creatingAsset"
+        case generatingThumbnail = "generatingThumbnail"
         case loadingTrimmerDuration = "loadingTrimmerDuration"
         case loadingTrimmerTracks = "loadingTrimmerTracks"
         case validatingTrimmer = "validatingTrimmer"
@@ -98,15 +112,18 @@ public final class UnifiedProgressEngine: ObservableObject {
         var order: Int {
             switch self {
             case .initializing: return 0
-            case .downloadingFromCloud: return 1
-            case .transferring: return 2
-            case .validating: return 3
-            case .creatingAsset: return 4
-            case .loadingTrimmerDuration: return 5
-            case .loadingTrimmerTracks: return 6
-            case .validatingTrimmer: return 7
-            case .completed: return 8
-            case .error: return 9
+            case .requestingDownload: return 1
+            case .waitingForNetwork: return 2
+            case .downloadingFromCloud: return 3
+            case .transferring: return 4
+            case .validating: return 5
+            case .creatingAsset: return 6
+            case .generatingThumbnail: return 7
+            case .loadingTrimmerDuration: return 8
+            case .loadingTrimmerTracks: return 9
+            case .validatingTrimmer: return 10
+            case .completed: return 11
+            case .error: return 12
             }
         }
 
@@ -118,10 +135,13 @@ public final class UnifiedProgressEngine: ObservableObject {
         var displayName: String {
             switch self {
             case .initializing: return "Initializing"
+            case .requestingDownload: return "Requesting download"
+            case .waitingForNetwork: return "Waiting for network"
             case .downloadingFromCloud: return "Downloading from iCloud"
             case .transferring: return "Transferring video"
             case .validating: return "Validating video"
             case .creatingAsset: return "Creating asset"
+            case .generatingThumbnail: return "Generating thumbnail"
             case .loadingTrimmerDuration: return "Loading trimmer duration"
             case .loadingTrimmerTracks: return "Loading trimmer tracks"
             case .validatingTrimmer: return "Validating trimmer setup"
@@ -173,6 +193,13 @@ public final class UnifiedProgressEngine: ObservableObject {
         case userCancelled
         case timeout(duration: TimeInterval)
         case invalidFileSize(size: Int64)
+        case unsupportedCodec(codec: String)
+        case corruptedFile
+        case permissionDenied
+        case zeroByteFile
+        case diskSpaceCritical(available: Int64)
+        case downloadQuotaExceeded
+        case assetUnavailable
         case unknown(String)
 
         public var errorDescription: String? {
@@ -187,6 +214,20 @@ public final class UnifiedProgressEngine: ObservableObject {
                 return "Operation timed out after \(String(format: "%.1f", duration)) seconds"
             case .invalidFileSize(let size):
                 return "Invalid file size: \(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))"
+            case .unsupportedCodec(let codec):
+                return "Unsupported video codec: \(codec). Please convert to a compatible format."
+            case .corruptedFile:
+                return "Video file appears to be corrupted and cannot be processed"
+            case .permissionDenied:
+                return "Permission denied. Please check photo library access in Settings"
+            case .zeroByteFile:
+                return "Video file is empty (0 bytes). Please select a valid video file"
+            case .diskSpaceCritical(let available):
+                return "Critical disk space shortage. Only \(ByteCountFormatter.string(fromByteCount: available, countStyle: .file)) available"
+            case .downloadQuotaExceeded:
+                return "iCloud download quota exceeded. Please try again later"
+            case .assetUnavailable:
+                return "Video asset is currently unavailable. Please try again"
             case .unknown(let message):
                 return "Unknown error: \(message)"
             }
@@ -199,7 +240,8 @@ public final class UnifiedProgressEngine: ObservableObject {
         verifyStageWeights()
         setupF1Timer()
         setupAnimationTimer()
-        logger.info("🎯 DeterministicProgressEngine: Initialized with deterministic stage weights and F1-precision timer")
+        setupNetworkMonitoring()
+        logger.info("🎯 DeterministicProgressEngine: Initialized with deterministic stage weights, F1-precision timer, and network monitoring")
         progressLogger.info("📊 Stage weights verified: Total = \(String(format: "%.3f", self.totalWeight))")
     }
 
@@ -207,6 +249,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         timerTimer?.invalidate()
         timerTimer = nil
         animationTimer?.invalidate()
+        networkMonitor.cancel()
         cancellables.removeAll()
         logger.info("🎯 DeterministicProgressEngine: Deinitialized")
     }
@@ -258,8 +301,8 @@ public final class UnifiedProgressEngine: ObservableObject {
 
     /// Update download progress (0.0 to 1.0)
     public func updateDownloadProgress(_ progress: Double) {
-        guard self._currentPhase == .downloadingFromCloud else {
-            logger.warning("🎯 DeterministicProgressEngine: ⚠️ Download progress update received in \(self._currentPhase.rawValue) phase")
+        guard self.currentPhase == .downloadingFromCloud else {
+            logger.warning("🎯 DeterministicProgressEngine: ⚠️ Download progress update received in \(self.currentPhase.rawValue) phase")
             return
         }
 
@@ -273,8 +316,8 @@ public final class UnifiedProgressEngine: ObservableObject {
 
     /// Update transfer progress (0.0 to 1.0)
     public func updateTransferProgress(_ progress: Double) {
-        guard self._currentPhase == .transferring else {
-            logger.warning("🎯 DeterministicProgressEngine: ⚠️ Transfer progress update received in \(self._currentPhase.rawValue) phase")
+        guard self.currentPhase == .transferring else {
+            logger.warning("🎯 DeterministicProgressEngine: ⚠️ Transfer progress update received in \(self.currentPhase.rawValue) phase")
             return
         }
 
@@ -288,25 +331,51 @@ public final class UnifiedProgressEngine: ObservableObject {
 
     /// Transition to a specific loading phase
     public func transitionToPhase(_ phase: LoadingPhase) {
-        logger.info("🎯 DeterministicProgressEngine: 🔄 Transitioning to phase: \(phase.displayName) [from: \(self._currentPhase.displayName)]")
-        progressLogger.info("📊 Progress before transition: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)")
+        let transitionId = UUID().uuidString.prefix(8)
+        let timestamp = Date()
+
+        logger.info("🎯 DeterministicProgressEngine: [\(transitionId)] 🔄 PHASE_TRANSITION: \(phase.displayName) [from: \(self.currentPhase.displayName)]")
+        progressLogger.info("📊 [\(transitionId)] 🔄 TRANSITION_START: \(self.currentPhase.displayName) → \(phase.displayName)")
+        progressLogger.info("📊 [\(transitionId)] ⏰ Timestamp: \(timestamp.description)")
+        progressLogger.info("📊 [\(transitionId)] 📈 Progress before: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)")
+
+        // Log network state if transitioning to/from network-dependent phases
+        if isNetworkDependentPhase(phase) || isNetworkDependentPhase(self.currentPhase) {
+            logger.info("🌐 [\(transitionId)] 📶 NETWORK_CONTEXT: Available=\(self.isNetworkAvailable), Type=\(self.networkConnectionType.displayName), Quality=\(self.networkQuality.displayName)")
+        }
+
+        // Log error state transitions
+        if phase == .error {
+            logger.error("❌ [\(transitionId)] 🔴 ERROR_TRANSITION: Entering error state from \(self.currentPhase.displayName)")
+            if let error = currentError {
+                logger.error("❌ [\(transitionId)] 🚨 ERROR_DETAILS: \(error.localizedDescription)")
+            }
+        }
 
         updatePhase(phase)
 
         // 🎯 TERMINAL STATE FIX: Special handling for validatingTrimmer to guarantee 1.0 completion
         if phase == .validatingTrimmer {
-            progressLogger.info("🎯 TERMINAL_STATE: Validating trimmer - setting progress to 1.0")
+            progressLogger.info("🎯 [\(transitionId)] 🏁 TERMINAL_STATE: Validating trimmer - setting progress to 1.0")
             calculateDeterministicProgress(phase: .validatingTrimmer, phaseProgress: 1.0)
         } else {
             calculateDeterministicProgress(phase: phase, phaseProgress: 0.0)
         }
 
-        progressLogger.info("📊 Progress after transition: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)")
+        progressLogger.info("📊 [\(transitionId)] 📈 Progress after: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)")
+
+        // Log phase-specific details
+        logPhaseSpecificDetails(transitionId: String(transitionId), phase: phase)
 
         // 🎯 COMPLETION GUARANTEE: Force completion when terminal state is reached
         if phase == .completed {
-            progressLogger.info("🎯 COMPLETION: Operation completed - ensuring 1.0 progress")
+            progressLogger.info("🎯 [\(transitionId)] 🏆 COMPLETION: Operation completed - ensuring 1.0 progress")
             setUnifiedProgress(1.0)
+
+            // Log completion metrics
+            let totalDuration = elapsedTime
+            progressLogger.info("🎯 [\(transitionId)] ⏱️ COMPLETION_METRICS: Total duration: \(String(format: "%.2f", totalDuration))s")
+            progressLogger.info("🎯 [\(transitionId)] 📊 COMPLETION_METRICS: Final progress: \(String(format: "%.3f", self.unifiedProgress))")
         }
     }
 
@@ -334,7 +403,7 @@ public final class UnifiedProgressEngine: ObservableObject {
     /// Handle errors during loading
     public func handleError(_ error: ProgressError) {
         logger.error("🎯 DeterministicProgressEngine: ❌ Loading error: \(error.localizedDescription)")
-        progressLogger.error("📊 Error occurred in phase: \(self._currentPhase.rawValue) at progress: \(String(format: "%.3f", self.unifiedProgress))")
+        progressLogger.error("📊 Error occurred in phase: \(self.currentPhase.rawValue) at progress: \(String(format: "%.3f", self.unifiedProgress))")
         currentError = error
         transitionToPhase(.error)
     }
@@ -371,6 +440,246 @@ public final class UnifiedProgressEngine: ObservableObject {
         handleError(.userCancelled)
     }
 
+    // MARK: - Edge Case Handling
+
+    /// Handle zero-byte file detection
+    public func handleZeroByteFile(fileSize: Int64) {
+        logger.error("🚀 UnifiedProgressEngine: ❌ Zero-byte file detected - Size: \(fileSize) bytes")
+        progressLogger.error("📊 ZERO_BYTE_FILE: File validation failed - empty file detected")
+        handleError(.zeroByteFile)
+    }
+
+    /// Handle unsupported codec detection
+    public func handleUnsupportedCodec(detectedCodec: String, supportedCodecs: [String]) {
+        logger.error("🚀 UnifiedProgressEngine: ❌ Unsupported codec detected - \(detectedCodec)")
+        progressLogger.error("📊 UNSUPPORTED_CODEC: Detected: \(detectedCodec), Supported: \(supportedCodecs.joined(separator: ", "))")
+        handleError(.unsupportedCodec(codec: detectedCodec))
+    }
+
+    /// Handle corrupted file detection
+    public func handleCorruptedFile(fileName: String, errorDetails: String) {
+        logger.error("🚀 UnifiedProgressEngine: ❌ Corrupted file detected - \(fileName)")
+        progressLogger.error("📊 CORRUPTED_FILE: File: \(fileName), Details: \(errorDetails)")
+        handleError(.corruptedFile)
+    }
+
+    /// Handle permission denial
+    public func handlePermissionDenied(resource: String) {
+        logger.error("🚀 UnifiedProgressEngine: ❌ Permission denied for resource: \(resource)")
+        progressLogger.error("📊 PERMISSION_DENIED: Access denied to \(resource)")
+        handleError(.permissionDenied)
+    }
+
+    /// Handle critical disk space shortage
+    public func handleCriticalDiskSpace(availableSpace: Int64, requiredSpace: Int64) {
+        logger.error("🚀 UnifiedProgressEngine: 💾 Critical disk space - Available: \(ByteCountFormatter.string(fromByteCount: availableSpace, countStyle: .file)), Required: \(ByteCountFormatter.string(fromByteCount: requiredSpace, countStyle: .file))")
+        progressLogger.error("📊 DISK_CRITICAL: Space shortage - Available: \(availableSpace) bytes, Required: \(requiredSpace) bytes")
+        handleError(.diskSpaceCritical(available: availableSpace))
+    }
+
+    /// Handle iCloud download quota exceeded
+    public func handleDownloadQuotaExceeded(quotaType: String) {
+        logger.error("🚀 UnifiedProgressEngine: ☁️ iCloud download quota exceeded - Type: \(quotaType)")
+        progressLogger.error("📊 QUOTA_EXCEEDED: \(quotaType) quota limit reached")
+        handleError(.downloadQuotaExceeded)
+    }
+
+    /// Handle asset unavailability
+    public func handleAssetUnavailable(assetIdentifier: String, reason: String) {
+        logger.warning("🚀 UnifiedProgressEngine: ⚠️ Asset unavailable - ID: \(assetIdentifier), Reason: \(reason)")
+        progressLogger.warning("📊 ASSET_UNAVAILABLE: Asset \(assetIdentifier) not accessible - \(reason)")
+        handleError(.assetUnavailable)
+    }
+
+    /// Validate file size against expected ranges
+    public func validateFileSize(_ fileSize: Int64, expectedRange: ClosedRange<Int64>? = nil) -> Bool {
+        let logger = Logger(subsystem: "breakdex", category: "🔍 FILE_VALIDATION")
+
+        logger.info("🔍 Validating file size: \(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file))")
+
+        // Check for zero-byte file
+        if fileSize == 0 {
+            handleZeroByteFile(fileSize: fileSize)
+            return false
+        }
+
+        // Check against expected range if provided
+        if let range = expectedRange {
+            if !range.contains(fileSize) {
+                logger.error("🔍 File size \(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)) outside expected range \(ByteCountFormatter.string(fromByteCount: range.lowerBound, countStyle: .file)) - \(ByteCountFormatter.string(fromByteCount: range.upperBound, countStyle: .file))")
+                handleError(.invalidFileSize(size: fileSize))
+                return false
+            }
+        }
+
+        logger.info("🔍 File size validation passed")
+        return true
+    }
+
+    /// Validate network connectivity before download operations
+    public func validateNetworkConnectivity() -> Bool {
+        let logger = Logger(subsystem: "breakdex", category: "🌐 NETWORK_VALIDATION")
+
+        logger.info("🌐 Validating network connectivity for download operations")
+
+        guard isNetworkAvailable else {
+            logger.error("🌐 Network validation failed - No network connection available")
+            progressLogger.error("📊 NETWORK_VALIDATION: Cannot proceed with download - network unavailable")
+            return false
+        }
+
+        // Check if connection type is suitable for large downloads
+        switch self.networkConnectionType {
+        case .wifi, .ethernet:
+            logger.info("🌐 Network validation passed - Suitable connection: \(self.networkConnectionType.displayName)")
+            return true
+        case .cellular:
+            logger.warning("🌐 Network validation warning - Using cellular connection may incur data charges")
+            return true
+        case .other, .unknown:
+            logger.warning("🌐 Network validation warning - Unknown connection type: \(self.networkConnectionType.displayName)")
+            return true
+        case .none:
+            logger.error("🌐 Network validation failed - No connection")
+            return false
+        }
+    }
+
+    /// Perform comprehensive health check before starting operations
+    public func performHealthCheck(fileSize: Int64? = nil) -> [ProgressError] {
+        let logger = Logger(subsystem: "breakdex", category: "🏥 HEALTH_CHECK")
+        var errors: [ProgressError] = []
+
+        logger.info("🏥 Performing comprehensive system health check")
+
+        // Check network connectivity
+        if !validateNetworkConnectivity() {
+            errors.append(.networkLost)
+        }
+
+        // Check available storage (if file size provided)
+        if let fileSize = fileSize {
+            // Estimate 3x file size needed for processing (original + temp + processed)
+            let requiredSpace = fileSize * 3
+            let availableSpace = getAvailableDiskSpace()
+
+            if availableSpace < requiredSpace {
+                errors.append(.insufficientStorage(available: availableSpace, required: requiredSpace))
+            } else if availableSpace < requiredSpace * 2 {
+                errors.append(.diskSpaceCritical(available: availableSpace))
+            }
+        }
+
+        // Log results
+        if errors.isEmpty {
+            logger.info("🏥 Health check passed - System ready for video loading")
+        } else {
+            logger.error("🏥 Health check failed - \(errors.count) issues detected")
+            for (index, error) in errors.enumerated() {
+                logger.error("🏥 Issue \(index + 1): \(error.localizedDescription)")
+            }
+        }
+
+        return errors
+    }
+
+    /// Get available disk space (simplified implementation)
+    private func getAvailableDiskSpace() -> Int64 {
+        // This is a simplified implementation - in a real app, you'd use
+        // URL.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        // For now, return a reasonable default for demonstration
+        return 1024 * 1024 * 1024 // 1GB default
+    }
+
+    // MARK: - Phase-Specific Logging
+
+    /// Log detailed information specific to each phase transition
+    private func logPhaseSpecificDetails(transitionId: String, phase: LoadingPhase) {
+        let phaseLogger = Logger(subsystem: "breakdex", category: "🎯 PHASE_DETAILS")
+
+        switch phase {
+        case .initializing:
+            phaseLogger.info("🎯 [\(transitionId)] 🚀 PHASE_INITIALIZING: Setting up video loading operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Timer: F1-precision timer started")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Network: Monitoring enabled")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Progress: Deterministic calculation system ready")
+
+        case .requestingDownload:
+            phaseLogger.info("🎯 [\(transitionId)] ☁️ PHASE_REQUESTING_DOWNLOAD: Requesting video from iCloud")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Network: \(self.networkConnectionType.displayName) connection")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Quality: \(self.networkQuality.displayName) quality")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Status: Sending download request to Photos framework")
+
+        case .waitingForNetwork:
+            phaseLogger.warning("🎯 [\(transitionId)] ⏳ PHASE_WAITING_NETWORK: Waiting for network connection")
+            phaseLogger.warning("🎯 [\(transitionId)] ├─ Previous phase: \(self.pausedPhase?.displayName ?? "unknown")")
+            phaseLogger.warning("🎯 [\(transitionId)] ├─ Network lost: Yes")
+            phaseLogger.warning("🎯 [\(transitionId)] └─ Action: Will auto-resume when connection restored")
+
+        case .downloadingFromCloud:
+            phaseLogger.info("🎯 [\(transitionId)] ☁️ PHASE_DOWNLOADING: Downloading video from iCloud")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Network: \(self.networkConnectionType.displayName)")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 45% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Monitoring: Real-time progress tracking active")
+
+        case .transferring:
+            phaseLogger.info("🎯 [\(transitionId)] 📦 PHASE_TRANSFERRING: Transferring and processing video")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 18% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Status: Moving data to processing pipeline")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Asset creation phase")
+
+        case .validating:
+            phaseLogger.info("🎯 [\(transitionId)] ✅ PHASE_VALIDATING: Validating video integrity")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 8% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Checks: Format, duration, corruption")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Asset creation")
+
+        case .creatingAsset:
+            phaseLogger.info("🎯 [\(transitionId)] 🎬 PHASE_CREATING_ASSET: Creating AVAsset instance")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 4% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Status: Framework asset initialization")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Thumbnail generation")
+
+        case .generatingThumbnail:
+            phaseLogger.info("🎯 [\(transitionId)] 🖼️ PHASE_GENERATING_THUMBNAIL: Creating video thumbnail")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 5% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Status: Extracting key frame for preview")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Trimmer duration loading")
+
+        case .loadingTrimmerDuration:
+            phaseLogger.info("🎯 [\(transitionId)] 📏 PHASE_LOADING_DURATION: Loading video duration")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 3% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Status: Determining trimmer timeline range")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Trimmer tracks loading")
+
+        case .loadingTrimmerTracks:
+            phaseLogger.info("🎯 [\(transitionId)] 🎚️ PHASE_LOADING_TRACKS: Loading trimmer video tracks")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 2% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Status: Preparing video track for trimming")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Final validation")
+
+        case .validatingTrimmer:
+            phaseLogger.info("🎯 [\(transitionId)] 🏁 PHASE_VALIDATING_TRIMMER: Final trimmer validation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress weight: 10% of total operation")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Status: Final system validation before UI handoff")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Next: Ready for user interaction")
+
+        case .completed:
+            phaseLogger.info("🎯 [\(transitionId)] 🏆 PHASE_COMPLETED: Video loading operation complete")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Duration: \(self.elapsedTimeString)")
+            phaseLogger.info("🎯 [\(transitionId)] ├─ Progress: 100% deterministic completion")
+            phaseLogger.info("🎯 [\(transitionId)] └─ Status: Ready for user in trimmer UI")
+
+        case .error:
+            phaseLogger.error("🎯 [\(transitionId)] ❌ PHASE_ERROR: Error occurred during loading")
+            phaseLogger.error("🎯 [\(transitionId)] ├─ Failed phase: \(self.pausedPhase?.displayName ?? "unknown")")
+            if let error = self.currentError {
+                phaseLogger.error("🎯 [\(transitionId)] ├─ Error: \(error.localizedDescription)")
+                phaseLogger.error("🎯 [\(transitionId)] └─ Recovery: User intervention required")
+            }
+        }
+    }
+
     // MARK: - Private Implementation
 
     private func resetProgress() {
@@ -381,13 +690,13 @@ public final class UnifiedProgressEngine: ObservableObject {
         _targetProgress = 0.0
         currentAnimationProgress = 0.0
         currentError = nil
-        _currentPhase = .initializing
+        currentPhase = .initializing
         elapsedTime = 0.0
         elapsedTimeString = "00:00.00"
     }
 
     private func updatePhase(_ phase: LoadingPhase) {
-        _currentPhase = phase
+        currentPhase = phase
         unifiedStatus = phase.displayName
         lastProgressUpdate = Date()
         updateEstimatedTimeRemaining()
@@ -516,6 +825,131 @@ public final class UnifiedProgressEngine: ObservableObject {
         timerLogger.info("⏱️ TIMING_ANALYSIS: Total operation completed in \(String(format: "%.2f", self.elapsedTime)) seconds")
     }
 
+    // MARK: - Network Monitoring
+
+    private func setupNetworkMonitoring() {
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                self?.handleNetworkPathUpdate(path)
+            }
+        }
+        networkMonitor.start(queue: networkQueue)
+
+        logger.info("🌐 Network monitoring started for iCloud download resilience")
+        progressLogger.info("📊 Network state monitoring active - will handle network loss during downloads")
+    }
+
+    private func handleNetworkPathUpdate(_ path: NWPath) {
+        let newNetworkState = path.status == .satisfied
+        let newConnectionType = determineConnectionType(path)
+        let newNetworkQuality = determineNetworkQuality(path)
+
+        // Only log and act on actual state changes
+        if newNetworkState != previousNetworkState {
+            Task { @MainActor in
+                self.previousNetworkState = newNetworkState
+                self.isNetworkAvailable = newNetworkState
+                self.networkConnectionType = newConnectionType
+                self.networkQuality = newNetworkQuality
+
+                if newNetworkState {
+                    await self.handleNetworkRestored()
+                } else {
+                    await self.handleNetworkLost()
+                }
+            }
+        }
+
+        // Log detailed network changes for diagnostics
+        logger.debug("🌐 Network state: Available=\(newNetworkState), Type=\(newConnectionType.rawValue), Quality=\(newNetworkQuality.rawValue)")
+    }
+
+    private func determineConnectionType(_ path: NWPath) -> NetworkConnectionType {
+        if path.usesInterfaceType(.wifi) {
+            return .wifi
+        } else if path.usesInterfaceType(.cellular) {
+            return .cellular
+        } else if path.usesInterfaceType(.wiredEthernet) {
+            return .ethernet
+        } else if path.usesInterfaceType(.other) {
+            return .other
+        } else if path.status == .unsatisfied {
+            return .none
+        } else {
+            return .unknown
+        }
+    }
+
+    private func determineNetworkQuality(_ path: NWPath) -> NetworkQuality {
+        guard path.status == .satisfied else {
+            return .poor
+        }
+
+        // Simple quality assessment based on interface type and status
+        if path.usesInterfaceType(.wifi) {
+            return .excellent
+        } else if path.usesInterfaceType(.wiredEthernet) {
+            return .excellent
+        } else if path.usesInterfaceType(.cellular) {
+            return .good
+        } else {
+            return .fair
+        }
+    }
+
+    private func handleNetworkLost() async {
+        logger.warning("🌐 Network connection lost during video loading operation")
+        progressLogger.warning("📊 NETWORK_LOST: Current phase: \(self.currentPhase.displayName), Progress: \(String(format: "%.1f", self.unifiedProgress * 100))%")
+
+        // Only handle network loss if we're in a network-dependent phase
+        if isNetworkDependentPhase(self.currentPhase) {
+            self.networkLostDuringDownload = true
+            self.pausedPhase = self.currentPhase
+
+            // Transition to waiting for network state
+            logger.info("🌐 Transitioning to waitingForNetwork phase due to network loss")
+            self.transitionToPhase(.waitingForNetwork)
+
+            // Notify about network loss
+            let networkError = ProgressError.networkLost
+            self.currentError = networkError
+        }
+    }
+
+    private func handleNetworkRestored() async {
+        logger.info("🌐 Network connection restored")
+        progressLogger.info("📊 NETWORK_RESTORED: Connection type: \(self.networkConnectionType.displayName), Quality: \(self.networkQuality.displayName)")
+
+        if self.networkLostDuringDownload && self.pausedPhase != nil {
+            logger.info("🌐 Resuming from waitingForNetwork phase to \(self.pausedPhase?.displayName ?? "unknown")")
+            progressLogger.info("📊 RESUMING: Network restored, continuing video loading operation")
+
+            self.networkLostDuringDownload = false
+
+            // Clear network error
+            if case .networkLost = self.currentError {
+                self.currentError = nil
+            }
+
+            // Resume the paused phase
+            if let resumePhase = self.pausedPhase {
+                self.pausedPhase = nil
+                self.transitionToPhase(resumePhase)
+            }
+        }
+    }
+
+    private func isNetworkDependentPhase(_ phase: LoadingPhase) -> Bool {
+        switch phase {
+        case .requestingDownload, .downloadingFromCloud:
+            return true
+        case .waitingForNetwork:
+            return false // Already in waiting state
+        default:
+            return false
+        }
+    }
+
     // MARK: - Animation & Smoothing (DISABLED for determinism)
 
     private func setupAnimationTimer() {
@@ -549,7 +983,12 @@ public final class UnifiedProgressEngine: ObservableObject {
             "isDeterministic": true,
             "animationDisabled": true,
             "predictiveWeightingDisabled": true,
-            "networkMonitoringDisabled": true
+            "networkMonitoringEnabled": true,
+            "networkConnectionType": networkConnectionType.rawValue,
+            "isNetworkAvailable": isNetworkAvailable,
+            "networkQuality": networkQuality.rawValue,
+            "networkLostDuringDownload": networkLostDuringDownload,
+            "pausedPhase": pausedPhase?.rawValue ?? "none"
         ]
     }
 
@@ -559,17 +998,24 @@ public final class UnifiedProgressEngine: ObservableObject {
         progressLogger.info("📊 ┌─ Deterministic Progress Analysis")
         progressLogger.info("📊 │  ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)")
         progressLogger.info("📊 │  ├─ Target Progress: \(String(format: "%.3f", self._targetProgress))")
-        progressLogger.info("📊 │  ├─ Current Phase: \(self._currentPhase.displayName)")
+        progressLogger.info("📊 │  ├─ Current Phase: \(self.currentPhase.displayName)")
         progressLogger.info("📊 │  └─ Phase Progress: \(String(format: "%.3f", self.phaseProgress))")
 
         progressLogger.info("📊 ├─ Stage Weight Analysis")
         progressLogger.info("📊 │  ├─ Total Stage Weight: \(String(format: "%.3f", self.totalWeight))")
-        progressLogger.info("📊 │  └─ Current Phase Weight: \(String(format: "%.3f", self.stageWeights[self._currentPhase] ?? 0.0))")
+        progressLogger.info("📊 │  └─ Current Phase Weight: \(String(format: "%.3f", self.stageWeights[self.currentPhase] ?? 0.0))")
 
         progressLogger.info("📊 ├─ Timing Analysis")
         progressLogger.info("📊 │  ├─ Elapsed Time: \(self.elapsedTimeString)")
         progressLogger.info("📊 │  ├─ Total Seconds: \(String(format: "%.2f", self.elapsedTime))")
         progressLogger.info("📊 │  └─ Estimated Time Remaining: \(String(format: "%.1f", self.estimatedTimeRemaining))s")
+
+        progressLogger.info("📊 ├─ Network Resilience Analysis")
+        progressLogger.info("📊 │  ├─ Network Available: \(self.isNetworkAvailable ? "✅ YES" : "❌ NO")")
+        progressLogger.info("📊 │  ├─ Connection Type: \(self.networkConnectionType.displayName)")
+        progressLogger.info("📊 │  ├─ Network Quality: \(self.networkQuality.displayName)")
+        progressLogger.info("📊 │  ├─ Network Lost During Download: \(self.networkLostDuringDownload ? "⚠️ YES" : "✅ NO")")
+        progressLogger.info("📊 │  └─ Paused Phase: \(self.pausedPhase?.displayName ?? "None")")
 
         progressLogger.info("📊 ├─ Deterministic System Analysis")
         progressLogger.info("📊 │  ├─ Deterministic Mode: ✅ ENABLED")
@@ -644,13 +1090,13 @@ extension UnifiedProgressEngine {
         case .downloadingFromCloud(let downloadProgress):
             progressLogger.debug("📊 LEGACY_MAPPING: .downloadingFromCloud → .downloadingFromCloud @ \(String(format: "%.1f", downloadProgress * 100))%")
             // If we aren't in the downloading phase, transition to it first
-            if self._currentPhase != .downloadingFromCloud {
+            if self.currentPhase != .downloadingFromCloud {
                 self.transitionToPhase(.downloadingFromCloud)
             }
             self.updateDownloadProgress(downloadProgress)
         case .transferring:
             progressLogger.debug("📊 LEGACY_MAPPING: .transferring → .transferring")
-            if self._currentPhase != .transferring {
+            if self.currentPhase != .transferring {
                 self.transitionToPhase(.transferring)
             }
             self.updateTransferProgress(progress.progress)
@@ -660,6 +1106,9 @@ extension UnifiedProgressEngine {
         case .creatingAsset:
             progressLogger.debug("📊 LEGACY_MAPPING: .creatingAsset → .creatingAsset")
             self.transitionToPhase(.creatingAsset)
+        case .generatingThumbnail:
+            progressLogger.debug("📊 LEGACY_MAPPING: .generatingThumbnail → .generatingThumbnail")
+            self.transitionToPhase(.generatingThumbnail)
         case .loadingTrimmerDuration:
             progressLogger.debug("📊 LEGACY_MAPPING: .loadingTrimmerDuration → .loadingTrimmerDuration")
             self.transitionToPhase(.loadingTrimmerDuration)
@@ -679,6 +1128,9 @@ extension UnifiedProgressEngine {
             progressLogger.info("✅ TERMINAL_STATE_ACHIEVED: Progress = 1.0, Phase = .completed")
             progressLogger.info("🎯 COMPLETION_GUARANTEE: All morphisms composed successfully to terminal object")
             progressLogger.info("📊 DETERMINISTIC_RESULT: No more 99% stall - progress reaches exactly 1.0")
+        case .completed:
+            progressLogger.debug("📊 LEGACY_MAPPING: .completed → .completed")
+            self.transitionToPhase(.completed)
         }
     }
 }

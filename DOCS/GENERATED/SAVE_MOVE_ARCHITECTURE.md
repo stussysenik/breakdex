@@ -10,8 +10,9 @@ This document provides a comprehensive architectural overview of the save move f
 **File Count**: 20+ files involved in complete save workflow
 **Testing**: Comprehensive unit, integration, and performance testing implemented
 **Performance**: Optimized for large video files with background processing and progress tracking
-**Latest Update**: September 25, 2025 - Completed comprehensive debugging and optimization pass
+**Latest Update**: October 5, 2025 - Critical video playback fixes implemented
 **Build Status**: ✅ All compilation errors resolved, successful build validation achieved
+**Recent Fixes**: MoveDetailView flicker elimination, "Change Video" deadlock resolution
 
 ---
 
@@ -505,6 +506,9 @@ struct SaveMoveConfiguration {
 **Maintainers**: Development Team
 **Review Cycle**: Quarterly or as needed
 **Recent Changes**:
+- ✅ **October 5, 2025**: Critical video playback fixes - MoveDetailView flicker elimination and "Change Video" deadlock resolution
+- ✅ **October 5, 2025**: Added comprehensive OSLog diagnostics throughout video processing pipeline
+- ✅ **October 5, 2025**: Implemented atomic state update patterns to prevent UI race conditions
 - ✅ Removed deprecated videoReference field from Core Data schema
 - ✅ Updated all video asset loading to use PhotosAssetLoader
 - ✅ Enhanced video rotation handling in VideoTransformBuilder
