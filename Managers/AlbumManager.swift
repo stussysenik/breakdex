@@ -169,7 +169,7 @@ final class AlbumManager {
 
     // MARK: - Public API
 
-    /// 🎯 CRITICAL: Atomic setup with comprehensive error handling and retry logic
+    /// MARK: - CRITICAL: Atomic setup with comprehensive error handling and retry logic
     func setup() async throws {
         let correlationId = generateCorrelationId()
         logger.info("📸 ALBUM_MANAGER: 🚀 Starting atomic setup [\(correlationId)]")
@@ -188,7 +188,7 @@ final class AlbumManager {
                 throw AlbumManagerError.permissionDenied
             }
 
-            // 🎯 CRITICAL: Atomic find-or-create operation
+            // MARK: - CRITICAL: Atomic find-or-create operation
             let album = try await findOrCreateBreakDexAlbum(correlationId: correlationId)
 
             // Update cache and state
@@ -223,7 +223,7 @@ final class AlbumManager {
         }
     }
 
-    /// 🎯 CRITICAL: Get BreakDex album with atomic find-or-create guarantee
+    /// MARK: - CRITICAL: Get BreakDex album with atomic find-or-create guarantee
     func getBreakDexAlbum() async throws -> PHAssetCollection {
         let correlationId = generateCorrelationId()
         logger.info("📸 ALBUM_MANAGER: 📚 Requesting BreakDex album [\(correlationId)]")
@@ -254,7 +254,7 @@ final class AlbumManager {
                 try await setup()
             }
 
-            // 🎯 CRITICAL: Atomic find-or-create operation
+            // MARK: - CRITICAL: Atomic find-or-create operation
             let album = try await findOrCreateBreakDexAlbum(correlationId: correlationId)
 
             // Update cache
@@ -317,13 +317,13 @@ final class AlbumManager {
 
 // MARK: - Private Atomic Operations
 
-    /// 🎯 CRITICAL: Atomic find-or-create operation that prevents race conditions
+    /// MARK: - CRITICAL: Atomic find-or-create operation that prevents race conditions
     private func findOrCreateBreakDexAlbum(correlationId: String) async throws -> PHAssetCollection {
         logger.info("📸 ALBUM_MANAGER: 🔒 Executing atomic find-or-create operation [\(correlationId)]")
 
         let startTime = Date()
 
-        // 🎯 CRITICAL: Check if already creating to prevent duplicate creation
+        // MARK: - CRITICAL: Check if already creating to prevent duplicate creation
         if await albumCache.getIsCreating() {
             logger.warning("📸 ALBUM_MANAGER: ⚠️ Album creation already in progress - waiting [\(correlationId)]")
             try await waitForAlbumCreation(correlationId: correlationId)
@@ -333,7 +333,7 @@ final class AlbumManager {
             }
         }
 
-        // 🎯 CRITICAL: Atomic lock to prevent race conditions
+        // MARK: - CRITICAL: Atomic lock to prevent race conditions
         atomicOperationLock.lock()
         defer { atomicOperationLock.unlock() }
 
@@ -348,7 +348,7 @@ final class AlbumManager {
             return cachedAlbum
         }
 
-        // 🎯 CRITICAL: Set creating flag before starting operation
+        // MARK: - CRITICAL: Set creating flag before starting operation
         await albumCache.setIsCreating(true)
         defer { Task { await albumCache.setIsCreating(false) } }
 

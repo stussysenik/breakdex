@@ -2,14 +2,14 @@ import AVFoundation
 import Foundation
 import OSLog
 
-/// 🎯 ENHANCED: Comprehensive asset validation service for complex video files
+/// MARK: - ENHANCED: Comprehensive asset validation service for complex video files
 /// Implements robust validation for multi-track assets, corrupted files, and edge cases
 @MainActor
 final class VideoAssetValidator {
 
     private static let logger = Logger(subsystem: "BreakingFlashcards", category: "VideoAssetValidator")
 
-    /// 🎯 ENHANCED: Validation result containing detailed asset analysis
+    /// MARK: - ENHANCED: Validation result containing detailed asset analysis
     struct ValidationResult {
         let isValid: Bool
         let videoTrackCount: Int
@@ -42,7 +42,7 @@ final class VideoAssetValidator {
         }
     }
 
-    /// 🎯 ENHANCED: Comprehensive asset validation
+    /// MARK: - ENHANCED: Comprehensive asset validation
     /// - Parameter asset: AVAsset to validate
     /// - Returns: ValidationResult with detailed analysis
     static func validateAsset(_ asset: AVAsset) async -> ValidationResult {
@@ -141,7 +141,7 @@ final class VideoAssetValidator {
         )
     }
 
-    /// 🎯 ENHANCED: Detailed video track validation
+    /// MARK: - ENHANCED: Detailed video track validation
     private static func validateVideoTracks(
         _ tracks: [AVAssetTrack],
         _ errors: inout [VideoProcessingError],
@@ -237,7 +237,7 @@ final class VideoAssetValidator {
         return validTracks
     }
 
-    /// 🎯 ENHANCED: Detailed audio track validation
+    /// MARK: - ENHANCED: Detailed audio track validation
     private static func validateAudioTracks(
         _ tracks: [AVAssetTrack],
         _ errors: inout [VideoProcessingError],
@@ -284,7 +284,7 @@ final class VideoAssetValidator {
         return validTracks
     }
 
-    /// 🎯 ENHANCED: Determine asset complexity based on analysis
+    /// MARK: - ENHANCED: Determine asset complexity based on analysis
     private static func determineAssetComplexity(
         videoTracks: [AVAssetTrack],
         audioTracks: [AVAssetTrack],
@@ -328,7 +328,7 @@ final class VideoAssetValidator {
         return .multiTrack
     }
 
-    /// 🎯 ENHANCED: Quick validation for basic asset readability
+    /// MARK: - ENHANCED: Quick validation for basic asset readability
     /// Use this for fast checks before comprehensive validation
     static func quickValidate(_ asset: AVAsset) async -> Bool {
         do {

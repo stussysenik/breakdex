@@ -98,7 +98,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
         do {
             await reportProgress(.buildingComposition, progress: 0.2, message: "Building video composition", correlationId: correlationId)
 
-            // 🎯 CRITICAL: Use existing VideoTransformBuilder for composition
+            // MARK: - CRITICAL: Use existing VideoTransformBuilder for composition
             let (composition, videoComposition) = try await VideoTransformBuilder.build(
                 asset: asset,
                 trimRange: trimRange,

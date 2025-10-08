@@ -6,6 +6,7 @@ import SwiftUI
 
 // FeatureRichTrimmerView.swift - DONE
 
+// MARK: STRUCT
 struct TimeoutError: Error, LocalizedError {
     let seconds: Double
 
@@ -18,8 +19,9 @@ struct TimeoutError: Error, LocalizedError {
     }
 }
 
+// MARK: STRUCT
 struct TrimmerPlayerView: View {
-    @ObservedObject var unifiedState: AddMoveUnifiedState
+    @ObservedObject var unifiedState: AddMoveUnifiedState // MARK: UNIFIED STATE
     let isReady: Bool
     let previewRotationDegrees: Double
 
@@ -41,21 +43,23 @@ struct TrimmerPlayerView: View {
         .padding(.horizontal)
     }
 
+    // MARK: Show Video Player Boolean
     private var shouldShowVideoPlayer: Bool {
-        return isReady && unifiedState.currentPlayerViewModel != nil
+        return isReady && unifiedState.currentPlayerViewModel != nil // MARK: UNIFIED STATE
     }
-
-    @ViewBuilder
+    
+    // MARK: @ViewBuilder - construct views from closures
+    @ViewBuilder 
     private var videoPlayerContent: some View {
         if let playerViewModel = unifiedState.currentPlayerViewModel
-            as? any VideoPlayerViewModelProtocol
+            as? any VideoPlayerViewModelProtocol // MARK: as? - performs conversion if it can't
         {
             videoPlayerWithDiagnostics(for: playerViewModel)
         } else {
             EmptyView()
         }
     }
-
+    // MARK: - FUNC
     private func videoPlayerWithDiagnostics(
         for playerViewModel: any VideoPlayerViewModelProtocol
     ) -> AnyView {
@@ -189,10 +193,11 @@ struct FeatureRichTrimmerView: View {
     let unifiedState: AddMoveUnifiedState
     private let timecodeService = TimecodeCalculationService()
 
-    @State private var showPhotosPicker = false
+    @State private var showPhotosPicker = false // MARK: - Photo Picker
+
     @State private var tempVideoSelection: PhotosUI.PhotosPickerItem?
 
-    @State private var selectionToProcess: PhotosPickerItem?
+    @State private var selectionToProcess: PhotosPickerItem? // MARK: - specific video to process
 
     @State private var cachedTimeCodeRow:
         (
@@ -220,6 +225,7 @@ struct FeatureRichTrimmerView: View {
         self.unifiedState = unifiedState
     }
 
+    // MARK: - FUNC
     @MainActor
     private func setupTrimmerViewModel() async {
         let setupStartTime = CFAbsoluteTimeGetCurrent()
@@ -521,6 +527,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     @ViewBuilder
     private func durationSection(currentDuration: CMTime, durationFrames: Int)
         -> some View
@@ -719,6 +726,7 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK: - FUNC
     private func logTimecodeInitialization() {
         guard let trimmerVM = viewModel else { return }
         let duration = trimmerVM.endTime - trimmerVM.startTime
@@ -742,6 +750,7 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK: - FUNC
     private func logStartTimeChange(oldValue: CMTime, newValue: CMTime) {
         guard let viewModel = viewModel else { return }
         let oldFrame = viewModel.getFrameNumber(for: oldValue)
@@ -764,6 +773,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func logEndTimeChange(oldValue: CMTime, newValue: CMTime) {
         guard let viewModel = viewModel else { return }
         let oldFrame = viewModel.getFrameNumber(for: oldValue)
@@ -786,6 +796,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func logDurationWarningChange(oldValue: Bool, newValue: Bool) {
         guard let viewModel = viewModel else { return }
         diagnosticLogger.logDebug(
@@ -852,12 +863,13 @@ struct FeatureRichTrimmerView: View {
     }
 
     var body: some View {
+        // MARK: - FORWARD REFERENCE
         mainContent
             .background(backgroundStyle)
             .onAppear(perform: onMainViewAppear)
             .onDisappear(perform: onMainViewDisappear)
             .photosPicker(
-                isPresented: $showPhotosPicker,
+                isPresented: $showPhotosPicker, // MARK: - Photos Picker
                 selection: $tempVideoSelection,
                 matching: .videos
             )
@@ -872,7 +884,7 @@ struct FeatureRichTrimmerView: View {
                         ]
                     )
 
-                    selectionToProcess = PhotosPickerItem(item: newItem)
+                    selectionToProcess = PhotosPickerItem(item: newItem) // MARK: - Photos Picker
                     tempVideoSelection = nil
 
                     diagnosticLogger.logDebug(
@@ -887,7 +899,7 @@ struct FeatureRichTrimmerView: View {
             }
             .task(id: selectionToProcess) {
                 if let itemToProcess = selectionToProcess {
-                    await processVideoSelectionSafely(itemToProcess)
+                    await processVideoSelectionSafely(itemToProcess) // MARK: SELECTION PROCESS
                 }
             }
             .presentationDetents([.medium, .large])
@@ -913,6 +925,7 @@ struct FeatureRichTrimmerView: View {
             }
     }
 
+    // MARK: - mainContent
     private var mainContent: some View {
         diagnosticLogger.logDebug(
             "🔧 TYPE_ERASURE: mainContent accessing",
@@ -925,8 +938,10 @@ struct FeatureRichTrimmerView: View {
             ]
         )
 
+        // MARK: - Preparing Trimmer
         return AnyView(
             Group {
+                // FIXME: Control Flow - kind of too safe?
                 if isViewModelLoading {
                     VStack(spacing: 20) {
                         ProgressView()
@@ -942,8 +957,7 @@ struct FeatureRichTrimmerView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.cardBackground)
-
-                } else if let error = viewModelLoadError {
+                } else if let error = viewModelLoadError { // MARK: Trimmer Setup Failed
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 48))
@@ -970,8 +984,7 @@ struct FeatureRichTrimmerView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.cardBackground)
-
-                } else if viewModel != nil {
+                } else if viewModel != nil { // MARK: only then?
                     ZStack {
                         VStack(spacing: 0) {
                             Spacer()
@@ -982,8 +995,7 @@ struct FeatureRichTrimmerView: View {
                         }
                         .padding(10)
                     }
-
-                } else {
+                } else { // MARK: initializing trimmer?
                     VStack(spacing: 20) {
                         ProgressView()
                             .scaleEffect(1.0)
@@ -999,6 +1011,7 @@ struct FeatureRichTrimmerView: View {
                 diagnosticLogger.logInfo(
                     "🎯 UNIFIED_LAZY_LOADING: mainContent appeared - triggering unified lazy ViewModel initialization"
                 )
+                // MARK: how does this play together?
                 Task {
                     await setupTrimmerViewModel()
                 }
@@ -1056,6 +1069,7 @@ struct FeatureRichTrimmerView: View {
         Color.backgroundPrimary.ignoresSafeArea()
     }
 
+    // MARK: - FUNC
     @MainActor
     private func initializeTrimmerViewModelIfNeeded() {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -1082,6 +1096,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     @MainActor
     private func performAsyncViewModelInitialization(sessionId: String) async {
         let startTime = CFAbsoluteTimeGetCurrent()
@@ -1187,6 +1202,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func onMainViewAppear() {
         let logger = DiagnosticLoggingHelper(category: "FeatureRichTrimmerView")
 
@@ -1249,10 +1265,12 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK: - FUNC
     private func onMainViewDisappear() {
         diagnosticLogger.logInfo("🧹 Body disappeared; cleanup completed")
     }
 
+    // MARK: - FUNC
     private func onPhotosPickerChange(isShowing: Bool) {
         diagnosticLogger.logDebug(
             "🔄 MODAL_PHOTOS_PICKER_STATE_CHANGED: Modal PhotosPicker state changed to \(isShowing)",
@@ -1284,7 +1302,8 @@ struct FeatureRichTrimmerView: View {
         }
         .onAppear(perform: onTimeCodeDisplayAppear)
     }
-
+    
+    // MARK: - FUNC
     private func onTimeCodeDisplayAppear() {
         let trimmerVM = viewModel
         diagnosticLogger.logInfo(
@@ -1300,6 +1319,7 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK : - VAR
     private var changeVideoButton: some View {
         Button("Change Video") {
             HapticManager.shared.trigger(.dragEnd)
@@ -1546,6 +1566,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func onMainTrimmerAppear() {
         let videoDuration = viewModel?.videoDuration ?? CMTime.zero
         diagnosticLogger.logInfo(
@@ -1558,6 +1579,7 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK: - FUNC
     private func logInfo(_ message: String) {
         diagnosticLogger.logInfo(message)
     }
@@ -1636,6 +1658,7 @@ struct FeatureRichTrimmerView: View {
         .padding(.horizontal)
     }
 
+    // MARK: - FUNC
     private func replacementProgressView(
         progress: Double,
         status: String,
@@ -1670,6 +1693,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func replacementErrorView(message: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -1696,6 +1720,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func replacementLoadingView() -> some View {
         VStack(spacing: 16) {
             ProgressView()
@@ -1709,6 +1734,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func hasUnsavedChanges() -> Bool {
         let trimmerVM = viewModel
 
@@ -1722,6 +1748,7 @@ struct FeatureRichTrimmerView: View {
         return hasTrimChanges || hasRotationChanges
     }
 
+    // MARK: - FUNC
     private func beginVideoReplacementProcess() {
         Task {
             diagnosticLogger.logDebug(
@@ -1731,6 +1758,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func performVideoReplacement() async {
         diagnosticLogger.startTiming("video_replacement")
 
@@ -1744,6 +1772,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func prepareVideoReplacement() async throws {
         diagnosticLogger.logInfo(
             "🎯 ATOMIC_STATE_RESET: Initiating atomic state reset before PhotosPicker presentation"
@@ -1752,7 +1781,7 @@ struct FeatureRichTrimmerView: View {
         let atomicResetStartTime = Date()
 
         do {
-            try await unifiedState.prepareForNewVideoSelection()
+            try await unifiedState.prepareForNewVideoSelection() // MARK: - unified State
 
             let atomicResetDuration = Date().timeIntervalSince(
                 atomicResetStartTime
@@ -2142,9 +2171,9 @@ struct FeatureRichTrimmerView: View {
             "✅ Video replacement initiation completed successfully (deadlock prevented)"
         )
     }
-
+    // MARK: - FUNC
     @MainActor
-    private func processVideoSelectionSafely(_ item: PhotosPickerItem) async {
+    private func processVideoSelectionSafely(_ item: PhotosPickerItem) async { // MARK: - SELECTION PROCESS
         let processStartTime = Date()
         let correlationId = UUID().uuidString.prefix(8)
 
@@ -2195,7 +2224,7 @@ struct FeatureRichTrimmerView: View {
             )
         }
     }
-
+    // MARK: - FUNC
     private func updateReplacementProgressSync(
         _ progress: Double,
         status: String
@@ -2204,7 +2233,7 @@ struct FeatureRichTrimmerView: View {
             "🔄 TRIMMER_VIEW: 📊 Progress updated synchronously - \(Int(progress * 100))%: \(status)"
         )
     }
-
+    // MARK: - FUNC
     private func finalizeVideoReplacementSync() {
         diagnosticLogger.logInfo(
             "🔧 Video replacement finalized synchronously - using unifiedState.loadVideo() for state reset",
@@ -2219,7 +2248,7 @@ struct FeatureRichTrimmerView: View {
             "🔄 TRIMMER_VIEW: ✅ Video replacement finalized synchronously (no deadlock)"
         )
     }
-
+    // MARK: - FUNC
     private func handleVideoReplacementErrorSync(_ error: Error) {
         let errorMessage = error.localizedDescription
 
@@ -2235,7 +2264,7 @@ struct FeatureRichTrimmerView: View {
             ]
         )
     }
-
+    // MARK: - FUNC
     private func retryVideoReplacement() {
         diagnosticLogger.logUserInteraction(
             "Retrying video replacement",
@@ -2253,6 +2282,7 @@ struct FeatureRichTrimmerView: View {
         }
     }
 
+    // MARK: - FUNC
     private func getCurrentTrimSettings() -> (
         startTime: Double, endTime: Double, intrinsicRotation: Int,
         userAppliedRotation: Int, totalRotation: Int
@@ -2268,6 +2298,7 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK: - FUNC
     private func optimizeMemoryForReplacement() async {
         await MainActor.run {
             cachedTimeCodeRow = nil
@@ -2278,6 +2309,7 @@ struct FeatureRichTrimmerView: View {
         )
     }
 
+    // MARK: - FUNC
     private func isReadyToContinue() -> Bool {
         let trimmerVM = viewModel
 
@@ -2387,6 +2419,7 @@ struct FeatureRichTrimmerView: View {
         return isReady
     }
 
+    // MARK: - FUNC
     private func validateAndContinue() async {
         diagnosticLogger.startTiming("validate_and_continue")
 
@@ -2527,13 +2560,13 @@ struct FeatureRichTrimmerView: View {
     }
 
     // MARK: - Trimmer Event Handlers
-
+    // MARK: - FUNC
     func handleTrimmerProgressUpdate(_ progress: Double, status: String) {
         diagnosticLogger.logInfo(
             "🎬 FEATURE_RICH_TRIMMER: 🔄 TRIMMER_PROGRESS - Progress: \(Int(progress * 100))%, Status: \(status)"
         )
     }
-
+    // MARK: - FUNC
     func handleTrimmerSetupComplete(totalTime: TimeInterval?) {
         let timeString =
             totalTime.map { String(format: "%.3f", $0) + "s" } ?? "unknown"
@@ -2541,7 +2574,7 @@ struct FeatureRichTrimmerView: View {
             "🎬 FEATURE_RICH_TRIMMER: ✅ TRIMMER_COMPLETE - Setup completed in \(timeString)"
         )
     }
-
+    // MARK: - FUNC
     func handleTrimmerSetupError(_ error: Error, context: String) {
         diagnosticLogger.logError(
             "🎬 FEATURE_RICH_TRIMMER: ❌ TRIMMER_ERROR - Context: \(context), Error: \(error.localizedDescription)"
@@ -2619,7 +2652,7 @@ struct TimeProgressBar: View {
         }
         .frame(height: 8)
     }
-
+    // MARK: - FUNC
     private func calculateWidth(
         _ range: ClosedRange<CMTime>,
         _ total: CMTime,
@@ -2630,7 +2663,7 @@ struct TimeProgressBar: View {
             / total.seconds
         return geometry.size.width * CGFloat(percentage)
     }
-
+    // MARK: - FUNC
     private func calculateOffset(
         _ time: CMTime,
         _ total: CMTime,
@@ -2730,17 +2763,17 @@ struct HybridPreciseTrimmerView: View {
             )
         }
     }
-
+    // MARK: - FUNC
     private func handle(content: some View) -> some View {
         content
     }
-
+    // MARK: - FUNC
     private func timeToXLeft(_ t: CMTime, trackWidth: CGFloat) -> CGFloat {
         guard viewModel.videoDuration.seconds > 0 else { return 0 }
         let p = t.seconds / viewModel.videoDuration.seconds
         return CGFloat(p) * trackWidth
     }
-
+    // MARK: - FUNC
     private func xLeftToTime(_ x: CGFloat, trackWidth: CGFloat) -> CMTime {
         let clamped = max(0, min(x, trackWidth))
         let seconds =
@@ -2754,13 +2787,13 @@ struct HybridPreciseTrimmerView: View {
             frameRate: viewModel.currentFrameRate
         )
     }
-
+    // MARK: - FUNC
     private func minDistancePx(_ g: GeometryProxy) -> CGFloat {
         let trackWidth = g.size.width - handleWidth
         let pps = trackWidth / viewModel.videoDuration.seconds
         return pps * viewModel.minimumDuration.seconds
     }
-
+    // MARK: - FUNC
     private func drag(handle: TrimmerHandleType, in g: GeometryProxy)
         -> some Gesture
     {
@@ -3024,7 +3057,7 @@ struct HybridPreciseTrimmerView: View {
                 )
             }
     }
-
+    // MARK: - FUNC
     private func triggerFrameSynchronizedHaptic(
         at time: CMTime,
         for handle: TrimmerHandleType
@@ -3076,13 +3109,13 @@ extension HybridPreciseTrimmerView {
         self.startHandleView = nil
         self.endHandleView = nil
     }
-
+    // MARK: - FUNC
     static func shoe(viewModel: TrimmerViewModel) -> HybridPreciseTrimmerView {
         HybridPreciseTrimmerView(
             viewModel: viewModel
         )
     }
-
+    // MARK: - FUNC
     static func custom(
         viewModel: TrimmerViewModel,
         startView: some View,

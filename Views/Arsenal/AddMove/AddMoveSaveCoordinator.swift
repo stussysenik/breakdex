@@ -33,7 +33,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
     }
     
     // MARK: - Public API
-
+    // MARK: - FUNC
     /// Save move with video processing
     public func saveMove(
         name: String,
@@ -84,7 +84,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
             throw error
         }
     }
-    
+    // MARK: - FUNC
     /// Save move with trimmed video from TrimmerViewModel
     public func saveTrimmedMove(
         name: String,
@@ -106,7 +106,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
             rotationQuarterTurns: rotationQuarterTurns
         )
     }
-    
+    // MARK: - FUNC
     /// Export trimmed video for later use
     public func exportTrimmedVideo(
         asset: AVAsset,
@@ -155,7 +155,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
             throw error
         }
     }
-    
+    // MARK: - FUNC
     /// Cancel current save operation
     public func cancelSave() {
         logger.info("🎬 SAVE_COORDINATOR: Cancelling save operation", metadata: nil)
@@ -171,7 +171,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
             }
         }
     }
-    
+    // MARK: - FUNC
     /// Reset coordinator state
     public func reset() {
         logger.info("🎬 SAVE_COORDINATOR: Resetting state", metadata: nil)
@@ -189,7 +189,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
     }
     
     // MARK: - Private Methods
-
+    // MARK: - FUNC
     /// Main save operation processing with proper async handling
     private func processSaveOperation(
         name: String,
@@ -219,7 +219,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
         }
 
         do {
-            // 🎯 NEW STEP 1: Fail-fast name validation BEFORE any processing
+            // MARK: - NEW STEP 1: Fail-fast name validation BEFORE any processing
             logger.info("🎬 SAVE_COORDINATOR: 🎯 ATOMIC: Validating move name uniqueness for: '\(name)'", metadata: [
                 "move_name": name,
                 "validation_stage": "preflight",
@@ -266,7 +266,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 .appendingPathComponent(UUID().uuidString)
                 .appendingPathExtension("mov")
 
-            // 🎯 ENHANCED: Detailed export logging with rotation tracking
+            // MARK: - ENHANCED: Detailed export logging with rotation tracking
             logger.info("🎬 SAVE_COORDINATOR: 🔄 EXPORT START: Starting video export with rotation", metadata: [
                 "rotation_quarter_turns": "\(rotationQuarterTurns)",
                 "rotation_degrees": "\(rotationQuarterTurns * 90)",
@@ -285,7 +285,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 outputURL: outputURL
             )
 
-            // 🎯 ENHANCED: Post-export validation and logging
+            // MARK: - ENHANCED: Post-export validation and logging
             logger.info("🎬 SAVE_COORDINATOR: ✅ EXPORT COMPLETED: Video export with rotation finished", metadata: [
                 "exported_file_path": temporaryVideoURL?.lastPathComponent ?? "unknown",
                 "export_applied_rotation": "\(rotationQuarterTurns)",
@@ -317,7 +317,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
                 throw AddMoveSaveError.photosIdentifierGenerationFailed
             }
 
-            // 🎯 CRITICAL FIX: Store rotationQuarterTurns: 0 in metadata because rotation is already applied during export
+            // MARK: - CRITICAL FIX: Store rotationQuarterTurns: 0 in metadata because rotation is already applied during export
             // This prevents double rotation (once during export, once during playback from metadata)
             logger.info("🎬 SAVE_COORDINATOR: 🔄 ROTATION FIX: Storing rotationQuarterTurns: 0 in metadata (rotation already applied during export)", metadata: [
                 "original_rotation_quarter_turns": "\(rotationQuarterTurns)",
@@ -426,7 +426,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
             throw error
         }
     }
-
+    // MARK: - FUNC
     /// Verify asset is ready and can be processed
     private func verifyAssetReadiness(_ asset: AVAsset) async throws -> AVAsset {
         // Load asset properties asynchronously (iOS 16+ compatible)
@@ -474,7 +474,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
 
         return asset
     }
-
+    // MARK: - FUNC
     private func processTrimmedVideo(
         asset: AVAsset,
         startTime: Double,
@@ -509,7 +509,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
         // Verify the trimmed asset is ready
         return try await verifyAssetReadiness(trimmedAsset)
     }
-
+    // MARK: - FUNC
     private func updateProgress(_ progress: Double) async {
         await MainActor.run {
             self.saveProgress = progress
@@ -520,7 +520,7 @@ public class AddMoveSaveCoordinator: ObservableObject {
 // MARK: - State Validation Methods
 
 private extension AddMoveSaveCoordinator {
-
+    // MARK: - FUNC
     func validateSaveParameters(
         name: String,
         asset: AVAsset,
@@ -549,7 +549,7 @@ private extension AddMoveSaveCoordinator {
             try validateTrimParameters(startTime: startTime, endTime: endTime, assetDuration: assetDuration.seconds)
         }
     }
-
+    // MARK: - FUNC
     func validateTrimParameters(startTime: Double, endTime: Double, assetDuration: Double) throws {
         // Ensure start time is not negative
         guard startTime >= 0 else {
@@ -598,7 +598,7 @@ private extension AddMoveSaveCoordinator {
     }
 
     // MARK: - Enhanced Rollback Methods
-
+    // MARK: - FUNC
     /// Stage 1: Rollback Photos library assets
     private func performPhotosRollback(orphanedIdentifier: String, error: Error) async {
         logger.warning("🎬 SAVE_COORDINATOR: 🔄 ROLLBACK STAGE 1: Cleaning up Photos asset", metadata: [
@@ -623,7 +623,7 @@ private extension AddMoveSaveCoordinator {
             // Continue with other rollback stages even if this one fails
         }
     }
-
+    // MARK: - FUNC
     /// Stage 2: Rollback Core Data entities
     private func performCoreDataRollback(moveName: String, error: Error) async {
         logger.warning("🎬 SAVE_COORDINATOR: 🔄 ROLLBACK STAGE 2: Cleaning up Core Data entities", metadata: [
@@ -649,7 +649,7 @@ private extension AddMoveSaveCoordinator {
             // Continue with other rollback stages even if this one fails
         }
     }
-
+    // MARK: - FUNC
     /// Stage 3: Rollback temporary files
     private func performTemporaryFileRollback(temporaryURL: URL?, error: Error) async {
         guard let tempURL = temporaryURL else {
@@ -726,7 +726,7 @@ public protocol AddMoveSaveCoordinatorProtocol: ObservableObject {
     var isSaving: Bool { get }
     var saveProgress: Double { get }
     var saveStatus: SaveStatus { get }
-    
+    // MARK: - FUNC
     func saveMove(
         name: String,
         asset: AVAsset,
@@ -735,7 +735,7 @@ public protocol AddMoveSaveCoordinatorProtocol: ObservableObject {
         trimEndTime: Double?,
         rotationQuarterTurns: Int
     ) async throws -> SavedMoveResult
-    
+    // MARK: - FUNC
     func saveTrimmedMove(
         name: String,
         originalAsset: AVAsset,
@@ -745,7 +745,7 @@ public protocol AddMoveSaveCoordinatorProtocol: ObservableObject {
         trimEndTime: Double,
         rotationQuarterTurns: Int
     ) async throws -> SavedMoveResult
-    
+    // MARK: - FUNC
     func exportTrimmedVideo(asset: AVAsset, startTime: Double, endTime: Double) async throws -> URL
     func cancelSave()
     func reset()
@@ -754,7 +754,7 @@ public protocol AddMoveSaveCoordinatorProtocol: ObservableObject {
 // MARK: - Save Errors
 public enum AddMoveSaveError: LocalizedError {
     case invalidMoveName
-    case duplicateMoveName(name: String) // 🎯 NEW: Fail-fast duplicate name validation
+    case duplicateMoveName(name: String) // MARK: - NEW: Fail-fast duplicate name validation
     case videoProcessingFailed(underlyingError: Error?)
     case photosSaveFailed(underlyingError: Error?)
     case coreDataSaveFailed(underlyingError: Error?)

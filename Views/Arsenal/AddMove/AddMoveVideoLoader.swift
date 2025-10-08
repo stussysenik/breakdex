@@ -65,6 +65,7 @@ public actor AddMoveVideoLoader {
     }
 
     // MARK: - Lazy Initialization
+    // MARK: - FUNC
     private func ensureDiagnosticLogger() async {
         if diagnosticLogger == nil {
             do {
@@ -87,7 +88,7 @@ public actor AddMoveVideoLoader {
             }
         }
     }
-
+    // MARK: - FUNC
     public func loadVideo(from item: PhotosPickerItem) async throws -> AddMoveVideoLoaderResult {
         // Ensure diagnostic logger is initialized
         await ensureDiagnosticLogger()
@@ -151,21 +152,21 @@ public actor AddMoveVideoLoader {
     }
 
     // MARK: - Private Loading Methods
-
+    // MARK: - FUNC
     /// Extract item identifier from PhotosPickerItem
     private func extractItemIdentifier(from item: PhotosPickerItem) -> String? {
         // For iOS 18 PhotosPickerItem, we need to load the asset to get the identifier
         // This will be handled in the loading process
         return nil
     }
-
+    // MARK: - FUNC
     /// Extract supported content types from PhotosPickerItem
     private func extractSupportedContentTypes(from item: PhotosPickerItem) -> String {
         // For native PhotosPickerItem, we can't access supportedContentTypes directly
         // We'll check this during the loading process instead
         return "video"
     }
-
+    // MARK: - FUNC
     private func loadFromPhotos(identifier: String) async throws -> AddMoveVideoLoaderResult {
         let correlationId = currentCorrelationId ?? "unknown"
 
@@ -277,7 +278,7 @@ public actor AddMoveVideoLoader {
 
         return AddMoveVideoLoaderResult(asset: avAsset, photosIdentifier: identifier, filename: filename, temporaryFileURL: nil)
     }
-
+    // MARK: - FUNC
     private func loadDirectly(from item: PhotosPickerItem) async throws -> AddMoveVideoLoaderResult {
         let correlationId = currentCorrelationId ?? "unknown"
 
@@ -316,7 +317,7 @@ public actor AddMoveVideoLoader {
                 "avoid_memory_overload": "true"
             ])
 
-            // 🎯 CRITICAL FIX: Use true streaming file copy without loading entire Data into memory
+            // MARK: - CRITICAL FIX: Use true streaming file copy without loading entire Data into memory
             // This prevents memory overload for large video files
             guard let fileURL = try await item.loadTransferable(type: URL.self) else {
                 // Fallback to Data approach only if URL transfer is not supported
@@ -513,7 +514,7 @@ public actor AddMoveVideoLoader {
     }
 
     // MARK: - Helper Methods
-
+    // MARK: - FUNC
     private func requestAVAsset(for phAsset: PHAsset, options: PHVideoRequestOptions) async throws -> AVAsset {
         let correlationId = currentCorrelationId ?? "unknown"
 
@@ -662,7 +663,7 @@ public actor AddMoveVideoLoader {
             }
         }
     }
-
+    // MARK: - FUNC
     private func fetchFilename(for phAsset: PHAsset) async -> String {
         let correlationId = currentCorrelationId ?? "unknown"
 

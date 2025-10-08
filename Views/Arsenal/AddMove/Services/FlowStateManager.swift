@@ -53,7 +53,7 @@ public class FlowStateManager: ObservableObject {
 
         let currentState = unifiedState.flowState
 
-        // 🎯 CRITICAL FIX: Enhanced state validation with dependency checks
+        // MARK: - CRITICAL FIX: Enhanced state validation with dependency checks
         guard await validateCurrentStateForTransition(currentState) else {
             logger.error("🔄 FLOW_STATE: ❌ Current state validation failed for: \(String(describing: currentState))")
             throw FlowStateError.stateValidationFailed(currentState)
@@ -65,7 +65,7 @@ public class FlowStateManager: ObservableObject {
             throw FlowStateError.invalidTransition(from: currentState, to: currentState)
         }
 
-        // 🎯 CRITICAL FIX: Add transition guard to prevent duplicate transitions
+        // MARK: - CRITICAL FIX: Add transition guard to prevent duplicate transitions
         guard !isTransitionInProgress(from: currentState) else {
             logger.warning("🔄 FLOW_STATE: ⚠️ Transition already in progress from: \(String(describing: currentState))")
             throw FlowStateError.transitionInProgress
@@ -87,17 +87,17 @@ public class FlowStateManager: ObservableObject {
         case .trimming:
             logger.info("🔄 FLOW_STATE: 📊 Transition: trimming → loadingTrimmedAsset")
 
-            // 🎯 CRITICAL FIX: Validate trimming completion before proceeding
+            // MARK: - CRITICAL FIX: Validate trimming completion before proceeding
             guard await validateTrimmingCompletion() else {
                 logger.error("🔄 FLOW_STATE: ❌ Trimming validation failed")
                 throw FlowStateError.trimmingIncomplete
             }
 
-            // 🎯 CRITICAL STATE SYNCHRONIZATION FIX: Implement missing morphism
+            // MARK: - CRITICAL STATE SYNCHRONIZATION FIX: Implement missing morphism
             // This ensures AddMoveUnifiedState has the final edited values from TrimmerViewModel
             await synchronizeTrimmingStateToUnifiedState()
 
-            // 🎯 PRESERVATION RACE CONDITION FIX: Call preservation AFTER state sync but BEFORE transition
+            // MARK: - PRESERVATION RACE CONDITION FIX: Call preservation AFTER state sync but BEFORE transition
             // This ensures state preservation happens while still in .trimming state, preventing race conditions
             logger.info("🔄 FLOW_STATE: 🔒 MORPHISM PRESERVATION - Executing state preservation before transition")
             logger.info("🔄 FLOW_STATE: 🎯 FUNCTOR COMPOSITION: Preserving categorical state during trimming → loadingTrimmedAsset morphism")
@@ -120,7 +120,7 @@ public class FlowStateManager: ObservableObject {
         case .naming:
             logger.info("🔄 FLOW_STATE: 📊 Transition: naming → saving")
 
-            // 🎯 CRITICAL FIX: Validate naming completion before saving
+            // MARK: - CRITICAL FIX: Validate naming completion before saving
             guard await validateNamingCompletion() else {
                 logger.error("🔄 FLOW_STATE: ❌ Naming validation failed")
                 throw FlowStateError.namingIncomplete
@@ -172,15 +172,15 @@ public class FlowStateManager: ObservableObject {
         logger.info("🔄 FLOW_STATE: ✅ Rollback completed: returned to ready state")
     }
 
-    /// 🎯 BACK BUTTON FIX: Rollback from naming back to trimming with state preservation
-    /// 🎯 MORPHISM FIX: Enhanced rollback implementation that preserves categorical integrity
+    /// MARK: - BACK BUTTON FIX: Rollback from naming back to trimming with state preservation
+    /// MARK: - MORPHISM FIX: Enhanced rollback implementation that preserves categorical integrity
     public func rollbackToTrimming() async {
         let rollbackStartTime = Date()
         logger.info("🔄 FLOW_STATE: 🔙 Executing enhanced rollback: naming → trimming")
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: Starting rollback with explicit self references in closures")
         logger.info("🔄 FLOW_STATE: 🎯 MORPHISM FIX: Ensuring naming → trimming is a true isomorphism")
 
-        // 🎯 COMPREHENSIVE DIAGNOSTICS: Log current state before rollback
+        // MARK: - COMPREHENSIVE DIAGNOSTICS: Log current state before rollback
         logger.info("🔄 FLOW_STATE: 📊 ROLLBACK DIAGNOSTICS - Current state before rollback:")
         logger.info("🔄 FLOW_STATE:   - Flow State: \(String(describing: self.unifiedState.flowState))")
         logger.info("🔄 FLOW_STATE:   - Player State: \(String(describing: self.unifiedState.playerState))")
@@ -201,7 +201,7 @@ public class FlowStateManager: ObservableObject {
 
         logger.info("🔄 FLOW_STATE: ✅ State validation passed - in naming state, ready for rollback morphism")
 
-        // 🎯 BACK BUTTON FIX: Try to restore trimming state first
+        // MARK: - BACK BUTTON FIX: Try to restore trimming state first
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: Attempting to resolve ambiguous method calls by accessing preserved state directly")
 
         // Direct access to preserved trimming state to avoid ambiguous method calls
@@ -242,7 +242,7 @@ public class FlowStateManager: ObservableObject {
                     // Proceed to transition ONLY on success
                     await performTransition(to: .trimming, triggeredBy: "rollback_to_trimming_preserved")
 
-                    // 🎯 COMPREHENSIVE DIAGNOSTICS: Log final state after preserved state restoration
+                    // MARK: - COMPREHENSIVE DIAGNOSTICS: Log final state after preserved state restoration
                     logger.info("🔄 FLOW_STATE: 📊 PRESERVED STATE RESTORATION COMPLETION DIAGNOSTICS:")
                     logger.info("🔄 FLOW_STATE:   - Rollback Duration: \(String(format: "%.3f", rollbackDuration))s")
                     logger.info("🔄 FLOW_STATE:   - Final Flow State: \(String(describing: self.unifiedState.flowState))")
@@ -278,7 +278,7 @@ public class FlowStateManager: ObservableObject {
             logger.warning("🔄 FLOW_STATE: 🔧 MORPHISM DEGRADATION: Cannot achieve perfect isomorphism, using approximation")
         }
 
-        // 🎯 BACK BUTTON FIX: Fallback to current state validation
+        // MARK: - BACK BUTTON FIX: Fallback to current state validation
         logger.info("🔄 FLOW_STATE: 📝 No preserved state - validating current data for trimmer reconstruction")
 
         // Validate we have the required data for trimming
@@ -294,7 +294,7 @@ public class FlowStateManager: ObservableObject {
             return
         }
 
-        // 🎯 ACCESS LEVEL FIX: Ensure we have valid trim times - these properties are now accessible
+        // MARK: - ACCESS LEVEL FIX: Ensure we have valid trim times - these properties are now accessible
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: ACCESS LEVEL FIX - Validating trim times")
         logger.info("🔄 FLOW_STATE: 📊 Current trim range: \(String(format: "%.2f", self.unifiedState.trimStartTime))s - \(String(format: "%.2f", self.unifiedState.trimEndTime))s")
 
@@ -303,11 +303,11 @@ public class FlowStateManager: ObservableObject {
             // Set reasonable defaults if trim times are invalid
             logger.info("🔄 FLOW_STATE: 🔧 ACCESS LEVEL FIX - Setting default trim times")
 
-            // 🎯 SSOT DELEGATION: TrimmerViewModel should handle trim time validation
+            // MARK: - SSOT DELEGATION: TrimmerViewModel should handle trim time validation
             // Direct assignment is no longer supported as TrimmerViewModel is the SSOT
             // self.unifiedState.trimStartTime = 0.0
 
-            // 🎯 DEPRECATION FIX: Use async duration loading instead of deprecated property
+            // MARK: - DEPRECATION FIX: Use async duration loading instead of deprecated property
             if let asset = self.unifiedState.videoAsset {
                 do {
                     let duration = try await asset.load(.duration)
@@ -328,17 +328,17 @@ public class FlowStateManager: ObservableObject {
 
         logger.info("🔄 FLOW_STATE: 📊 Rollback validation passed - trim range: \(String(format: "%.2f", self.unifiedState.trimStartTime))s - \(String(format: "%.2f", self.unifiedState.trimEndTime))s")
 
-        // 🎯 BACK BUTTON FIX: Ensure player state is ready for trimming transition
+        // MARK: - BACK BUTTON FIX: Ensure player state is ready for trimming transition
         logger.info("🔄 FLOW_STATE: 🔧 BACK BUTTON FIX - Setting player state to ready for fallback transition")
         self.unifiedState.updatePlayerState(.ready)
         logger.info("🔄 FLOW_STATE: 📊 Player state set to: .ready")
 
-        // 🎯 CRITICAL FIX: Create TrimmerViewModel for fallback path
+        // MARK: - CRITICAL FIX: Create TrimmerViewModel for fallback path
         // This was missing - the fallback path was transitioning to trimming without creating the required TrimmerViewModel
         logger.info("🔄 FLOW_STATE: 🔧 FALLBACK MORPHISM: Creating TrimmerViewModel for rollback")
         await createTrimmerViewModelForFallback()
 
-        // 🎯 ASYNC SUCCESS/FAILURE FIX: Validate TrimmerViewModel was successfully created
+        // MARK: - ASYNC SUCCESS/FAILURE FIX: Validate TrimmerViewModel was successfully created
         guard let createdTrimmerVM = self.unifiedState.trimmerViewModel as? TrimmerViewModel else {
             logger.error("🔄 FLOW_STATE: ❌ FALLBACK MORPHISM FAILED - TrimmerViewModel creation unsuccessful")
             await performTransition(to: .error(message: "Failed to create trimming interface", underlyingError: "TrimmerViewModel creation failed"), triggeredBy: "rollback_to_trimming_fallback_failed")
@@ -361,7 +361,7 @@ public class FlowStateManager: ObservableObject {
         // Perform the transition to trimming state
         await performTransition(to: .trimming, triggeredBy: "rollback_to_trimming_fallback")
 
-        // 🎯 COMPREHENSIVE DIAGNOSTICS: Log final state after rollback
+        // MARK: - COMPREHENSIVE DIAGNOSTICS: Log final state after rollback
         let rollbackDuration = Date().timeIntervalSince(rollbackStartTime)
         logger.info("🔄 FLOW_STATE: 📊 ROLLBACK COMPLETION DIAGNOSTICS:")
         logger.info("🔄 FLOW_STATE:   - Rollback Duration: \(String(format: "%.3f", rollbackDuration))s")
@@ -378,7 +378,7 @@ public class FlowStateManager: ObservableObject {
         logger.info("🔄 FLOW_STATE: ✅ Rollback completed: returned to trimming with fallback state")
     }
 
-    /// 🎯 CRITICAL FIX: Creates TrimmerViewModel for fallback rollback path
+    /// MARK: - CRITICAL FIX: Creates TrimmerViewModel for fallback rollback path
     /// This method ensures that when preserved state is not available, we still create a valid TrimmerViewModel
     @MainActor
     private func createTrimmerViewModelForFallback() async {
@@ -433,7 +433,7 @@ public class FlowStateManager: ObservableObject {
             logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: Calling setupAsync() on fallback TrimmerViewModel")
             logger.info("🔄 FLOW_STATE: 🎯 FUNCTOR INITIALIZATION: Ensuring videoDuration property is properly set")
 
-            // 🎯 CRITICAL FIX: Call setupAsync() to fully initialize the videoDuration property
+            // MARK: - CRITICAL FIX: Call setupAsync() to fully initialize the videoDuration property
             // This prevents validation errors when the TrimmerViewModel is used later
             try await fallbackTrimmerVM.setupAsync()
 
@@ -457,7 +457,7 @@ public class FlowStateManager: ObservableObject {
         }
     }
 
-    /// 🎯 LAST RESORT: Creates minimal TrimmerViewModel with hardcoded values
+    /// MARK: - LAST RESORT: Creates minimal TrimmerViewModel with hardcoded values
     @MainActor
     private func createMinimalTrimmerViewModel() async {
         logger.warning("🔄 FLOW_STATE: ⚠️ Creating minimal TrimmerViewModel as last resort")
@@ -499,7 +499,7 @@ public class FlowStateManager: ObservableObject {
     }
 
     /// Completes the asset loading phase and transitions to the naming state
-    /// 🎯 CRITICAL FIX: This method ensures proper state synchronization from .loadingTrimmedAsset to .naming
+    /// MARK: - CRITICAL FIX: This method ensures proper state synchronization from .loadingTrimmedAsset to .naming
     /// with correct player state synchronization, fixing the core "Save Move" functionality issue
     @MainActor
     public func completeAssetLoading() async {
@@ -511,20 +511,20 @@ public class FlowStateManager: ObservableObject {
             return
         }
 
-        // 🎯 CRITICAL FIX: Log the state transition for comprehensive diagnostic tracing
+        // MARK: - CRITICAL FIX: Log the state transition for comprehensive diagnostic tracing
         logger.info("🔄 FLOW_STATE: 📊 State transition initiated: .loadingTrimmedAsset → .naming")
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC - Player state before transition: \(String(describing: self.unifiedState.playerState))")
 
-        // 🎯 CRITICAL FIX: Perform the atomic transition using the existing performTransition method
+        // MARK: - CRITICAL FIX: Perform the atomic transition using the existing performTransition method
         // This ensures that playerState is properly synchronized to .ready since .naming is an interactive state
         await performTransition(to: .naming, triggeredBy: "asset_loading_complete")
 
-        // 🎯 CRITICAL FIX: Verify the transition completed successfully
+        // MARK: - CRITICAL FIX: Verify the transition completed successfully
         logger.info("🔄 FLOW_STATE: ✅ Asset loading completed, transitioned to naming state")
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC - Player state after transition: \(String(describing: self.unifiedState.playerState))")
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC - Flow state after transition: \(String(describing: self.unifiedState.flowState))")
 
-        // 🎯 CRITICAL FIX: Additional verification to ensure state consistency
+        // MARK: - CRITICAL FIX: Additional verification to ensure state consistency
         if case .naming = self.unifiedState.flowState, self.unifiedState.playerState == .ready {
             logger.info("🔄 FLOW_STATE: ✅ State synchronization verified - Both flowState and playerState are correctly aligned")
         } else {
@@ -558,7 +558,7 @@ public class FlowStateManager: ObservableObject {
 
     // MARK: - Private Methods
 
-    /// 🎯 CRITICAL STATE SYNCHRONIZATION FIX: Missing morphism implementation
+    /// MARK: - CRITICAL STATE SYNCHRONIZATION FIX: Missing morphism implementation
     /// Maps final trim/rotation values from TrimmerViewModel back to AddMoveUnifiedState
     /// This implements the essential state functor that preserves user edits during state transitions
     @MainActor
@@ -583,7 +583,7 @@ public class FlowStateManager: ObservableObject {
         let newTrimEndTime = trimmerViewModel.endTime.seconds
         let newRotationQuarterTurns = trimmerViewModel.totalRotationQuarterTurns
 
-        // 🎯 SSOT DELEGATION: State synchronization no longer needed
+        // MARK: - SSOT DELEGATION: State synchronization no longer needed
         // unifiedState properties are now computed and delegate to TrimmerViewModel
         // unifiedState.trimStartTime = newTrimStartTime
         // unifiedState.trimEndTime = newTrimEndTime
@@ -613,7 +613,7 @@ public class FlowStateManager: ObservableObject {
         logger.info("🔄 FLOW_STATE: ✅ State synchronization verified - AddMoveUnifiedState now contains user's final edits")
     }
 
-    /// 🎯 CRITICAL FIX: Enhanced state validation for robust transitions
+    /// MARK: - CRITICAL FIX: Enhanced state validation for robust transitions
     /// Validates that the current state has all required dependencies for transition
     @MainActor
     private func validateCurrentStateForTransition(_ state: AddMoveFlowState) async -> Bool {
@@ -671,7 +671,7 @@ public class FlowStateManager: ObservableObject {
         return true
     }
 
-    /// 🎯 CRITICAL FIX: Check if transition is already in progress
+    /// MARK: - CRITICAL FIX: Check if transition is already in progress
     @MainActor
     private func isTransitionInProgress(from state: AddMoveFlowState) -> Bool {
         // Simple heuristic to detect stuck transitions
@@ -691,7 +691,7 @@ public class FlowStateManager: ObservableObject {
         }
     }
 
-    /// 🎯 CRITICAL FIX: Validate trimming completion
+    /// MARK: - CRITICAL FIX: Validate trimming completion
     @MainActor
     private func validateTrimmingCompletion() async -> Bool {
         logger.info("🔄 FLOW_STATE: 🔍 Validating trimming completion")
@@ -726,7 +726,7 @@ public class FlowStateManager: ObservableObject {
         return true
     }
 
-    /// 🎯 CRITICAL FIX: Validate naming completion
+    /// MARK: - CRITICAL FIX: Validate naming completion
     @MainActor
     private func validateNamingCompletion() async -> Bool {
         logger.info("🔄 FLOW_STATE: 🔍 Validating naming completion")
@@ -767,7 +767,7 @@ public class FlowStateManager: ObservableObject {
     private func performTransition(to newState: AddMoveFlowState, triggeredBy: String) async {
         let previousState = unifiedState.flowState
 
-        // 🎯 BACK BUTTON FIX: Ensure player state is properly synchronized before validation
+        // MARK: - BACK BUTTON FIX: Ensure player state is properly synchronized before validation
         // When transitioning to interactive states, ensure player is ready
         if case .trimming = newState {
             // Set player state to ready before validation for trimming state
@@ -815,7 +815,7 @@ public class FlowStateManager: ObservableObject {
         logger.info("🔄 FLOW_STATE: Initiating save operation")
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: ACCESS LEVEL FIX - Starting save operation with explicit self references and corrected property access")
 
-        // 🎯 ACCESS LEVEL FIX: Log save parameters - these properties are now accessible after making TrimmingStateSnapshot public
+        // MARK: - ACCESS LEVEL FIX: Log save parameters - these properties are now accessible after making TrimmingStateSnapshot public
         logger.info("🔄 FLOW_STATE: 📊 Save parameters - Name: '\(self.unifiedState.moveName)', Duration: \(String(format: "%.2f", self.unifiedState.trimEndTime - self.unifiedState.trimStartTime))s, Rotation: \(self.unifiedState.totalRotationQuarterTurns * 90)°")
         logger.info("🔄 FLOW_STATE: 🔧 ACCESS LEVEL FIX - Accessing trimStartTime: \(self.unifiedState.trimStartTime)")
         logger.info("🔄 FLOW_STATE: 🔧 ACCESS LEVEL FIX - Accessing trimEndTime: \(self.unifiedState.trimEndTime)")
@@ -833,7 +833,7 @@ public class FlowStateManager: ObservableObject {
 
             logger.info("🔄 FLOW_STATE: 🎉 Save operation completed successfully")
 
-            // 🎯 DIAGNOSTIC: Log save result details
+            // MARK: - DIAGNOSTIC: Log save result details
             logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: Logging corrected SavedMoveResult properties (estimatedFileSize removed)")
             if let moveName = result.move.name {
                 logger.info("🔄 FLOW_STATE: ✅ Saved move: \(moveName)")
@@ -913,9 +913,9 @@ public class FlowStateManager: ObservableObject {
         await unifiedState.setError(message: message, underlying: underlying)
     }
 
-    /// 🎯 DIAGNOSTIC: Direct trimming state restoration to avoid ambiguous method calls
-  /// 🎯 MORPHISM ENHANCEMENT: Implements the categorical isomorphism naming ↔ trimming
-  /// 🎯 CRITICAL FIX: Now async throws to properly handle setupAsync() failures
+    /// MARK: - DIAGNOSTIC: Direct trimming state restoration to avoid ambiguous method calls
+  /// MARK: - MORPHISM ENHANCEMENT: Implements the categorical isomorphism naming ↔ trimming
+  /// MARK: - CRITICAL FIX: Now async throws to properly handle setupAsync() failures
   private func attemptDirectTrimmingStateRestoration() async throws -> Bool {
         let restorationStartTime = Date()
         logger.info("🔄 FLOW_STATE: 🔧 DIAGNOSTIC: Attempting direct trimming state restoration")
@@ -946,23 +946,23 @@ public class FlowStateManager: ObservableObject {
             return false
         }
 
-        // 🎯 PLAYER SYNCHRONIZATION FIX: Removed faulty player reversion logic
+        // MARK: - PLAYER SYNCHRONIZATION FIX: Removed faulty player reversion logic
         // The original logic was causing desynchronization between TrimmerViewModel rotation state
         // and AVPlayerItem visual state. Player synchronization now happens in rollbackToTrimming()
         // after successful TrimmerViewModel restoration to maintain proper isomorphism.
 
-        // 🎯 BACK BUTTON FIX: Restore player state as well to ensure consistency
+        // MARK: - BACK BUTTON FIX: Restore player state as well to ensure consistency
         logger.info("🔄 FLOW_STATE: 🔧 BACK BUTTON FIX - Restoring player state for trimming consistency")
         let oldPlayerState = self.unifiedState.playerState
         self.unifiedState.updatePlayerState(.ready)
         logger.info("🔄 FLOW_STATE: 📊 Player state restored: \(String(describing: oldPlayerState)) → .ready")
 
-        // 🎯 ACCESS LEVEL FIX: These properties are now accessible after making TrimmingStateSnapshot public
+        // MARK: - ACCESS LEVEL FIX: These properties are now accessible after making TrimmingStateSnapshot public
         let oldTrimStartTime = self.unifiedState.trimStartTime
         let oldTrimEndTime = self.unifiedState.trimEndTime
         let oldRotation = self.unifiedState.totalRotationQuarterTurns
 
-        // 🎯 SSOT DELEGATION: Direct state restoration no longer needed
+        // MARK: - SSOT DELEGATION: Direct state restoration no longer needed
         // unifiedState properties are now computed and delegate to TrimmerViewModel
         // Restoration should happen by recreating TrimmerViewModel with preserved state
         // self.unifiedState.trimStartTime = preservedState.trimStartTime
@@ -977,7 +977,7 @@ public class FlowStateManager: ObservableObject {
         logger.info("🔄 FLOW_STATE:   - Rotation: \(oldRotation * 90)° → \(self.unifiedState.totalRotationQuarterTurns * 90)°")
         logger.info("🔄 FLOW_STATE:   - Duration: \(String(format: "%.2f", oldTrimEndTime - oldTrimStartTime))s → \(String(format: "%.2f", self.unifiedState.trimEndTime - self.unifiedState.trimStartTime))s")
 
-        // 🎯 ROLLBACK MORPHISM FIX: Explicitly reconstruct TrimmerViewModel after restoring state
+        // MARK: - ROLLBACK MORPHISM FIX: Explicitly reconstruct TrimmerViewModel after restoring state
         // This ensures proper rotation state management and prevents double rotation bugs
         logger.info("🔄 FLOW_STATE: 🔧 ROLLBACK MORPHISM - Reconstructing TrimmerViewModel with preserved state")
         logger.info("🔄 FLOW_STATE: 🎯 MORPHISM: Creating categorical isomorphism via TrimmerViewModel reconstruction")
@@ -1001,7 +1001,7 @@ public class FlowStateManager: ObservableObject {
             logger.info("🔄 FLOW_STATE:   - Duration: \(String(format: "%.3f", (endTime - startTime).seconds))s")
             logger.info("🔄 FLOW_STATE:   - Minimum duration requirement: \((endTime - startTime).seconds >= 0.5 ? "SATISFIED" : "VIOLATED")")
 
-            // 🎯 ROTATION DIAGNOSTIC: Log rotation values before TrimmerViewModel reconstruction
+            // MARK: - ROTATION DIAGNOSTIC: Log rotation values before TrimmerViewModel reconstruction
             logger.info("🔄 FLOW_STATE: 🔄 ROTATION RESTORATION DIAGNOSTICS:")
             logger.info("🔄 FLOW_STATE: 📊 Preserved rotation values:")
             logger.info("🔄 FLOW_STATE:   - totalRotationQuarterTurns (computed): \(preservedState.totalRotationQuarterTurns) = \(preservedState.totalRotationQuarterTurns * 90)°")
@@ -1043,7 +1043,7 @@ public class FlowStateManager: ObservableObject {
             logger.info("🔄 FLOW_STATE: 📊 POST-SETUP CHECK: videoDuration after setup = \(String(format: "%.3f", reconstructedTrimmerVM.videoDuration.seconds))s")
             logger.info("🔄 FLOW_STATE: 🎯 VALIDATION READINESS: TrimmerViewModel is now fully initialized for state validation")
 
-            // 🎯 ROTATION RESTORATION VERIFICATION: Log final rotation values after setup
+            // MARK: - ROTATION RESTORATION VERIFICATION: Log final rotation values after setup
             logger.info("🔄 FLOW_STATE: 🔄 POST-SETUP ROTATION VERIFICATION:")
             logger.info("🔄 FLOW_STATE: 📊 Final TrimmerViewModel rotation state:")
             logger.info("🔄 FLOW_STATE:   - assetIntrinsicRotationTurns: \(reconstructedTrimmerVM.assetIntrinsicRotationTurns) = \(reconstructedTrimmerVM.assetIntrinsicRotationTurns * 90)°")

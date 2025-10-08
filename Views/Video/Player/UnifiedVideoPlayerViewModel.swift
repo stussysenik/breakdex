@@ -11,13 +11,14 @@ import SwiftUI
 public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
     @preconcurrency Equatable, @preconcurrency Hashable
 {
+    // MARK: - FUNC
     public static func == (
         lhs: UnifiedVideoPlayerViewModel,
         rhs: UnifiedVideoPlayerViewModel
     ) -> Bool {
         lhs.state == rhs.state
     }
-
+    // MARK: - FUNC
     public func hash(into hasher: inout Hasher) {
         hasher.combine(state)
     }
@@ -136,7 +137,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             metadata: nil
         )
     }
-
+    // MARK: - FUNC
     public func startPlayback() {
         logger.info(
             "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🎬 startPlayback() called",
@@ -266,7 +267,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             )
         }
     }
-
+    // MARK: - FUNC
     private func observePlayerItemReadiness() {
         guard let currentItem = player.currentItem else {
             logger.warning(
@@ -320,7 +321,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             }
             .store(in: &cancellables)
     }
-
+    // MARK: - FUNC
     public func teardown() {
 
         guard state != .idle else {
@@ -465,7 +466,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             ]
         )
     }
-
+    // MARK: - FUNC
     public func replacePlayerItemAndWaitForReady(_ newItem: AVPlayerItem)
         async throws
     {
@@ -780,7 +781,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             throw error
         }
     }
-
+    // MARK: - FUNC
     private func setupPlayerItemObservers(_ item: AVPlayerItem) {
         logger.info(
             "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔧 Setting up player item observers",
@@ -846,7 +847,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             }
             .store(in: &cancellables)
     }
-
+    // MARK: - FUNC
     private func setupObservers(for item: AVPlayerItem) {
         logger.info(
             "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): 🔄 Setting up persistent KVO observers for race condition prevention",
@@ -971,7 +972,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             category: "UnifiedVideoPlayerViewModel-\(mode)"
         )
     }
-
+    // MARK: - FUNC
     public func pauseForTrimming() {
         logger.info(
             "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): pauseForTrimming() called",
@@ -1004,7 +1005,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
         }
         shouldPlay = false
     }
-
+    // MARK: - FUNC
     public func resumeAfterTrimming() {
         logger.info(
             "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(mode)): resumeAfterTrimming() called",
@@ -1023,7 +1024,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             }
         }
     }
-
+    // MARK: - FUNC
     public func primeWithAsset(_ asset: AVAsset) async {
         guard case .idle = state else {
             logger.info(
@@ -1073,11 +1074,11 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             )
         }
     }
-
+    // MARK: - FUNC
     public func seek(to time: CMTime) {
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
     }
-
+    // MARK: - FUNC
     public func asyncSeek(to time: CMTime) async throws {
         let diagnosticStart = CFAbsoluteTimeGetCurrent()
         logger.info(
@@ -1248,12 +1249,12 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             }
         }
     }
-
+    // MARK: - FUNC
     public func waitForReady() async throws {
 
         return
     }
-
+    // MARK: - FUNC
     private func handleHealthStatusChange(_ healthStatus: VideoHealthStatus) {
         self.healthStatus = healthStatus
         memoryLogger.logMemoryEvent(
@@ -1280,7 +1281,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             break
         }
     }
-
+    // MARK: - FUNC
     private func attemptRecovery() {
         memoryLogger.logMemoryEvent(
             event: "Attempting video recovery",
@@ -1316,7 +1317,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             )
         }
     }
-
+    // MARK: - FUNC
     private func startMemoryChecks() {
         memoryCheckTimer = Timer.scheduledTimer(
             withTimeInterval: 3.0,
@@ -1327,7 +1328,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             }
         }
     }
-
+    // MARK: - FUNC
     private func checkMemoryAndOptimize() {
         let availableMemory = memoryManager.getAvailableMemory()
         let memoryThreshold: Int64 = 30 * 1024 * 1024
@@ -1352,7 +1353,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             )
         }
     }
-
+    // MARK: - FUNC
     private func applyOptimizations() {
         if case .playing(let player) = state,
             let currentItem = player.currentItem
@@ -1366,7 +1367,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             )
         }
     }
-
+    // MARK: - FUNC
     public func loadVideo(from source: VideoSource, quarterTurns: Int)
         async throws
     {
@@ -1533,7 +1534,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
             throw error
         }
     }
-
+    // MARK: - FUNC
     public func setRotation(_ quarterTurns: Int) {
 
         logger.info(

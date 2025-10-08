@@ -4,7 +4,7 @@ import OSLog
 
 // MARK: - Critical Fixes Applied
 //
-// 🎯 ISSUE 1 FIX: MoveDetailView Flicker
+// MARK: - ISSUE 1 FIX: MoveDetailView Flicker
 // ROOT CAUSE: loadVideoAsset() function updated @State properties in multiple stages, causing intermediate render states
 // SOLUTION: Modified loadVideoAsset() to perform ALL async operations first, then update state atomically
 // IMPACT: Prevents video player flicker by ensuring view only renders when all components are ready
@@ -47,7 +47,7 @@ struct MoveDetailView: View {
                 logger.info("🎬 MOVE_DETAIL_VIEW: 🔍 Initial state - isLoading: \(isLoading), videoAsset: \(videoAsset != nil), playerViewModel: \(playerViewModel != nil)")
             }
             .onDisappear {
-                // 🎯 ENHANCED: Simplified cleanup using shared UnifiedPlayerManager
+                // MARK: - ENHANCED: Simplified cleanup using shared UnifiedPlayerManager
                 // This prevents memory leaks and retains cycles through proper resource management
                 logger.info("🎬 MOVE_DETAIL_VIEW: 🚨 View disappeared, pausing playback for move: \(move.name ?? "Untitled Move")")
                 logger.info("🎬 MOVE_DETAIL_VIEW: 📋 Cleanup state - playerViewModel: \(playerViewModel != nil), videoAsset: \(videoAsset != nil)")
@@ -56,7 +56,7 @@ struct MoveDetailView: View {
                 AppContainer.shared.unifiedPlayerManager.currentPlayer?.avPlayer?.pause()
                 logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Playback paused, UnifiedPlayerManager handles resource cleanup")
 
-                // 🎯 CRITICAL FIX: Clear local playerViewModel to ensure clean state
+                // MARK: - CRITICAL FIX: Clear local playerViewModel to ensure clean state
                 Task { @MainActor in
                     self.playerViewModel = nil
                     logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Local playerViewModel cleared")
@@ -167,7 +167,7 @@ struct MoveDetailView: View {
 
     // MARK: - Video Asset Loading
     /// Asynchronously loads the video asset from the Photos library
-    /// 🎯 CRITICAL FIX: Atomic operation to prevent view flicker
+    /// MARK: - CRITICAL FIX: Atomic operation to prevent view flicker
     /// ROOT CAUSE: Previously updated @State properties in multiple stages, causing intermediate render states
     /// SOLUTION: Await both asset loading AND player creation before updating any @State properties
     private func loadVideoAsset() async {
@@ -204,7 +204,7 @@ struct MoveDetailView: View {
         logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Asset exists in Photos library, proceeding to ATOMIC load")
         logger.info("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_APPROACH: Will complete ALL operations before state update")
 
-        // 🎯 CRITICAL FIX: Perform ALL async operations FIRST, then update state atomically
+        // MARK: - CRITICAL FIX: Perform ALL async operations FIRST, then update state atomically
         var loadedAsset: AVAsset?
         var createdPlayerViewModel: UnifiedVideoPlayerViewModel?
         var loadError: Error?
@@ -251,7 +251,7 @@ struct MoveDetailView: View {
             loadError = error
         }
 
-        // 🎯 CRITICAL FIX: ATOMIC STATE UPDATE - Update ALL @State properties in ONE MainActor.run
+        // MARK: - CRITICAL FIX: ATOMIC STATE UPDATE - Update ALL @State properties in ONE MainActor.run
         // This prevents intermediate render states that cause flicker
         await MainActor.run {
             logger.info("🎬 MOVE_DETAIL_VIEW: 🔧 ATOMIC_STATE_UPDATE: Starting atomic state update")
@@ -285,7 +285,7 @@ struct MoveDetailView: View {
     }
 
     // MARK: - Legacy Player Request Method (Removed)
-    /// 🎯 CRITICAL FIX: This method has been removed and incorporated into the atomic loadVideoAsset() function
+    /// MARK: - CRITICAL FIX: This method has been removed and incorporated into the atomic loadVideoAsset() function
     /// ROOT CAUSE: Separating asset loading from player creation caused intermediate UI states
     /// SOLUTION: Atomic operation performs both steps before any @State updates
 }

@@ -15,27 +15,34 @@ public protocol TrimmerSetupProgressDelegate: AnyObject {
     /// - Parameters:
     ///   - progress: Progress value between 0.0 and 1.0
     ///   - status: Human-readable status message describing current operation
+
+    // MARK: - FUNC
     func trimmerDidUpdateProgress(_ progress: Double, status: String)
 
     /// Called when trimmer setup completes successfully
     /// - Parameter totalTime: Total time taken for setup completion (optional)
+    
+    // MARK: - FUNC
     func trimmerDidCompleteSetup(totalTime: TimeInterval?)
 
     /// Called when trimmer setup encounters an error
     /// - Parameters:
     ///   - error: The error that occurred during setup
     ///   - context: Additional context about when/where the error occurred
+
+    // MARK: - FUNC
     func trimmerDidEncounterError(_ error: Error, context: String)
 }
 
 // MARK: - Default Implementation (Optional)
 public extension TrimmerSetupProgressDelegate {
-
+    // MARK: - FUNC
     /// Default implementation - optional to implement
     func trimmerDidCompleteSetup(totalTime: TimeInterval?) {
         // Default: no action required
     }
 
+    // MARK: - FUNC
     /// Default implementation - optional to implement
     func trimmerDidEncounterError(_ error: Error, context: String) {
         // Default: no action required - just log
@@ -90,10 +97,10 @@ public final class TrimmerViewModel: ObservableObject {
     
     // MARK: - Initialization State
     private var isSetupComplete = false
-    // 🎯 LEGACY REMOVED: _pendingInitialTotalRotation no longer needed with synchronous initialization
+    // MARK: - _pendingInitialTotalRotation no longer needed with synchronous initialization
     @Published public var isReady: Bool = false {
         didSet {
-            // 🎯 ENHANCED LOGGING: Track when isReady changes
+            // MARK: - ENHANCED LOGGING: Track when isReady changes
             diagnosticLogger.logStateChange("is_ready", from: oldValue, to: isReady, metadata: [
                 "setup_complete": "\(isSetupComplete)",
                 "video_duration": "\(videoDuration.seconds)",
@@ -124,7 +131,8 @@ public final class TrimmerViewModel: ObservableObject {
         var lastMemoryUsage: Double = 0
         var averageRotationDuration: Double = 0
 
-        // 🎯 CATEGORY THEORY: Record rotation morphism timing
+        // MARK: - record rotation morphism timing
+        // MARK: - FUNC
         mutating func recordRotation(_ duration: Double) {
             lastRotationTime = Date()
             rotationCount += 1
@@ -145,37 +153,9 @@ public final class TrimmerViewModel: ObservableObject {
     @Published
     public var isExporting: Bool = false
 
-    // MARK: - Categorical Theory Rotation Implementation
-
-    /**
-     * 🎯 CATEGORY THEORY: Objects, Morphisms, and Natural Transformations for Video Rotation
-     *
-     * **Objects (Category Obj):**
-     * - AssetIntrinsicRotationSpace: R₀ = {0, 1, 2, 3} (intrinsic quarter turns)
-     * - UserAppliedRotationSpace: R₁ = {0, 1, 2, 3} (user quarter turns)
-     * - TotalRotationSpace: R⊕ = {0, 1, 2, 3} (combined quarter turns)
-     *
-     * **Morphisms (Category Hom):**
-     * - intrinsicRotationMorphism: AVAsset → AssetIntrinsicRotationSpace
-     * - userRotationMorphism: UIControls → UserAppliedRotationSpace
-     * - compositionMorphism: AssetIntrinsicRotationSpace × UserAppliedRotationSpace → TotalRotationSpace
-     *
-     * **Functor F: Category Obj → Category Vec**
-     * - F(AssetIntrinsicRotationSpace) = ℝ⁴ (intrinsic rotation vector space)
-     * - F(UserAppliedRotationSpace) = ℝ⁴ (user rotation vector space)
-     * - F(TotalRotationSpace) = ℝ⁴ (total rotation vector space)
-     *
-     * **Natural Transformation η: F × F → F⊕**
-     * η: ℝ⁴ × ℝ⁴ → ℝ⁴ where η(r₀, r₁) = (r₀ + r₁) mod 4
-     * This natural transformation preserves the categorical structure and ensures WYSIWYG behavior.
-     *
-     * **Universal Property:** For any rotation system with total rotation = intrinsic ⊕ user,
-     * there exists a unique natural transformation to this categorical structure.
-     */
-
-    // 🎯 CATEGORY THEORY: Object in AssetIntrinsicRotationSpace (R₀)
-    /// Represents the intrinsic rotation encoded in the video asset metadata.
-    /// This is loaded from AVAsset.transform and remains constant throughout trimming.
+    // MARK: - var
+    // represents the intrinsic rotation encoded in the video asset metadata.
+    // this is loaded from AVAsset.transform and remains constant throughout trimming.
     @Published
     public private(set) var assetIntrinsicRotationTurns: Int = 0 {
         didSet {
@@ -191,7 +171,7 @@ public final class TrimmerViewModel: ObservableObject {
                 "morphism_type": "intrinsic_asset_rotation_update"
             ])
 
-            // 🎯 CATEGORY THEORY: Legacy property removed - total rotation is now computed
+            // MARK: - Legacy property removed - total rotation is now computed
             // No need to sync legacy property since we only use categorical system
 
             let intrinsicChangeDuration = Date().timeIntervalSince(intrinsicChangeStartTime)
@@ -203,7 +183,7 @@ public final class TrimmerViewModel: ObservableObject {
         }
     }
 
-    // 🎯 CATEGORY THEORY: Object in UserAppliedRotationSpace (R₁)
+    // MARK: - CATEGORY THEORY: Object in UserAppliedRotationSpace (R₁)
     /// Represents user-applied rotation through UI controls.
     /// This is modified by user interactions and drives the WYSIWYG preview.
     @Published
@@ -236,15 +216,13 @@ public final class TrimmerViewModel: ObservableObject {
                 "natural_transformation": "η(r₀, r₁) = (r₀ + r₁) mod 4"
             ])
 
-            // 🎯 CATEGORY THEORY: Apply natural transformation η to update total rotation
+            // MARK: - Apply natural transformation η to update total rotation
             // η: (intrinsic, user) → (intrinsic + user) mod 4
             let newTotalRotation = totalRotationQuarterTurns
 
             // Legacy property removed - no need to update rotationQuarterTurns
             // Total rotation is now computed dynamically from categorical system
 
-            // 🎯 CRITICAL FIX: Removed expensive asset processing - now only UI state update
-            // 🎯 DOUBLE ROTATION BUG FIX: Added diagnostic logging for rotation changes
             diagnosticLogger.logInfo("🔄 [DOUBLE_ROTATION_FIX] User rotation updated", metadata: [
                 "old_user_rotation": "\(oldValue)",
                 "new_user_rotation": "\(userAppliedRotationTurns)",
@@ -278,22 +256,12 @@ public final class TrimmerViewModel: ObservableObject {
         }
     }
 
-    // 🎯 CATEGORY THEORY: Natural Transformation η: AssetIntrinsicRotationSpace × UserAppliedRotationSpace → TotalRotationSpace
-    /// Computes the total rotation by combining intrinsic and user-applied rotation using modular arithmetic.
-    /// This implements the natural transformation η that preserves categorical structure.
-    ///
-    /// **Mathematical Properties:**
-    /// - η(r₀, r₁) = (r₀ + r₁) mod 4
-    /// - η preserves identity: η(0, 0) = 0
-    /// - η preserves composition: η((r₀₁, r₁₁) ⊕ (r₀₂, r₁₂)) = η(r₀₁, r₁₁) ⊕ η(r₀₂, r₁₂)
-    /// - η is invertible: For any total rotation t, there exists unique (r₀, r₁) such that η(r₀, r₁) = t
-    ///
     /// **WYSIWYG Guarantee:** This transformation ensures that what users see in the preview
     /// exactly matches what gets saved in the final asset, preserving the isomorphism.
     public var totalRotationQuarterTurns: Int {
         let total = (assetIntrinsicRotationTurns + userAppliedRotationTurns) % 4
 
-        // 🎯 CATEGORY THEORY: Log natural transformation application for mathematical verification
+        // MARK: - Log natural transformation application for mathematical verification
         diagnosticLogger.logDebug("🔄 [CAT] Natural transformation η applied", metadata: [
             "intrinsic_rotation": "\(assetIntrinsicRotationTurns)",
             "user_rotation": "\(userAppliedRotationTurns)",
@@ -308,7 +276,7 @@ public final class TrimmerViewModel: ObservableObject {
         return total
     }
 
-    // 🎯 LEGACY REMOVED: rotationQuarterTurns property removed
+    // MARK: - LEGACY REMOVED: rotationQuarterTurns property removed
     // Use totalRotationQuarterTurns instead - it's the computed value from categorical system
     // This eliminates double rotation and establishes single source of truth
     @Published
@@ -357,30 +325,29 @@ public final class TrimmerViewModel: ObservableObject {
         initialUserRotation: Int = 0,
         initialStartTime: CMTime = .zero,
         initialEndTime: CMTime = .zero,
-        playerViewModel: any VideoPlayerViewModelProtocol
+        playerViewModel: any VideoPlayerViewModelProtocol // MARK: VideoPlayerViewModelProtocol declaration
     ) {
         self.asset = asset
         self.photosIdentifier = photosIdentifier
         self.playerViewModel = playerViewModel
 
-        // 🎯 CRITICAL FIX: Initialize with provided values to fix rollback integrity race condition
         // This ensures atomic initialization without race conditions during rollback scenarios
         self.startTime = initialStartTime
         self.endTime = initialEndTime
         self.videoDuration = .zero
         self.oneFrameDuration = CMTime(value: 1, timescale: 30) // Default 30 FPS
 
-        // 🎯 ROLLBACK MORPHISM FIX: Track whether initial times were provided for rollback scenarios
+        // MARK: - ROLLBACK MORPHISM FIX: Track whether initial times were provided for rollback scenarios
         // This helps distinguish between fresh initialization and rollback restoration
         let hasProvidedStartTime = initialStartTime != .zero
         let hasProvidedEndTime = initialEndTime != .zero
 
-        // 🎯 SYNCHRONOUS ROTATION INITIALIZATION: Set rotation state immediately in init()
+        // MARK: - SYNCHRONOUS ROTATION INITIALIZATION: Set rotation state immediately in init()
         // This eliminates race conditions and ensures WYSIWYG behavior from initialization
         self.assetIntrinsicRotationTurns = initialIntrinsicRotation
         self.userAppliedRotationTurns = initialUserRotation
 
-        // 🎯 LEGACY REMOVED: _pendingInitialTotalRotation no longer needed
+        // MARK: - LEGACY REMOVED: _pendingInitialTotalRotation no longer needed
         // Rotation state is now synchronously initialized
 
         Task { @MainActor in
@@ -409,12 +376,12 @@ public final class TrimmerViewModel: ObservableObject {
             ])
         }
 
-        // 🎯 CRITICAL FIX: Don't start setup immediately - let the caller coordinate timing
+        // MARK: - CRITICAL FIX: Don't start setup immediately - let the caller coordinate timing
         // This prevents race conditions during component initialization
     }
     
     deinit {
-        // 🎯 CRITICAL FIX: Made deinit synchronous to prevent retain cycles
+        // MARK: - CRITICAL FIX: Made deinit synchronous to prevent retain cycles
         diagnosticLogger.logAnimation("trimmer_viewmodel_deinitialized", metadata: [
             "total_syncs": "\(animationState.stateSyncCount)",
             "total_rotations": "\(animationState.rotationCount)",
@@ -425,7 +392,7 @@ public final class TrimmerViewModel: ObservableObject {
 
         diagnosticLogger.logInfo("🗑️ TrimmerViewModel deinitializing synchronously")
 
-        // 🎯 CRITICAL FIX: Minimal synchronous cleanup that doesn't require @MainActor
+        // MARK: - CRITICAL FIX: Minimal synchronous cleanup that doesn't require @MainActor
         // Only invalidate display link synchronously - it's thread-safe
         displayLink?.invalidate()
 
@@ -437,7 +404,8 @@ public final class TrimmerViewModel: ObservableObject {
         }
     }
 
-    // 🎯 CRITICAL FIX: Async cleanup method that can safely access @MainActor properties
+    // MARK: - CRITICAL FIX: Async cleanup method that can safely access @MainActor properties
+    // MARK: - FUNC
     @MainActor
     private func performAsyncCleanup() {
         displayLink = nil
@@ -451,7 +419,7 @@ public final class TrimmerViewModel: ObservableObject {
         videoDuration = .zero
         // Legacy property removed - no need to reset rotationQuarterTurns
 
-        // 🎯 CATEGORY THEORY: Reset rotation objects to identity morphism
+        // MARK: - CATEGORY THEORY: Reset rotation objects to identity morphism
         userAppliedRotationTurns = 0
         // Note: assetIntrinsicRotationTurns is private(set) and can't be reset here
 
@@ -472,13 +440,13 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     // MARK: - State Synchronization Methods
-
+    // MARK: - FUNC
     /// Registers a callback for state changes
     public func onStateChange(_ callback: @escaping (Bool) -> Void) {
         stateChangeCallbacks.append(callback)
     }
 
-  
+    // MARK: - FUNC
     /// Validates and updates minimum duration warning state
     private func validateCurrentDurationWarning() {
         let currentDuration = endTime - startTime
@@ -536,6 +504,7 @@ public final class TrimmerViewModel: ObservableObject {
         ])
     }
 
+    // MARK: - FUNC
     /// Synchronizes state after external changes (like rotation)
     private func synchronizeStateAfterExternalChange() {
         let syncStartTime = Date()
@@ -570,6 +539,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     // MARK: - Public Setup
+    // MARK: - FUNC
     public func setupAsync() async throws {
         // Prevent multiple setup calls
         guard !isSetupComplete else {
@@ -606,7 +576,7 @@ public final class TrimmerViewModel: ObservableObject {
             let videoTracks = try await asset.loadTracks(withMediaType: .video)
             let frameRate = (try? await videoTracks.first?.load(.nominalFrameRate)) ?? 30
 
-            // 🎯 CATEGORY THEORY: Load intrinsic rotation via intrinsicRotationMorphism
+            // MARK: - CATEGORY THEORY: Load intrinsic rotation via intrinsicRotationMorphism
             // Morphism: AVAsset → AssetIntrinsicRotationSpace
             let intrinsicRotationLoadingStartTime = Date()
             let loadedIntrinsicRotation = await asset.getRotationInQuarterTurns()
@@ -632,11 +602,11 @@ public final class TrimmerViewModel: ObservableObject {
                 progressDelegate?.trimmerDidUpdateProgress(0.99, status: "Validating trimmer setup...")
             }
 
-            // 🎯 CRITICAL FIX: Update all properties atomically to prevent race conditions
+            // MARK: - CRITICAL FIX: Update all properties atomically to prevent race conditions
             await MainActor.run {
                 videoDuration = loadedDuration
 
-                // 🎯 ROLLBACK MORPHISM FIX: Enhanced rollback detection to preserve trim times
+                // MARK: - ROLLBACK MORPHISM FIX: Enhanced rollback detection to preserve trim times
                 // This fixes the broken morphism by properly detecting and preserving rollback scenarios
                 let initialEndTime = self.endTime
                 let hasInitialEndTime = initialEndTime != .zero
@@ -644,7 +614,7 @@ public final class TrimmerViewModel: ObservableObject {
                 let isRollbackScenario = hasInitialStartTime || hasInitialEndTime
 
                 if isRollbackScenario {
-                    // 🎯 MORPHISM PRESERVATION: Preserve the provided endTime during rollback
+                    // MARK: - MORPHISM PRESERVATION: Preserve the provided endTime during rollback
                     // This ensures the rollback morphism naming → trimming is a true isomorphism
                     diagnosticLogger.logInfo("🔧 [ROLLBACK_MORPHISM] Preserved trim times detected - maintaining rollback integrity", metadata: [
                         "preserved_start_time": "\(self.startTime.seconds)",
@@ -661,7 +631,7 @@ public final class TrimmerViewModel: ObservableObject {
                     // Don't overwrite the preserved endTime - maintain isomorphism
                     // The endTime was already set during initialization with preserved values
                 } else {
-                    // 🎯 FRESH INITIALIZATION: Set endTime to loaded duration for new instances
+                    // MARK: - FRESH INITIALIZATION: Set endTime to loaded duration for new instances
                     self.endTime = loadedDuration
                     diagnosticLogger.logInfo("🔧 [ROLLBACK_MORPHISM] endTime set to loaded duration (fresh initialization)", metadata: [
                         "loaded_duration": "\(loadedDuration.seconds)",
@@ -673,19 +643,19 @@ public final class TrimmerViewModel: ObservableObject {
 
                 oneFrameDuration = CMTime(value: 1, timescale: CMTimeScale(frameRate))
 
-                // 🎯 CATEGORY THEORY: Apply intrinsic rotation morphism result
+                // MARK: - CATEGORY THEORY: Apply intrinsic rotation morphism result
                 // Update the intrinsic rotation object with loaded value
                 assetIntrinsicRotationTurns = loadedIntrinsicRotation
 
-                // 🎯 CATEGORY THEORY: Rotation state now synchronously initialized in init()
+                // MARK: - CATEGORY THEORY: Rotation state now synchronously initialized in init()
                 // No inverse transformation needed - intrinsic and user rotations are set directly
                 // This eliminates race conditions and ensures WYSIWYG behavior from initialization
 
-                // 🎯 LEGACY REMOVED: Legacy snapshot detection logic removed
+                // MARK: - LEGACY REMOVED: Legacy snapshot detection logic removed
                 // Rotation state is now properly initialized in init() method
                 // This eliminates the race condition and double rotation bugs
 
-                // 🎯 SYNCHRONOUS VERIFICATION: Verify loaded intrinsic rotation matches initial value
+                // MARK: - SYNCHRONOUS VERIFICATION: Verify loaded intrinsic rotation matches initial value
                 let intrinsicRotationMatches = (assetIntrinsicRotationTurns == loadedIntrinsicRotation)
                 if !intrinsicRotationMatches {
                     diagnosticLogger.logError("🔄 [INITIALIZATION_ERROR] Intrinsic rotation mismatch detected", metadata: [
@@ -760,6 +730,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     // MARK: - Coalescing Timer Control
+    // MARK: - FUNC
     public func startCoalescing() {
         // Only log if this is actually starting a new timer
         if displayLink == nil {
@@ -768,12 +739,13 @@ public final class TrimmerViewModel: ObservableObject {
         playerViewModel.pauseForTrimming()
         guard displayLink == nil else { return }
 
-        // 🎯 CRITICAL FIX: Use weak reference to prevent retain cycle
+        // MARK: - CRITICAL FIX: Use weak reference to prevent retain cycle
         let weakTarget = WeakTimerTarget(self, selector: #selector(TrimmerViewModel.tick))
         displayLink = CADisplayLink(target: weakTarget, selector: #selector(WeakTimerTarget.forwardTick))
         displayLink?.add(to: .main, forMode: .common)
     }
 
+    // MARK: - FUNC
     public func stopCoalescing() {
         // Only log if we actually had an active timer
         if displayLink != nil {
@@ -783,21 +755,22 @@ public final class TrimmerViewModel: ObservableObject {
         displayLink = nil
     }
 
-    // 🎯 CRITICAL FIX: Added explicit display link cleanup
+    // MARK: - CRITICAL FIX: Added explicit display link cleanup
     private func cleanupDisplayLink() {
         displayLink?.invalidate()
         displayLink = nil
         diagnosticLogger.logDebug("🧹 Display link cleanup completed")
     }
 
-    // 🎯 CRITICAL FIX: Enhanced comprehensive teardown method for retain cycle prevention
+    // MARK: - CRITICAL FIX: Enhanced comprehensive teardown method for retain cycle prevention
+    // MARK: - FUNC
     public func teardown() {
         diagnosticLogger.logInfo("🧹 Starting TrimmerViewModel teardown")
 
         let startTime = Date()
         let memoryBefore = MemoryHelper.getDetailedMemoryInfo()
 
-        // 🎯 CRITICAL FIX: Ensure display link is properly invalidated
+        // MARK: - CRITICAL FIX: Ensure display link is properly invalidated
         if displayLink != nil {
             diagnosticLogger.logDebug("⏹️ Invalidating display link during teardown")
             displayLink?.invalidate()
@@ -810,11 +783,11 @@ public final class TrimmerViewModel: ObservableObject {
         // Clear state change callbacks to break potential retain cycles
         cleanupStateChangeCallbacks()
 
-        // 🎯 CRITICAL FIX: Break any pending async operations
+        // MARK: - CRITICAL FIX: Break any pending async operations
         // Clear any pending preview time to prevent orphaned operations
         pendingPreviewTime = nil
 
-        // 🎯 ENHANCED: Reset all @Published properties to break potential cycles
+        // MARK: - ENHANCED: Reset all @Published properties to break potential cycles
         // Since this method is already @MainActor, we can directly assign
         self.startTime = .zero
         self.endTime = .zero
@@ -828,7 +801,7 @@ public final class TrimmerViewModel: ObservableObject {
         self.showMinDurationAlert = false
         self.hasShownAlertThisDragSession = false
 
-        // 🎯 CRITICAL FIX: Mark setup as incomplete to prevent any async operations
+        // MARK: - CRITICAL FIX: Mark setup as incomplete to prevent any async operations
         isSetupComplete = false
 
         let cleanupDuration = Date().timeIntervalSince(startTime)
@@ -845,12 +818,13 @@ public final class TrimmerViewModel: ObservableObject {
         ])
     }
 
-    // 🎯 CRITICAL FIX: Added state change callback cleanup
+    // MARK: - CRITICAL FIX: Added state change callback cleanup
     private func cleanupStateChangeCallbacks() {
         stateChangeCallbacks.removeAll()
         diagnosticLogger.logDebug("🧹 State change callbacks cleared")
     }
-    
+    // MARK: - FUNC
+    // @objc - make it available to Objective C
     @objc func tick() {
         guard let time = pendingPreviewTime else { return }
         pendingPreviewTime = nil
@@ -864,6 +838,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     // MARK: - Time Proposal and Committing
+    // MARK: - FUNC
     public func proposeTime(_ proposedTime: CMTime, for handle: TrimmerHandleType) {
         let snappedTime = snapToFrame(proposedTime)
 
@@ -976,7 +951,7 @@ public final class TrimmerViewModel: ObservableObject {
             ])
         }
     }
-    
+    // MARK: - FUNC
     public func commitTime(_ time: CMTime, for handle: TrimmerHandleType) {
         let snappedTime = snapToFrame(time)
         let validatedTime = validate(snappedTime, for: handle)
@@ -1046,7 +1021,7 @@ public final class TrimmerViewModel: ObservableObject {
         // Force validation after commit to ensure state consistency
         validateCurrentDurationWarning()
 
-        // 🎯 NEW: Trigger external synchronization for robust state management
+        // MARK: - NEW: Trigger external synchronization for robust state management
         // This ensures normal trim operations have the same synchronization as rotation
         Task {
             await MainActor.run {
@@ -1076,7 +1051,7 @@ public final class TrimmerViewModel: ObservableObject {
             "memory_usage_mb": "\(MemoryHelper.getDetailedMemoryInfo().used)"
         ])
     }
-    
+    // MARK: - FUNC
     private func validate(_ proposedTime: CMTime, for handle: TrimmerHandleType) -> CMTime {
         var validatedTime = max(.zero, min(proposedTime, videoDuration))
         var didHitLimit = false
@@ -1113,13 +1088,13 @@ public final class TrimmerViewModel: ObservableObject {
 
         // Apply frame snapping only if not at boundary for smoother constraint experience
         if oneFrameDuration.seconds > 0 && !didHitLimit {
-            // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
+            // MARK: - ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
             validatedTime = timecodeService.snapToFrame(time: validatedTime, frameRate: currentFrameRate)
         }
 
         return validatedTime
     }
-
+    // MARK: - FUNC
     // Enhanced validation with handle state awareness
     private func validateWithHandleState(_ proposedTime: CMTime, for handle: TrimmerHandleType) -> ValidationResult {
         var validatedTime = max(.zero, min(proposedTime, videoDuration))
@@ -1161,7 +1136,7 @@ public final class TrimmerViewModel: ObservableObject {
 
         // Apply frame snapping only if not at boundary
         if oneFrameDuration.seconds > 0 && !didHitLimit {
-            // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
+            // MARK: - ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
             validatedTime = timecodeService.snapToFrame(time: validatedTime, frameRate: currentFrameRate)
         }
 
@@ -1175,6 +1150,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     // MARK: - Validation Methods
+    // MARK: - FUNC
     public func validateTrimRanges() -> Bool {
         let isValid = startTime >= .zero && endTime <= videoDuration && startTime < endTime
 
@@ -1191,10 +1167,11 @@ public final class TrimmerViewModel: ObservableObject {
 
       
     // MARK: - Real-time Asset Transformation with Categorical Theory
+    // MARK: - FUNC
     private func applyRotationToPlayerAsset() async {
         diagnosticLogger.startTiming("asset_rotation")
 
-        // 🎯 CATEGORY THEORY: Apply natural transformation for real-time asset rotation
+        // MARK: - CATEGORY THEORY: Apply natural transformation for real-time asset rotation
         // This ensures WYSIWYG behavior by using the same total rotation as preview
         let currentTotalRotation = totalRotationQuarterTurns
         let rotationDegrees = currentTotalRotation * 90
@@ -1251,7 +1228,8 @@ public final class TrimmerViewModel: ObservableObject {
         }
     }
 
-    // 🎯 CRITICAL FIX: Transactional method for final asset processing with categorical rotation
+    // MARK: - CRITICAL FIX: Transactional method for final asset processing with categorical rotation
+    // MARK: - FUNC
     public func prepareFinalAssetForSave() async throws -> AVPlayerItem {
         diagnosticLogger.startTiming("final_asset_preparation")
 
@@ -1267,11 +1245,11 @@ public final class TrimmerViewModel: ObservableObject {
             ])
         }
 
-        // 🎯 CATEGORY THEORY: Use natural transformation result for final asset preparation
+        // MARK: - CATEGORY THEORY: Use natural transformation result for final asset preparation
         // This ensures WYSIWYG by applying the same total rotation used in preview
         let finalRotation = totalRotationQuarterTurns
 
-        // 🎯 COMPREHENSIVE: Verify WYSIWYG guarantee before processing
+        // MARK: - COMPREHENSIVE: Verify WYSIWYG guarantee before processing
         let wysiwygValidation = validateWYSIWYGRotation(exportRotation: finalRotation)
         guard wysiwygValidation.isGuaranteed else {
             diagnosticLogger.logError("🎬 [CAT] ❌ WYSIWYG guarantee validation failed", metadata: [
@@ -1299,7 +1277,7 @@ public final class TrimmerViewModel: ObservableObject {
             "isomorphism": "preview ↔ final_asset"
         ])
 
-        // 🎯 COMPREHENSIVE: Run edge case validation before processing
+        // MARK: - COMPREHENSIVE: Run edge case validation before processing
         let edgeCaseResults = testRotationEdgeCases()
         let allEdgeCasesPassed = edgeCaseResults.values.allSatisfy { $0.passed }
 
@@ -1320,6 +1298,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     // MARK: - Export Methods (needed by TrimmerView)
+    // MARK: - FUNC
     public func exportVideo() async throws -> URL {
         diagnosticLogger.startTiming("video_export")
         diagnosticLogger.logInfo("📤 Starting video export with categorical rotation validation")
@@ -1336,11 +1315,11 @@ public final class TrimmerViewModel: ObservableObject {
         // Create trim range
         let timeRange = CMTimeRange(start: startTime, duration: endTime - startTime)
 
-        // 🎯 CATEGORY THEORY: Apply natural transformation for export
+        // MARK: - CATEGORY THEORY: Apply natural transformation for export
         // Ensure exported video has same rotation as preview (WYSIWYG)
         let exportRotation = totalRotationQuarterTurns
 
-        // 🎯 COMPREHENSIVE: Validate WYSIWYG guarantee before export
+        // MARK: - COMPREHENSIVE: Validate WYSIWYG guarantee before export
         let wysiwygValidation = validateWYSIWYGRotation(exportRotation: exportRotation)
         guard wysiwygValidation.isGuaranteed else {
             diagnosticLogger.logError("📤 [CAT] ❌ WYSIWYG validation failed for export", metadata: [
@@ -1374,7 +1353,7 @@ public final class TrimmerViewModel: ObservableObject {
             outputURL: outputURL
         )
 
-        // 🎯 COMPREHENSIVE: Post-export verification
+        // MARK: - COMPREHENSIVE: Post-export verification
         diagnosticLogger.logInfo("✅ Video export completed successfully", metadata: [
             "output_file": exportedURL.lastPathComponent,
             "wysiwyg_preserved": "true",
@@ -1386,6 +1365,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     // MARK: - Preview Updates
+    // MARK: - FUNC
     public func updatePreview() async {
         diagnosticLogger.logInfo("👁️ Updating preview", metadata: [
             "seek_time_seconds": "\(startTime.seconds)",
@@ -1394,7 +1374,7 @@ public final class TrimmerViewModel: ObservableObject {
         // Update the live preview by seeking to current start time
         requestSeek(to: startTime)
     }
-    
+    // MARK: - FUNC
     public func requestSeek(to time: CMTime) {
         diagnosticLogger.logDebug("⏩ Seeking to time", metadata: [
             "target_time_seconds": "\(time.seconds)"
@@ -1403,8 +1383,9 @@ public final class TrimmerViewModel: ObservableObject {
     }
     
     // MARK: - Frame-Accurate Timing Methods
+    // MARK: - FUNC
     public func getFrameNumber(for time: CMTime) -> Int {
-        // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate calculations
+        // MARK: - ENHANCED: Use TimecodeCalculationService for frame-accurate calculations
         let timecodeResult = timecodeService.calculateTimecode(
             startTime: time,
             endTime: time,
@@ -1423,14 +1404,16 @@ public final class TrimmerViewModel: ObservableObject {
         return timecodeResult.startFrame
     }
 
+    // MARK: - FUNC
     public func getTimeForFrame(_ frameNumber: Int) -> CMTime {
-        // 🎯 ENHANCED: Use TimecodeCalculationService for precise frame-to-time conversion
+        // MARK: - ENHANCED: Use TimecodeCalculationService for precise frame-to-time conversion
         let frameTime = CMTime(seconds: Double(frameNumber) / currentFrameRate, preferredTimescale: 600)
         return timecodeService.snapToFrame(time: frameTime, frameRate: currentFrameRate)
     }
 
+    // MARK: - FUNC
     public func snapToFrame(_ time: CMTime) -> CMTime {
-        // 🎯 ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
+        // MARK: - ENHANCED: Use TimecodeCalculationService for frame-accurate snapping
         let snappedTime = timecodeService.snapToFrame(time: time, frameRate: currentFrameRate)
 
         diagnosticLogger.logDebug("🎯 Frame snapping completed", metadata: [
@@ -1454,11 +1437,13 @@ public final class TrimmerViewModel: ObservableObject {
     // MARK: - Simplified Animation Properties (Removed - SwiftUI handles updates naturally)
 
     // MARK: - Enhanced Haptic Feedback
+    // MARK: - FUNC
     public func triggerFrameSynchronizedHaptic(at time: CMTime) {
         // Simplified haptic feedback - trigger based on time changes
         triggerHapticFeedback(for: .frameDetent)
     }
 
+    // MARK: - FUNC
     public func triggerBoundaryHaptic() {
         // Provide a distinctive haptic feedback for boundary hits
         diagnosticLogger.logDebug("🛑 Triggering boundary haptic feedback", metadata: [
@@ -1467,7 +1452,7 @@ public final class TrimmerViewModel: ObservableObject {
             "minimum_duration": "\(minimumDuration.seconds)"
         ])
 
-        // 🎯 CRITICAL FIX: Resilient haptic error handling to prevent system-level errors
+        // MARK: - CRITICAL FIX: Resilient haptic error handling to prevent system-level errors
         do {
             HapticManager.shared.trigger(.heavyImpact)
         } catch {
@@ -1479,12 +1464,13 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     // MARK: - Haptic Feedback
+    // MARK: - FUNC
     public func triggerHapticFeedback(for event: HapticManager.HapticEvent) {
         diagnosticLogger.logDebug("📳 Triggering haptic feedback", metadata: [
             "haptic_event": "\(event)"
         ])
 
-        // 🎯 CRITICAL FIX: Resilient haptic error handling to prevent system-level errors
+        // MARK: - CRITICAL FIX: Resilient haptic error handling to prevent system-level errors
         do {
             HapticManager.shared.trigger(event)
         } catch {
@@ -1496,6 +1482,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     // MARK: - Animation State Management
+    // MARK: - FUNC
     private func updateAnimationState(syncDuration: Double, type: String) {
         let now = Date()
         let timeSinceLastSync = now.timeIntervalSince(animationState.lastStateSyncTime)
@@ -1546,6 +1533,7 @@ public final class TrimmerViewModel: ObservableObject {
     }
 
     // MARK: - Animation Diagnostics
+    // MARK: - FUNC
     public func getAnimationDiagnostics() -> [String: String] {
         return [
             "total_syncs": "\(animationState.stateSyncCount)",
@@ -1581,10 +1569,11 @@ public final class TrimmerViewModel: ObservableObject {
 
     // MARK: - Rotation Verification & Testing Methods
 
-    /// 🎯 COMPREHENSIVE: Verifies total rotation calculation with category theory validation
+    /// MARK: - COMPREHENSIVE: Verifies total rotation calculation with category theory validation
     /// This method ensures WYSIWYG behavior by validating the natural transformation η
     ///
     /// - Returns: Complete verification result with mathematical validation
+    // MARK: - FUNC
     public func verifyTotalRotationCalculation() -> (isValid: Bool, details: [String: Any]) {
         var details: [String: Any] = [:]
 
@@ -1638,10 +1627,11 @@ public final class TrimmerViewModel: ObservableObject {
         return (overallValid, details)
     }
 
-    /// 🎯 COMPREHENSIVE: Tests edge cases for rotation calculations
+    /// MARK: - COMPREHENSIVE: Tests edge cases for rotation calculations
     /// Validates boundary conditions and mathematical correctness
     ///
     /// - Returns: Edge case test results
+    // MARK: - FUNC
     public func testRotationEdgeCases() -> [String: (passed: Bool, details: [String: Any])] {
         var results: [String: (passed: Bool, details: [String: Any])] = [:]
 
@@ -1713,11 +1703,12 @@ public final class TrimmerViewModel: ObservableObject {
         return results
     }
 
-    /// 🎯 COMPREHENSIVE: Validates WYSIWYG guarantee for rotation
+    /// MARK: - COMPREHENSIVE: Validates WYSIWYG guarantee for rotation
     /// Ensures that preview rotation matches final asset rotation
     ///
     /// - Parameter exportRotation: The rotation that will be applied to the final asset
     /// - Returns: WYSIWYG validation result
+    // MARK: - FUNC
     public func validateWYSIWYGRotation(exportRotation: Int) -> (isGuaranteed: Bool, details: [String: Any]) {
         var details: [String: Any] = [:]
 
@@ -1784,7 +1775,8 @@ public final class HapticManager {
     private init() {
         selectionFeedback.prepare()
     }
-    
+
+    // MARK: - FUNC
     public func trigger(_ event: HapticEvent) {
         switch event {
         case .dragStart, .dragEnd:
@@ -1798,7 +1790,7 @@ public final class HapticManager {
 }
 
 // MARK: - Weak Timer Target (Memory Leak Fix)
-// 🎯 CRITICAL FIX: Weak reference wrapper to prevent CADisplayLink retain cycles
+// MARK: - CRITICAL FIX: Weak reference wrapper to prevent CADisplayLink retain cycles
 fileprivate class WeakTimerTarget: NSObject {
     private weak var target: TrimmerViewModel?
     private let selector: Selector
@@ -1808,7 +1800,8 @@ fileprivate class WeakTimerTarget: NSObject {
         self.selector = selector
         super.init()
     }
-
+    
+    // MARK: - FUNC
     @objc func forwardTick() {
         Task { @MainActor in
             target?.tick()

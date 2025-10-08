@@ -5,7 +5,7 @@ import OSLog
 
 /// Manages the BreakDex album in the Photos library
 /// This now serves as a compatibility layer over the atomic PhotoKitService
-/// 🎯 DEPRECATED: Use PhotoKitService directly for new code
+/// MARK: - DEPRECATED: Use PhotoKitService directly for new code
 /// 🔄 COMPATIBILITY: Maintains existing API while using atomic operations
 @MainActor
 class BreakDexAlbumManager: ObservableObject {

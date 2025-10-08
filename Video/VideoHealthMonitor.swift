@@ -72,7 +72,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
     private var statusContinuation: AsyncStream<VideoHealthStatusReport>.Continuation?
     private var currentAsset: AVAsset?
 
-    // 🎯 CRITICAL FIX: Asset locking mechanism to prevent race condition
+    // MARK: - CRITICAL FIX: Asset locking mechanism to prevent race condition
     private var lockedAssetURL: URL? {
         didSet {
             guard oldValue != lockedAssetURL else { return }
@@ -136,7 +136,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         statusContinuation = nil
         currentAsset = nil
 
-        // 🎯 CRITICAL FIX: Clear locked asset URL when stopping monitoring
+        // MARK: - CRITICAL FIX: Clear locked asset URL when stopping monitoring
         lockedAssetURL = nil
 
         // 💡 OPTIMIZATION: Reset lifecycle tracking
@@ -166,7 +166,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         logger.info("🏥 Current monitoring task exists: \(self.monitoringTask != nil)")
         logger.info("🏥 Asset preserved: \(self.currentAsset != nil)")
 
-        // 🎯 CRITICAL FIX: Allow pausing even if not currently active
+        // MARK: - CRITICAL FIX: Allow pausing even if not currently active
         // This prevents errors during rapid state transitions
         guard isMonitoringActive else {
             logger.warning("🏥 ⚠️ Attempted to pause monitoring when not active")
@@ -177,7 +177,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
 
         self.monitoringTask?.cancel()
         self.monitoringTask = nil
-        // 🎯 CRITICAL FIX: Keep continuations and asset for quick resume
+        // MARK: - CRITICAL FIX: Keep continuations and asset for quick resume
         // This preserves state across pause/resume cycles
         
         logger.info("🏥 📊 Memory after monitoring pause: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
@@ -196,13 +196,13 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
             return
         }
 
-        // 🎯 CRITICAL FIX: Handle asset availability more gracefully
+        // MARK: - CRITICAL FIX: Handle asset availability more gracefully
         // The asset may be temporarily unavailable during state transitions
         guard let asset = self.currentAsset else {
             logger.warning("🏥 ⚠️ Cannot resume monitoring - no asset available")
             logger.info("🏥 This indicates asset was lost during state transition")
 
-            // 🎯 CRITICAL FIX: Set monitoring state to inactive but don't fail
+            // MARK: - CRITICAL FIX: Set monitoring state to inactive but don't fail
             // This allows future resume attempts when asset becomes available
             isMonitoringActive = false
             return

@@ -30,6 +30,7 @@ actor TransitionLockManager {
     ///
     /// - Parameter id: Unique identifier for the operation requesting the lock
     /// - Throws: `TransitionLockError.alreadyAcquired` if the lock is already held by another operation
+    // MARK: - FUNC
     func acquireLock(for id: UUID) throws {
         logger.info("🔒 TransitionLockManager: Lock acquisition requested for operation: \(id.uuidString)")
 
@@ -52,6 +53,7 @@ actor TransitionLockManager {
     ///
     /// - Parameter id: Unique identifier for the operation releasing the lock
     /// - Throws: `TransitionLockError.notOwner` if the operation doesn't own the lock
+    // MARK: - FUNC
     func releaseLock(for id: UUID) {
         logger.info("🔒 TransitionLockManager: Lock release requested for operation: \(id.uuidString)")
 
@@ -74,6 +76,7 @@ actor TransitionLockManager {
     /// Check if the lock is currently held
     ///
     /// - Returns: `true` if the lock is held, `false` otherwise
+    // MARK: - FUNC
     func isLocked() -> Bool {
         let locked = lockOwner != nil
         logger.debug("🔒 TransitionLockManager: Lock status check - Locked: \(locked)")
@@ -84,6 +87,7 @@ actor TransitionLockManager {
     ///
     /// - Parameter id: Unique identifier for the operation to check
     /// - Returns: `true` if the operation owns the lock, `false` otherwise
+    // MARK: - FUNC
     func ownsLock(id: UUID) -> Bool {
         let owns = lockOwner == id
         logger.debug("🔒 TransitionLockManager: Ownership check for operation \(id.uuidString): \(owns)")
@@ -103,6 +107,7 @@ actor TransitionLockManager {
     ///
     /// This method should only be used in emergency situations where the lock
     /// needs to be reset regardless of ownership. It logs a warning for audit purposes.
+    // MARK: - FUNC
     func forceResetLock() {
         logger.warning("🔒 TransitionLockManager: ⚠️ FORCE RESET - Lock being reset regardless of ownership")
         let previousOwner = lockOwner
@@ -145,6 +150,7 @@ extension TransitionLockManager {
     ///   - retryCount: Number of times to retry acquisition (default: 3)
     ///   - retryDelay: Delay between retries in milliseconds (default: 10)
     /// - Throws: `TransitionLockError` if lock cannot be acquired after retries
+    // MARK: - FUNC
     func acquireLockWithRetry(for id: UUID, retryCount: Int = 3, retryDelay: Int = 10) async throws {
         logger.info("🔒 TransitionLockManager: Starting lock acquisition with retry - Operation: \(id.uuidString), Retries: \(retryCount)")
 
@@ -176,6 +182,7 @@ extension TransitionLockManager {
     ///   - id: Unique identifier for the operation
     ///   - operation: The operation to execute while holding the lock
     /// - Throws: Any error from the operation or lock acquisition
+    // MARK: - FUNC
     func withLock<T>(for id: UUID, operation: () async throws -> T) async throws -> T {
         try acquireLock(for: id)
         defer {

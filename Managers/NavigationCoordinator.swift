@@ -86,7 +86,7 @@ final class NavigationCoordinator: ObservableObject {
             completion: completion
         )
 
-        // 🎯 CATEGORY THEORY: Natural transformation from request queue to execution
+        // MARK: - CATEGORY THEORY: Natural transformation from request queue to execution
         navigationQueue.append(navigation)
 
         logCurrentState("queue_navigation")
@@ -224,7 +224,7 @@ final class NavigationCoordinator: ObservableObject {
 
         logCurrentState("navigation_execution")
 
-        // 🎯 CATEGORY THEORY: Functor composition - navigation morphism execution
+        // MARK: - CATEGORY THEORY: Functor composition - navigation morphism execution
         // This represents the morphism from source to destination in our navigation category
         Task {
             await performNavigationTransition(navigation)

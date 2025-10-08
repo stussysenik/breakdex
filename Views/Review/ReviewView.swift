@@ -74,7 +74,7 @@ struct ReviewView: View {
     }
 
     /// Calculate learning state for a single combo using in-memory data
-    /// 🎯 MEMORY: Uses relationship data instead of additional database queries
+    /// MARK: - MEMORY: Uses relationship data instead of additional database queries
     /// 📊 LOGS: Detailed logging for debugging combo state logic
     private func calculateComboLearningState(for combo: Combo) -> String {
         logger.info("📊 REVIEW_VIEW: 🔄 Calculating state for combo: \(combo.name ?? "Unknown")")

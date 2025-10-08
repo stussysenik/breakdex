@@ -44,7 +44,7 @@ enum PhotoKitError: Error, LocalizedError {
 }
 
 /// Atomic PhotoKit service for saving videos to albums
-/// 🎯 SINGLETON: Ensures centralized photo operations with atomic guarantees
+/// MARK: - SINGLETON: Ensures centralized photo operations with atomic guarantees
 /// 🔄 ATOMIC: Prevents empty albums by performing album creation and asset addition in same transaction
 /// 📊 LOGGING: Comprehensive OSLog integration for debugging
 @MainActor
@@ -64,8 +64,9 @@ class PhotoKitService {
 
     /// Save video to album atomically
     /// This is the main entry point for saving videos to the BreakDex album
-    /// 🎯 ATOMIC: Creates album and adds asset in single performChanges block
+    /// MARK: - ATOMIC: Creates album and adds asset in single performChanges block
     /// 🔄 IDEMPOTENT: Will reuse existing album if available
+    // MARK: - FUNC
     func saveVideoToBreakDexAlbum(_ fileURL: URL) async throws -> String {
         logger.info("📸 PHOTOKIT: 🔄 Starting atomic save to BreakDex album")
         logger.info("📸 PHOTOKIT: File URL: \(fileURL.lastPathComponent)")
@@ -94,6 +95,7 @@ class PhotoKitService {
 
     /// Get or create the BreakDex album idempotently
     /// 🔄 IDEMPOTENT: No matter how many times it's called, result is single album
+    // MARK: - FUNC
     func getOrCreateBreakDexAlbum() async throws -> PHAssetCollection {
         logger.info("📸 PHOTOKIT: 🔍 Getting or creating BreakDex album")
 
@@ -111,7 +113,8 @@ class PhotoKitService {
     // MARK: - Private Methods
 
     /// Atomic save operation that creates album and adds asset in single transaction
-    /// 🎯 ATOMIC: This is the core function that prevents empty albums
+    /// MARK: - ATOMIC: This is the core function that prevents empty albums
+    // MARK: - FUNC
     private func atomicSaveVideo(fileURL: URL, albumName: String) async throws -> String {
         logger.info("📸 PHOTOKIT: ⚡ Performing atomic save operation")
 
@@ -197,7 +200,7 @@ class PhotoKitService {
             }
         }
     }
-
+    // MARK: - FUNC
     /// Find album by name
     private func findAlbum(named name: String) async -> PHAssetCollection? {
         logger.info("📸 PHOTOKIT: 🔍 Searching for album: \(name)")
@@ -250,7 +253,7 @@ class PhotoKitService {
             }
         }
     }
-
+    // MARK: - FUNC
     /// Check photo library authorization status
     private func checkPhotoLibraryAuthorization() async -> PHAuthorizationStatus {
         logger.info("📸 PHOTOKIT: 🔍 Checking photo library authorization")
@@ -261,7 +264,7 @@ class PhotoKitService {
             }
         }
     }
-
+    // MARK: - FUNC
     /// Get human-readable description of authorization status
     private func authorizationStatusDescription(_ status: PHAuthorizationStatus) -> String {
         switch status {
@@ -284,7 +287,7 @@ class PhotoKitService {
 // MARK: - Convenience Extensions
 
 extension PhotoKitService {
-
+    // MARK: - FUNC
     /// Check if BreakDex album exists
     func breakDexAlbumExists() async -> Bool {
         do {
@@ -295,7 +298,7 @@ extension PhotoKitService {
             return false
         }
     }
-
+    // MARK: - FUNC
     /// Get all videos in BreakDex album
     func getAllVideosInBreakDex() async -> [PHAsset] {
         logger.info("📸 PHOTOKIT: 📂 Fetching all videos from BreakDex album")
@@ -322,7 +325,7 @@ extension PhotoKitService {
             return []
         }
     }
-
+    // MARK: - FUNC
     /// Delete asset from BreakDex album by local identifier
     func deleteVideoFromBreakDex(localIdentifier: String) async throws {
         logger.info("📸 PHOTOKIT: 🗑️ Deleting video from BreakDex album: \(localIdentifier)")

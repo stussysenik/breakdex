@@ -50,6 +50,7 @@ public class ErrorHandlingService {
     // MARK: - Public Methods
 
     /// Sets error state with comprehensive logging
+    // MARK: - FUNC
     public func setError(message: String, underlying: String? = nil) async {
         let wasInError = errorMessage != nil
 
@@ -78,6 +79,7 @@ public class ErrorHandlingService {
     }
 
     /// Clears error state
+    // MARK: - FUNC
     public func clearError() async {
         let hadError = errorMessage != nil
 
@@ -96,31 +98,32 @@ public class ErrorHandlingService {
     }
 
     /// Gets current error state
+    // MARK: - FUNC
     public func getCurrentError() -> (message: String?, underlying: String?) {
         return (errorMessage, underlyingError)
     }
-
+    // MARK: - FUNC
     /// Gets player state
     public func getPlayerState() -> PlayerState {
         return playerState
     }
-
+    // MARK: - FUNC
     /// Gets error history
     public func getErrorHistory() -> [ErrorEvent] {
         return errorHistory
     }
-
+    // MARK: - FUNC
     /// Clears error history
     public func clearErrorHistory() {
         errorHistory.removeAll()
         logger.info("❌ ERROR_SERVICE: 🧹 Error history cleared")
     }
-
+    // MARK: - FUNC
     /// Checks if currently in error state
     public func isInErrorState() -> Bool {
         return errorMessage != nil
     }
-
+    // MARK: - FUNC
     /// Suggests recovery action based on current error
     public func suggestRecovery() -> ErrorRecoveryAction? {
         guard let errorMessage = errorMessage else {
@@ -131,7 +134,7 @@ public class ErrorHandlingService {
     }
 
     // MARK: - Private Methods
-
+    // MARK: - FUNC
     private func transitionToErrorState(message: String, underlying: String?) async {
         // This will be handled by the state transition coordinator
         // The coordinator will validate and execute the transition
@@ -141,7 +144,7 @@ public class ErrorHandlingService {
             triggeredBy: "error_handler"
         )
     }
-
+    // MARK: - FUNC
     private func trackError(message: String, underlying: String?) {
         let errorEvent = ErrorEvent(
             id: UUID().uuidString,
@@ -160,7 +163,7 @@ public class ErrorHandlingService {
 
         logger.debug("❌ ERROR_SERVICE: 📝 Error tracked | total errors: \(self.errorHistory.count)")
     }
-
+    // MARK: - FUNC
     private func analyzeErrorForRecovery(errorMessage: String) -> ErrorRecoveryAction? {
         // Analyze error message to suggest recovery actions
         if errorMessage.contains("network") || errorMessage.contains("connection") {
@@ -177,7 +180,7 @@ public class ErrorHandlingService {
     }
 
     // MARK: - Logging Methods
-
+    // MARK: - FUNC
     private func logErrorSet(message: String, underlying: String?, wasInError: Bool) {
         let metadata = [
             "error_message": message,
@@ -189,7 +192,7 @@ public class ErrorHandlingService {
 
         diagnosticLogger.logError("Error state set", metadata: metadata)
     }
-
+    // MARK: - FUNC
     private func logErrorCleared(hadError: Bool) {
         let metadata = [
             "had_error": "\(hadError)",

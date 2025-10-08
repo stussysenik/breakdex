@@ -45,7 +45,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
     }
     
     // MARK: - Public API
-    
+    // MARK: - FUNC
     /// Load and prepare video from PhotosPicker item
     public func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> PreparedVideoResult {
         logger.info("🎬 ORCHESTRATOR: Starting video load and preparation", metadata: nil)
@@ -118,7 +118,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
             throw error
         }
     }
-    
+    // MARK: - FUNC
     /// Prepare video asset for display with specific rotation
     public func prepareAssetWithRotation(
         asset: AVAsset,
@@ -144,7 +144,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
             playerViewModel: preparationResult.playerViewModel
         )
     }
-    
+    // MARK: - FUNC
     /// Cancel current video loading operation
     public func cancelLoading() {
         logger.info("🎬 ORCHESTRATOR: Cancelling video loading", metadata: nil)
@@ -158,7 +158,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
             }
         }
     }
-    
+    // MARK: - FUNC
     /// Reset orchestrator state
     public func reset() {
         logger.info("🎬 ORCHESTRATOR: Resetting state", metadata: nil)
@@ -178,7 +178,7 @@ public class AddMoveVideoOrchestrator: ObservableObject {
     }
     
     // MARK: - Private Methods
-    
+    // MARK: - FUNC
     private func updateProgress(_ progress: Double) {
         Task {
             await MainActor.run {
@@ -197,7 +197,7 @@ public protocol AddMoveVideoOrchestratorProtocol: ObservableObject {
     var currentPhotosIdentifier: String? { get }
     var selectedFilename: String? { get }
     var importState: AddMoveImportState { get }
-    
+    // MARK: - FUNC
     func loadAndPrepareVideo(from item: PhotosPickerItem) async throws -> PreparedVideoResult
     func prepareAssetWithRotation(asset: AVAsset, photosIdentifier: String, rotationQuarterTurns: Int) async throws -> PreparedVideoResult
     func cancelLoading()

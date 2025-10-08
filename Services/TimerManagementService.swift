@@ -41,7 +41,7 @@ public class TimerManagementService {
     }
 
     // MARK: - Save Timer Management
-
+    // MARK: - FUNC
     /// Starts the save operation timer
     public func startSaveTimer() {
         logger.info("⏱️ TIMER_SERVICE: Starting save timer")
@@ -49,7 +49,7 @@ public class TimerManagementService {
         saveElapsedTime = 0
         saveTimer?.invalidate() // Invalidate any existing timer
 
-        // 🎯 PRECISION FIX: Use 0.01s intervals for millisecond precision display (MM:SS:MS format)
+        // MARK: - PRECISION FIX: Use 0.01s intervals for millisecond precision display (MM:SS:MS format)
         saveTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [weak self] _ in
             self?.updateSaveTimer()
         }
@@ -58,6 +58,7 @@ public class TimerManagementService {
     }
 
     /// Stops the save operation timer
+    // MARK: - FUNC
     public func stopSaveTimer() {
         logger.info("⏱️ TIMER_SERVICE: Stopping save timer")
 
@@ -72,13 +73,14 @@ public class TimerManagementService {
     // MARK: - Load Timer Management
 
     /// Starts the video loading timer
+    // MARK: - FUNC
     public func startLoadTimer() {
         logger.info("⏱️ TIMER_SERVICE: Starting load timer")
 
         loadElapsedTime = 0
         loadTimer?.invalidate() // Invalidate any existing timer
 
-        // 🎯 PRECISION FIX: Use 0.01s intervals for millisecond precision display (MM:SS:MS format)
+        // MARK: - PRECISION FIX: Use 0.01s intervals for millisecond precision display (MM:SS:MS format)
         loadTimer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [weak self] _ in
             self?.updateLoadTimer()
         }
@@ -89,6 +91,7 @@ public class TimerManagementService {
     }
 
     /// Stops the video loading timer
+    // MARK: - FUNC
     public func stopLoadTimer() {
         logger.info("⏱️ TIMER_SERVICE: Stopping load timer")
 
@@ -126,31 +129,31 @@ public class TimerManagementService {
     }
 
     // MARK: - Private Methods
-
+    // MARK: - FUNC
     private func updateSaveTimer() {
-        saveElapsedTime += 0.01 // 🎯 PRECISION FIX: Increment by 0.01s for millisecond precision
+        saveElapsedTime += 0.01 // MARK: - PRECISION FIX: Increment by 0.01s for millisecond precision
 
         // Notify callback
         onSaveTimerUpdate?(saveElapsedTime)
 
-        // 🎯 PRECISION FIX: Log progress every 10 seconds (1000 * 0.01 = 10s)
+        // MARK: - PRECISION FIX: Log progress every 10 seconds (1000 * 0.01 = 10s)
         if Int(saveElapsedTime * 100) % 1000 == 0 {
             logSaveProgress()
         }
     }
-
+    // MARK: - FUNC
     private func updateLoadTimer() {
-        loadElapsedTime += 0.01 // 🎯 PRECISION FIX: Increment by 0.01s for millisecond precision
+        loadElapsedTime += 0.01 // MARK: - PRECISION FIX: Increment by 0.01s for millisecond precision
 
         // Notify callback
         onLoadTimerUpdate?(loadElapsedTime)
 
-        // 🎯 PRECISION FIX: Log progress every 15 seconds (1500 * 0.01 = 15s)
+        // MARK: - PRECISION FIX: Log progress every 15 seconds (1500 * 0.01 = 15s)
         if Int(loadElapsedTime * 100) % 1500 == 0 {
             logLoadProgress()
         }
     }
-
+    // MARK: - FUNC
     private func logSaveProgress() {
         let metadata = [
             "elapsed_time_seconds": "\(String(format: "%.2f", saveElapsedTime))",
@@ -160,7 +163,7 @@ public class TimerManagementService {
         onLogDiagnostic?("Save operation in progress", metadata)
         logger.info("⏱️ TIMER_SERVICE: 📊 Save progress logged | elapsed: \(String(format: "%.2f", self.saveElapsedTime))s")
     }
-
+    // MARK: - FUNC
     private func logLoadProgress() {
         let metadata = [
             "elapsed_time_seconds": "\(String(format: "%.2f", loadElapsedTime))",
@@ -170,7 +173,7 @@ public class TimerManagementService {
         onLogDiagnostic?("Long video load in progress", metadata)
         logger.info("⏱️ TIMER_SERVICE: 📊 Load progress logged | elapsed: \(String(format: "%.2f", self.loadElapsedTime))s")
     }
-
+    // MARK: - FUNC
     private func logSaveTimerStopped() {
         let metadata = [
             "final_elapsed_time": "\(String(format: "%.2f", saveElapsedTime))",
@@ -179,16 +182,16 @@ public class TimerManagementService {
 
         onLogDiagnostic?("Save timer stopped", metadata)
     }
-
+    // MARK: - FUNC
     private func logLoadTimerStarted() {
         let metadata = [
-            "timer_interval": "0.01s", // 🎯 PRECISION FIX: Updated to reflect millisecond precision
+            "timer_interval": "0.01s", // MARK: - PRECISION FIX: Updated to reflect millisecond precision
             "timer_type": "load"
         ]
 
         onLogDiagnostic?("Load timer started", metadata)
     }
-
+    // MARK: - FUNC
     private func logLoadTimerStopped() {
         let metadata = [
             "final_elapsed_time": "\(String(format: "%.2f", loadElapsedTime))",
@@ -213,7 +216,8 @@ public class TimerManagementService {
 
     // MARK: - 🎯 PRECISION FIX: Diagnostic Methods
 
-    /// 🎯 PRECISION FIX: Log timer precision diagnostics
+    /// MARK: - PRECISION FIX: Log timer precision diagnostics
+    // MARK: - FUNC
     public func logTimerPrecisionDiagnostics() {
         logger.info("⏱️ TIMER_SERVICE: 🔍 PRECISION DIAGNOSTIC REPORT")
 
@@ -254,8 +258,8 @@ public struct TimerConfiguration {
     public let loadProgressLogInterval: TimeInterval
 
     public init(
-        saveTimerInterval: TimeInterval = 0.01, // 🎯 PRECISION FIX: Default to millisecond precision
-        loadTimerInterval: TimeInterval = 0.01, // 🎯 PRECISION FIX: Default to millisecond precision
+        saveTimerInterval: TimeInterval = 0.01, // MARK: - PRECISION FIX: Default to millisecond precision
+        loadTimerInterval: TimeInterval = 0.01, // MARK: - PRECISION FIX: Default to millisecond precision
         saveProgressLogInterval: TimeInterval = 10.0,
         loadProgressLogInterval: TimeInterval = 15.0
     ) {

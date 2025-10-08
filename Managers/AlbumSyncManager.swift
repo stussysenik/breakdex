@@ -85,7 +85,7 @@ class AlbumSyncManager: ObservableObject {
             }
         }
 
-        // 🎯 NEW: Get all combos from Core Data and check for orphaned combos with detailed logging
+        // MARK: - NEW: Get all combos from Core Data and check for orphaned combos with detailed logging
         logger.info("🔄 AlbumSyncManager: 📊 Fetching all combos from Core Data")
         let comboFetchRequest = Combo.fetchRequest()
         let allCombos = try await context.perform {
@@ -136,7 +136,7 @@ class AlbumSyncManager: ObservableObject {
             }
         }
         
-        // 🎯 NEW: Clean up orphaned Core Data entries (moves missing from Photos) with enhanced logging
+        // MARK: - NEW: Clean up orphaned Core Data entries (moves missing from Photos) with enhanced logging
         if !missingFromPhotos.isEmpty {
             logger.info("🔄 AlbumSyncManager: 🧹 Found \(missingFromPhotos.count) orphaned move(s) in Core Data. Starting cleanup...")
             logger.info("🔄 AlbumSyncManager: 📊 Orphaned moves to delete: \(missingFromPhotos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
@@ -159,7 +159,7 @@ class AlbumSyncManager: ObservableObject {
             logger.info("🔄 AlbumSyncManager: ✅ No orphaned Core Data move entries found - all moves have corresponding Photos assets")
         }
 
-        // 🎯 NEW: Clean up orphaned combos (combos with missing moves) with enhanced logging
+        // MARK: - NEW: Clean up orphaned combos (combos with missing moves) with enhanced logging
         if !orphanedCombos.isEmpty {
             logger.info("🔄 AlbumSyncManager: 🧹 Found \(orphanedCombos.count) orphaned combo(s) in Core Data. Starting cleanup...")
             logger.info("🔄 AlbumSyncManager: 📊 Orphaned combos to delete: \(orphanedCombos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
@@ -207,7 +207,7 @@ class AlbumSyncManager: ObservableObject {
             syncedAt: Date()
         )
 
-        // 🎯 NEW: Comprehensive sync completion logging
+        // MARK: - NEW: Comprehensive sync completion logging
         logger.info("🔄 AlbumSyncManager: ✅ Full synchronization completed successfully")
         logger.info("🔄 AlbumSyncManager: 📊 SYNC RESULTS SUMMARY:")
         logger.info("🔄 AlbumSyncManager: 📊 Total Moves: \(totalMoves)")

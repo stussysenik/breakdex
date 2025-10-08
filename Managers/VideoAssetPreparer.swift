@@ -97,7 +97,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         logger.info("🎬 VIDEO_PREPARER: Creating UnifiedVideoPlayerViewModel synchronously")
         await diagnosticLogger.startTiming("player_creation")
 
-        // 🎯 CRITICAL FIX: Add diagnostic logging to track health monitor coordination
+        // MARK: - CRITICAL FIX: Add diagnostic logging to track health monitor coordination
         logger.info("🎬 VIDEO_PREPARER: 🏥 Health monitor coordination - preparing player creation")
         await diagnosticLogger.logInfo("Player creation started", metadata: [
             "correlation_id": correlationId,

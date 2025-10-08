@@ -250,7 +250,7 @@ public class StateValidator: ObservableObject {
             validationIssues.append(.playerNotReady)
             logger.warning("🎯 Player validation failed: playerState is \(String(describing: playerState)), expected .ready")
 
-            // 🎯 DIAGNOSTIC: Additional context for debugging player state issues
+            // MARK: - DIAGNOSTIC: Additional context for debugging player state issues
             logger.warning("🎯 DIAGNOSTIC - Player state mismatch details:")
             logger.warning("🎯   - Current playerState: \(String(describing: playerState))")
             logger.warning("🎯   - playerState.isReady: \(playerState.isReady)")
@@ -258,9 +258,9 @@ public class StateValidator: ObservableObject {
             logger.warning("🎯   - playerState.isActive: \(playerState.isActive)")
             logger.warning("🎯   - Flow state: \(String(describing: flowState))")
 
-            // 🎯 DIAGNOSTIC: Check if playerViewModel is actually ready despite state mismatch
+            // MARK: - DIAGNOSTIC: Check if playerViewModel is actually ready despite state mismatch
             if let playerVM = playerViewModel {
-                // 🎯 TEMPORARY FIX: Skip async call for build compatibility
+                // MARK: - TEMPORARY FIX: Skip async call for build compatibility
                 // let actualPlayerReady = await playerVM.isPlayerReady
                 logger.warning("🎯 DIAGNOSTIC - playerViewModel available, async readiness check temporarily disabled")
                 logger.warning("🎯 ⚠️ POTENTIAL INCONSISTENCY: playerViewModel is available but playerState is not .ready!")
@@ -269,9 +269,9 @@ public class StateValidator: ObservableObject {
         } else {
             logger.info("✅ Player validation passed: playerState is .ready")
 
-            // 🎯 DIAGNOSTIC: Confirm consistency when validation passes
+            // MARK: - DIAGNOSTIC: Confirm consistency when validation passes
             if let playerVM = playerViewModel {
-                // 🎯 TEMPORARY FIX: Skip async call for build compatibility
+                // MARK: - TEMPORARY FIX: Skip async call for build compatibility
                 // let actualPlayerReady = await playerVM.isPlayerReady
                 logger.debug("🎯 DIAGNOSTIC - Consistency check: playerViewModel available, async readiness check temporarily disabled")
                 logger.debug("🎯 ✅ Player validation passed based on playerState alone")
@@ -279,7 +279,7 @@ public class StateValidator: ObservableObject {
         }
 
         // Validate trim parameters if available (temporarily simplified for build compatibility)
-        // 🎯 TODO: Re-enable trim parameter validation once async property issue is resolved
+        // MARK: - TODO: Re-enable trim parameter validation once async property issue is resolved
         logger.debug("🎯 Trim parameter validation temporarily disabled due to async property access issues")
         // if let asset = videoAsset, let trimmerVM = trimmerViewModel {
         //     // Trim validation logic here

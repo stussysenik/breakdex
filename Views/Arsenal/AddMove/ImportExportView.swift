@@ -131,7 +131,7 @@ struct ImportExportView: View {
     }
     
     // MARK: - Export Implementation
-    
+    // MARK: - FUNC
     private func exportLearningLibrary() async {
         isExporting = true
         importStatus = "Exporting learning library..."
@@ -212,7 +212,7 @@ struct ImportExportView: View {
             importStatus = "Import cancelled: \(error.localizedDescription)"
         }
     }
-    
+    // MARK: - FUNC
     private func importLearningLibrary(from url: URL) async {
         isImporting = true
         importStatus = "Importing learning library..."
@@ -239,7 +239,7 @@ struct ImportExportView: View {
             importStatus = "Import failed: \(error.localizedDescription)"
         }
     }
-    
+    // MARK: - FUNC
     private func processImportData(_ exportData: LearningLibraryExport) async throws -> ImportResults {
         let context = viewContext
         var successfullyImported = 0
@@ -263,14 +263,14 @@ struct ImportExportView: View {
             relinkQueue: needsRelinking
         )
     }
-    
+    // MARK: - FUNC
     private func videoExistsInBreakDex(_ photosIdentifier: String?) async -> Bool {
         guard let identifier = photosIdentifier else { return false }
         
         let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
         return fetchResult.firstObject != nil
     }
-    
+    // MARK: - FUNC
     private func createMoveFromImport(_ moveData: MoveExport, context: NSManagedObjectContext) async throws {
         try await context.perform {
             let newMove = Move(context: context)
@@ -292,6 +292,7 @@ struct URLDocument: FileDocument {
     var url: URL
     init(url: URL) { self.url = url }
     init(configuration: ReadConfiguration) throws { self.url = URL(fileURLWithPath: "") }
+    // MARK: - FUNC
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         return try FileWrapper(url: url, options: .immediate)
     }

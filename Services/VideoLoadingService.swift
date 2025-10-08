@@ -91,6 +91,7 @@ struct PhotoFileRepresentation {
 // MARK: - keyword
 @preconcurrency
 public protocol ModernVideoLoadingServiceProtocol: AnyObject {  // protocol
+    // MARK: - FUNC
     func loadVideo(from item: PhotosPickerItem) async throws
         -> VideoLoadingResult
     func loadVideo(from url: URL) async throws -> VideoLoadingResult

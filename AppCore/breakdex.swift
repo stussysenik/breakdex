@@ -36,7 +36,7 @@ struct BreakingFlashcardsApp: App {
     let persistenceController = PersistenceController.shared
 
     init() {
-        // 🎯 MIGRATION: Run data migration on app startup to ensure learningState consistency
+        // MARK: - MIGRATION: Run data migration on app startup to ensure learningState consistency
         // This ensures all existing moves have proper learningState for review functionality
         persistenceController.migrateDataStoreIfNeeded()
     }
@@ -73,7 +73,7 @@ struct BreakingFlashcardsApp: App {
                     // Clear any cached images when memory is low
                     print("Memory warning received - clearing caches")
                 }
-                // 🎯 NEW: Trigger sync when app becomes active (user returns to app)
+                // MARK: - NEW: Trigger sync when app becomes active (user returns to app)
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     Task {
                         print("🚀 App became active, triggering album sync.")
@@ -179,7 +179,7 @@ struct BreakingFlashcardsApp: App {
         } catch {
             print("🧹 Failed to fetch known identifiers: \(error.localizedDescription)")
             print("🔍 [DEBUG] CoreData fetch error details: \(error)")
-            // 🎯 FIX: Explicit type annotation to resolve ambiguous Set() initializer
+            // MARK: - FIX: Explicit type annotation to resolve ambiguous Set() initializer
             return Set<String>()
         }
     }

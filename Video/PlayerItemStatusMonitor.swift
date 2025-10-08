@@ -38,7 +38,7 @@ public class PlayerItemStatusMonitor {
         }
     }
 
-    // 🎯 ENHANCED: Calculate total buffered duration across all loaded ranges
+    // MARK: - ENHANCED: Calculate total buffered duration across all loaded ranges
     private func calculateTotalBufferedDuration() -> TimeInterval {
         var totalDuration: TimeInterval = 0
 
@@ -124,7 +124,7 @@ public class PlayerItemStatusMonitor {
                         case .readyToPlay:
                             self.logger.info("🎬 MONITOR: ✅ Status is ready, checking buffer...")
                             
-                            // 🎯 ENHANCED: Multi-range buffer calculation for better 90% handling
+                            // MARK: - ENHANCED: Multi-range buffer calculation for better 90% handling
                             let totalBufferedDuration = self.calculateTotalBufferedDuration()
                             let progress = min(1.0, totalBufferedDuration / requiredBufferDuration)
 
@@ -132,13 +132,13 @@ public class PlayerItemStatusMonitor {
                                 await onProgress(progress)
                                 self.logger.info("🎬 MONITOR: 📈 Enhanced buffer progress: \(Int(progress * 100))% (\(String(format: "%.2f", totalBufferedDuration))s buffered across \(self.playerItem.loadedTimeRanges.count) ranges)")
 
-                                // 🎯 CRITICAL: Explicit 90%+ milestone logging
+                                // MARK: - CRITICAL: Explicit 90%+ milestone logging
                                 if progress >= 0.9 && progress < 1.0 {
                                     self.logger.info("🎬 MONITOR: 🎯 90% milestone reached - final buffering phase")
                                 }
                             }
 
-                            // 🎯 ENHANCED: More comprehensive buffer readiness check
+                            // MARK: - ENHANCED: More comprehensive buffer readiness check
                             let isBufferReady = totalBufferedDuration >= requiredBufferDuration ||
                                                  self.playerItem.isPlaybackBufferFull ||
                                                  self.playerItem.isPlaybackLikelyToKeepUp ||

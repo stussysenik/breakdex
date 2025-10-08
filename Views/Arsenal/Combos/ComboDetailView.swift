@@ -41,7 +41,7 @@ struct ComboDetailView: View {
                 // This view now correctly handles async loading internally
                 ComboDetailPlayerView(move: activeMove?.move)
 
-                // 🎯 FIX: Use the unified ComboTimelineView for read-only display
+                // MARK: - FIX: Use the unified ComboTimelineView for read-only display
                 let movesForTimeline = comboMoves.compactMap { $0.move }
                 if !movesForTimeline.isEmpty {
                     Text("COMBO SEQUENCE")

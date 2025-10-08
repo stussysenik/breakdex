@@ -3,7 +3,7 @@ import OSLog
 
 extension AVAsset {
 
-    /// 🎯 Extracts the intrinsic rotation of the video asset in quarter turns from metadata.
+    /// MARK: - Extracts the intrinsic rotation of the video asset in quarter turns from metadata.
     /// This method analyzes the asset's video track transform matrix to determine
     /// the native rotation stored in the video file using modern AVFoundation APIs.
     ///
@@ -22,7 +22,7 @@ extension AVAsset {
         logger.debug("🔄 [CAT] Extracting intrinsic rotation from video asset")
         logger.debug("🔄 [CAT] Domain: AVAsset → AVAssetTrack → CGAffineTransform → Int")
 
-        // 🎯 Morphism 1: AVAsset → [AVAssetTrack] (async track loading)
+        // MARK: - Morphism 1: AVAsset → [AVAssetTrack] (async track loading)
         // Using modern async/await API with proper error handling
         let videoTracks: [AVAssetTrack]
         do {
@@ -38,7 +38,7 @@ extension AVAsset {
             return 0
         }
 
-        // 🎯 Morphism 2: AVAssetTrack → CGAffineTransform (transform loading)
+        // MARK: - Morphism 2: AVAssetTrack → CGAffineTransform (transform loading)
         let transform: CGAffineTransform
         do {
             transform = try await videoTrack.load(.preferredTransform)
@@ -48,7 +48,7 @@ extension AVAsset {
             return 0
         }
 
-        // 🎯 Morphism 3: CGAffineTransform → Int (rotation analysis functor)
+        // MARK: - Morphism 3: CGAffineTransform → Int (rotation analysis functor)
         // This functor maps continuous transform space to discrete rotation space
         let rotationQuarterTurns = analyzeTransformMatrix(transform, logger: logger)
 
@@ -59,7 +59,7 @@ extension AVAsset {
         return rotationQuarterTurns
     }
 
-    /// 🎯 Analyzes CGAffineTransform matrix to determine rotation in quarter turns
+    /// MARK: - Analyzes CGAffineTransform matrix to determine rotation in quarter turns
     /// This implements a mathematical functor from transform matrices to discrete rotations
     ///
     /// **Functor Properties**:
@@ -78,7 +78,7 @@ extension AVAsset {
 
         logger.debug("🔄 [CAT] Matrix analysis: [\(a), \(b); \(c), \(d)]")
 
-        // 🎯 Isomorphism check: Verify this is a pure rotation matrix
+        // MARK: - Isomorphism check: Verify this is a pure rotation matrix
         // For pure rotation: a² + b² = 1, c² + d² = 1, ac + bd = 0
         let determinant = a * d - b * c
         let isPureRotation = abs(determinant - 1.0) < 0.001 &&
@@ -91,7 +91,7 @@ extension AVAsset {
         let rotationQuarterTurns: Int
         let rotationDescription: String
 
-        // 🎯 Standard rotation matrices mapped to quarter turns
+        // MARK: - Standard rotation matrices mapped to quarter turns
         if a == 0 && b == 1.0 && c == -1.0 && d == 0 {
             // [ 0,  1; -1,  0] = 90° clockwise rotation
             rotationQuarterTurns = 1
@@ -109,12 +109,12 @@ extension AVAsset {
             rotationQuarterTurns = 0
             rotationDescription = "0° (identity)"
         } else {
-            // 🎯 Non-standard transform - apply mathematical projection
+            // MARK: - Non-standard transform - apply mathematical projection
             // Extract angle from transform using atan2
             let angle = atan2(transform.b, transform.a) * (180.0 / .pi)
             let normalizedAngle = ((angle.truncatingRemainder(dividingBy: 360.0) + 360.0).truncatingRemainder(dividingBy: 360.0))
 
-            // 🎯 Project continuous angle to discrete quarter turns
+            // MARK: - Project continuous angle to discrete quarter turns
             let projectedTurns = Int(round(normalizedAngle / 90.0)) % 4
             rotationQuarterTurns = projectedTurns >= 0 ? projectedTurns : projectedTurns + 4
 

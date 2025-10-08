@@ -23,7 +23,7 @@ struct ComboTimelineView: View {
                     ForEach(Array(moves.enumerated()), id: \.element.managedObjectID) { index, move in
                         HStack(spacing: 0) {
                             VStack(spacing: 8) {
-                                // 🎯 FIX: Use the advanced TimelineNodeView for consistent UI
+                                // MARK: - FIX: Use the advanced TimelineNodeView for consistent UI
                                 TimelineNodeView(
                                     sequenceNumber: index + 1,
                                     isActive: activeIndex == index,

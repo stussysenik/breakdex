@@ -187,7 +187,7 @@ public final class MemoryManagerImpl: MemoryManager {
             var skippedCount = 0
 
             for file in contents where file.pathExtension == "mov" || file.pathExtension == "mp4" {
-                // 🎯 CRITICAL FIX: Check if this file is locked by the current Add Move operation
+                // MARK: - CRITICAL FIX: Check if this file is locked by the current Add Move operation
                 if let lockedURL = lockedURL, file == lockedURL {
                     logger.info("🧠 Skipping deletion of locked asset: \(file.lastPathComponent)")
                     skippedCount += 1

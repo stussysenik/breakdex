@@ -33,7 +33,7 @@ public final class AppContainer {
         return manager
     }()
 
-    // 🎯 INTEGRATION POINT: Swap with the new, network-resilient service.
+    // MARK: - INTEGRATION POINT: Swap with the new, network-resilient service.
     // This single change activates the 45s timeout, network monitoring, and retry logic.
     private(set) lazy var modernVideoLoadingService: VideoLoadingServiceResilient = {
         return VideoLoadingServiceResilient.createStandalone()
@@ -112,7 +112,7 @@ public final class AppContainer {
         let cleanupStart = CFAbsoluteTimeGetCurrent()
         logger.info("🧹 ENHANCED AppContainer cleanup starting...", metadata: nil)
 
-        // 🎯 CRITICAL: Cleanup unified player manager first to prevent retain cycles
+        // MARK: - CRITICAL: Cleanup unified player manager first to prevent retain cycles
         unifiedPlayerManager.cleanup()
         logger.info("🧹 UnifiedPlayerManager cleanup completed", metadata: nil)
 

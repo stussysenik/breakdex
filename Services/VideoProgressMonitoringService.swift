@@ -37,12 +37,12 @@ public class VideoProgressMonitoringService {
     }
 
     // MARK: - Public Methods
-
+    // MARK: - FUNC
     /// Starts monitoring video loading progress
     public func startMonitoring() {
         logger.info("🎬 VIDEO_PROGRESS: ⚙️ Setting up progress subscription")
 
-        // 🎯 CRITICAL FIX: Validate callback setup before starting
+        // MARK: - CRITICAL FIX: Validate callback setup before starting
         if onProgressUpdate == nil {
             logger.error("🎬 VIDEO_PROGRESS: ❌ Progress update callback not set - monitoring will not work")
             return
@@ -52,7 +52,7 @@ public class VideoProgressMonitoringService {
         progressMonitoringTask?.cancel()
         cancellables.removeAll()
 
-        // 🎯 STRATEGIC FIX: Enhanced publisher setup with validation
+        // MARK: - STRATEGIC FIX: Enhanced publisher setup with validation
         logger.info("🎬 VIDEO_PROGRESS: 📡 Creating publisher from video loading service")
 
         let publisher: AnyPublisher<VideoLoadingProgress, Never> = modernVideoLoadingService.progressPublisher
@@ -70,7 +70,7 @@ public class VideoProgressMonitoringService {
             )
             .eraseToAnyPublisher()
 
-        // 🎯 CRITICAL FIX: Enhanced subscription setup with error handling
+        // MARK: - CRITICAL FIX: Enhanced subscription setup with error handling
         let subscription = publisher.sink(
             receiveCompletion: { [weak self] completion in
                 self?.handleCompletion(completion)
@@ -84,11 +84,11 @@ public class VideoProgressMonitoringService {
         self.cancellables.insert(subscription)
         logger.info("🎬 VIDEO_PROGRESS: ✅ Progress monitoring started successfully | subscription count: \(self.cancellables.count)")
 
-        // 🎯 STRATEGIC FIX: Log service state for diagnostics
+        // MARK: - STRATEGIC FIX: Log service state for diagnostics
         logServiceState()
         logMemoryUsage()
     }
-
+    // MARK: - FUNC
     /// Stops monitoring video loading progress
     public func stopMonitoring() {
         logger.info("🎬 VIDEO_PROGRESS: 🛑 Stopping progress monitoring")
@@ -101,7 +101,7 @@ public class VideoProgressMonitoringService {
     }
 
     // MARK: - Private Methods
-
+    // MARK: - FUNC
     private func handleCompletion(_ completion: Subscribers.Completion<Never>) {
         logger.info("🎬 VIDEO_PROGRESS: 🔄 COMPLETION HANDLER TRIGGERED")
         logger.info("🎬 VIDEO_PROGRESS: 📊 Completion type: \((completion == .finished) ? "finished" : "failure")")
@@ -112,7 +112,7 @@ public class VideoProgressMonitoringService {
             logger.info("🎬 VIDEO_PROGRESS: ✅ Progress monitoring completed successfully")
             logger.info("🎬 VIDEO_PROGRESS: 🚀 Triggering completion callback for atomic transformation")
 
-            // 🎯 ENHANCED DIAGNOSTIC: Log completion callback state
+            // MARK: - ENHANCED DIAGNOSTIC: Log completion callback state
             if let completionCallback = self.onCompletion {
                 logger.info("🎬 VIDEO_PROGRESS: 📡 Executing completion callback")
                 completionCallback(completion)
@@ -121,7 +121,7 @@ public class VideoProgressMonitoringService {
                 logger.warning("🎬 VIDEO_PROGRESS: ⚠️ No completion callback configured")
             }
 
-            // 🎯 CRITICAL DIAGNOSTIC: Also trigger a final completion progress update if needed
+            // MARK: - CRITICAL DIAGNOSTIC: Also trigger a final completion progress update if needed
             if let progressCallback = self.onProgressUpdate {
                 logger.info("🎬 VIDEO_PROGRESS: 📊 Sending final completion progress update at creatingAsset phase")
                 let finalProgress = VideoLoadingProgress(phase: .creatingAsset, correlationId: "completion_\(UUID().uuidString)")
@@ -140,13 +140,13 @@ public class VideoProgressMonitoringService {
             }
         }
 
-        // 🎯 DIAGNOSTIC: Log final state
+        // MARK: - DIAGNOSTIC: Log final state
         logger.info("🎬 VIDEO_PROGRESS: 📈 Final state after completion handling")
         logger.info("🎬 VIDEO_PROGRESS:   - Progress callback: \(self.onProgressUpdate != nil)")
         logger.info("🎬 VIDEO_PROGRESS:   - Completion callback: \(self.onCompletion != nil)")
         logger.info("🎬 VIDEO_PROGRESS:   - Active subscriptions: \(self.cancellables.count)")
     }
-
+    // MARK: - FUNC
     private func handleProgressUpdate(_ progress: VideoLoadingProgress) {
         let timestamp = Date()
         logger.info("🎬 VIDEO_PROGRESS: 📊 Received progress update: \(String(describing: progress.phase)) | timestamp: \(timestamp)")
@@ -156,13 +156,13 @@ public class VideoProgressMonitoringService {
 
         logger.debug("🎬 VIDEO_PROGRESS: ✅ Progress update forwarded to callback")
     }
-
+    // MARK: - FUNC
     private func logMemoryUsage() {
         let memoryUsage = ProcessInfo.processInfo.physicalMemory
         let memoryUsed = memoryUsage / (1024 * 1024) // Convert to MB
         logger.debug("🎬 VIDEO_PROGRESS: 🧠 Memory usage after setup | available: \(String(format: "%.1f", Double(memoryUsed)))MB")
     }
-
+    // MARK: - FUNC
     /// Log current service state for diagnostics
     private func logServiceState() {
         logger.info("🎬 VIDEO_PROGRESS: 📊 Service state logging:")

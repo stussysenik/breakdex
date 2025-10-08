@@ -170,7 +170,7 @@ struct MoveReviewView: View {
     // MARK: - Video Loading
 
     /// Load video asset asynchronously using PhotosAssetService
-    /// 🎯 ASYNC: Modern async/await pattern with proper error handling
+    /// MARK: - ASYNC: Modern async/await pattern with proper error handling
     /// 📊 LOGS: Comprehensive logging for debugging
     private func loadVideoAsset() async {
         logger.info("🎮 MOVE_REVIEW: 🔄 Starting video asset load")
@@ -192,7 +192,7 @@ struct MoveReviewView: View {
         logger.info("🎮 MOVE_REVIEW: 📝 Photos identifier: \(photosIdentifier.prefix(8))...")
 
         do {
-            // 🎯 PHOTOS_SERVICE: Use centralized asset loading
+            // MARK: - PHOTOS_SERVICE: Use centralized asset loading
             let asset = try await PhotosAssetService.shared.fetchAVAsset(with: photosIdentifier)
             logger.info("🎮 MOVE_REVIEW: ✅ Video asset loaded successfully")
             logger.info("🎮 MOVE_REVIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
@@ -334,7 +334,7 @@ struct MoveReviewView: View {
                         }
                     }
                     .onDisappear {
-                        // 🎯 CRITICAL: Teardown player to prevent audio overlap when navigating away
+                        // MARK: - CRITICAL: Teardown player to prevent audio overlap when navigating away
                         logger.info("🎮 MOVE_REVIEW: 🔄 View disappearing, tearing down player for move: \(move.name ?? "Unknown")")
                         playerViewModel?.teardown()
                         playerViewModel = nil
@@ -415,7 +415,7 @@ struct ComboReviewView: View {
     // MARK: - Video Loading
 
     /// Load video asset asynchronously for a specific move in combo
-    /// 🎯 ASYNC: Modern async/await pattern with proper error handling
+    /// MARK: - ASYNC: Modern async/await pattern with proper error handling
     /// 📊 LOGS: Comprehensive logging for debugging combo moves
     private func loadVideoAsset(for move: Move) async {
         logger.info("🎮 COMBO_REVIEW: 🔄 Starting video asset load for combo move: \(move.name ?? "Unknown")")
@@ -437,7 +437,7 @@ struct ComboReviewView: View {
         logger.info("🎮 COMBO_REVIEW: 📝 Photos identifier: \(photosIdentifier.prefix(8))...")
 
         do {
-            // 🎯 PHOTOS_SERVICE: Use centralized asset loading
+            // MARK: - PHOTOS_SERVICE: Use centralized asset loading
             let asset = try await PhotosAssetService.shared.fetchAVAsset(with: photosIdentifier)
             logger.info("🎮 COMBO_REVIEW: ✅ Video asset loaded successfully")
             logger.info("🎮 COMBO_REVIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
@@ -558,7 +558,7 @@ struct ComboReviewView: View {
                         }
                     }
                     .onDisappear {
-                        // 🎯 CRITICAL: Teardown player to prevent audio overlap when navigating away or switching moves
+                        // MARK: - CRITICAL: Teardown player to prevent audio overlap when navigating away or switching moves
                         logger.info("🎮 COMBO_REVIEW: 🔄 View disappearing, tearing down player for move: \(activeMove.name ?? "Unknown")")
                         playerViewModel?.teardown()
                         playerViewModel = nil

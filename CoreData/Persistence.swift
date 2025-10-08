@@ -78,7 +78,7 @@ extension Move {
 // MARK: - Data Migration
 extension PersistenceController {
     /// Migrates existing Move entities to ensure learningState consistency
-    /// 🎯 MIGRATION: Ensures all moves have proper learningState for review functionality
+    /// MARK: - MIGRATION: Ensures all moves have proper learningState for review functionality
     /// 📊 LOGS: Detailed logging for debugging migration results
     func migrateDataStoreIfNeeded() {
         backgroundContext.perform {

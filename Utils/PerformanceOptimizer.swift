@@ -251,12 +251,12 @@ public actor PerformanceOptimizer {
         await performOptimizationCycle()
     }
 
-    /// 🎯 ASYNC ACTOR API: Get current performance metrics safely
+    /// MARK: - ASYNC ACTOR API: Get current performance metrics safely
     public func getCurrentMetrics() async -> PerformanceMetrics? {
         return currentMetrics
     }
 
-    /// 🎯 ASYNC ACTOR API: Get current state snapshot for UI updates
+    /// MARK: - ASYNC ACTOR API: Get current state snapshot for UI updates
     public func getCurrentState() async -> OptimizerState {
         return OptimizerState(
             currentMetrics: currentMetrics,

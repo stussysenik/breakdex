@@ -8,7 +8,7 @@ import OSLog
 public protocol MovePersistenceServiceProtocol {
     func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> String // ✅ FIXED: Returns localIdentifier
     func deleteVideoFromPhotos(localIdentifier: String) async throws // ✅ ADDED: For rollback operations
-    func doesMoveExist(withName name: String) async throws -> Bool // 🎯 FIXED: Added missing method for duplicate validation
+    func doesMoveExist(withName name: String) async throws -> Bool // MARK: - FIXED: Added missing method for duplicate validation
     func createMoveEntity(
         name: String,
         originalPhotosIdentifier: String, // ✅ FIXED: This is the single source of truth
@@ -24,7 +24,7 @@ public protocol MovePersistenceServiceProtocol {
         trimEndTime: Double?,
         rotationQuarterTurns: Int
     ) async throws
-    func cleanupOrphanedMoveEntity(name: String) async throws // 🎯 ADDED: For rollback operations
+    func cleanupOrphanedMoveEntity(name: String) async throws // MARK: - ADDED: For rollback operations
 }
 
 // MARK: - Move Persistence Service
@@ -46,7 +46,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
     // MARK: - Public API
     
     /// Save video to Photos library
-    /// 🎯 FIXED: Now returns the Photos library localIdentifier
+    /// MARK: - FIXED: Now returns the Photos library localIdentifier
     func saveVideoToPhotos(asset: AVAsset, moveName: String) async throws -> String {
         logger.info("💾 MOVE_PERSISTENCE: Saving video to Photos library")
         logger.info("💾 MOVE_PERSISTENCE: Move name: \(moveName)")
@@ -60,7 +60,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
     }
     
     /// Create Move entity in Core Data
-    /// 🎯 FIXED: Removed videoURL parameter, uses photosIdentifier as single source of truth
+    /// MARK: - FIXED: Removed videoURL parameter, uses photosIdentifier as single source of truth
     func createMoveEntity(
         name: String,
         originalPhotosIdentifier: String, // This is the single source of truth for the video
@@ -108,7 +108,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         move.learningState = "NEW" // ✅ FIX: Set default learning state to ensure moves appear in review
         logger.info("💾 MOVE_PERSISTENCE: ✅ Set default learning state: NEW")
         
-        // 🎯 FIXED: Removed binary video storage from Core Data - architectural violation
+        // MARK: - FIXED: Removed binary video storage from Core Data - architectural violation
         // 🗑️ REMOVED: Storing entire video files as binary Data in Core Data causes performance issues
         // if let videoData = try? Data(contentsOf: videoURL) {
         //     logger.info("💾 MOVE_PERSISTENCE: 📊 Video data size: \(videoData.count) bytes")
@@ -210,7 +210,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
     }
 
     /// Check if a move with the given name already exists (fail-fast validation)
-    /// 🎯 NEW: Lightweight validation function for early duplicate detection
+    /// MARK: - NEW: Lightweight validation function for early duplicate detection
     func doesMoveExist(withName name: String) async throws -> Bool {
         logger.info("💾 MOVE_PERSISTENCE: 🔍 Validating move name uniqueness for: '\(name)'")
 

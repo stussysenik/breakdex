@@ -32,7 +32,7 @@ enum AssetError: Error, LocalizedError {
 }
 
 /// Service for fetching video assets from Photos library
-/// 🎯 SINGLETON: Ensures centralized asset loading with proper error handling
+/// MARK: - SINGLETON: Ensures centralized asset loading with proper error handling
 @MainActor
 class PhotosAssetService {
 
@@ -48,8 +48,9 @@ class PhotosAssetService {
     // MARK: - Public API
 
     /// Fetch AVAsset from Photos library using local identifier
-    /// 🎯 ASYNC: Proper async/await with structured concurrency
+    /// MARK: - ASYNC: Proper async/await with structured concurrency
     /// 📊 METRICS: Logs performance and error states
+    // MARK: - FUNC
     func fetchAVAsset(with localIdentifier: String) async throws -> AVAsset {
         logger.info("📸 PHOTOS_ASSET: 🔄 Fetching AVAsset for identifier: \(localIdentifier.prefix(8))...")
 
@@ -124,7 +125,8 @@ class PhotosAssetService {
     // MARK: - Private Methods
 
     /// Check current photo library authorization status
-    /// 🎯 ASYNC: Proper async authorization check
+    /// MARK: - ASYNC: Proper async authorization check
+    // MARK: - FUNC
     private func checkPhotoLibraryAuthorization() async -> PHAuthorizationStatus {
         logger.info("📸 PHOTOS_ASSET: 🔍 Checking photo library authorization status")
 
@@ -137,6 +139,7 @@ class PhotosAssetService {
 
     /// Get human-readable description of authorization status
     /// 📊 METRICS: Useful for debugging permission issues
+    // MARK: - FUNC
     private func authorizationStatusDescription(_ status: PHAuthorizationStatus) -> String {
         switch status {
         case .notDetermined:
@@ -160,7 +163,8 @@ class PhotosAssetService {
 extension PhotosAssetService {
 
     /// Check if a video asset is available for a given identifier
-    /// 🎯 BOOL: Simple boolean check for UI state management
+    /// MARK: - BOOL: Simple boolean check for UI state management
+    // MARK: - FUNC
     func isVideoAvailable(for localIdentifier: String) async -> Bool {
         do {
             _ = try await fetchAVAsset(with: localIdentifier)
@@ -173,6 +177,7 @@ extension PhotosAssetService {
 
     /// Pre-warm asset cache by fetching metadata only
     /// 🚀 PERFORMANCE: Optimizes subsequent asset loading
+    // MARK: - FUNC
     func prefetchAssetMetadata(for localIdentifier: String) async {
         logger.info("📸 PHOTOS_ASSET: 🔄 Prefetching metadata for: \(localIdentifier.prefix(8))...")
 

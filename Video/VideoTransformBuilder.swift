@@ -18,7 +18,7 @@ final class VideoTransformBuilder {
     static func build(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int) async throws -> (composition: AVMutableComposition, videoComposition: AVMutableVideoComposition?) {
         let buildStartTime = CFAbsoluteTimeGetCurrent()
 
-        // 🎯 ENHANCED: Comprehensive rotation verification with category theory logging
+        // MARK: - ENHANCED: Comprehensive rotation verification with category theory logging
         logger.info("🎬 BUILDER: 🚀 Starting composition build with TOTAL ROTATION verification")
         logger.info("🎬 BUILDER: 📊 Input parameters:")
         logger.info("🎬 BUILDER:   - quarterTurns (TOTAL): \(quarterTurns)°")
@@ -51,7 +51,7 @@ final class VideoTransformBuilder {
         }
 
         // 3. 🎯 CRITICAL: ROBUST TRACK SELECTION AND VALIDATION
-        // 🎯 ENHANCED: Implement robust track selection for complex multi-track assets
+        // MARK: - ENHANCED: Implement robust track selection for complex multi-track assets
         logger.info("🎬 BUILDER: 🔍 Starting robust track validation for complex asset")
         logger.info("🎬 BUILDER: 📊 Asset analysis - Raw video tracks: \(videoTracks.count), Raw audio tracks: \(audioTracks.count)")
 
@@ -63,7 +63,7 @@ final class VideoTransformBuilder {
             throw VideoProcessingError.noValidVideoTrackFound
         }
 
-        // 🎯 ENHANCED: Detailed multi-track asset logging
+        // MARK: - ENHANCED: Detailed multi-track asset logging
         logger.info("🎬 BUILDER: ✅ Robust track selection completed")
         logger.info("🎬 BUILDER: 📊 Validation results:")
         logger.info("🎬 BUILDER:   - Valid video tracks: \(validVideoTracks.count)/\(videoTracks.count)")
@@ -223,7 +223,7 @@ final class VideoTransformBuilder {
         // Start with identity transform
         var transform = CGAffineTransform.identity
 
-        // 🎯 TOTAL ROTATION: Apply user rotation transform with proper coordinate system translation
+        // MARK: - TOTAL ROTATION: Apply user rotation transform with proper coordinate system translation
         let rotationAngle = .pi / 2.0 * CGFloat(quarterTurns)
         let rotationTransform = CGAffineTransform(rotationAngle: rotationAngle)
 
@@ -233,7 +233,7 @@ final class VideoTransformBuilder {
         logger.info("🎬 BUILDER:   - Rotation degrees: \(quarterTurns * 90)°")
         logger.info("🎬 BUILDER:   - Category theory: Applied η_total = \(quarterTurns)")
 
-        // 🎯 CRITICAL FIX: Mathematically correct translation for rotation centering
+        // MARK: - CRITICAL FIX: Mathematically correct translation for rotation centering
         // The translation must move the origin to the correct position after rotation
         let translationTransform: CGAffineTransform
 
@@ -255,7 +255,7 @@ final class VideoTransformBuilder {
             logger.info("🎬 BUILDER:   - Translation (0°): identity transform")
         }
 
-        // 🎯 CRITICAL FIX: Apply transforms in correct mathematical order
+        // MARK: - CRITICAL FIX: Apply transforms in correct mathematical order
         // For AVFoundation: rotation first, then translation
         // FIX: Remove preferredTransform concatenation to prevent double rotation
         // The calculated transform based on quarterTurns is already the complete final transform
@@ -313,7 +313,7 @@ final class VideoTransformBuilder {
         logger.info("🎬 BUILDER:   - Isomorphism preserved: preview ↔ final asset")
         logger.info("🎬 BUILDER:   - WYSIWYG guarantee: ACTIVE ✅")
 
-        // 🎯 ENHANCED: Performance diagnostics
+        // MARK: - ENHANCED: Performance diagnostics
         logger.info("🎬 BUILDER: 📊 Performance metrics")
         logger.info("🎬 BUILDER:   - Build time: \(String(format: "%.2f", totalBuildTime))ms")
         logger.info("🎬 BUILDER:   - Video tracks: \(videoTracks.count)")
@@ -388,7 +388,7 @@ final class VideoTransformBuilder {
         print("🎬 VideoTransformBuilder:   - Video composition assigned: \(playerItem.videoComposition != nil)")
         print("🎬 VideoTransformBuilder:   - Seeking waits for rendering: \(playerItem.seekingWaitsForVideoCompositionRendering)")
 
-        // 🎯 ENHANCED: Validate composition readiness before returning
+        // MARK: - ENHANCED: Validate composition readiness before returning
         try await validateCompositionReadiness(composition: composition, videoComposition: videoComposition, playerItem: playerItem)
 
         return playerItem
@@ -403,7 +403,7 @@ final class VideoTransformBuilder {
     /// - Returns: URL of the exported video
     static func exportVideo(asset: AVAsset, trimRange: CMTimeRange? = nil, quarterTurns: Int, outputURL: URL) async throws -> URL {
 
-        // 🎯 ENHANCED: Critical export logging with TOTAL ROTATION verification
+        // MARK: - ENHANCED: Critical export logging with TOTAL ROTATION verification
         logger.info("🎬 BUILDER: 🎯 EXPORT START: Starting video export with TOTAL ROTATION")
         logger.info("🎬 BUILDER: 📊 Export parameters:")
         logger.info("🎬 BUILDER:   - TOTAL quarterTurns: \(quarterTurns)°")
@@ -445,7 +445,7 @@ final class VideoTransformBuilder {
         // Export
         try await exportSession.export(to: outputURL, as: .mov)
 
-        // 🎯 ENHANCED: Post-export completion logging with TOTAL ROTATION verification
+        // MARK: - ENHANCED: Post-export completion logging with TOTAL ROTATION verification
         logger.info("🎬 BUILDER: ✅ EXPORT COMPLETED: Video export with TOTAL ROTATION finished")
         logger.info("🎬 BUILDER: 📊 Export results:")
         logger.info("🎬 BUILDER:   - Output file: \(outputURL.lastPathComponent)")
@@ -462,7 +462,7 @@ final class VideoTransformBuilder {
 
     // MARK: - Composition Readiness Validation
 
-    /// 🎯 ENHANCED: Validates that the composition is truly ready for playback and seeking
+    /// MARK: - ENHANCED: Validates that the composition is truly ready for playback and seeking
     /// This prevents the 90% hang by ensuring the composition is fully processed
     private static func validateCompositionReadiness(
         composition: AVMutableComposition,
@@ -545,7 +545,7 @@ final class VideoTransformBuilder {
 
     // MARK: - Robust Track Selection
 
-    /// 🎯 ENHANCED: Finds the best video tracks from a collection of tracks
+    /// MARK: - ENHANCED: Finds the best video tracks from a collection of tracks
     /// Handles complex multi-track assets by filtering for playable, valid tracks
     /// - Parameter tracks: Collection of video tracks to filter
     /// - Returns: Array of valid video tracks, sorted by quality
@@ -616,7 +616,7 @@ final class VideoTransformBuilder {
         return sortedTracks
     }
 
-    /// 🎯 ENHANCED: Finds the best audio tracks from a collection of tracks
+    /// MARK: - ENHANCED: Finds the best audio tracks from a collection of tracks
     /// Handles complex multi-track assets by filtering for playable audio tracks
     /// - Parameter tracks: Collection of audio tracks to filter
     /// - Returns: Array of valid audio tracks
@@ -667,7 +667,7 @@ final class VideoTransformBuilder {
 
     // MARK: - Category Theory Verification Methods
 
-    /// 🎯 CATEGORY THEORY: Verifies the natural transformation η preserves isomorphism
+    /// MARK: - CATEGORY THEORY: Verifies the natural transformation η preserves isomorphism
     /// between preview rotation and final asset rotation
     ///
     /// Mathematical Properties:
@@ -724,7 +724,7 @@ final class VideoTransformBuilder {
         return (overallPreserved, details)
     }
 
-    /// 🎯 CATEGORY THEORY: Verifies that the video processing pipeline preserves
+    /// MARK: - CATEGORY THEORY: Verifies that the video processing pipeline preserves
     /// the categorical structure from preview to final asset
     ///
     /// This implements the commutative diagram:
@@ -778,7 +778,7 @@ final class VideoTransformBuilder {
         return (structurePreserved, details)
     }
 
-    /// 🎯 CATEGORY THEORY: Edge case validation for rotation transformations
+    /// MARK: - CATEGORY THEORY: Edge case validation for rotation transformations
     /// Tests boundary conditions and ensures mathematical correctness
     ///
     /// - Returns: Edge case validation results

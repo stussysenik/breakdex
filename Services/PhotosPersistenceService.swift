@@ -89,6 +89,7 @@ public struct PhotosPersistenceProgress {
 }
 
 // MARK: - Photos Persistence Service Protocol
+// MARK: - FUNC
 public protocol PhotosPersistenceServiceProtocol {
     func saveVideoAsset(_ url: URL, filename: String, sourceIdentifier: String?) async throws -> PhotosPersistenceResult
     func saveVideoAsset(_ asset: AVAsset, filename: String, sourceIdentifier: String?) async throws -> PhotosPersistenceResult
@@ -138,7 +139,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
     }
 
     // MARK: - Public API
-
+    // MARK: - FUNC
     /// Save video asset from URL to Photos library with atomic operations
     public func saveVideoAsset(_ url: URL, filename: String, sourceIdentifier: String?) async throws -> PhotosPersistenceResult {
         let correlationId = generateCorrelationId()
@@ -157,7 +158,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
 
             await reportProgress(.processingAsset, progress: 0.3, message: "Processing video asset", correlationId: correlationId)
 
-            // 🎯 CRITICAL: Single atomic operation to prevent race conditions
+            // MARK: - CRITICAL: Single atomic operation to prevent race conditions
             let result = try await performAtomicAssetCreation(
                 url: url,
                 filename: filename,
@@ -177,7 +178,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             throw error
         }
     }
-
+    // MARK: - FUNC
     /// Save video asset from AVAsset to Photos library with atomic operations
     public func saveVideoAsset(_ asset: AVAsset, filename: String, sourceIdentifier: String?) async throws -> PhotosPersistenceResult {
         let correlationId = generateCorrelationId()
@@ -199,7 +200,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             // Export AVAsset to temporary URL first
             let tempURL = try await exportAssetToTemporaryURL(asset, filename: filename, correlationId: correlationId)
 
-            // 🎯 CRITICAL: Single atomic operation to prevent race conditions
+            // MARK: - CRITICAL: Single atomic operation to prevent race conditions
             let result = try await performAtomicAssetCreation(
                 url: tempURL,
                 filename: filename,
@@ -219,7 +220,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             throw error
         }
     }
-
+    // MARK: - FUNC
     /// Get BreakDex album with enhanced atomic operations
     public func getBreakDexAlbum() async throws -> PHAssetCollection {
         let correlationId = generateCorrelationId()
@@ -228,7 +229,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
         let startTime = Date()
 
         do {
-            // 🎯 CRITICAL: Use enhanced atomic AlbumManager
+            // MARK: - CRITICAL: Use enhanced atomic AlbumManager
             let album = try await albumManager.getBreakDexAlbum()
 
             let duration = Date().timeIntervalSince(startTime)
@@ -278,7 +279,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             throw PhotosPersistenceError.albumCreationFailed(error)
         }
     }
-
+    // MARK: - FUNC
     /// Check cloud sync status for asset
     public func checkCloudSyncStatus(for assetIdentifier: String) async throws -> Bool {
         let correlationId = generateCorrelationId()
@@ -295,19 +296,19 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
     }
 
     // MARK: - Private Atomic Operations
-
-    /// 🎯 CRITICAL: Ensure BreakDex album exists with enhanced atomic operations
+    // MARK: - FUNC
+    /// MARK: - CRITICAL: Ensure BreakDex album exists with enhanced atomic operations
     private func ensureBreakDexAlbum(correlationId: String) async throws -> PHAssetCollection {
         logger.info("📸 PHOTOS_PERSISTENCE: 🔒 Ensuring BreakDex album exists with enhanced atomic operations [\(correlationId)]")
 
         let albumStart = Date()
 
-        // 🎯 CRITICAL: Use atomic lock to prevent race conditions
+        // MARK: - CRITICAL: Use atomic lock to prevent race conditions
         operationLock.lock()
         defer { operationLock.unlock() }
 
         do {
-            // 🎯 CRITICAL: Use enhanced atomic AlbumManager with comprehensive error handling
+            // MARK: - CRITICAL: Use enhanced atomic AlbumManager with comprehensive error handling
             let album = try await albumManager.getBreakDexAlbum()
 
             operationTimings["album_ensure"] = Date().timeIntervalSince(albumStart)
@@ -357,7 +358,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             throw PhotosPersistenceError.albumCreationFailed(error)
         }
     }
-
+    // MARK: - FUNC
     /// Perform atomic asset creation to prevent race conditions
     private func performAtomicAssetCreation(
         url: URL,
@@ -370,7 +371,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
 
         let creationStart = Date()
 
-        // 🎯 CRITICAL: Single atomic operation to prevent race conditions
+        // MARK: - CRITICAL: Single atomic operation to prevent race conditions
         operationLock.lock()
         defer { operationLock.unlock() }
 
@@ -452,7 +453,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
     }
 
     // MARK: - Helper Methods
-
+    // MARK: - FUNC
     /// Export AVAsset to temporary URL
     private func exportAssetToTemporaryURL(_ asset: AVAsset, filename: String, correlationId: String) async throws -> URL {
         logger.info("📸 PHOTOS_PERSISTENCE: 💾 Exporting AVAsset to temporary URL [\(correlationId)]")
@@ -478,7 +479,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
         logger.info("📸 PHOTOS_PERSISTENCE: ✅ Export completed [\(correlationId)]: \(tempURL.lastPathComponent)")
         return tempURL
     }
-
+    // MARK: - FUNC
     /// Extract cloud identifier from PHAsset
     private func extractCloudIdentifier(from asset: PHAsset, correlationId: String) async -> String? {
         logger.info("📸 PHOTOS_PERSISTENCE: ☁️ Extracting cloud identifier [\(correlationId)]")
@@ -523,7 +524,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
         logger.info("📸 PHOTOS_PERSISTENCE: ℹ️ Asset is cloud-based [\(correlationId)]")
         return nil
     }
-
+    // MARK: - FUNC
     /// Generate correlation ID
     private func generateCorrelationId() -> String {
         return memoryLogger.generateCorrelationId(for: "PhotosPersistenceService")
@@ -544,7 +545,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
         let phaseString = "\(phase)"
         logger.info("📸 PHOTOS_PERSISTENCE: 📊 Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(message)")
     }
-
+    // MARK: - FUNC
     /// Log completion
     private func logCompletion(result: PhotosPersistenceResult, startTime: Date, method: String) {
         let duration = Date().timeIntervalSince(startTime)
@@ -578,6 +579,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
 
 // MARK: - Combine Integration
 extension PhotosPersistenceService {
+    // MARK: - FUNC
     /// Stream-based asset saving with Combine publishers
     func saveVideoAssetWithProgress(_ url: URL, filename: String, sourceIdentifier: String?) -> AnyPublisher<PhotosPersistenceResult, PhotosPersistenceError> {
         Future<PhotosPersistenceResult, PhotosPersistenceError> { [weak self] promise in

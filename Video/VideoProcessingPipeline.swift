@@ -378,7 +378,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
     }
     
     func exportVideo(asset: AVAsset, trimRange: CMTimeRange, quarterTurns: Int, outputURL: URL) async throws -> URL {
-        // 🎯 ENHANCED: Comprehensive export logging with asset validation and rotation tracking
+        // MARK: - ENHANCED: Comprehensive export logging with asset validation and rotation tracking
         logger.info("🎬 PIPELINE: 🚀 Starting video export operation", metadata: [
             "trim_start_seconds": "\(trimRange.start.seconds)",
             "trim_duration_seconds": "\(trimRange.duration.seconds)",
@@ -391,7 +391,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
             "rotation_fix_applied": "quarterTurns_will_be_zero_in_metadata"
         ])
 
-        // 🎯 ENHANCED: Asset validation before export
+        // MARK: - ENHANCED: Asset validation before export
         do {
             let assetDuration = try await asset.load(.duration)
             guard assetDuration.seconds > 0 else {
@@ -416,7 +416,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
         cancelCurrentOperation()
 
         return try await withTaskCancellationHandler {
-            // 🎯 ENHANCED: Detailed export progress tracking
+            // MARK: - ENHANCED: Detailed export progress tracking
             logger.info("🎬 PIPELINE: 🔄 Beginning VideoTransformBuilder export", metadata: [
                 "export_method": "VideoTransformBuilder.exportVideo",
                 "expected_output_path": outputURL.path,
@@ -435,7 +435,7 @@ final class VideoProcessingPipelineImpl: VideoProcessingPipeline {
 
             let exportDuration = CFAbsoluteTimeGetCurrent() - startTime
 
-            // 🎯 ENHANCED: Post-export validation and detailed logging
+            // MARK: - ENHANCED: Post-export validation and detailed logging
             guard FileManager.default.fileExists(atPath: exportedURL.path) else {
                 logger.error("🎬 PIPELINE: ❌ Export completed but output file missing", metadata: [
                     "expected_path": exportedURL.path,

@@ -22,7 +22,7 @@ public class UnifiedPlayerManager: ObservableObject {
     private var playerCache: [String: UnifiedVideoPlayerViewModel] = [:]
     private let maxCacheSize = 3
 
-    // 🎯 ENHANCED: Cache statistics for debugging and optimization
+    // MARK: - ENHANCED: Cache statistics for debugging and optimization
     private var cacheHitCount = 0
     private var cacheMissCount = 0
     private var cacheEvictionCount = 0
@@ -54,7 +54,7 @@ public class UnifiedPlayerManager: ObservableObject {
         
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎮 Creating/updating player for asset")
 
-        // 🎯 ENHANCED: Check cache first for potential reuse
+        // MARK: - ENHANCED: Check cache first for potential reuse
         let cacheKey = getCacheKey(for: asset, rotation: rotationQuarterTurns)
         if let cachedPlayer = playerCache[cacheKey] {
             cacheHitCount += 1
@@ -116,7 +116,7 @@ public class UnifiedPlayerManager: ObservableObject {
         if let existingPlayer = currentPlayer {
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: Asset changed - creating new player")
 
-            // 🎯 CRITICAL FIX: Teardown existing player to prevent retain cycle
+            // MARK: - CRITICAL FIX: Teardown existing player to prevent retain cycle
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 Tearing down existing player to prevent retain cycle")
             existingPlayer.teardown()
 
@@ -124,10 +124,10 @@ public class UnifiedPlayerManager: ObservableObject {
             currentPlayer = nil
         }
         
-        // 🎯 CRITICAL FIX: Validate asset preconditions before creating AVPlayerItem
+        // MARK: - CRITICAL FIX: Validate asset preconditions before creating AVPlayerItem
         try await validateAssetForPlayerCreation(asset)
 
-        // 🎯 ENHANCED: Create player item with cancellation support
+        // MARK: - ENHANCED: Create player item with cancellation support
         let playerItem: AVPlayerItem
         let playerCreationStart = Date()
 
@@ -135,7 +135,7 @@ public class UnifiedPlayerManager: ObservableObject {
             playerItem = try await withCheckedThrowingContinuation { continuation in
                 Task {
                     do {
-                        // 🎯 CRITICAL FIX: Create player item on background thread to prevent blocking
+                        // MARK: - CRITICAL FIX: Create player item on background thread to prevent blocking
                         let createdPlayerItem = await Task.detached(priority: .userInitiated) {
                             AVPlayerItem(asset: asset)
                         }.value
@@ -163,7 +163,7 @@ public class UnifiedPlayerManager: ObservableObject {
             appContainer: appContainer
         )
 
-        // 🎯 CRITICAL FIX: Enhanced player readiness wait with timeout protection
+        // MARK: - CRITICAL FIX: Enhanced player readiness wait with timeout protection
         try await waitForPlayerReady(newPlayer)
         
         // Store player state
@@ -173,7 +173,7 @@ public class UnifiedPlayerManager: ObservableObject {
         currentPhotosIdentifier = photosIdentifier
         isInitialized = true
 
-        // 🎯 DIAGNOSTIC: Enhanced logging for player state synchronization debugging
+        // MARK: - DIAGNOSTIC: Enhanced logging for player state synchronization debugging
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ New player created and ready (asset changed)")
 
         // Fix: Move async call out of string interpolation to avoid 'await' in autoclosure error
@@ -181,7 +181,7 @@ public class UnifiedPlayerManager: ObservableObject {
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Player isPlayerReady: \(playerReadyStatus)")
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 DIAGNOSTIC - Player initialization completed - AddMoveUnifiedState should synchronize with this state")
 
-        // 🎯 ENHANCED: Cache the newly created player for future reuse
+        // MARK: - ENHANCED: Cache the newly created player for future reuse
         cachePlayer(newPlayer, for: asset, rotation: rotationQuarterTurns)
 
         return newPlayer
@@ -213,7 +213,7 @@ public class UnifiedPlayerManager: ObservableObject {
         let playerAsset = player.avPlayer?.currentItem?.asset
         if playerAsset != nil {
             currentAsset = playerAsset
-            // 🎯 CRITICAL FIX: Preserve existing rotation instead of resetting to 0
+            // MARK: - CRITICAL FIX: Preserve existing rotation instead of resetting to 0
             // This prevents loss of rotation state when setting pre-created players
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Asset extracted from player, rotation preserved: \(self.currentRotation)")
         }
@@ -311,7 +311,7 @@ public class UnifiedPlayerManager: ObservableObject {
             isTransitioning = false
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Enhanced trim application completed successfully")
 
-            // 🎯 DIAGNOSTIC: Enhanced logging for player state synchronization debugging
+            // MARK: - DIAGNOSTIC: Enhanced logging for player state synchronization debugging
 
             // Fix: Move async call out of string interpolation to avoid 'await' in autoclosure error
             let postTrimPlayerReadyStatus = await currentPlayer.isPlayerReady
@@ -340,7 +340,7 @@ public class UnifiedPlayerManager: ObservableObject {
         }
     }
     
-    /// 🎯 CRITICAL: Transactional trim and seek operation - prevents race conditions
+    /// MARK: - CRITICAL: Transactional trim and seek operation - prevents race conditions
     /// This method ensures all operations complete in sequence without hanging
     public func applyTrimAndSeek(
         startTime: CMTime,
@@ -381,7 +381,7 @@ public class UnifiedPlayerManager: ObservableObject {
         } catch {
             self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Player item transformation failed: \(error.localizedDescription)")
 
-            // 🎯 ENHANCED: Fallback mechanism - try with simpler composition
+            // MARK: - ENHANCED: Fallback mechanism - try with simpler composition
             self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Attempting fallback with simplified composition...")
 
             do {
@@ -441,7 +441,7 @@ public class UnifiedPlayerManager: ObservableObject {
                 } else {
                     self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ All seek attempts failed")
 
-                    // 🎯 ENHANCED: Final fallback - try direct seek without monitoring
+                    // MARK: - ENHANCED: Final fallback - try direct seek without monitoring
                     self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔄 Attempting direct seek fallback...")
                     do {
                         await currentPlayer.avPlayer?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
@@ -509,7 +509,7 @@ public class UnifiedPlayerManager: ObservableObject {
         isTransitioning = false
     }
     
-    /// 🎯 ENHANCED: Cleans up all resources with comprehensive diagnostics
+    /// MARK: - ENHANCED: Cleans up all resources with comprehensive diagnostics
     public func cleanup() {
         let cleanupStart = CFAbsoluteTimeGetCurrent()
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🚨 ENHANCED cleanup() called - CRITICAL RETAIN CYCLE PREVENTION")
@@ -561,7 +561,7 @@ public class UnifiedPlayerManager: ObservableObject {
         return "\(assetID)_\(rotation)"
     }
     
-    /// 🎯 ENHANCED: Caches a player for future reuse with detailed tracking
+    /// MARK: - ENHANCED: Caches a player for future reuse with detailed tracking
     private func cachePlayer(_ player: UnifiedVideoPlayerViewModel, for asset: AVAsset, rotation: Int) {
         let cacheKey = getCacheKey(for: asset, rotation: rotation)
 
@@ -583,14 +583,14 @@ public class UnifiedPlayerManager: ObservableObject {
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 📊 Cache performance - Hit rate: \(self.calculateHitRate())%")
     }
 
-    /// 🎯 ENHANCED: Calculate cache hit rate for performance monitoring
+    /// MARK: - ENHANCED: Calculate cache hit rate for performance monitoring
     private func calculateHitRate() -> Double {
         let totalRequests = cacheHitCount + cacheMissCount
         guard totalRequests > 0 else { return 0.0 }
         return Double(cacheHitCount) / Double(totalRequests) * 100.0
     }
 
-    /// 🎯 ENHANCED: Get comprehensive cache statistics for debugging
+    /// MARK: - ENHANCED: Get comprehensive cache statistics for debugging
     public func getCacheStatistics() -> (hits: Int, misses: Int, evictions: Int, hitRate: Double, currentSize: Int, maxSize: Int) {
         return (
             hits: cacheHitCount,
@@ -622,26 +622,26 @@ public class UnifiedPlayerManager: ObservableObject {
     
     // MARK: - Private Methods
 
-    /// 🎯 CRITICAL FIX: Validate asset is ready for player creation to prevent timeout issues
+    /// MARK: - CRITICAL FIX: Validate asset is ready for player creation to prevent timeout issues
     private func validateAssetForPlayerCreation(_ asset: AVAsset) async throws {
         self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🔍 Validating asset for player creation")
 
         let validationStart = Date()
 
         do {
-            // 🎯 CRITICAL: Check asset duration - this can fail if asset is not fully loaded
+            // MARK: - CRITICAL: Check asset duration - this can fail if asset is not fully loaded
             let duration = try await asset.load(.duration)
             guard duration.seconds > 0 else {
                 throw VideoProcessingError.assetCreationFailed
             }
 
-            // 🎯 CRITICAL: Check asset has playable tracks
+            // MARK: - CRITICAL: Check asset has playable tracks
             let tracks = try await asset.load(.tracks)
             guard !tracks.isEmpty else {
                 throw VideoProcessingError.assetCreationFailed
             }
 
-            // 🎯 ENHANCED: Check if tracks are media tracks with playable media
+            // MARK: - ENHANCED: Check if tracks are media tracks with playable media
             let mediaTracks = tracks.filter { track in
                 track.mediaType == .video || track.mediaType == .audio
             }
@@ -659,7 +659,7 @@ public class UnifiedPlayerManager: ObservableObject {
         }
     }
 
-    /// 🎯 CRITICAL FIX: Enhanced player readiness wait with improved concurrency and proper natural transformation
+    /// MARK: - CRITICAL FIX: Enhanced player readiness wait with improved concurrency and proper natural transformation
     private func waitForPlayerReady(_ player: UnifiedVideoPlayerViewModel) async throws {
         let timeout: TimeInterval = 10.0 // Reduced timeout for faster feedback
         let checkInterval: TimeInterval = 0.05 // More frequent checks
@@ -673,7 +673,7 @@ public class UnifiedPlayerManager: ObservableObject {
         var consecutiveReadyCount = 0
         let readyThreshold = 2 // Reduced threshold for faster completion
 
-        // 🎯 ENHANCED: Simple sequential monitoring with timeout
+        // MARK: - ENHANCED: Simple sequential monitoring with timeout
         while true {
             let elapsed = Date().timeIntervalSince(startTime)
 
@@ -682,7 +682,7 @@ public class UnifiedPlayerManager: ObservableObject {
                 throw VideoProcessingError.readinessTimeout
             }
 
-            // 🎯 ENHANCED: Check player ready state with multiple validation layers
+            // MARK: - ENHANCED: Check player ready state with multiple validation layers
             let isReady = await player.isPlayerReady
 
             if isReady {
@@ -694,7 +694,7 @@ public class UnifiedPlayerManager: ObservableObject {
                     let totalTime = Date().timeIntervalSince(startTime)
                     self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: 🎉 Player STABLY ready after \(String(format: "%.3f", totalTime))s")
 
-                    // 🎯 CRITICAL: Quick asset validation
+                    // MARK: - CRITICAL: Quick asset validation
                     await validatePlayerItem(player)
 
                     self.logger.info("🎬 UNIFIED_PLAYER_MANAGER: ✅ Enhanced player readiness monitoring completed successfully")
@@ -709,7 +709,7 @@ public class UnifiedPlayerManager: ObservableObject {
 
             lastKnownReadyState = isReady
 
-            // 🎯 ENHANCED: Dynamic backoff with reduced intervals for faster response
+            // MARK: - ENHANCED: Dynamic backoff with reduced intervals for faster response
             let sleepTime = currentBackoff
             try await Task.sleep(nanoseconds: UInt64(sleepTime * 1_000_000_000))
             currentBackoff = min(currentBackoff * 1.2, maxBackoff)
@@ -720,7 +720,7 @@ public class UnifiedPlayerManager: ObservableObject {
         }
     }
 
-    /// 🎯 ENHANCED: Quick asset validation helper
+    /// MARK: - ENHANCED: Quick asset validation helper
     private func validatePlayerItem(_ player: UnifiedVideoPlayerViewModel) async {
         guard let playerItem = player.avPlayer?.currentItem else {
             self.logger.error("🎬 UNIFIED_PLAYER_MANAGER: ❌ Player item is nil during validation")

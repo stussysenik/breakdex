@@ -40,6 +40,7 @@ public struct CustomVideoPlayerView: View {
     }
 
     // MARK: - Animation State Management
+    // MARK: - FUNC
     private func updateAnimationState(eventType: String, duration: Double, animationState: Binding<VideoPlayerAnimationState>, diagnosticLogger: DiagnosticLoggingHelper, observableWrapper: ObservableVideoPlayerWrapper) {
         let now = Date()
         let currentMemory = diagnosticLogger.getMemoryInfo().used
@@ -170,7 +171,7 @@ public struct CustomVideoPlayerView: View {
                             }
                         }
                         .fullScreenCover(isPresented: $showFullscreen) {
-                            // 🎯 DEFENSIVE CHECK: Ensure player is available for fullscreen
+                            // MARK: - DEFENSIVE CHECK: Ensure player is available for fullscreen
                             if let player = observableWrapper.avPlayer {
                                 FullscreenVideoPlayer(player: player, isPresented: $showFullscreen)
                             } else {
@@ -204,7 +205,7 @@ public struct CustomVideoPlayerView: View {
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: RenderStart: representable", metadata: nil)
                             logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🔄 AVPlayerViewRepresentable task started (Instance #\(Self.playerViewInstanceCount), Recompute #\(Self.viewRecomputeCount))", metadata: nil)
 
-                            // 🎯 DEFENSIVE CHECK: Early return if player becomes nil due to race condition
+                            // MARK: - DEFENSIVE CHECK: Early return if player becomes nil due to race condition
                             guard let player = observableWrapper.avPlayer else {
                                 logger.warning("🎬 CUSTOM_VIDEO_PLAYER: ⚠️ Player became nil during render task - possible race condition detected", metadata: nil)
                                 diagnosticLogger.logWarning("Video render task skipped - player not available", metadata: [
@@ -360,7 +361,7 @@ public struct CustomVideoPlayerView: View {
             isViewReady = true
             logger.info("🎬 CUSTOM_VIDEO_PLAYER: ViewReady: onAppear", metadata: nil)
 
-            // 🎯 CRITICAL FIX: Only start playback if shouldAutoplay is true
+            // MARK: - CRITICAL FIX: Only start playback if shouldAutoplay is true
             // This prevents race conditions in naming view where video should not autoplay
             if shouldAutoplay {
                 logger.info("🎬 CUSTOM_VIDEO_PLAYER: 🎬 Starting autoplay (shouldAutoplay: true)", metadata: nil)
@@ -478,7 +479,7 @@ public struct CustomVideoPlayerView: View {
     }
     
     // MARK: - Helper Methods
-    
+    // MARK: - FUNC
     /// Get the state as a string for type-erased comparison
     private func getStateAsString() -> String {
         return observableWrapper.stateString
@@ -487,6 +488,7 @@ public struct CustomVideoPlayerView: View {
     /// ✅ REMOVED: getPlayerFromState helper function - no longer needed
     /// The viewModel is now the single source of truth, so we access player directly from viewModel.avPlayer
     
+    // MARK: - FUNC
     /// Extract the error message from the state if available
     private func getErrorMessage() -> String? {
         if let unifiedState = observableWrapper.state as? UnifiedVideoPlayerViewModel.State,
@@ -495,12 +497,12 @@ public struct CustomVideoPlayerView: View {
         }
         return nil
     }
-    
+    // MARK: - FUNC
     /// Extract the loading progress from the state if available
     private func getLoadingProgress() -> Double? {
         return observableWrapper.loadingProgress
     }
-    
+    // MARK: - FUNC
     private func logViewState() {
         // This function is for debugging state changes
         diagnosticLogger.logDebug("🔄 State change detected", metadata: [
@@ -554,13 +556,13 @@ public struct CustomVideoPlayerView: View {
             logMemoryUsage(context: "render_error")
         }
     }
-    
+    // MARK: - FUNC
     private func getCPUUsage() -> Double? {
         // Simplified CPU usage measurement for logging - returns nil for now
         // TODO: Implement proper CPU measurement if needed for production logging
         return nil
     }
-    
+    // MARK: - FUNC
     private func logMemoryUsage(context: String) {
         // Use DiagnosticLoggingHelper for comprehensive resource monitoring
         let memoryInfo = diagnosticLogger.getMemoryInfo()
@@ -695,6 +697,7 @@ public struct CustomVideoPlayerView: View {
     }
 
     // MARK: - Animation Diagnostics
+    // MARK: - FUNC
     public func getAnimationDiagnostics() -> [String: String] {
         return [
             "total_body_evaluations": "\(animationState.bodyEvaluationCount)",
@@ -718,7 +721,7 @@ class ObservableVideoPlayerWrapper: ObservableObject {
     @Published var isPlayerReady: Bool = false
     @Published var shouldPlay: Bool = false
     @Published var loadingProgress: Double? = nil
-    @Published var playerItem: AVPlayerItem? = nil // 🎯 CRITICAL FIX: Track player item for state synchronization
+    @Published var playerItem: AVPlayerItem? = nil // MARK: - CRITICAL FIX: Track player item for state synchronization
 
     private var _viewModel: any VideoPlayerViewModelProtocol
     private let logger = AppContainer.shared.logger
@@ -740,8 +743,9 @@ class ObservableVideoPlayerWrapper: ObservableObject {
         return self._viewModel
     }
 
-    /// 🎯 CRITICAL FIX: Enhanced startPlayback method with idempotency protection
+    /// MARK: - CRITICAL FIX: Enhanced startPlayback method with idempotency protection
     /// Prevents multiple redundant calls that could cause race conditions
+    // MARK: - FUNC
     func startPlayback() {
         // Check if we've already started playback to prevent redundant calls
         guard !hasStartedPlayback else {
@@ -767,7 +771,8 @@ class ObservableVideoPlayerWrapper: ObservableObject {
         hasStartedPlayback = true
     }
 
-    /// 🎯 CRITICAL FIX: Reset playback flag for reuse in different contexts
+    /// MARK: - CRITICAL FIX: Reset playback flag for reuse in different contexts
+    // MARK: - FUNC
     func resetPlaybackFlag() {
         logger.info("🎬 OBSERVABLE_WRAPPER: 🔄 Resetting playback flag for reuse", metadata: [
             "previous_state": "\(hasStartedPlayback)"
@@ -798,7 +803,7 @@ class ObservableVideoPlayerWrapper: ObservableObject {
     }
     
     // MARK: - Focused Observation Setup
-    
+    // MARK: - FUNC
     private func setupObservation() {
         // Use timer-based observation for rapidly changing properties
         // Increased interval to reduce logging frequency and prevent rate limiting
@@ -816,7 +821,7 @@ class ObservableVideoPlayerWrapper: ObservableObject {
         let newIsPlayerReady = _viewModel.isPlayerReady
         let newShouldPlay = _viewModel.shouldPlay
         let newLoadingProgress = getLoadingProgress()
-        let newPlayerItem = _viewModel.avPlayer?.currentItem // 🎯 CRITICAL FIX: Track player item changes
+        let newPlayerItem = _viewModel.avPlayer?.currentItem // MARK: - CRITICAL FIX: Track player item changes
 
         // Only update if values changed to prevent unnecessary publishes
         if stateString != newStateString {
@@ -835,7 +840,7 @@ class ObservableVideoPlayerWrapper: ObservableObject {
             loadingProgress = newLoadingProgress
         }
 
-        // 🎯 CRITICAL FIX: Update player item if it changed - this triggers SwiftUI view updates
+        // MARK: - CRITICAL FIX: Update player item if it changed - this triggers SwiftUI view updates
         if playerItem !== newPlayerItem {
             logger.info("🎬 OBSERVABLE_WRAPPER: 🔄 Player item changed - updating published property", metadata: [
                 "previous_item_exists": "\(playerItem != nil)",
@@ -847,7 +852,7 @@ class ObservableVideoPlayerWrapper: ObservableObject {
     }
     
     // MARK: - Helper Methods
-    
+    // MARK: - FUNC
     private func getStateString() -> String {
         if let state = _viewModel.state as? UnifiedVideoPlayerViewModel.State {
             switch state {
@@ -861,7 +866,7 @@ class ObservableVideoPlayerWrapper: ObservableObject {
         }
         return "unknown"
     }
-
+    // MARK: - FUNC
     private func getLoadingProgress() -> Double? {
         let state = _viewModel.state
         let stateString = String(describing: state)
@@ -926,45 +931,46 @@ private class FullscreenPlayerWrapper: VideoPlayerViewModelProtocol {
     func startPlayback() {
         _player.play()
     }
-
+    // MARK: - FUNC
     func pausePlayback() {
         _player.pause()
     }
-
+    // MARK: - FUNC
     func loadVideo(from source: VideoSource, quarterTurns: Int) async throws {
         // No-op for fullscreen wrapper
     }
-
+    // MARK: - FUNC
     func setRotation(_ quarterTurns: Int) {
         // No-op for fullscreen wrapper
     }
-
+    // MARK: - FUNC
     func pauseForTrimming() {
         _player.pause()
     }
-
+    // MARK: - FUNC
     func resumeAfterTrimming() {
         // No-op for fullscreen wrapper
     }
-
+    // MARK: - FUNC
     func waitForReady() async throws {
         // No-op for fullscreen wrapper
     }
-
+    // MARK: - FUNC
     func seek(to time: CMTime) {
         _player.seek(to: time)
     }
-
+    // MARK: - FUNC
     func teardown() {
         // Minimal cleanup for fullscreen mode
         pausePlayback()
     }
 
     // MARK: - Equatable and Hashable Conformance
+    // MARK: - FUNC
     static func == (lhs: FullscreenPlayerWrapper, rhs: FullscreenPlayerWrapper) -> Bool {
         return lhs._player == rhs._player
     }
-
+    // MARK: - FUNC
     func hash(into hasher: inout Hasher) {
         hasher.combine(_player)
     }

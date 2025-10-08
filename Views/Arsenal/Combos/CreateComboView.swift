@@ -18,7 +18,7 @@ struct CreateComboView: View {
     @State private var showErrorMessage = false
     @State private var successMessage = ""
     @State private var errorMessage = ""
-    @State private var currentPlayer: AVPlayer? // 🎯 ADD: State for the async player
+    @State private var currentPlayer: AVPlayer? // MARK: - ADD: State for the async player
 
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "🚀 CREATE_COMBO_VIEW")
     
@@ -33,7 +33,7 @@ struct CreateComboView: View {
             .padding(.vertical, 40)
             .padding(.horizontal, 20)
             
-            // 🎯 FIX: Asynchronous Video Player Section
+            // MARK: - FIX: Asynchronous Video Player Section
             if let activeMove = activeMove {
                 ZStack {
                     if let player = currentPlayer {
@@ -83,7 +83,7 @@ struct CreateComboView: View {
                     .font(.ibmPlexMono(size: 18, weight: .bold))
                     .foregroundColor(.textPrimary)
                 
-                // 🎯 FIX: Use the upgraded, unified ComboTimelineView
+                // MARK: - FIX: Use the upgraded, unified ComboTimelineView
                 ComboTimelineView(moves: comboMoves, activeIndex: $activeNodeIndex) { index in
                     logger.info("🚀 CREATE_COMBO_VIEW: Delete button tapped for move at index \(index)")
                     // Deletion logic
@@ -155,7 +155,7 @@ struct CreateComboView: View {
     private func saveCombo(name: String) {
         logger.info("🚀 CREATE_COMBO_VIEW: Starting combo save process for '\(name)' with \(comboMoves.count) moves")
 
-        // 🎯 NEW: Validate combo name uniqueness (case-insensitive)
+        // MARK: - NEW: Validate combo name uniqueness (case-insensitive)
         logger.info("🚀 CREATE_COMBO_VIEW: 🔍 Validating combo name uniqueness")
         let fetchRequest: NSFetchRequest<Combo> = Combo.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name CONTAINS[cd] %@", name)

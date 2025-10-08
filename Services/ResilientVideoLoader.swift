@@ -204,6 +204,7 @@ public class ResilientVideoLoader: ObservableObject {
     ///   - options: Video request options
     ///   - progress: Progress callback for loading updates
     /// - Returns: AVAsset if successful
+    // MARK: - FUNC
     public func loadVideoAsset(
         phAsset: PHAsset,
         options: PHVideoRequestOptions? = nil,
@@ -269,7 +270,7 @@ public class ResilientVideoLoader: ObservableObject {
             throw error
         }
     }
-
+    // MARK: - FUNC
     /// Cancel current loading operation
     public func cancelLoading() {
         let operationId = pausedOperation?.operationId ?? correlationId
@@ -290,7 +291,7 @@ public class ResilientVideoLoader: ObservableObject {
     }
 
     // MARK: - Private Implementation
-
+    // MARK: - FUNC
     private func setupNetworkMonitoring() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor in
@@ -303,7 +304,7 @@ public class ResilientVideoLoader: ObservableObject {
             logger.info("🛡️ RESILIENT_VIDEO_LOADER: 🌐 Network monitoring started")
         }
     }
-
+    // MARK: - FUNC
     private func handleNetworkPathUpdate(_ path: NWPath) {
         let newNetworkState = path.status == .satisfied
         let newConnectionType = determineConnectionType(path)
@@ -332,7 +333,7 @@ public class ResilientVideoLoader: ObservableObject {
             }
         }
     }
-
+    // MARK: - FUNC
     private func handleNetworkLost() async {
         guard isLoading && pausedOperation == nil else { return }
 
@@ -351,7 +352,7 @@ public class ResilientVideoLoader: ObservableObject {
 
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ⏳ Waiting for network restoration")
     }
-
+    // MARK: - FUNC
     private func handleNetworkRestored() async {
         guard networkLostDuringLoading, let operation = pausedOperation else { return }
 
@@ -372,7 +373,7 @@ public class ResilientVideoLoader: ObservableObject {
             logger.error("🛡️ RESILIENT_VIDEO_LOADER: ❌ Failed to resume loading: \(error.localizedDescription)")
         }
     }
-
+    // MARK: - FUNC
     private func attemptVideoLoad(
         phAsset: PHAsset,
         options: PHVideoRequestOptions,
@@ -419,7 +420,7 @@ public class ResilientVideoLoader: ObservableObject {
             }
         }
     }
-
+    // MARK: - FUNC
     private func performResilientAVAssetRequest(
         operation: ResilientOperation,
         progress: @escaping @MainActor (Double, String) -> Void
@@ -483,7 +484,7 @@ public class ResilientVideoLoader: ObservableObject {
             throw ResilientVideoLoaderError.assetUnavailable(operationId: operation.operationId, underlyingError: error)
         }
     }
-
+    // MARK: - FUNC
     private func handleAVAssetResponse(
         avAsset: AVAsset?,
         audioMix: AVAudioMix?,
@@ -509,7 +510,7 @@ public class ResilientVideoLoader: ObservableObject {
             continuation.resume(throwing: ResilientVideoLoaderError.invalidAsset(operationId: operation.operationId, reason: "AVAsset is nil"))
         }
     }
-
+    // MARK: - FUNC
     private func retryVideoLoad(operation: ResilientOperation) async throws -> AVAsset {
         let retryDelay = calculateRetryDelay(attempt: currentAttempt)
 
@@ -532,14 +533,14 @@ public class ResilientVideoLoader: ObservableObject {
             self.logger.debug("🛡️ RESILIENT_VIDEO_LOADER: 📊 Retry progress: \(Int(progress * 100))%")
         }
     }
-
+    // MARK: - FUNC
     private func calculateRetryDelay(attempt: Int) -> TimeInterval {
         let delay = Self.baseRetryDelay * pow(2.0, Double(attempt - 1))
         return min(delay, Self.maxRetryDelay)
     }
 
     // MARK: - Validation Methods
-
+    // MARK: - FUNC
     private func validateNetworkConnectivity() -> Bool {
         guard isNetworkAvailable else {
             logger.error("🛡️ RESILIENT_VIDEO_LOADER: ❌ Network validation failed - No connection available")
@@ -549,7 +550,7 @@ public class ResilientVideoLoader: ObservableObject {
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ✅ Network validation passed - \(self.networkConnectionType.displayName) available")
         return true
     }
-
+    // MARK: - FUNC
     private func validatePhotoLibraryAccess() -> Bool {
         let authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
 
@@ -561,7 +562,7 @@ public class ResilientVideoLoader: ObservableObject {
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ✅ Photo library access authorized")
         return true
     }
-
+    // MARK: - FUNC
     private func createDefaultOptions(correlationId: String) -> PHVideoRequestOptions {
         let options = PHVideoRequestOptions()
         options.version = .original
@@ -586,7 +587,7 @@ public class ResilientVideoLoader: ObservableObject {
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 SRP_COMPLIANT: Progress handler publishes to Combine publisher only")
         return options
     }
-
+    // MARK: - FUNC
     private func handleDownloadProgress(
         _ progress: Double,
         correlationId: String,
@@ -628,7 +629,7 @@ public class ResilientVideoLoader: ObservableObject {
     }
 
     // MARK: - Helper Methods
-
+    // MARK: - FUNC
     private func determineConnectionType(_ path: NWPath) -> NetworkConnectionType {
         if path.usesInterfaceType(.wifi) {
             return .wifi
@@ -644,7 +645,7 @@ public class ResilientVideoLoader: ObservableObject {
             return .unknown
         }
     }
-
+    // MARK: - FUNC
     private func determineNetworkQuality(_ path: NWPath) -> NetworkQuality {
         guard path.status == .satisfied else {
             return .poor
@@ -660,11 +661,11 @@ public class ResilientVideoLoader: ObservableObject {
             return .fair
         }
     }
-
+    // MARK: - FUNC
     private func generateCorrelationId() -> String {
         return "RVL-\(UUID().uuidString.prefix(8).uppercased())"
     }
-
+    // MARK: - FUNC
     private func cleanup() {
         currentLoadingTask?.cancel()
         timeoutTask?.cancel()
@@ -681,7 +682,7 @@ public class ResilientVideoLoader: ObservableObject {
 
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: 🧹 Cleanup completed")
     }
-
+    // MARK: - FUNC
     /// Send completion notification through progress publisher
     private func sendCompletion() {
         let completionProgress = VideoLoadingProgress(
@@ -692,7 +693,7 @@ public class ResilientVideoLoader: ObservableObject {
         progressSubject.send(completionProgress)
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ✅ COMPLETION_SENT: Published completion notification")
     }
-
+    // MARK: - FUNC
     /// Send error notification through progress publisher
     private func sendError(_ error: Error) {
         let errorProgress = VideoLoadingProgress(
@@ -725,7 +726,7 @@ extension ResilientVideoLoader {
             "maxRetries": Self.maxRetryAttempts
         ]
     }
-
+    // MARK: - FUNC
     /// Log comprehensive diagnostic information with enhanced progress flow analysis
     public func logDiagnostics() {
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 COMPREHENSIVE DIAGNOSTIC REPORT")

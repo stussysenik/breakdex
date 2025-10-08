@@ -23,7 +23,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
     let metadata: [AVMetadataItem]?
     let viewModel: any VideoPlayerViewModelProtocol
-    let playerItem: AVPlayerItem? // 🎯 CRITICAL FIX: Track player item for state synchronization
+    let playerItem: AVPlayerItem? // MARK: - CRITICAL FIX: Track player item for state synchronization
 
     init(metadata: [AVMetadataItem]? = nil, viewModel: any VideoPlayerViewModelProtocol, playerItem: AVPlayerItem?) {
         diagnosticLogger.startTiming("representable_initialization")
@@ -33,7 +33,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
         self.metadata = metadata
         self.viewModel = viewModel
-        self.playerItem = playerItem // 🎯 CRITICAL FIX: Assign player item for state synchronization
+        self.playerItem = playerItem // MARK: - CRITICAL FIX: Assign player item for state synchronization
 
         diagnosticLogger.logInfo("🎬 AVPlayerViewRepresentable initializing", metadata: [
             "metadata_provided": "\(metadata != nil)",
@@ -46,7 +46,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         logger.info("🎬 AV_PLAYER_VIEW: init called")
         logger.info("🎬 AV_PLAYER_VIEW: Using viewModel as single source of truth")
         logger.info("🎬 AV_PLAYER_VIEW: Metadata provided: \(metadata != nil)")
-        logger.info("🎬 AV_PLAYER_VIEW: PlayerItem provided: \(playerItem != nil)") // 🎯 CRITICAL FIX: Log player item status
+        logger.info("🎬 AV_PLAYER_VIEW: PlayerItem provided: \(playerItem != nil)") // MARK: - CRITICAL FIX: Log player item status
 
         if let player = viewModel.avPlayer {
             logger.info("🎬 AV_PLAYER_VIEW: AVPlayer status: \(player.status.rawValue)")
@@ -127,7 +127,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
         diagnosticLogger.startTiming("update_uiview")
         logger.info("🎬 AV_PLAYER_VIEW: updateUIView called (Race Condition Hardened)")
 
-        // 🎯 THE FIX: Make view a pure function of ViewModel state
+        // MARK: - THE FIX: Make view a pure function of ViewModel state
         // This prevents race conditions between SwiftUI rendering and AVPlayer's asynchronous item replacement
         if !viewModel.isPlayerReady {
             if uiView.playerLayer.player != nil {
@@ -290,7 +290,7 @@ struct AVPlayerViewRepresentable: UIViewRepresentable {
 
 
         deinit {
-            // 🎯 CRITICAL FIX: Removed unsafe DispatchQueue.main.async from deinit
+            // MARK: - CRITICAL FIX: Removed unsafe DispatchQueue.main.async from deinit
             // deinit runs on whatever thread the object is deallocated on
             // Using async operations in deinit is unsafe as 'self' may not exist when the block executes
             // All cleanup is now handled synchronously in dismantleUIView
@@ -323,14 +323,14 @@ extension AVPlayerViewRepresentable {
 
         logger.info("🎬 AV_PLAYER_VIEW: dismantleUIView called - Enhanced cleanup with KVO safety")
 
-        // 🎯 CRITICAL: Clear player reference safely before view deallocation
+        // MARK: - CRITICAL: Clear player reference safely before view deallocation
         // This prevents KVO notifications from being sent to deallocated objects
         if uiView.playerLayer.player != nil {
             diagnosticLogger.logDebug("🧹 Safely clearing player reference to prevent KVO race condition")
             uiView.playerLayer.player = nil
         }
 
-        // 🎯 CRITICAL: Ensure coordinator cleanup is complete before view destruction
+        // MARK: - CRITICAL: Ensure coordinator cleanup is complete before view destruction
         // The coordinator should be retained by the representable, not the view
         diagnosticLogger.logDebug("🔧 Verifying coordinator state before view destruction")
 

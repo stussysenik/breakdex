@@ -46,7 +46,7 @@ struct NameMoveViewUnified: View {
             return canSave
         } else {
             logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ DIAGNOSTIC - SaveReadiness is nil - validation may still be running")
-            // 🎯 CRITICAL FIX REMOVED: The temporary workaround has been removed since the underlying
+            // MARK: - CRITICAL FIX REMOVED: The temporary workaround has been removed since the underlying
             // state synchronization issue has been fixed in FlowStateManager.completeAssetLoading()
             // The button should remain disabled until proper validation completes successfully.
             return false
@@ -54,7 +54,7 @@ struct NameMoveViewUnified: View {
     }
 
     private var validationIssues: [SaveValidationIssue] {
-        // 🎯 DIAGNOSTIC: Enhanced validation issues with fallback
+        // MARK: - DIAGNOSTIC: Enhanced validation issues with fallback
         logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Getting validation issues...")
 
         if let saveReadiness = unifiedState.saveReadiness {
@@ -104,7 +104,7 @@ struct NameMoveViewUnified: View {
             )
         }
     }
-    
+    // MARK: - FUNC
     // MARK: - Main Content
     @ViewBuilder
     private func mainContent(with playerViewModel: UnifiedVideoPlayerViewModel) -> some View {
@@ -136,7 +136,7 @@ struct NameMoveViewUnified: View {
     }
     
     // MARK: - UI Components
-    
+    // MARK: - FUNC
     private func renderHeader() -> some View {
         HStack {
             Button(action: {
@@ -147,24 +147,14 @@ struct NameMoveViewUnified: View {
                     .foregroundColor(.white)
             }
             Spacer()
-//            Text("Name Your Move")
-//                .font(.headline)
-//                .foregroundColor(.white)
             Spacer()
-//            Button(action: {
-//                isShowingPreview = true
-//            }) {
-//                Text("Preview")
-//                    .font(.headline)
-//                    .foregroundColor(.blue)
-//            }
         }
         .padding()
     }
-    
+    // MARK: - FUNC
     private func renderVideoPreview(with playerViewModel: UnifiedVideoPlayerViewModel) -> some View {
         VStack(spacing: 8) {
-            // 🎯 ENHANCED: Video preview with inherited modifiers and WYSIWYG experience
+            // MARK: - ENHANCED: Video preview with inherited modifiers and WYSIWYG experience
             videoPreviewWithInheritedModifiers(playerViewModel: playerViewModel)
 
             // Enhanced video info with precise trim details
@@ -173,10 +163,11 @@ struct NameMoveViewUnified: View {
     }
 
     // MARK: - Enhanced Video Preview with Inherited Modifiers
+    // MARK: - FUNC
     @ViewBuilder
     private func videoPreviewWithInheritedModifiers(playerViewModel: UnifiedVideoPlayerViewModel) -> some View {
         VStack(spacing: 8) {
-            // 🎯 WYSIWYG VIDEO PREVIEW: Shows exactly what will be saved
+            // MARK: - WYSIWYG VIDEO PREVIEW: Shows exactly what will be saved
             ZStack {
                 // Video player container with rotation and trim modifiers baked in
                 CustomVideoPlayerView(viewModel: playerViewModel, shouldTeardownOnDisappear: false, shouldAutoplay: false)
@@ -424,6 +415,7 @@ struct NameMoveViewUnified: View {
     }
 
     // MARK: - Diagnostic Logging for Inherited Modifiers
+    // MARK: - FUNC
     private func logInheritedModifiers() {
         logger.info("🎬 NAME_MOVE_UNIFIED: 🎯 LOGGING INHERITED MODIFIERS")
         logger.info("🎬 NAME_MOVE_UNIFIED: ┌─ Rotation Inheritance")
@@ -465,18 +457,10 @@ struct NameMoveViewUnified: View {
         logger.info("🎬 NAME_MOVE_UNIFIED:     ├─ Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
         logger.info("🎬 NAME_MOVE_UNIFIED:     └─ Save readiness: \(unifiedState.saveReadiness != nil ? "validated" : "pending")")
     }
-    
+    // MARK: - FUNC
     private func renderNameInput() -> some View {
         VStack(spacing: 12) {
-//            Text("Move Name")
-//                .font(.ibmPlexMono(size: 16, weight: .medium))
-//                .foregroundColor(.white)
-//                .frame(maxWidth: .infinity, alignment: .leading)
-//                .padding(.horizontal)
-//                .accessibilityHidden(true)
-
             TextField("", text: $moveName, prompt: Text("Enter move name").foregroundColor(.gray.opacity(0.7)))
-//                .textFieldStyle(.squareBorder)
                 .font(.ibmPlexMono(size: 18))
                 .padding(.horizontal)
                 .onChange(of: moveName) { _, newValue in
@@ -510,7 +494,7 @@ struct NameMoveViewUnified: View {
             }
         }
     }
-    
+    // MARK: - FUNC
     private func renderActionButtons() -> some View {
         VStack(spacing: 16) {
             Button(action: {
@@ -612,7 +596,8 @@ struct NameMoveViewUnified: View {
     
     // MARK: - Utility Methods
 
-    // 🎯 DURATION FIX: Calculate trim duration with immediate fallbacks
+    // MARK: - DURATION FIX: Calculate trim duration with immediate fallbacks
+    // MARK: - FUNC
     private func calculateTrimDuration() -> String {
         let startTime = unifiedState.trimStartTime
         let endTime = unifiedState.trimEndTime
@@ -643,7 +628,7 @@ struct NameMoveViewUnified: View {
         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Duration calculated: \(formattedDuration)")
         return formattedDuration
     }
-
+    // MARK: - FUNC
     // Calculate duration from asset asynchronously
     private func calculateDurationFromAsset() async {
         guard let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel else {
@@ -666,7 +651,7 @@ struct NameMoveViewUnified: View {
     }
 
     // MARK: - Lifecycle Handlers
-
+    // MARK: - FUNC
     private func handleViewAppear() {
         logger.info("🎬 NAME_MOVE_UNIFIED: View appeared - player available: \(unifiedState.currentPlayerViewModel != nil)")
         logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Initial state - flowState: \(String(describing: unifiedState.flowState)), playerState: \(String(describing: unifiedState.playerState))")
@@ -674,17 +659,17 @@ struct NameMoveViewUnified: View {
 
         setupInitialState()
 
-        // 🎯 CRITICAL FIX: Integrate with state lifecycle hooks
+        // MARK: - CRITICAL FIX: Integrate with state lifecycle hooks
         // This ensures proper cleanup and prevents race conditions
         unifiedState.completeTransition()
 
-        // 🎯 CRITICAL FIX: Start save readiness monitoring for real-time validation
-        // 🎯 TIMING FIX: Add immediate validation to prevent button being stuck
+        // MARK: - CRITICAL FIX: Start save readiness monitoring for real-time validation
+        // MARK: - TIMING FIX: Add immediate validation to prevent button being stuck
         Task {
             logger.info("🎬 NAME_MOVE_UNIFIED: 🔧 DIAGNOSTIC - Starting save readiness monitoring...")
             unifiedState.startSaveReadinessMonitoring()
 
-            // 🎯 IMMEDIATE VALIDATION: Trigger immediate validation to populate saveReadiness
+            // MARK: - IMMEDIATE VALIDATION: Trigger immediate validation to populate saveReadiness
             logger.info("🎬 NAME_MOVE_UNIFIED: 🔧 DIAGNOSTIC - Triggering immediate validation...")
             let validation = await unifiedState.validateSaveReadiness()
             logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Immediate validation result: canSave=\(validation.canSave), issues=\(validation.issues.count)")
@@ -692,27 +677,27 @@ struct NameMoveViewUnified: View {
             logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Initial validation completed")
         }
 
-        // 🎯 CRITICAL FIX: Player is already pre-configured with trimmed asset
+        // MARK: - CRITICAL FIX: Player is already pre-configured with trimmed asset
         // No seek operation needed - AVComposition starts at CMTime.zero
         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ Player is pre-configured with trimmed asset. No seek needed.")
 
-        // 🎯 NEW: Calculate estimated file size
+        // MARK: - NEW: Calculate estimated file size
         Task {
             await calculateEstimatedFileSize()
         }
 
         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ State lifecycle integration completed")
     }
-
+    // MARK: - FUNC
     private func handleViewDisappear() {
         logger.info("🎬 NAME_MOVE_UNIFIED: View disappeared - preparing for transition")
 
-        // 🎯 CRITICAL FIX: Stop save readiness monitoring to prevent memory leaks
+        // MARK: - CRITICAL FIX: Stop save readiness monitoring to prevent memory leaks
         Task { @MainActor in
             unifiedState.stopSaveReadinessMonitoring()
         }
 
-        // 🎯 CRITICAL FIX: Prepare for transition with enhanced cleanup
+        // MARK: - CRITICAL FIX: Prepare for transition with enhanced cleanup
         Task { @MainActor in
             unifiedState.prepareForTransition()
         }
@@ -721,7 +706,7 @@ struct NameMoveViewUnified: View {
     }
 
     // MARK: - Action Handlers
-
+    // MARK: - FUNC
     private func setupInitialState() {
         // Initialize with current move name from unified state
         moveName = unifiedState.moveName
@@ -730,7 +715,7 @@ struct NameMoveViewUnified: View {
         // Log current state
         logger.info("🎬 NAME_MOVE_UNIFIED: Current state - move_name: '\(moveName)', player_available: \(unifiedState.currentPlayerViewModel != nil)")
     }
-    
+    // MARK: - FUNC
     private func handleBackButton() {
         logger.info("🎬 NAME_MOVE_UNIFIED: Back button tapped, initiating return to trimmer.")
 
@@ -744,7 +729,7 @@ struct NameMoveViewUnified: View {
             unifiedState.returnToTrimming?()
         }
     }
-    
+    // MARK: - FUNC
     private func handleCancel() {
         logger.info("🎬 NAME_MOVE_UNIFIED: Cancel button tapped")
         
@@ -754,7 +739,7 @@ struct NameMoveViewUnified: View {
             unifiedState.reset()
         }
     }
-    
+    // MARK: - FUNC
     private func handleSave() {
         logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Save button tapped!")
         logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Move name: '\(moveName)'")
@@ -773,19 +758,19 @@ struct NameMoveViewUnified: View {
 
         logger.info("🎬 NAME_MOVE_UNIFIED: ✅ DIAGNOSTIC - Basic validation passed - proceeding with save")
 
-        // 🎯 SAVE FIX: Trigger the FlowStateManager to proceed from naming to saving
+        // MARK: - SAVE FIX: Trigger the FlowStateManager to proceed from naming to saving
         // This follows the simplified 5-stage flow: naming -> saving -> success
         logger.info("🎬 NAME_MOVE_UNIFIED: 🔧 DIAGNOSTIC: Accessing flowStateManager with internal access level")
 
         Task {
-            // 🎯 ENHANCED DIAGNOSTICS: Log pre-save state
+            // MARK: - ENHANCED DIAGNOSTICS: Log pre-save state
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊 DIAGNOSTIC - Pre-save state check:")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - FlowStateManager available: \(unifiedState.flowStateManager != nil)")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Trim range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
             logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
 
-            // 🎯 FINAL VALIDATION: Double-check save readiness before proceeding
+            // MARK: - FINAL VALIDATION: Double-check save readiness before proceeding
             if let saveReadiness = unifiedState.saveReadiness {
                 logger.info("🎬 NAME_MOVE_UNIFIED: 🔍 DIAGNOSTIC - Final save readiness check: canSave=\(saveReadiness.canSave), issues=\(saveReadiness.issues.count)")
                 if !saveReadiness.canSave {
@@ -814,7 +799,7 @@ struct NameMoveViewUnified: View {
     }
     
     // MARK: - Utility Methods
-
+    // MARK: - FUNC
     // Format seconds to MM:SS format
     private func formatTime(_ seconds: TimeInterval) -> String {
         let totalSeconds = Int(seconds)
@@ -822,7 +807,7 @@ struct NameMoveViewUnified: View {
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", minutes, secs)
     }
-
+    // MARK: - FUNC
     // Calculate estimated file size based on duration and rotation
     private func calculateEstimatedFileSize() async {
         guard let playerViewModel = unifiedState.currentPlayerViewModel as? UnifiedVideoPlayerViewModel else {

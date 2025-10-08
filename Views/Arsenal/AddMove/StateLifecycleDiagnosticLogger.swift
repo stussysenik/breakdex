@@ -38,7 +38,7 @@ public struct StateLifecycleDiagnosticLogger {
         logger.info("🔍 STATE_LIFECYCLE: ├─ state_id: \(String(describing: stateId))")
         logger.info("🔍 STATE_LIFECYCLE: └─ flow_state: \(String(describing: state.flowState))")
 
-        // 🎯 CRITICAL VERIFICATION: This proves progress updates work even if views are recreated
+        // MARK: - CRITICAL VERIFICATION: This proves progress updates work even if views are recreated
         if progress > 0 {
             logger.info("🔍 STATE_LIFECYCLE: ✅ VIDEO_LOADING_FIX_VERIFIED: Progress updates work with persistent state")
         }

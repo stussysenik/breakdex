@@ -27,6 +27,7 @@ public protocol VideoPlayerViewModelProtocol: ObservableObject, Equatable, Hasha
     var currentTime: CMTime? { get }
     
     // MARK: - Public Methods
+    // MARK: - FUNC
     func loadVideo(from source: VideoSource, quarterTurns: Int) async throws
     func setRotation(_ quarterTurns: Int)
     func startPlayback()
@@ -39,11 +40,12 @@ public protocol VideoPlayerViewModelProtocol: ObservableObject, Equatable, Hasha
 
 // MARK: - Default Implementation for Equatable and Hashable
 public extension VideoPlayerViewModelProtocol {
+    // MARK: - FUNC
     static func == (lhs: Self, rhs: Self) -> Bool {
         // This will be overridden by the implementing classes
         return false
     }
-    
+    // MARK: - FUNC
     func hash(into hasher: inout Hasher) {
         // This will be overridden by the implementing classes
         hasher.combine(state)
