@@ -1,14 +1,9 @@
-//
-//  ComboMove+CoreDataProperties.swift
-//  BreakingFlashcards
-//
-//  Created by BreakDex Implementation
-//
-
-import Foundation
 import CoreData
+import Foundation
 
-extension ComboMove {
+// ComboMove+CoreDataProperties.swift
+
+extension ComboMove: Identifiable {
 
     @nonobjc public class func fetchRequest() -> NSFetchRequest<ComboMove> {
         return NSFetchRequest<ComboMove>(entityName: "ComboMove")

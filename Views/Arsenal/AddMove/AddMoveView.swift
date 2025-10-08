@@ -1,28 +1,64 @@
-import SwiftUI
 import Foundation
+import SwiftUI
 
-// MARK: - Tab Selection Enum
+// AddMoveView.swift
 
-// Modified wrapper view - now uses AddMoveContainer for proper state routing
+// MARK: - CLASS
 struct AddMoveView: View {
     @Binding var selectedTab: TabSelection
+    @ObservedObject var unifiedState: AddMoveUnifiedState
 
-    // 🎯 CRITICAL FIX: Save completion handler for navigation
     private let onSaveSuccess: ((Move) -> Void)?
 
+    // MARK: - BODY
     var body: some View {
-        AddMoveContainer(selectedTab: $selectedTab, onSaveSuccess: onSaveSuccess)
+        AddMoveContainer(
+            selectedTab: $selectedTab,
+            unifiedState: unifiedState,
+            onSaveSuccess: onSaveSuccess
+        )
     }
 
-    // Custom initializer with default value for selectedTab
-    init(selectedTab: Binding<TabSelection> = .constant(.add), onSaveSuccess: ((Move) -> Void)? = nil) {
+    init(
+        selectedTab: Binding<TabSelection> = .constant(.add),
+        unifiedState: AddMoveUnifiedState,
+        onSaveSuccess: ((Move) -> Void)? = nil
+    ) {
         self._selectedTab = selectedTab
+        self.unifiedState = unifiedState
         self.onSaveSuccess = onSaveSuccess
     }
 }
 
+// MARK: - SWIFT UI PREVIEW
 #Preview {
-    AddMoveView()
-        .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
-        .preferredColorScheme(.dark)
+    struct PreviewWrapper: View {
+        @State private var selectedTab: TabSelection = .add
+
+        private var unifiedState: AddMoveUnifiedState {
+            let appContainer = AppContainer.shared
+            return AddMoveUnifiedState(
+                unifiedPlayerManager: UnifiedPlayerManager(),
+                modernVideoLoadingService: appContainer
+                    .modernVideoLoadingService,
+                videoProcessingPipeline: appContainer.videoProcessingPipeline,
+                timecodeCalculationService: TimecodeCalculationService(),
+                persistentContainer: PersistenceController(inMemory: true)
+                    .container,
+                movePersistenceService: appContainer.movePersistenceService,
+                appContainer: appContainer
+            )
+        }
+
+        var body: some View {
+            AddMoveView(selectedTab: $selectedTab, unifiedState: unifiedState)
+                .environment(
+                    \.managedObjectContext,
+                    PersistenceController(inMemory: true).container.viewContext
+                )
+                .preferredColorScheme(.dark)
+        }
+    }
+
+    return PreviewWrapper()
 }

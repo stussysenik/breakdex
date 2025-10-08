@@ -1,23 +1,17 @@
-//
-//  Review+CoreDataClass.swift
-//  BreakingFlashcards
-//
-//  Created by BreakDex Implementation
-//
-
-import Foundation
 import CoreData
+import Foundation
+
+// Review+CoreDataClass.swift
 
 @objc(Review)
-public class Review: NSManagedObject, Identifiable {
+public class Review: NSManagedObject {
 
-    public var id: NSManagedObjectID { objectID }
 }
 
 // MARK: - Hashable Conformance
 extension Review {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(objectID)
+    public override var hash: Int {
+        return objectID.hashValue
     }
 
     public static func == (lhs: Review, rhs: Review) -> Bool {

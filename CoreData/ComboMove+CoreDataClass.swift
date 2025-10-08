@@ -1,34 +1,21 @@
-//
-//  ComboMove+CoreDataClass.swift
-//  BreakingFlashcards
-//
-//  Created by BreakDex Implementation
-//
-
-import Foundation
 import CoreData
+import Foundation
+
+// ComboMove+CoreDataClass.swift
 
 @objc(
     ComboMove
 )
-public class ComboMove: NSManagedObject, Identifiable {
-    
-    public var id: NSManagedObjectID {
-        objectID
-    }
+public class ComboMove: NSManagedObject {
+
 }
 
 // MARK: - Hashable Conformance
 extension ComboMove {
-    public func hash(
-        into hasher: inout Hasher
-    ) {
-        hasher
-            .combine(
-                objectID
-            )
+    public override var hash: Int {
+        return objectID.hashValue
     }
-    
+
     public static func == (
         lhs: ComboMove,
         rhs: ComboMove

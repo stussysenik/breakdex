@@ -1,14 +1,9 @@
-//
-//  Review+CoreDataProperties.swift
-//  BreakingFlashcards
-//
-//  Created by BreakDex Implementation
-//
-
-import Foundation
 import CoreData
+import Foundation
 
-extension Review {
+// Review+CoreDataProperties.swift
+
+extension Review: Identifiable {
 
     @nonobjc public class func fetchRequest() -> NSFetchRequest<Review> {
         return NSFetchRequest<Review>(entityName: "Review")

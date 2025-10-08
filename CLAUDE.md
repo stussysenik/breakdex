@@ -194,7 +194,7 @@ xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=i
 
 # Clean build verification
 xcodebuild clean -project breakdex.xcodeproj
-xcodebuild -project BreakingFlashcards.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
 
 # Build with specific simulator (useful when multiple simulators available)
 xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,id=86FFC075-5BA3-4125-9534-C9F8B525E72A' build
