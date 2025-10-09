@@ -427,7 +427,7 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
     /// Complete the save flow successfully
     private func completeSaveFlow(result: SaveFlowResult) async {
         logger.info("💾 SAVE_PROGRESS: 🏆 Save flow completed successfully [\(result.correlationId)]")
-        logger.info("💾 SAVE_PROGRESS: 📊 Final metrics:")
+        logger.info("💾 SAVE_PROGRESS:  Final metrics:")
         logger.info("💾 SAVE_PROGRESS:   - Total duration: \(String(format: "%.2f", result.totalDuration))s")
         logger.info("💾 SAVE_PROGRESS:   - Video loading: \(String(format: "%.2f", result.saveMetrics.videoLoadingTime))s")
         logger.info("💾 SAVE_PROGRESS:   - Video processing: \(String(format: "%.2f", result.saveMetrics.videoProcessingTime ?? 0.0))s")
@@ -464,7 +464,7 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
             errorMessage = state.isProcessing ? nil : errorMessage
         }
 
-        logger.info("💾 SAVE_PROGRESS: 📊 State updated: \(state.description) [\(self.currentCorrelationId!)]")
+        logger.info("💾 SAVE_PROGRESS:  State updated: \(state.description) [\(self.currentCorrelationId!)]")
     }
 
     // MARK: - Progress Subscriptions
@@ -506,7 +506,7 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
         let saveProgress = progress.progress
         await updateState(.loadingVideo(progress: saveProgress))
 
-        logger.info("💾 SAVE_PROGRESS: 📊 Video loading progress [\(progress.correlationId)]: \(Int(saveProgress * 100))% - \(progress.message)")
+        logger.info("💾 SAVE_PROGRESS:  Video loading progress [\(progress.correlationId)]: \(Int(saveProgress * 100))% - \(progress.message)")
     }
 
     /// Handle video processing progress
@@ -516,7 +516,7 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
         let saveProgress = progress.progress
         await updateState(.processingVideo(progress: saveProgress))
 
-        logger.info("💾 SAVE_PROGRESS: 📊 Video processing progress [\(progress.correlationId)]: \(Int(saveProgress * 100))% - \(progress.message)")
+        logger.info("💾 SAVE_PROGRESS:  Video processing progress [\(progress.correlationId)]: \(Int(saveProgress * 100))% - \(progress.message)")
     }
 
     /// Handle photos persistence progress
@@ -526,7 +526,7 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
         let saveProgress = progress.progressValue
         await updateState(.savingToLibrary(progress: saveProgress))
 
-        logger.info("💾 SAVE_PROGRESS: 📊 Photos persistence progress [\(progress.correlationId)]: \(Int(saveProgress * 100))% - \(progress.message)")
+        logger.info("💾 SAVE_PROGRESS:  Photos persistence progress [\(progress.correlationId)]: \(Int(saveProgress * 100))% - \(progress.message)")
     }
 
     // MARK: - Deinitialization

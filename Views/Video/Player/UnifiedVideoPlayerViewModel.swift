@@ -797,7 +797,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
 
                 Task { @MainActor in
                     self.logger.info(
-                        "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📊 Player item status update",
+                        "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)):  Player item status update",
                         metadata: [
                             "correlationId": self.correlationId ?? "unknown",
                             "status": "\(status.rawValue)",
@@ -837,7 +837,7 @@ public final class UnifiedVideoPlayerViewModel: VideoPlayerViewModelProtocol,
                     {
                         let duration = CMTimeGetSeconds(firstRange.duration)
                         self.logger.info(
-                            "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)): 📊 Buffer update - \(rangeCount) ranges, first: \(String(format: "%.2f", duration))s",
+                            "🎬 UNIFIED_VIDEO_PLAYER_VIEWMODEL (\(self.mode)):  Buffer update - \(rangeCount) ranges, first: \(String(format: "%.2f", duration))s",
                             metadata: [
                                 "correlationId": self.correlationId ?? "unknown"
                             ]

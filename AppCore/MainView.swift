@@ -30,12 +30,12 @@ struct MainView: View {
 
     init() {
 
-        logger.info(
-            "🎬 MAIN_VIEW: 🏗️ INITIALIZING - Creating stable AddMoveUnifiedState instance"
-        )
-        logger.info(
-            "🎬 MAIN_VIEW: 🎯 DUELING_MACHINES_FIX - Single state object prevents multiple state machines"
-        )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🏗️ INITIALIZING - Creating stable AddMoveUnifiedState instance"
+        // )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🎯 DUELING_MACHINES_FIX - Single state object prevents multiple state machines"
+        // )
 
         let appContainer = AppContainer.shared
         let persistentState = AddMoveUnifiedState(
@@ -50,13 +50,13 @@ struct MainView: View {
 
         self._unifiedState = StateObject(wrappedValue: persistentState)
 
-        logger.info(
-            "🎬 MAIN_VIEW: ✅ STABLE_STATE_OBJECT_CREATED - AddMoveUnifiedState will persist for app lifetime"
-        )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: ✅ STABLE_STATE_OBJECT_CREATED - AddMoveUnifiedState will persist for app lifetime"
+        // )
         let stateIdString = String(
             describing: ObjectIdentifier(persistentState)
         )
-        logger.info("🎬 MAIN_VIEW: 🎯 PERSISTENT_STATE_ID: \(stateIdString)")
+        // logger.info("🎬 MAIN_VIEW: 🎯 PERSISTENT_STATE_ID: \(stateIdString)")
     }
 
     var body: some View {
@@ -86,9 +86,9 @@ struct MainView: View {
                         unifiedState: unifiedState,
                         onSaveSuccess: { savedMove in
 
-                            logger.info(
-                                "🎬 MAIN_VIEW: Save success callback triggered for move: \(savedMove.name ?? "unnamed")"
-                            )
+                            // logger.info(
+                            //     "🎬 MAIN_VIEW: Save success callback triggered for move: \(savedMove.name ?? "unnamed")"
+                            // )
 
                             self.savedMove = savedMove
                             self.navigateToMoveDetail = true
@@ -96,26 +96,26 @@ struct MainView: View {
                             DispatchQueue.main.asyncAfter(
                                 deadline: .now() + 0.1
                             ) {
-                                logger.info(
-                                    "🎬 MAIN_VIEW: Switching to Arsenal tab for navigation context"
-                                )
+                                // logger.info(
+                                //     "🎬 MAIN_VIEW: Switching to Arsenal tab for navigation context"
+                                // )
                                 selectedTab = .arsenal
 
                                 DispatchQueue.main.asyncAfter(
                                     deadline: .now() + 0.2
                                 ) {
-                                    logger.info(
-                                        "🎬 MAIN_VIEW: Executing navigation to MoveDetailView for move: \(savedMove.name ?? "unnamed")"
-                                    )
+                                    // logger.info(
+                                    //     "🎬 MAIN_VIEW: Executing navigation to MoveDetailView for move: \(savedMove.name ?? "unnamed")"
+                                    // )
                                     self.navigateToMoveDetail = true
                                 }
                             }
                         },
                         onLoadingStateChanged: { isLoading, unifiedState in
 
-                            logger.info(
-                                "🎬 MAIN_VIEW: 🔄 Loading state changed - isLoading: \(isLoading)"
-                            )
+                            // logger.info(
+                            //     "🎬 MAIN_VIEW: 🔄 Loading state changed - isLoading: \(isLoading)"
+                            // )
                             handleLoadingStateChange(
                                 isLoading: isLoading,
                                 unifiedState: unifiedState
@@ -170,14 +170,14 @@ struct MainView: View {
                     if let move = savedMove {
                         MoveDetailView(move: move)
                             .onAppear {
-                                logger.info(
-                                    "🎬 MAIN_VIEW: MoveDetailView appeared successfully for move: \(move.name ?? "unnamed")"
-                                )
+                                // logger.info(
+                                //     "🎬 MAIN_VIEW: MoveDetailView appeared successfully for move: \(move.name ?? "unnamed")"
+                                // )
                             }
                             .onDisappear {
-                                logger.info(
-                                    "🎬 MAIN_VIEW: MoveDetailView disappeared - resetting navigation state"
-                                )
+                                // logger.info(
+                                //     "🎬 MAIN_VIEW: MoveDetailView disappeared - resetting navigation state"
+                                // )
                                 self.navigateToMoveDetail = false
                                 self.savedMove = nil
                             }
@@ -215,25 +215,25 @@ struct MainView: View {
             let stateIdString = String(
                 describing: ObjectIdentifier(unifiedState)
             )
-            logger.info(
-                "🎬 MAIN_VIEW: 🚀 MainView appeared - DEFINITIVE DUELING MACHINES FIX ACTIVE"
-            )
-            logger.info(
-                "🎬 MAIN_VIEW: 🎯 SINGLE_STATE_OBJECT: AddMoveUnifiedState created once at MainView level"
-            )
-            logger.info("🎬 MAIN_VIEW: 🎯 PERSISTENT_STATE_ID: \(stateIdString)")
-            logger.info(
-                "🎬 MAIN_VIEW: 📊 CATEGORICAL_LIMIT_VIOLATION_FIXED: Only one state machine exists"
-            )
-            logger.info(
-                "🎬 MAIN_VIEW: ✅ VIDEO_LOADING_FIX: Progress updates will survive view recreations"
-            )
-            logger.info(
-                "🎬 MAIN_VIEW: ✅ STUCK_AT_0_PERCENT_BUG_FIXED: State lifecycle independent of view lifecycle"
-            )
-            logger.info(
-                "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY: LoadingOverlayView elevated to MainView level"
-            )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: 🚀 MainView appeared - DEFINITIVE DUELING MACHINES FIX ACTIVE"
+            // )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: 🎯 SINGLE_STATE_OBJECT: AddMoveUnifiedState created once at MainView level"
+            // )
+            // // logger.info("🎬 MAIN_VIEW: 🎯 PERSISTENT_STATE_ID: \(stateIdString)")
+            // logger.info(
+            //     "🎬 MAIN_VIEW:  CATEGORICAL_LIMIT_VIOLATION_FIXED: Only one state machine exists"
+            // )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: ✅ VIDEO_LOADING_FIX: Progress updates will survive view recreations"
+            // )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: ✅ STUCK_AT_0_PERCENT_BUG_FIXED: State lifecycle independent of view lifecycle"
+            // )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY: LoadingOverlayView elevated to MainView level"
+            // )
         }
     }
 
@@ -245,21 +245,21 @@ struct MainView: View {
         let sessionId = UUID().uuidString.prefix(8)
         let timestamp = Date()
 
-        logger.info(
-            "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] Loading state change at \(timestamp)"
-        )
-        logger.info(
-            "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] ├─ isLoading: \(isLoading)"
-        )
-        logger.info(
-            "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] ├─ hasUnifiedState: \(unifiedState != nil)"
-        )
-        logger.info(
-            "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] ├─ currentTab: \(selectedTab.rawValue)"
-        )
-        logger.info(
-            "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] └─ overlayVisible: \(showLoadingOverlay)"
-        )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] Loading state change at \(timestamp)"
+        // )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] ├─ isLoading: \(isLoading)"
+        // )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] ├─ hasUnifiedState: \(unifiedState != nil)"
+        // )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] ├─ currentTab: \(selectedTab.rawValue)"
+        // )
+        // logger.info(
+        //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] └─ overlayVisible: \(showLoadingOverlay)"
+        // )
 
         let shouldShowOverlay = isLoading && unifiedState != nil
 
@@ -267,29 +267,29 @@ struct MainView: View {
             || (shouldShowOverlay
                 && loadingOverlayUnifiedState !== unifiedState)
         {
-            logger.info(
-                "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] State update required"
-            )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: 🔄 APP_WIDE_OVERLAY [\(sessionId)] State update required"
+            // )
 
             withAnimation(.easeInOut(duration: 0.3)) {
                 showLoadingOverlay = shouldShowOverlay
                 loadingOverlayUnifiedState = unifiedState
             }
 
-            logger.info(
-                "🎬 MAIN_VIEW: ✅ APP_WIDE_OVERLAY [\(sessionId)] Updated - showLoadingOverlay: \(showLoadingOverlay)"
-            )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: ✅ APP_WIDE_OVERLAY [\(sessionId)] Updated - showLoadingOverlay: \(showLoadingOverlay)"
+            // )
         } else {
-            logger.info(
-                "🎬 MAIN_VIEW: ⏭️ APP_WIDE_OVERLAY [\(sessionId)] No update needed - state unchanged"
-            )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: ⏭️ APP_WIDE_OVERLAY [\(sessionId)] No update needed - state unchanged"
+            // )
         }
 
         if !isLoading && !showLoadingOverlay {
             loadingOverlayUnifiedState = nil
-            logger.info(
-                "🎬 MAIN_VIEW: 🧹 APP_WIDE_OVERLAY [\(sessionId)] Cleared unifiedState reference for memory management"
-            )
+            // logger.info(
+            //     "🎬 MAIN_VIEW: 🧹 APP_WIDE_OVERLAY [\(sessionId)] Cleared unifiedState reference for memory management"
+            // )
         }
     }
 }

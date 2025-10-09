@@ -75,7 +75,7 @@ public struct MemoryHelper {
         let info = getDetailedMemoryInfo()
         let logger = Logger(subsystem: "com.breakingflashcards", category: "MemoryHelper")
 
-        logger.info("📊 Memory State [\(context)]: Used=\(String(format: "%.1f", info.used))MB, Available=\(String(format: "%.1f", info.available))MB, Total=\(String(format: "%.1f", info.total))MB, Percentage=\(String(format: "%.1f", info.percentage))%")
+        logger.info(" Memory State [\(context)]: Used=\(String(format: "%.1f", info.used))MB, Available=\(String(format: "%.1f", info.available))MB, Total=\(String(format: "%.1f", info.total))MB, Percentage=\(String(format: "%.1f", info.percentage))%")
     }
 
     /// Checks for memory warnings and returns true if memory pressure is high

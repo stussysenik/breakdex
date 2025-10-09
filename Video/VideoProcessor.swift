@@ -80,7 +80,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
 
     // MARK: - Initialization
     public init() {
-        logger.info("🎬 VIDEO_PROCESSOR: 🚀 Initialized - Enhanced video processor with VideoTransformBuilder integration")
+        // logger.info("🎬 VIDEO_PROCESSOR: 🚀 Initialized - Enhanced video processor with VideoTransformBuilder integration")
     }
 
     // MARK: - Public API
@@ -90,7 +90,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
         let correlationId = generateCorrelationId()
         currentCorrelationId = correlationId
 
-        logger.info("🎬 VIDEO_PROCESSOR: 🚀 Processing video - rotation: \(rotationQuarterTurns), trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s [\(correlationId)]")
+        // logger.info("🎬 VIDEO_PROCESSOR: 🚀 Processing video - rotation: \(rotationQuarterTurns), trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s [\(correlationId)]")
         await reportProgress(.initializing, progress: 0.0, message: "Starting video processing", correlationId: correlationId)
 
         let startTime = Date()
@@ -147,7 +147,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
         let correlationId = generateCorrelationId()
         currentCorrelationId = correlationId
 
-        logger.info("🎬 VIDEO_PROCESSOR: 🎯 Creating player item - rotation: \(rotationQuarterTurns), trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s [\(correlationId)]")
+        // logger.info("🎬 VIDEO_PROCESSOR: 🎯 Creating player item - rotation: \(rotationQuarterTurns), trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s [\(correlationId)]")
 
         let startTime = Date()
 
@@ -161,7 +161,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
             )
 
             let duration = Date().timeIntervalSince(startTime)
-            logger.info("🎬 VIDEO_PROCESSOR: ✅ Player item created [\(correlationId)] - Duration: \(String(format: "%.2f", duration))s")
+            // logger.info("🎬 VIDEO_PROCESSOR: ✅ Player item created [\(correlationId)] - Duration: \(String(format: "%.2f", duration))s")
 
             return playerItem
 
@@ -176,7 +176,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
         let correlationId = generateCorrelationId()
         currentCorrelationId = correlationId
 
-        logger.info("🎬 VIDEO_PROCESSOR: 💾 Exporting video - rotation: \(rotationQuarterTurns), trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s [\(correlationId)]")
+        // logger.info("🎬 VIDEO_PROCESSOR: 💾 Exporting video - rotation: \(rotationQuarterTurns), trim: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s [\(correlationId)]")
 
         let startTime = Date()
 
@@ -190,7 +190,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
             )
 
             let duration = Date().timeIntervalSince(startTime)
-            logger.info("🎬 VIDEO_PROCESSOR: ✅ Video exported [\(correlationId)] - Duration: \(String(format: "%.2f", duration))s")
+            // logger.info("🎬 VIDEO_PROCESSOR: ✅ Video exported [\(correlationId)] - Duration: \(String(format: "%.2f", duration))s")
 
             return exportedURL
 
@@ -204,7 +204,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
 
     /// Validate composition and return frame count
     private func validateComposition(_ composition: AVMutableComposition, correlationId: String) async throws -> Int {
-        logger.info("🎬 VIDEO_PROCESSOR: 🔍 Validating composition [\(correlationId)]")
+        // logger.info("🎬 VIDEO_PROCESSOR: 🔍 Validating composition [\(correlationId)]")
 
         let validationStart = Date()
 
@@ -228,7 +228,7 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
 
         operationTimings["validation"] = Date().timeIntervalSince(validationStart)
 
-        logger.info("🎬 VIDEO_PROCESSOR: ✅ Composition validated [\(correlationId)] - Duration: \(duration.seconds)s, Frame count: \(frameCount)")
+        // logger.info("🎬 VIDEO_PROCESSOR: ✅ Composition validated [\(correlationId)] - Duration: \(duration.seconds)s, Frame count: \(frameCount)")
 
         return frameCount
     }
@@ -261,24 +261,24 @@ public final class EnhancedVideoProcessor: EnhancedVideoProcessorProtocol {
 
         let progressPercentage = Int(progress.progress * 100)
         let phaseString = "\(phase)"
-        logger.info("🎬 VIDEO_PROCESSOR: 📊 Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(message)")
+        // logger.info("🎬 VIDEO_PROCESSOR:  Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(message)")
     }
 
     /// Log completion
     private func logCompletion(result: VideoProcessingResult, startTime: Date) async {
         let duration = Date().timeIntervalSince(startTime)
 
-        logger.info("🎬 VIDEO_PROCESSOR: 🏆 COMPLETION [\(result.correlationId)]:")
-        logger.info("🎬 VIDEO_PROCESSOR:   - Processing time: \(String(format: "%.2f", duration))s")
-        logger.info("🎬 VIDEO_PROCESSOR:   - Applied rotation: \(result.appliedRotation) quarter turns")
-        logger.info("🎬 VIDEO_PROCESSOR:   - Frame count: \(result.frameCount)")
-        logger.info("🎬 VIDEO_PROCESSOR:   - Has video composition: \(result.videoComposition != nil)")
+        // logger.info("🎬 VIDEO_PROCESSOR: 🏆 COMPLETION [\(result.correlationId)]:")
+        // logger.info("🎬 VIDEO_PROCESSOR:   - Processing time: \(String(format: "%.2f", duration))s")
+        // logger.info("🎬 VIDEO_PROCESSOR:   - Applied rotation: \(result.appliedRotation) quarter turns")
+        // logger.info("🎬 VIDEO_PROCESSOR:   - Frame count: \(result.frameCount)")
+        // logger.info("🎬 VIDEO_PROCESSOR:   - Has video composition: \(result.videoComposition != nil)")
         do {
             let assetDuration = try await result.asset.load(.duration).seconds
-            logger.info("🎬 VIDEO_PROCESSOR:   - Asset duration: \(assetDuration)s")
+            // logger.info("🎬 VIDEO_PROCESSOR:   - Asset duration: \(assetDuration)s")
         } catch {
             logger.error("🎬 VIDEO_PROCESSOR: ❌ Failed to load asset duration: \(error)")
-            logger.info("🎬 VIDEO_PROCESSOR:   - Asset duration: unavailable")
+            // logger.info("🎬 VIDEO_PROCESSOR:   - Asset duration: unavailable")
         }
 
         // Log memory state

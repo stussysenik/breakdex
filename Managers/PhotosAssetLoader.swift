@@ -41,7 +41,7 @@ class PhotosAssetLoader {
         logger.info("🖼️ PHOTOS_ASSET_LOADER: 🔍 Fetching PHAsset with identifier: \(identifier)")
 
         let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Fetch result count: \(fetchResult.count)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Fetch result count: \(fetchResult.count)")
 
         guard let asset = fetchResult.firstObject else {
             logger.error("🖼️ PHOTOS_ASSET_LOADER: ❌ No PHAsset found for identifier: \(identifier)")
@@ -50,8 +50,8 @@ class PhotosAssetLoader {
         }
 
         logger.info("🖼️ PHOTOS_ASSET_LOADER: ✅ PHAsset found successfully")
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Asset media type: \(asset.mediaType.rawValue)")
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Asset duration: \(asset.duration)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Asset media type: \(asset.mediaType.rawValue)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Asset duration: \(asset.duration)")
 
         // Step 4: Configure video request options for optimal performance
         let options = PHVideoRequestOptions()
@@ -80,9 +80,9 @@ class PhotosAssetLoader {
 
                     if let avAsset = avAsset {
                         Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER: ✅ AVAsset received successfully")
-                        Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER: 📊 AVAsset duration: \(CMTimeGetSeconds(avAsset.duration))")
-                        Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER: 📊 AVAsset is playable: \(avAsset.isPlayable)")
-                        Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER: 📊 AVAsset tracks: \(avAsset.tracks.count)")
+                        Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER:  AVAsset duration: \(CMTimeGetSeconds(avAsset.duration))")
+                        Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER:  AVAsset is playable: \(avAsset.isPlayable)")
+                        Logger(subsystem: "com.breakingflashcards", category: "🖼️ PHOTOS_ASSET_LOADER").info("🖼️ PHOTOS_ASSET_LOADER:  AVAsset tracks: \(avAsset.tracks.count)")
                         continuation.resume(returning: avAsset)
                     } else {
                         let error = NSError(
@@ -120,7 +120,7 @@ class PhotosAssetLoader {
         let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
         let exists = fetchResult.count > 0
 
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Asset exists check result: \(exists)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Asset exists check result: \(exists)")
         return exists
     }
 
@@ -128,7 +128,7 @@ class PhotosAssetLoader {
     /// - Parameter identifier: The Photos library local identifier string
     /// - Returns: Dictionary containing asset metadata if found
     static func getAssetMetadata(for identifier: String) -> [String: Any]? {
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Getting metadata for asset: \(identifier)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Getting metadata for asset: \(identifier)")
 
         guard !identifier.isEmpty else {
             logger.error("🖼️ PHOTOS_ASSET_LOADER: ❌ Empty identifier provided for metadata request")
@@ -153,9 +153,9 @@ class PhotosAssetLoader {
         ]
 
         logger.info("🖼️ PHOTOS_ASSET_LOADER: ✅ Metadata retrieved successfully")
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Media type: \(asset.mediaType.rawValue)")
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Duration: \(asset.duration)")
-        logger.info("🖼️ PHOTOS_ASSET_LOADER: 📊 Dimensions: \(asset.pixelWidth)x\(asset.pixelHeight)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Media type: \(asset.mediaType.rawValue)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Duration: \(asset.duration)")
+        logger.info("🖼️ PHOTOS_ASSET_LOADER:  Dimensions: \(asset.pixelWidth)x\(asset.pixelHeight)")
 
         return metadata
     }

@@ -62,44 +62,44 @@ enum LoggerType {
 }
 
 // MARK: - Console Logger
-final class ConsoleLogger: AppLogger {
-    private let logger = Logger(subsystem: "com.breakingflashcards", category: "ConsoleLogger")
-    
-    func info(_ message: String, metadata: [String: Any]?) {
-        logger.info("ℹ️ \(message)")
-        if let metadata = metadata {
-            logger.debug("📋 Metadata: \(metadata)")
-        }
-    }
-    
-    func warning(_ message: String, metadata: [String: Any]?) {
-        logger.warning("⚠️ \(message)")
-        if let metadata = metadata {
-            logger.debug("📋 Metadata: \(metadata)")
-        }
-    }
-    
-    func error(_ message: String, metadata: [String: Any]?) {
-        logger.error("❌ \(message)")
-        if let metadata = metadata {
-            logger.debug("📋 Metadata: \(metadata)")
-        }
-    }
-    
-    func critical(_ message: String, metadata: [String: Any]?) {
-        logger.critical("🚨 \(message)")
-        if let metadata = metadata {
-            logger.debug("📋 Metadata: \(metadata)")
-        }
-    }
-    
-    func debug(_ message: String, metadata: [String: Any]?) {
-        logger.debug("🐛 \(message)")
-        if let metadata = metadata {
-            logger.debug("📋 Metadata: \(metadata)")
-        }
-    }
-}
+//final class ConsoleLogger: AppLogger {
+//    private let logger = Logger(subsystem: "com.breakingflashcards", category: "ConsoleLogger")
+//    
+//     func info(_ message: String, metadata: [String: Any]?) {
+//         logger.info("ℹ️ \(message)")
+//         if let metadata = metadata {
+//             logger.debug("📋 Metadata: \(metadata)")
+//         }
+//     }
+//    
+//    func warning(_ message: String, metadata: [String: Any]?) {
+//        logger.warning("⚠️ \(message)")
+//        if let metadata = metadata {
+//            logger.debug("📋 Metadata: \(metadata)")
+//        }
+//    }
+//    
+//    func error(_ message: String, metadata: [String: Any]?) {
+//        logger.error("❌ \(message)")
+//        if let metadata = metadata {
+//            logger.debug("📋 Metadata: \(metadata)")
+//        }
+//    }
+//    
+//    func critical(_ message: String, metadata: [String: Any]?) {
+//        logger.critical("🚨 \(message)")
+//        if let metadata = metadata {
+//            logger.debug("📋 Metadata: \(metadata)")
+//        }
+//    }
+//    
+//    func debug(_ message: String, metadata: [String: Any]?) {
+//        logger.debug("🐛 \(message)")
+//        if let metadata = metadata {
+//            logger.debug("📋 Metadata: \(metadata)")
+//        }
+//    }
+//}
 
 // MARK: - File Logger
 final class FileLogger: AppLogger {
@@ -162,30 +162,30 @@ final class FileLogger: AppLogger {
 }
 
 // MARK: - Analytics Logger
-final class AnalyticsLogger: AppLogger {
-    private let logger = Logger(subsystem: "com.breakingflashcards", category: "AnalyticsLogger")
+//final class AnalyticsLogger: AppLogger {
+//    private let logger = Logger(subsystem: "com.breakingflashcards", category: "AnalyticsLogger")
     
-    func info(_ message: String, metadata: [String: Any]?) {
-        // In a real implementation, this would send events to analytics service
-        logger.info("📊 Analytics Event: \(message)")
-    }
+    // func info(_ message: String, metadata: [String: Any]?) {
+    //     In a real implementation, this would send events to analytics service
+    //     logger.info(" Analytics Event: \(message)")
+    // }
     
-    func warning(_ message: String, metadata: [String: Any]?) {
-        logger.warning("📊 Analytics Warning: \(message)")
-    }
+    // func warning(_ message: String, metadata: [String: Any]?) {
+    //     logger.warning(" Analytics Warning: \(message)")
+    // }
     
-    func error(_ message: String, metadata: [String: Any]?) {
-        logger.error("📊 Analytics Error: \(message)")
-    }
+    // func error(_ message: String, metadata: [String: Any]?) {
+    //     logger.error(" Analytics Error: \(message)")
+    // }
     
-    func critical(_ message: String, metadata: [String: Any]?) {
-        logger.critical("📊 Analytics Critical: \(message)")
-    }
+    // func critical(_ message: String, metadata: [String: Any]?) {
+    //     logger.critical(" Analytics Critical: \(message)")
+    // }
     
-    func debug(_ message: String, metadata: [String: Any]?) {
-        logger.debug("📊 Analytics Debug: \(message)")
-    }
-}
+    // func debug(_ message: String, metadata: [String: Any]?) {
+    //     logger.debug(" Analytics Debug: \(message)")
+    // }
+//}
 
 // MARK: - Composite Logger
 final class CompositeLogger: AppLogger {
@@ -332,7 +332,7 @@ final class MemoryLoggerImpl: MemoryLogger {
         case .error:
             logger.error("❌ \(logMessage)")
         case .event:
-            logger.info("📊 \(logMessage)")
+            logger.info(" \(logMessage)")
         case .cacheClearing:
             logger.info("🧹 \(logMessage)")
         case .assetCleanup:

@@ -113,7 +113,7 @@ struct ImportExportView: View {
                             VStack(alignment: .leading) {
                                 Text("✅ Imported: \(results.successfullyImported)")
                                 Text("🔄 Needs re-linking: \(results.needsRelinking)")
-                                Text("📊 Total: \(results.totalMoves)")
+                                Text(" Total: \(results.totalMoves)")
                             }
                             .font(.ibmPlexMono(size: 12))
                         }

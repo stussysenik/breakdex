@@ -2,6 +2,8 @@ import Photos
 import OSLog
 import Foundation
 
+// AlbumManager.swift
+
 // MARK: - Category Theory Analysis
 /*
  CATEGORY THEORY ANALYSIS: Atomic Album Operations
@@ -113,28 +115,29 @@ private actor AlbumCache {
     private var lastValidationDate: Date?
     private var isCreating = false
 
+    // MARK: - FUNC
     func getCachedAlbum() -> PHAssetCollection? {
         return cachedAlbum
     }
-
+    // MARK: - FUNC
     func setCachedAlbum(_ album: PHAssetCollection) {
         cachedAlbum = album
         lastValidationDate = Date()
     }
-
+    // MARK: - FUNC
     func invalidateCache() {
         cachedAlbum = nil
         lastValidationDate = nil
     }
-
+    // MARK: - FUNC
     func setIsCreating(_ creating: Bool) {
         isCreating = creating
     }
-
+    // MARK: - FUNC
     func getIsCreating() -> Bool {
         return isCreating
     }
-
+    // MARK: - FUNC
     func isValidCache(maxAge: TimeInterval = 300) -> Bool {
         guard let validationDate = lastValidationDate else { return false }
         return Date().timeIntervalSince(validationDate) < maxAge
@@ -164,18 +167,18 @@ final class AlbumManager {
     private static let operationTimeout: TimeInterval = 30.0
 
     private init() {
-        logger.info("📸 ALBUM_MANAGER: 🚀 Initialized with atomic album handling")
+        // logger.info("📸 ALBUM_MANAGER: 🚀 Initialized with atomic album handling")
     }
 
     // MARK: - Public API
-
-    /// MARK: - CRITICAL: Atomic setup with comprehensive error handling and retry logic
+    // MARK: - FUNC
+    // MARK: - CRITICAL: Atomic setup with comprehensive error handling and retry logic
     func setup() async throws {
         let correlationId = generateCorrelationId()
-        logger.info("📸 ALBUM_MANAGER: 🚀 Starting atomic setup [\(correlationId)]")
+        // logger.info("📸 ALBUM_MANAGER: 🚀 Starting atomic setup [\(correlationId)]")
 
         guard !isReady else {
-            logger.info("📸 ALBUM_MANAGER: ✅ Already initialized - skipping setup [\(correlationId)]")
+            // logger.info("📸 ALBUM_MANAGER: ✅ Already initialized - skipping setup [\(correlationId)]")
             return
         }
 
@@ -204,7 +207,7 @@ final class AlbumManager {
             )
             recordMetrics(metrics)
 
-            logger.info("📸 ALBUM_MANAGER: ✅ Atomic setup completed successfully [\(correlationId)]")
+            // logger.info("📸 ALBUM_MANAGER: ✅ Atomic setup completed successfully [\(correlationId)]")
 
         } catch {
             isReady = false
@@ -222,11 +225,11 @@ final class AlbumManager {
             throw error
         }
     }
-
-    /// MARK: - CRITICAL: Get BreakDex album with atomic find-or-create guarantee
+    // MARK: - FUNC
+    // MARK: - CRITICAL: Get BreakDex album with atomic find-or-create guarantee
     func getBreakDexAlbum() async throws -> PHAssetCollection {
         let correlationId = generateCorrelationId()
-        logger.info("📸 ALBUM_MANAGER: 📚 Requesting BreakDex album [\(correlationId)]")
+        // logger.info("📸 ALBUM_MANAGER: 📚 Requesting BreakDex album [\(correlationId)]")
 
         let startTime = Date()
 
@@ -245,7 +248,7 @@ final class AlbumManager {
                 )
                 recordMetrics(metrics)
 
-                logger.info("📸 ALBUM_MANAGER: ✅ Cache hit - returning cached album [\(correlationId)]")
+                // logger.info("📸 ALBUM_MANAGER: ✅ Cache hit - returning cached album [\(correlationId)]")
                 return cachedAlbum
             }
 
@@ -285,23 +288,23 @@ final class AlbumManager {
             throw error
         }
     }
-
-    /// Gets the current operation metrics for monitoring
+    // MARK: - FUNC
+    // Gets the current operation metrics for monitoring
     func getOperationMetrics() -> [AlbumOperationMetrics] {
         return operationMetrics
     }
-
-    /// Clears old metrics (keep last 100 operations)
+    // MARK: - FUNC
+    // Clears old metrics (keep last 100 operations)
     func clearOldMetrics() {
         if operationMetrics.count > 100 {
             operationMetrics = Array(operationMetrics.suffix(100))
         }
     }
-
-    /// Resets the album manager state (useful for testing or when permissions change)
+    // MARK: - FUNC
+    // Resets the album manager state (useful for testing or when permissions change)
     func reset() {
         let correlationId = generateCorrelationId()
-        logger.info("📸 ALBUM_MANAGER: 🔄 Resetting album manager state [\(correlationId)]")
+        // logger.info("📸 ALBUM_MANAGER: 🔄 Resetting album manager state [\(correlationId)]")
 
         atomicOperationLock.lock()
         defer { atomicOperationLock.unlock() }
@@ -316,8 +319,8 @@ final class AlbumManager {
     }
 
 // MARK: - Private Atomic Operations
-
-    /// MARK: - CRITICAL: Atomic find-or-create operation that prevents race conditions
+    // MARK: - FUNC
+    // MARK: - CRITICAL: Atomic find-or-create operation that prevents race conditions
     private func findOrCreateBreakDexAlbum(correlationId: String) async throws -> PHAssetCollection {
         logger.info("📸 ALBUM_MANAGER: 🔒 Executing atomic find-or-create operation [\(correlationId)]")
 
@@ -354,7 +357,7 @@ final class AlbumManager {
 
         do {
             // First, try to find existing album
-            logger.info("📸 ALBUM_MANAGER: 🔍 Searching for existing BreakDex album [\(correlationId)]")
+            // logger.info("📸 ALBUM_MANAGER: 🔍 Searching for existing BreakDex album [\(correlationId)]")
 
             if let existingAlbum = await findExistingAlbum(correlationId: correlationId) {
                 await albumCache.setCachedAlbum(existingAlbum)
@@ -367,7 +370,7 @@ final class AlbumManager {
                 )
                 recordMetrics(metrics)
 
-                logger.info("📸 ALBUM_MANAGER: ✅ Found existing BreakDex album [\(correlationId)]: \(existingAlbum.localIdentifier)")
+                // logger.info("📸 ALBUM_MANAGER: ✅ Found existing BreakDex album [\(correlationId)]: \(existingAlbum.localIdentifier)")
                 return existingAlbum
             }
 
@@ -385,7 +388,7 @@ final class AlbumManager {
             )
             recordMetrics(metrics)
 
-            logger.info("📸 ALBUM_MANAGER: ✅ Created new BreakDex album [\(correlationId)]: \(newAlbum.localIdentifier)")
+            // logger.info("📸 ALBUM_MANAGER: ✅ Created new BreakDex album [\(correlationId)]: \(newAlbum.localIdentifier)")
             return newAlbum
 
         } catch {
@@ -403,10 +406,10 @@ final class AlbumManager {
             throw error
         }
     }
-
-    /// Searches for existing BreakDex album with precise query
+    // MARK: - FUNC
+    // Searches for existing BreakDex album with precise query
     private func findExistingAlbum(correlationId: String) async -> PHAssetCollection? {
-        logger.info("📸 ALBUM_MANAGER: 🔍 Executing precise album search [\(correlationId)]")
+        // logger.info("📸 ALBUM_MANAGER: 🔍 Executing precise album search [\(correlationId)]")
 
         let fetchOptions = PHFetchOptions()
         fetchOptions.predicate = NSPredicate(format: "title = %@", Self.albumName)
@@ -432,15 +435,15 @@ final class AlbumManager {
         )
 
         if verificationCollections.firstObject != nil {
-            logger.info("📸 ALBUM_MANAGER: ✅ Verified existing BreakDex album [\(correlationId)]: \(existingAlbum.localIdentifier)")
+            // logger.info("📸 ALBUM_MANAGER: ✅ Verified existing BreakDex album [\(correlationId)]: \(existingAlbum.localIdentifier)")
             return existingAlbum
         } else {
             logger.warning("📸 ALBUM_MANAGER: ⚠️ Found album but verification failed [\(correlationId)]")
             return nil
         }
     }
-
-    /// Creates new BreakDex album with comprehensive retry logic
+    // MARK: - FUNC
+    // Creates new BreakDex album with comprehensive retry logic
     private func createBreakDexAlbumWithRetry(correlationId: String) async throws -> PHAssetCollection {
         logger.info("📸 ALBUM_MANAGER: ➕ Starting album creation with retry logic [\(correlationId)]")
 
@@ -455,7 +458,7 @@ final class AlbumManager {
                     throw AlbumManagerError.invalidAlbumState
                 }
 
-                logger.info("📸 ALBUM_MANAGER: ✅ Album creation successful on attempt \(attempt) [\(correlationId)]")
+                // logger.info("📸 ALBUM_MANAGER: ✅ Album creation successful on attempt \(attempt) [\(correlationId)]")
                 return album
 
             } catch {
@@ -499,7 +502,7 @@ final class AlbumManager {
             throw AlbumManagerError.albumCreationFailed(NSError(domain: "AlbumManager", code: -3, userInfo: nil))
         }
 
-        logger.info("📸 ALBUM_MANAGER: ✅ Successfully created and fetched BreakDex album [\(correlationId)]: \(createdAlbum.localIdentifier)")
+        // logger.info("📸 ALBUM_MANAGER: ✅ Successfully created and fetched BreakDex album [\(correlationId)]: \(createdAlbum.localIdentifier)")
         return createdAlbum
     }
 
@@ -523,14 +526,14 @@ final class AlbumManager {
 
     /// Waits for album creation to complete (with timeout)
     private func waitForAlbumCreation(correlationId: String) async throws {
-        logger.info("📸 ALBUM_MANAGER: ⏳ Waiting for album creation [\(correlationId)]")
+        // logger.info("📸 ALBUM_MANAGER: ⏳ Waiting for album creation [\(correlationId)]")
 
         let timeout: TimeInterval = Self.operationTimeout
         let startTime = Date()
 
         while Date().timeIntervalSince(startTime) < timeout {
             if !(await albumCache.getIsCreating()) {
-                logger.info("📸 ALBUM_MANAGER: ✅ Album creation wait completed [\(correlationId)]")
+                // logger.info("📸 ALBUM_MANAGER: ✅ Album creation wait completed [\(correlationId)]")
                 return
             }
 
@@ -540,8 +543,8 @@ final class AlbumManager {
         logger.error("📸 ALBUM_MANAGER: ⏰ Timeout waiting for album creation [\(correlationId)]")
         throw AlbumManagerError.transientFailure(NSError(domain: "AlbumManager", code: -4, userInfo: [NSLocalizedDescriptionKey: "Timeout waiting for album creation"]))
     }
-
-    /// Checks photo library authorization status with enhanced logging
+    // MARK: - FUNC
+    // Checks photo library authorization status with enhanced logging
     private func checkPhotoLibraryAuthorization(correlationId: String) async -> PHAuthorizationStatus {
         logger.info("📸 ALBUM_MANAGER: 🔐 Checking photo library authorization [\(correlationId)]")
 
@@ -551,17 +554,17 @@ final class AlbumManager {
             }
         }
 
-        logger.info("📸 ALBUM_MANAGER: 📋 Authorization status [\(correlationId)]: \(String(describing: status))")
+        // logger.info("📸 ALBUM_MANAGER: 📋 Authorization status [\(correlationId)]: \(String(describing: status))")
         return status
     }
-
-    /// Generates unique correlation ID for tracking
+    // MARK: - FUNC
+    // Generates unique correlation ID for tracking
     private func generateCorrelationId() -> String {
         correlationIdGenerator += 1
         return "ALBUM_\(correlationIdGenerator)_\(Date().timeIntervalSince1970)"
     }
-
-    /// Records operation metrics
+    // MARK: - FUNC
+    // Records operation metrics
     private func recordMetrics(_ metrics: AlbumOperationMetrics) {
         operationQueue.async { [weak self] in
             self?.operationMetrics.append(metrics)

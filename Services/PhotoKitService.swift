@@ -46,7 +46,7 @@ enum PhotoKitError: Error, LocalizedError {
 /// Atomic PhotoKit service for saving videos to albums
 /// MARK: - SINGLETON: Ensures centralized photo operations with atomic guarantees
 /// 🔄 ATOMIC: Prevents empty albums by performing album creation and asset addition in same transaction
-/// 📊 LOGGING: Comprehensive OSLog integration for debugging
+///  LOGGING: Comprehensive OSLog integration for debugging
 @MainActor
 class PhotoKitService {
 
@@ -88,7 +88,7 @@ class PhotoKitService {
         let localIdentifier = try await atomicSaveVideo(fileURL: fileURL, albumName: albumName)
 
         logger.info("📸 PHOTOKIT: ✅ Atomic save completed successfully")
-        logger.info("📸 PHOTOKIT: 📊 Asset identifier: \(localIdentifier)")
+        logger.info("📸 PHOTOKIT:  Asset identifier: \(localIdentifier)")
 
         return localIdentifier
     }

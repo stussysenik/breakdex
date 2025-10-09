@@ -608,7 +608,7 @@ struct NameMoveViewUnified: View {
         if endTime > startTime {
             // Normal case: we have valid trim range
             duration = endTime - startTime
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊 Valid trim range: \(String(format: "%.2f", startTime))s - \(String(format: "%.2f", endTime))s = \(String(format: "%.2f", duration))s")
+            logger.info("🎬 NAME_MOVE_UNIFIED:  Valid trim range: \(String(format: "%.2f", startTime))s - \(String(format: "%.2f", endTime))s = \(String(format: "%.2f", duration))s")
         } else if startTime > 0 {
             // Fallback 1: if end time is invalid but start time is valid, assume 3 second clip
             duration = 3.0
@@ -643,7 +643,7 @@ struct NameMoveViewUnified: View {
             let durationInSeconds = assetDuration.seconds
 
             // Update the duration calculation with asset duration
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊 Asset duration loaded: \(String(format: "%.2f", durationInSeconds))s")
+            logger.info("🎬 NAME_MOVE_UNIFIED:  Asset duration loaded: \(String(format: "%.2f", durationInSeconds))s")
 
         } catch {
             logger.warning("🎬 NAME_MOVE_UNIFIED: ⚠️ Failed to load asset duration: \(error.localizedDescription)")
@@ -764,11 +764,11 @@ struct NameMoveViewUnified: View {
 
         Task {
             // MARK: - ENHANCED DIAGNOSTICS: Log pre-save state
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊 DIAGNOSTIC - Pre-save state check:")
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - FlowStateManager available: \(unifiedState.flowStateManager != nil)")
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Trim range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
-            logger.info("🎬 NAME_MOVE_UNIFIED: 📊   - Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
+            logger.info("🎬 NAME_MOVE_UNIFIED:  DIAGNOSTIC - Pre-save state check:")
+            logger.info("🎬 NAME_MOVE_UNIFIED:    - FlowStateManager available: \(unifiedState.flowStateManager != nil)")
+            logger.info("🎬 NAME_MOVE_UNIFIED:    - Trim range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s")
+            logger.info("🎬 NAME_MOVE_UNIFIED:    - Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°")
+            logger.info("🎬 NAME_MOVE_UNIFIED:    - Photos identifier: \(unifiedState.photosIdentifier ?? "none")")
 
             // MARK: - FINAL VALIDATION: Double-check save readiness before proceeding
             if let saveReadiness = unifiedState.saveReadiness {
@@ -843,7 +843,7 @@ struct NameMoveViewUnified: View {
                     estimatedFileSize = String(format: "%.0f MB", sizeInMB)
                 }
 
-                logger.info("🎬 NAME_MOVE_UNIFIED: 📊 File size calculated - duration: \(String(format: "%.1f", durationInSeconds))s, estimated size: \(estimatedFileSize), rotation multiplier: \(rotationMultiplier)")
+                logger.info("🎬 NAME_MOVE_UNIFIED:  File size calculated - duration: \(String(format: "%.1f", durationInSeconds))s, estimated size: \(estimatedFileSize), rotation multiplier: \(rotationMultiplier)")
             }
 
         } catch {

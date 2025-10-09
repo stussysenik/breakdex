@@ -28,14 +28,14 @@ public class PhotosPickerItem: NSObject, ObservableObject {
         return originalItem?.supportedContentTypes ?? []
     }
 
-    /// 📊 FILE_SIZE_DISPLAY: Estimated file size for loading display
+    ///  FILE_SIZE_DISPLAY: Estimated file size for loading display
     /// Provides estimated file size information to users during video loading
     @Published public private(set) var estimatedFileSize: Int64 = 0
 
-    /// 📊 FILE_SIZE_DISPLAY: Formatted file size string for display
+    ///  FILE_SIZE_DISPLAY: Formatted file size string for display
     @Published public private(set) var formattedFileSize: String = ""
 
-    /// 📊 FILE_SIZE_DISPLAY: Asynchronously fetch file size from PhotosPickerItem
+    ///  FILE_SIZE_DISPLAY: Asynchronously fetch file size from PhotosPickerItem
     /// Updates the estimatedFileSize and formattedFileSize properties
     public func loadFileSize() async {
         guard let originalItem = originalItem else {

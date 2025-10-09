@@ -171,7 +171,7 @@ final class NavigationCoordinator: ObservableObject {
         // Monitor navigation state changes for debugging
         $currentNavigationState
             .sink { [weak self] newState in
-                self?.logger.info("🧭 NAV_COORD: 📊 Navigation state changed: \(String(describing: newState))")
+                self?.logger.info("🧭 NAV_COORD:  Navigation state changed: \(String(describing: newState))")
             }
             .store(in: &cancellables)
 
@@ -287,7 +287,7 @@ final class NavigationCoordinator: ObservableObject {
     }
 
     private func logCurrentState(_ context: String) {
-        logger.info("🧭 NAV_COORD: 📊 [\(context)] State: \(String(describing: self.currentNavigationState)), Queue: \(self.navigationQueue.count), Processing: \(self.isProcessingNavigation)")
+        logger.info("🧭 NAV_COORD:  [\(context)] State: \(String(describing: self.currentNavigationState)), Queue: \(self.navigationQueue.count), Processing: \(self.isProcessingNavigation)")
     }
 }
 

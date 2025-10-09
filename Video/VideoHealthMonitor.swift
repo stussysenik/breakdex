@@ -180,7 +180,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         // MARK: - CRITICAL FIX: Keep continuations and asset for quick resume
         // This preserves state across pause/resume cycles
         
-        logger.info("🏥 📊 Memory after monitoring pause: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
+        logger.info("🏥  Memory after monitoring pause: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
         
         logger.info("🏥 ✅ Video health monitoring paused successfully [Pause #\(self.pauseCount)]")
     }
@@ -227,7 +227,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
         let endTime = CFAbsoluteTimeGetCurrent()
         let resumeTime = (endTime - startTime) * 1000
         logger.info("🏥 ⚡ Monitoring resume took \(String(format: "%.2f", resumeTime))ms")
-        logger.info("🏥 📊 Memory after monitoring resume: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
+        logger.info("🏥  Memory after monitoring resume: \(self.memoryManager.getAvailableMemory() / (1024*1024)) MB available")
         
         logger.info("🏥 ✅ Video health monitoring resumed successfully [Resume #\(self.resumeCount)]")
     }
@@ -290,7 +290,7 @@ public final class VideoHealthMonitorImpl: VideoHealthMonitor {
                     // Log the health report
                     logHealthReport(report)
                 } else if consecutiveHealthyChecks == maxConsecutiveHealthyBeforeReducedLogging {
-                    logger.info("🏥 📊 System consistently healthy - reducing log frequency")
+                    logger.info("🏥  System consistently healthy - reducing log frequency")
                 }
                 
                 // Send the report to the stream (always send for downstream consumers)

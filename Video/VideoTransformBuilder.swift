@@ -20,7 +20,7 @@ final class VideoTransformBuilder {
 
         // MARK: - ENHANCED: Comprehensive rotation verification with category theory logging
         logger.info("🎬 BUILDER: 🚀 Starting composition build with TOTAL ROTATION verification")
-        logger.info("🎬 BUILDER: 📊 Input parameters:")
+        logger.info("🎬 BUILDER:  Input parameters:")
         logger.info("🎬 BUILDER:   - quarterTurns (TOTAL): \(quarterTurns)°")
         logger.info("🎬 BUILDER:   - trimRange: \(trimRange?.start.seconds ?? 0)-\(trimRange?.end.seconds ?? 0)s")
         logger.info("🎬 BUILDER:   - asset duration: \(asset.duration.seconds)s")
@@ -39,11 +39,11 @@ final class VideoTransformBuilder {
         }
 
         // 2. 🎯 CRITICAL: PROACTIVE ASSET LOADING - Ensure tracks are fully loaded before composition
-        logger.info("🎬 BUILDER: 📊 Proactively loading asset tracks...")
+        logger.info("🎬 BUILDER:  Proactively loading asset tracks...")
         let trackLoadStart = CFAbsoluteTimeGetCurrent()
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-        logger.info("🎬 BUILDER: 📊 Track loading completed in \((CFAbsoluteTimeGetCurrent() - trackLoadStart) * 1000)ms - Video: \(videoTracks.count), Audio: \(audioTracks.count)")
+        logger.info("🎬 BUILDER:  Track loading completed in \((CFAbsoluteTimeGetCurrent() - trackLoadStart) * 1000)ms - Video: \(videoTracks.count), Audio: \(audioTracks.count)")
 
         guard !videoTracks.isEmpty else {
             throw NSError(domain: "VideoTransformBuilder", code: -1,
@@ -53,7 +53,7 @@ final class VideoTransformBuilder {
         // 3. 🎯 CRITICAL: ROBUST TRACK SELECTION AND VALIDATION
         // MARK: - ENHANCED: Implement robust track selection for complex multi-track assets
         logger.info("🎬 BUILDER: 🔍 Starting robust track validation for complex asset")
-        logger.info("🎬 BUILDER: 📊 Asset analysis - Raw video tracks: \(videoTracks.count), Raw audio tracks: \(audioTracks.count)")
+        logger.info("🎬 BUILDER:  Asset analysis - Raw video tracks: \(videoTracks.count), Raw audio tracks: \(audioTracks.count)")
 
         let validVideoTracks = await findBestVideoTracks(from: videoTracks)
         let validAudioTracks = await findBestAudioTracks(from: audioTracks)
@@ -65,7 +65,7 @@ final class VideoTransformBuilder {
 
         // MARK: - ENHANCED: Detailed multi-track asset logging
         logger.info("🎬 BUILDER: ✅ Robust track selection completed")
-        logger.info("🎬 BUILDER: 📊 Validation results:")
+        logger.info("🎬 BUILDER:  Validation results:")
         logger.info("🎬 BUILDER:   - Valid video tracks: \(validVideoTracks.count)/\(videoTracks.count)")
         logger.info("🎬 BUILDER:   - Valid audio tracks: \(validAudioTracks.count)/\(audioTracks.count)")
 
@@ -174,7 +174,7 @@ final class VideoTransformBuilder {
 
         // 6. --- ENHANCED TOTAL ROTATION TRANSFORM LOGIC ---
         logger.info("🎬 BUILDER: 🔄 TOTAL ROTATION NEEDED - Building enhanced video composition...")
-        logger.info("🎬 BUILDER: 📊 Category theory verification:")
+        logger.info("🎬 BUILDER:  Category theory verification:")
         logger.info("🎬 BUILDER:   - Input total rotation (η_result): \(quarterTurns) quarter turns")
         logger.info("🎬 BUILDER:   - Rotation degrees: \(quarterTurns * 90)°")
         logger.info("🎬 BUILDER:   - WYSIWYG guarantee: Total rotation preserved in final asset")
@@ -314,7 +314,7 @@ final class VideoTransformBuilder {
         logger.info("🎬 BUILDER:   - WYSIWYG guarantee: ACTIVE ✅")
 
         // MARK: - ENHANCED: Performance diagnostics
-        logger.info("🎬 BUILDER: 📊 Performance metrics")
+        logger.info("🎬 BUILDER:  Performance metrics")
         logger.info("🎬 BUILDER:   - Build time: \(String(format: "%.2f", totalBuildTime))ms")
         logger.info("🎬 BUILDER:   - Video tracks: \(videoTracks.count)")
         logger.info("🎬 BUILDER:   - Audio tracks: \(audioTracks.count)")
@@ -405,7 +405,7 @@ final class VideoTransformBuilder {
 
         // MARK: - ENHANCED: Critical export logging with TOTAL ROTATION verification
         logger.info("🎬 BUILDER: 🎯 EXPORT START: Starting video export with TOTAL ROTATION")
-        logger.info("🎬 BUILDER: 📊 Export parameters:")
+        logger.info("🎬 BUILDER:  Export parameters:")
         logger.info("🎬 BUILDER:   - TOTAL quarterTurns: \(quarterTurns)°")
         logger.info("🎬 BUILDER:   - Trim range: \(trimRange?.start.seconds ?? 0)-\(trimRange?.duration.seconds ?? 0)s")
         logger.info("🎬 BUILDER:   - Output file: \(outputURL.lastPathComponent)")
@@ -447,7 +447,7 @@ final class VideoTransformBuilder {
 
         // MARK: - ENHANCED: Post-export completion logging with TOTAL ROTATION verification
         logger.info("🎬 BUILDER: ✅ EXPORT COMPLETED: Video export with TOTAL ROTATION finished")
-        logger.info("🎬 BUILDER: 📊 Export results:")
+        logger.info("🎬 BUILDER:  Export results:")
         logger.info("🎬 BUILDER:   - Output file: \(outputURL.lastPathComponent)")
         logger.info("🎬 BUILDER:   - TOTAL rotation applied: \(quarterTurns)°")
         logger.info("🎬 BUILDER:   - Export preset: \(presetName)")
@@ -475,7 +475,7 @@ final class VideoTransformBuilder {
         let videoTracks = composition.tracks(withMediaType: .video)
         let audioTracks = composition.tracks(withMediaType: .audio)
 
-        print("🎬 VideoTransformBuilder: 📊 Track validation - Video: \(videoTracks.count), Audio: \(audioTracks.count)")
+        print("🎬 VideoTransformBuilder:  Track validation - Video: \(videoTracks.count), Audio: \(audioTracks.count)")
 
         guard !videoTracks.isEmpty else {
             throw NSError(domain: "VideoTransformBuilder", code: -4,
@@ -486,7 +486,7 @@ final class VideoTransformBuilder {
         let expectedDuration = composition.duration
         for (index, track) in videoTracks.enumerated() {
             let trackRange = track.timeRange
-            print("🎬 VideoTransformBuilder: 📊 Video track \(index): \(String(format: "%.2f", trackRange.start.seconds))s - \(String(format: "%.2f", trackRange.end.seconds))s")
+            print("🎬 VideoTransformBuilder:  Video track \(index): \(String(format: "%.2f", trackRange.start.seconds))s - \(String(format: "%.2f", trackRange.end.seconds))s")
 
             if abs(trackRange.duration.seconds - expectedDuration.seconds) > 0.1 {
                 print("⚠️ VideoTransformBuilder: Track duration mismatch: \(trackRange.duration.seconds)s vs expected \(expectedDuration.seconds)s")
@@ -495,7 +495,7 @@ final class VideoTransformBuilder {
 
         // 3. Validate video composition instructions if present
         if let videoComposition = videoComposition {
-            print("🎬 VideoTransformBuilder: 📊 Video composition validation:")
+            print("🎬 VideoTransformBuilder:  Video composition validation:")
             print("   - Render size: \(videoComposition.renderSize)")
             print("   - Frame duration: \(videoComposition.frameDuration.seconds)s")
             print("   - Instructions count: \(videoComposition.instructions.count)")
@@ -524,7 +524,7 @@ final class VideoTransformBuilder {
         // 4. Test basic seekability (non-blocking test)
         do {
             _ = CMTime(value: 1, timescale: 10) // 0.1 seconds
-            logger.info("🎬 BUILDER: 📊 Seekability test - checking asset seekability")
+            logger.info("🎬 BUILDER:  Seekability test - checking asset seekability")
         }
 
         // 5. Check audio/video sync
@@ -533,7 +533,7 @@ final class VideoTransformBuilder {
             let videoDuration = videoTracks.first?.timeRange.duration ?? CMTime.zero
 
             let syncDifference = abs(audioDuration.seconds - videoDuration.seconds)
-            print("🎬 VideoTransformBuilder: 📊 Audio/Video sync difference: \(String(format: "%.3f", syncDifference))s")
+            print("🎬 VideoTransformBuilder:  Audio/Video sync difference: \(String(format: "%.3f", syncDifference))s")
 
             if syncDifference > 0.1 {
                 print("⚠️ VideoTransformBuilder: Audio/video sync difference detected: \(syncDifference)s")
@@ -584,7 +584,7 @@ final class VideoTransformBuilder {
                 }
 
                 // Log track quality metrics
-                logger.info("🎬 BUILDER: 📊 Valid video track found - dimensions: \(naturalSize.width)x\(naturalSize.height)")
+                logger.info("🎬 BUILDER:  Valid video track found - dimensions: \(naturalSize.width)x\(naturalSize.height)")
                 validTracks.append(track)
             } catch {
                 logger.error("🎬 BUILDER: ❌ Failed to load natural size for video track: \(error)")
@@ -611,7 +611,7 @@ final class VideoTransformBuilder {
 
         let validationTime = (CFAbsoluteTimeGetCurrent() - validationStart) * 1000
         logger.info("🎬 BUILDER: ✅ Robust video track selection completed in \(String(format: "%.2f", validationTime))ms")
-        logger.info("🎬 BUILDER: 📊 Track selection results: \(sortedTracks.count)/\(tracks.count) tracks valid")
+        logger.info("🎬 BUILDER:  Track selection results: \(sortedTracks.count)/\(tracks.count) tracks valid")
 
         return sortedTracks
     }
@@ -660,7 +660,7 @@ final class VideoTransformBuilder {
 
         let validationTime = (CFAbsoluteTimeGetCurrent() - validationStart) * 1000
         logger.info("🎬 BUILDER: ✅ Robust audio track selection completed in \(String(format: "%.2f", validationTime))ms")
-        logger.info("🎬 BUILDER: 📊 Audio track selection results: \(validTracks.count)/\(tracks.count) tracks valid")
+        logger.info("🎬 BUILDER:  Audio track selection results: \(validTracks.count)/\(tracks.count) tracks valid")
 
         return validTracks
     }

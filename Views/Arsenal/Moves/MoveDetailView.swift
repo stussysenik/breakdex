@@ -223,10 +223,10 @@ struct MoveDetailView: View {
             logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_STEP_1_COMPLETE: Video asset loaded successfully")
 
             // Step 2: Load asset properties for validation
-            logger.info("🎬 MOVE_DETAIL_VIEW: 📊 ATOMIC_STEP_2: Loading asset properties...")
+            logger.info("🎬 MOVE_DETAIL_VIEW:  ATOMIC_STEP_2: Loading asset properties...")
             let duration = try await asset.load(.duration)
             let isPlayable = try await asset.load(.isPlayable)
-            logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Asset properties - duration: \(CMTimeGetSeconds(duration))s, playable: \(isPlayable)")
+            logger.info("🎬 MOVE_DETAIL_VIEW:  Asset properties - duration: \(CMTimeGetSeconds(duration))s, playable: \(isPlayable)")
             logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_STEP_2_COMPLETE: Asset properties loaded and validated")
 
             // Step 3: Create player from unified manager
@@ -244,7 +244,7 @@ struct MoveDetailView: View {
             )
 
             logger.info("🎬 MOVE_DETAIL_VIEW: ✅ ATOMIC_STEP_3_COMPLETE: Player created/retrieved successfully")
-            logger.info("🎬 MOVE_DETAIL_VIEW: 📊 Player ready status: \(createdPlayerViewModel?.isPlayerReady ?? false)")
+            logger.info("🎬 MOVE_DETAIL_VIEW:  Player ready status: \(createdPlayerViewModel?.isPlayerReady ?? false)")
 
         } catch {
             logger.error("🎬 MOVE_DETAIL_VIEW: ❌ ATOMIC_LOAD_ERROR: \(error.localizedDescription)")

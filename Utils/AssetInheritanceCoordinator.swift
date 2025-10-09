@@ -402,7 +402,7 @@ public final class AssetInheritanceCoordinator: ObservableObject {
         // Log performance metrics if enabled
         if configuration.enablePerformanceLogging,
            let metrics = getTransformationMetrics() {
-            diagnosticLogger.logInfo("📊 Transformation performance metrics", metadata: [
+            diagnosticLogger.logInfo(" Transformation performance metrics", metadata: [
                 "total_time_ms": "\(metrics.totalTime * 1000)",
                 "preparation_time_ms": "\(metrics.preparationTime * 1000)",
                 "transformation_time_ms": "\(metrics.transformationTime * 1000)",

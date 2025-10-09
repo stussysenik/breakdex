@@ -7,7 +7,7 @@ import Photos
 import PhotosUI
 import SwiftUI
 
-// AddMoveContainer.swift
+// AddMoveContainer.swift - main UI for "Select Video"
 
 private let logger = Logger(
     subsystem: "com.breakingflashcards",
@@ -35,7 +35,7 @@ struct AddMoveContainer: View {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
         logger.info("🎬 CONTAINER: 🎯 PERSISTENT_STATE_ID: \(stateIdString)")
         logger.info(
-            "🎬 CONTAINER: 📊 Container now receives state as @ObservedObject (no ownership)"
+            "🎬 CONTAINER:  Container now receives state as @ObservedObject (no ownership)"
         )
 
         _selectedTab = selectedTab
@@ -141,7 +141,7 @@ struct AddMoveContainer: View {
                 "🎬 CONTAINER: 🔄 Simplified transition: loadingVideo → trimming"
             )
             logger.info(
-                "🎬 CONTAINER: 📊 Memory usage at trimming entry: \(getMemoryUsage())"
+                "🎬 CONTAINER:  Memory usage at trimming entry: \(getMemoryUsage())"
             )
 
         case (.trimming, .loadingTrimmedAsset):
@@ -238,7 +238,7 @@ struct AddMoveContainer: View {
                 ? "true" : "false",
         ]
 
-        logger.info("🎬 CONTAINER: 📊 Invariant metrics - \(metrics)")
+        logger.info("🎬 CONTAINER:  Invariant metrics - \(metrics)")
     }
 
     // MARK: - FUNC
@@ -478,7 +478,7 @@ struct AddMoveContainer: View {
             "🎬 CONTAINER: 🔙 Handling return to trimming from naming state"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Current state: \(String(describing: unifiedState.flowState))"
+            "🎬 CONTAINER:  Current state: \(String(describing: unifiedState.flowState))"
         )
 
         logCurrentStateDetails("BACK_BUTTON_PRESSED")
@@ -584,7 +584,7 @@ struct AddMoveContainer: View {
 
         let allValid = validationResults.values.allSatisfy { $0 }
         logger.info(
-            "🎬 CONTAINER: 📊 Trimming reconstruction validation result: \(allValid ? "✅ PASSED" : "❌ FAILED")"
+            "🎬 CONTAINER:  Trimming reconstruction validation result: \(allValid ? "✅ PASSED" : "❌ FAILED")"
         )
 
         return allValid
@@ -705,7 +705,7 @@ struct AddMoveContainer: View {
                 abs(trimmerAssetDuration.seconds - currentAssetDuration.seconds)
                 < 0.1
             logger.info(
-                "🎬 CONTAINER: 📊 Asset duration comparison - Trimmer: \(String(format: "%.2f", trimmerAssetDuration.seconds))s, Current: \(String(format: "%.2f", currentAssetDuration.seconds))s"
+                "🎬 CONTAINER:  Asset duration comparison - Trimmer: \(String(format: "%.2f", trimmerAssetDuration.seconds))s, Current: \(String(format: "%.2f", currentAssetDuration.seconds))s"
             )
 
             if durationMatch {
@@ -777,7 +777,7 @@ struct AddMoveContainer: View {
                 "🎬 CONTAINER: ✅ New trimmer view model created and configured"
             )
             logger.info(
-                "🎬 CONTAINER: 📊 Trim range set: \(startTime.seconds)s - \(endTime.seconds)s"
+                "🎬 CONTAINER:  Trim range set: \(startTime.seconds)s - \(endTime.seconds)s"
             )
 
         } catch {
@@ -790,35 +790,35 @@ struct AddMoveContainer: View {
     // MARK: - FUNC
     @MainActor
     private func logTrimmingStateReconstruction() {
-        logger.info("🎬 CONTAINER: 📊 TRIMMING STATE RECONSTRUCTION SUMMARY")
-        logger.info("🎬 CONTAINER: 📊 ======================================")
+        logger.info("🎬 CONTAINER:  TRIMMING STATE RECONSTRUCTION SUMMARY")
+        logger.info("🎬 CONTAINER:  ======================================")
         logger.info(
-            "🎬 CONTAINER: 📊 Flow State: \(String(describing: unifiedState.flowState))"
+            "🎬 CONTAINER:  Flow State: \(String(describing: unifiedState.flowState))"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Video Asset: \(unifiedState.videoAsset != nil ? "✅ Available" : "❌ Missing")"
+            "🎬 CONTAINER:  Video Asset: \(unifiedState.videoAsset != nil ? "✅ Available" : "❌ Missing")"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Photos ID: \(unifiedState.photosIdentifier ?? "❌ Missing")"
+            "🎬 CONTAINER:  Photos ID: \(unifiedState.photosIdentifier ?? "❌ Missing")"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Player VM: \(unifiedState.currentPlayerViewModel != nil ? "✅ Available" : "❌ Missing")"
+            "🎬 CONTAINER:  Player VM: \(unifiedState.currentPlayerViewModel != nil ? "✅ Available" : "❌ Missing")"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Trimmer VM: \(unifiedState.trimmerViewModel != nil ? "✅ Available" : "❌ Missing")"
+            "🎬 CONTAINER:  Trimmer VM: \(unifiedState.trimmerViewModel != nil ? "✅ Available" : "❌ Missing")"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s"
+            "🎬 CONTAINER:  Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°"
+            "🎬 CONTAINER:  Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'"
+            "🎬 CONTAINER:  Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'"
         )
-        logger.info("🎬 CONTAINER: 📊 Timestamp: \(Date())")
-        logger.info("🎬 CONTAINER: 📊 ======================================")
-        logger.info("🎬 CONTAINER: 📊 TRIMMING STATE RECONSTRUCTION COMPLETE")
+        logger.info("🎬 CONTAINER:  Timestamp: \(Date())")
+        logger.info("🎬 CONTAINER:  ======================================")
+        logger.info("🎬 CONTAINER:  TRIMMING STATE RECONSTRUCTION COMPLETE")
     }
 
     // MARK: - FUNC
@@ -832,14 +832,14 @@ struct AddMoveContainer: View {
     // MARK: - FUNC
     @MainActor
     private func logCurrentStateDetails(_ context: String) {
-        logger.info("🎬 CONTAINER: 📊 DIAGNOSTIC STATE LOG [\(context)]")
-        logger.info("🎬 CONTAINER: 📊 ======================================")
+        logger.info("🎬 CONTAINER:  DIAGNOSTIC STATE LOG [\(context)]")
+        logger.info("🎬 CONTAINER:  ======================================")
 
         logger.info(
-            "🎬 CONTAINER: 📊 Flow State: \(String(describing: unifiedState.flowState))"
+            "🎬 CONTAINER:  Flow State: \(String(describing: unifiedState.flowState))"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Player State: \(String(describing: unifiedState.playerState))"
+            "🎬 CONTAINER:  Player State: \(String(describing: unifiedState.playerState))"
         )
 
         if let asset = unifiedState.videoAsset {
@@ -847,69 +847,69 @@ struct AddMoveContainer: View {
                 do {
                     let duration = try await asset.load(.duration)
                     logger.info(
-                        "🎬 CONTAINER: 📊 Video Asset: ✅ Available - Duration: \(String(format: "%.2f", duration.seconds))s"
+                        "🎬 CONTAINER:  Video Asset: ✅ Available - Duration: \(String(format: "%.2f", duration.seconds))s"
                     )
                 } catch {
                     logger.info(
-                        "🎬 CONTAINER: 📊 Video Asset: ✅ Available - Duration: Load failed (\(error.localizedDescription))"
+                        "🎬 CONTAINER:  Video Asset: ✅ Available - Duration: Load failed (\(error.localizedDescription))"
                     )
                 }
             }
         } else {
-            logger.info("🎬 CONTAINER: 📊 Video Asset: ❌ Missing")
+            logger.info("🎬 CONTAINER:  Video Asset: ❌ Missing")
         }
 
         logger.info(
-            "🎬 CONTAINER: 📊 Photos ID: \(unifiedState.photosIdentifier ?? "❌ Missing")"
+            "🎬 CONTAINER:  Photos ID: \(unifiedState.photosIdentifier ?? "❌ Missing")"
         )
 
         if let playerVM = unifiedState.currentPlayerViewModel {
             logger.info(
-                "🎬 CONTAINER: 📊 Player VM: ✅ Available - Type: \(type(of: playerVM))"
+                "🎬 CONTAINER:  Player VM: ✅ Available - Type: \(type(of: playerVM))"
             )
 
             if let unifiedPlayerVM = playerVM as? UnifiedVideoPlayerViewModel {
                 logger.info(
-                    "🎬 CONTAINER: 📊 Unified Player: Ready: \(unifiedPlayerVM.isPlayerReady), Has Player: \(unifiedPlayerVM.avPlayer != nil)"
+                    "🎬 CONTAINER:  Unified Player: Ready: \(unifiedPlayerVM.isPlayerReady), Has Player: \(unifiedPlayerVM.avPlayer != nil)"
                 )
             }
         } else {
-            logger.info("🎬 CONTAINER: 📊 Player VM: ❌ Missing")
+            logger.info("🎬 CONTAINER:  Player VM: ❌ Missing")
         }
 
         if let trimmerVM = unifiedState.trimmerViewModel {
             logger.info(
-                "🎬 CONTAINER: 📊 Trimmer VM: ✅ Available - Type: \(type(of: trimmerVM))"
+                "🎬 CONTAINER:  Trimmer VM: ✅ Available - Type: \(type(of: trimmerVM))"
             )
         } else {
-            logger.info("🎬 CONTAINER: 📊 Trimmer VM: ❌ Missing")
+            logger.info("🎬 CONTAINER:  Trimmer VM: ❌ Missing")
         }
 
         logger.info(
-            "🎬 CONTAINER: 📊 Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s"
+            "🎬 CONTAINER:  Trim Range: \(String(format: "%.2f", unifiedState.trimStartTime))s - \(String(format: "%.2f", unifiedState.trimEndTime))s"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°"
+            "🎬 CONTAINER:  Rotation: \(unifiedState.totalRotationQuarterTurns * 90)°"
         )
 
         logger.info(
-            "🎬 CONTAINER: 📊 Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'"
+            "🎬 CONTAINER:  Move Name: '\(unifiedState.moveName.isEmpty ? "Empty" : unifiedState.moveName)'"
         )
 
         logger.info(
-            "🎬 CONTAINER: 📊 Load Progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
+            "🎬 CONTAINER:  Load Progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Load Timer: \(String(format: "%.2f", unifiedState.loadElapsedTime))s"
+            "🎬 CONTAINER:  Load Timer: \(String(format: "%.2f", unifiedState.loadElapsedTime))s"
         )
         logger.info(
-            "🎬 CONTAINER: 📊 Save Timer: \(String(format: "%.2f", unifiedState.saveElapsedTime))s"
+            "🎬 CONTAINER:  Save Timer: \(String(format: "%.2f", unifiedState.saveElapsedTime))s"
         )
 
-        logger.info("🎬 CONTAINER: 📊 Memory: \(getMemoryUsage())")
+        logger.info("🎬 CONTAINER:  Memory: \(getMemoryUsage())")
 
-        logger.info("🎬 CONTAINER: 📊 Timestamp: \(Date())")
-        logger.info("🎬 CONTAINER: 📊 ======================================")
+        logger.info("🎬 CONTAINER:  Timestamp: \(Date())")
+        logger.info("🎬 CONTAINER:  ======================================")
     }
 
     // MARK: - FUNC

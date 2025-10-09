@@ -79,7 +79,7 @@ public class PhotosImportService: PhotosImportServiceProtocol {
                     do {
                         let resources = try tempURL.resourceValues(forKeys: [.fileSizeKey])
                         if let fileSize = resources.fileSize {
-                            logger.info("📥 PHOTOS_IMPORT: 📊 File size: \(fileSize) bytes (\(Double(fileSize) / (1024 * 1024)) MB)")
+                            logger.info("📥 PHOTOS_IMPORT:  File size: \(fileSize) bytes (\(Double(fileSize) / (1024 * 1024)) MB)")
                         }
                     }
 

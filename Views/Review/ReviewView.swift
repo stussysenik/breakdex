@@ -41,9 +41,9 @@ struct ReviewView: View {
 
     /// Optimized combo states cache - calculates states once per combo instead of per filter
     /// 🚀 PERFORMANCE: Reduces O(N) database queries to O(1) using memoization
-    /// 📊 METRICS: Logs performance and state distribution for debugging
+    ///  METRICS: Logs performance and state distribution for debugging
     private var comboStates: [NSManagedObjectID: String] {
-        logger.info("📊 REVIEW_VIEW: 🔄 Calculating combo learning states for \(combos.count) combos")
+        logger.info(" REVIEW_VIEW: 🔄 Calculating combo learning states for \(combos.count) combos")
 
         var states: [NSManagedObjectID: String] = [:]
         var stateCounts: [String: Int] = ["NEW": 0, "LEARNING": 0, "MASTERY": 0]
@@ -54,8 +54,8 @@ struct ReviewView: View {
             stateCounts[state, default: 0] += 1
         }
 
-        logger.info("📊 REVIEW_VIEW: ✅ Combo state calculation complete")
-        logger.info("📊 REVIEW_VIEW: 📊 State distribution - NEW: \(stateCounts["NEW"] ?? 0), LEARNING: \(stateCounts["LEARNING"] ?? 0), MASTERY: \(stateCounts["MASTERY"] ?? 0)")
+        logger.info(" REVIEW_VIEW: ✅ Combo state calculation complete")
+        logger.info(" REVIEW_VIEW:  State distribution - NEW: \(stateCounts["NEW"] ?? 0), LEARNING: \(stateCounts["LEARNING"] ?? 0), MASTERY: \(stateCounts["MASTERY"] ?? 0)")
 
         return states
     }
@@ -75,18 +75,18 @@ struct ReviewView: View {
 
     /// Calculate learning state for a single combo using in-memory data
     /// MARK: - MEMORY: Uses relationship data instead of additional database queries
-    /// 📊 LOGS: Detailed logging for debugging combo state logic
+    ///  LOGS: Detailed logging for debugging combo state logic
     private func calculateComboLearningState(for combo: Combo) -> String {
-        logger.info("📊 REVIEW_VIEW: 🔄 Calculating state for combo: \(combo.name ?? "Unknown")")
+        logger.info(" REVIEW_VIEW: 🔄 Calculating state for combo: \(combo.name ?? "Unknown")")
 
         // ✅ RELATIONSHIPS: Use existing relationship data instead of fetching
         guard let comboMoves = combo.comboMoves as? Set<ComboMove> else {
-            logger.warning("📊 REVIEW_VIEW: ⚠️ No combo moves relationship found for combo: \(combo.name ?? "Unknown")")
+            logger.warning(" REVIEW_VIEW: ⚠️ No combo moves relationship found for combo: \(combo.name ?? "Unknown")")
             return "NEW"
         }
 
         let moveStates = comboMoves.compactMap { $0.move?.learningState }
-        logger.info("📊 REVIEW_VIEW: 📊 Found \(moveStates.count) move states: \(moveStates)")
+        logger.info(" REVIEW_VIEW:  Found \(moveStates.count) move states: \(moveStates)")
 
         // Business logic for determining combo learning state
         let calculatedState: String
@@ -103,7 +103,7 @@ struct ReviewView: View {
             calculatedState = "NEW" // Fallback for edge cases
         }
 
-        logger.info("📊 REVIEW_VIEW: ✅ Combo '\(combo.name ?? "Unknown")' calculated state: \(calculatedState)")
+        logger.info(" REVIEW_VIEW: ✅ Combo '\(combo.name ?? "Unknown")' calculated state: \(calculatedState)")
 
         return calculatedState
     }

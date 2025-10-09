@@ -45,7 +45,7 @@ class AlbumSyncManager: ObservableObject {
     /// Perform a full synchronization between Core Data and BreakDex album
     /// - Returns: Sync results with comprehensive diagnostic logging
     func performFullSync() async throws -> SyncResults {
-        logger.info("🔄 AlbumSyncManager: 🚀 Starting full synchronization cycle")
+        // logger.info("🔄 AlbumSyncManager: 🚀 Starting full synchronization cycle")
 
         guard let context = viewContext else {
             logger.error("🔄 AlbumSyncManager: ❌ Core Data context not configured")
@@ -56,7 +56,7 @@ class AlbumSyncManager: ObservableObject {
         defer { Task { await MainActor.run { isSyncing = false } } }
         
         // Get all moves from Core Data with diagnostic logging
-        logger.info("🔄 AlbumSyncManager: 📊 Fetching all moves from Core Data")
+        // logger.info("🔄 AlbumSyncManager:  Fetching all moves from Core Data")
         let moveFetchRequest = Move.fetchRequest()
         let allMoves = try await context.perform {
             try context.fetch(moveFetchRequest)
@@ -66,8 +66,8 @@ class AlbumSyncManager: ObservableObject {
         var foundInPhotos = 0
         var missingFromPhotos: [Move] = []
 
-        logger.info("🔄 AlbumSyncManager: 📊 Found \(totalMoves) total moves in Core Data")
-        logger.info("🔄 AlbumSyncManager: 🔍 Analyzing move synchronization status")
+        // logger.info("🔄 AlbumSyncManager:  Found \(totalMoves) total moves in Core Data")
+        // logger.info("🔄 AlbumSyncManager: 🔍 Analyzing move synchronization status")
 
         // Check each move with detailed logging
         for move in allMoves {
@@ -86,7 +86,7 @@ class AlbumSyncManager: ObservableObject {
         }
 
         // MARK: - NEW: Get all combos from Core Data and check for orphaned combos with detailed logging
-        logger.info("🔄 AlbumSyncManager: 📊 Fetching all combos from Core Data")
+        // logger.info("🔄 AlbumSyncManager:  Fetching all combos from Core Data")
         let comboFetchRequest = Combo.fetchRequest()
         let allCombos = try await context.perform {
             try context.fetch(comboFetchRequest)
@@ -95,8 +95,8 @@ class AlbumSyncManager: ObservableObject {
         let totalCombos = allCombos.count
         var orphanedCombos: [Combo] = []
 
-        logger.info("🔄 AlbumSyncManager: 📊 Found \(totalCombos) total combos in Core Data")
-        logger.info("🔄 AlbumSyncManager: 🔍 Analyzing combo synchronization status")
+        // logger.info("🔄 AlbumSyncManager:  Found \(totalCombos) total combos in Core Data")
+        // logger.info("🔄 AlbumSyncManager: 🔍 Analyzing combo synchronization status")
 
         // Check each combo for orphaned state with detailed logging
         for combo in allCombos {
@@ -138,17 +138,17 @@ class AlbumSyncManager: ObservableObject {
         
         // MARK: - NEW: Clean up orphaned Core Data entries (moves missing from Photos) with enhanced logging
         if !missingFromPhotos.isEmpty {
-            logger.info("🔄 AlbumSyncManager: 🧹 Found \(missingFromPhotos.count) orphaned move(s) in Core Data. Starting cleanup...")
-            logger.info("🔄 AlbumSyncManager: 📊 Orphaned moves to delete: \(missingFromPhotos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
+            // logger.info("🔄 AlbumSyncManager: 🧹 Found \(missingFromPhotos.count) orphaned move(s) in Core Data. Starting cleanup...")
+            // logger.info("🔄 AlbumSyncManager:  Orphaned moves to delete: \(missingFromPhotos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
 
             await context.perform {
                 for orphanedMove in missingFromPhotos {
-                    self.logger.info("🔄 AlbumSyncManager: 🗑️ Deleting Core Data entry for move: \(orphanedMove.name ?? "Untitled") (ID: \(orphanedMove.id?.uuidString ?? "unknown"))")
+                    // self.logger.info("🔄 AlbumSyncManager: 🗑️ Deleting Core Data entry for move: \(orphanedMove.name ?? "Untitled") (ID: \(orphanedMove.id?.uuidString ?? "unknown"))")
                     context.delete(orphanedMove)
                 }
                 do {
                     try context.save()
-                    self.logger.info("🔄 AlbumSyncManager: ✅ Orphaned move cleanup complete. Deleted \(missingFromPhotos.count) entries.")
+                    // self.logger.info("🔄 AlbumSyncManager: ✅ Orphaned move cleanup complete. Deleted \(missingFromPhotos.count) entries.")
                 } catch {
                     self.logger.error("🔄 AlbumSyncManager: ❌ Error saving context after cleanup: \(error)")
                     self.logger.warning("🔄 AlbumSyncManager: 🔄 Rolling back Core Data context changes")
@@ -156,23 +156,23 @@ class AlbumSyncManager: ObservableObject {
                 }
             }
         } else {
-            logger.info("🔄 AlbumSyncManager: ✅ No orphaned Core Data move entries found - all moves have corresponding Photos assets")
+            // logger.info("🔄 AlbumSyncManager: ✅ No orphaned Core Data move entries found - all moves have corresponding Photos assets")
         }
 
         // MARK: - NEW: Clean up orphaned combos (combos with missing moves) with enhanced logging
         if !orphanedCombos.isEmpty {
-            logger.info("🔄 AlbumSyncManager: 🧹 Found \(orphanedCombos.count) orphaned combo(s) in Core Data. Starting cleanup...")
-            logger.info("🔄 AlbumSyncManager: 📊 Orphaned combos to delete: \(orphanedCombos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
+            // logger.info("🔄 AlbumSyncManager: 🧹 Found \(orphanedCombos.count) orphaned combo(s) in Core Data. Starting cleanup...")
+            // logger.info("🔄 AlbumSyncManager:  Orphaned combos to delete: \(orphanedCombos.map { $0.name ?? "Untitled" }.joined(separator: ", "))")
 
             await context.perform {
                 for orphanedCombo in orphanedCombos {
                     let comboMoveCount = orphanedCombo.comboMoves?.count ?? 0
-                    self.logger.info("🔄 AlbumSyncManager: 🗑️ Deleting Core Data entry for combo: \(orphanedCombo.name ?? "Untitled") (ID: \(orphanedCombo.id?.uuidString ?? "unknown"), Moves: \(comboMoveCount))")
+                    // self.logger.info("🔄 AlbumSyncManager: 🗑️ Deleting Core Data entry for combo: \(orphanedCombo.name ?? "Untitled") (ID: \(orphanedCombo.id?.uuidString ?? "unknown"), Moves: \(comboMoveCount))")
                     context.delete(orphanedCombo)
                 }
                 do {
                     try context.save()
-                    self.logger.info("🔄 AlbumSyncManager: ✅ Orphaned combo cleanup complete. Deleted \(orphanedCombos.count) entries.")
+                    // self.logger.info("🔄 AlbumSyncManager: ✅ Orphaned combo cleanup complete. Deleted \(orphanedCombos.count) entries.")
                 } catch {
                     self.logger.error("🔄 AlbumSyncManager: ❌ Error saving context after combo cleanup: \(error)")
                     self.logger.warning("🔄 AlbumSyncManager: 🔄 Rolling back Core Data context changes")
@@ -180,7 +180,7 @@ class AlbumSyncManager: ObservableObject {
                 }
             }
         } else {
-            logger.info("🔄 AlbumSyncManager: ✅ No orphaned Core Data combo entries found - all combos have valid moves")
+            // logger.info("🔄 AlbumSyncManager: ✅ No orphaned Core Data combo entries found - all combos have valid moves")
         }
 
         // Check for orphaned metadata (videos in album but not in Core Data)
@@ -190,10 +190,10 @@ class AlbumSyncManager: ObservableObject {
         let orphanedMetadata = orphanedIdentifiers.count
 
         if !orphanedIdentifiers.isEmpty {
-            logger.warning("🔄 AlbumSyncManager: 📊 Found \(orphanedMetadata) video(s) in BreakDex album without Core Data entries")
-            logger.info("🔄 AlbumSyncManager: 📋 Orphaned video identifiers (first 3): \(orphanedIdentifiers.prefix(3).map { $0.localIdentifier.prefix(20) + "..." }.joined(separator: ", "))")
+            logger.warning("🔄 AlbumSyncManager:  Found \(orphanedMetadata) video(s) in BreakDex album without Core Data entries")
+            // logger.info("🔄 AlbumSyncManager: 📋 Orphaned video identifiers (first 3): \(orphanedIdentifiers.prefix(3).map { $0.localIdentifier.prefix(20) + "..." }.joined(separator: ", "))")
             if orphanedIdentifiers.count > 3 {
-                logger.info("🔄 AlbumSyncManager: 📋 ... and \(orphanedIdentifiers.count - 3) more")
+                // logger.info("🔄 AlbumSyncManager: 📋 ... and \(orphanedIdentifiers.count - 3) more")
             }
         }
 
@@ -208,16 +208,16 @@ class AlbumSyncManager: ObservableObject {
         )
 
         // MARK: - NEW: Comprehensive sync completion logging
-        logger.info("🔄 AlbumSyncManager: ✅ Full synchronization completed successfully")
-        logger.info("🔄 AlbumSyncManager: 📊 SYNC RESULTS SUMMARY:")
-        logger.info("🔄 AlbumSyncManager: 📊 Total Moves: \(totalMoves)")
-        logger.info("🔄 AlbumSyncManager: 📊 Found in Photos: \(foundInPhotos)")
-        logger.info("🔄 AlbumSyncManager: 📊 Missing from Photos: \(missingFromPhotos.count)")
-        logger.info("🔄 AlbumSyncManager: 📊 Total Combos: \(totalCombos)")
-        logger.info("🔄 AlbumSyncManager: 📊 Orphaned Combos: \(orphanedCombos.count)")
-        logger.info("🔄 AlbumSyncManager: 📊 Orphaned Metadata: \(orphanedMetadata)")
-        logger.info("🔄 AlbumSyncManager: 📊 Has Issues: \(results.hasIssues)")
-        logger.info("🔄 AlbumSyncManager: ⏰ Sync completed at: \(results.syncedAt)")
+        // logger.info("🔄 AlbumSyncManager: ✅ Full synchronization completed successfully")
+        // logger.info("🔄 AlbumSyncManager:  SYNC RESULTS SUMMARY:")
+        // logger.info("🔄 AlbumSyncManager:  Total Moves: \(totalMoves)")
+        // logger.info("🔄 AlbumSyncManager:  Found in Photos: \(foundInPhotos)")
+        // logger.info("🔄 AlbumSyncManager:  Missing from Photos: \(missingFromPhotos.count)")
+        // logger.info("🔄 AlbumSyncManager:  Total Combos: \(totalCombos)")
+        // logger.info("🔄 AlbumSyncManager:  Orphaned Combos: \(orphanedCombos.count)")
+        // logger.info("🔄 AlbumSyncManager:  Orphaned Metadata: \(orphanedMetadata)")
+        // logger.info("🔄 AlbumSyncManager:  Has Issues: \(results.hasIssues)")
+        // logger.info("🔄 AlbumSyncManager: ⏰ Sync completed at: \(results.syncedAt)")
 
         await MainActor.run {
             syncResults = results
@@ -236,7 +236,7 @@ class AlbumSyncManager: ObservableObject {
         
         if await videoExistsInPhotos(photosIdentifier) {
             // Video exists - update any metadata if needed
-            logger.info("🔄 AlbumSyncManager: ✅ Move '\(move.name ?? "Unknown")' is in sync with Photos")
+            // logger.info("🔄 AlbumSyncManager: ✅ Move '\(move.name ?? "Unknown")' is in sync with Photos")
         } else {
             // Video missing - this should be handled by VideoRelinkManager
             logger.warning("🔄 AlbumSyncManager: ⚠️ Move '\(move.name ?? "Unknown")' video not found in Photos")
@@ -261,7 +261,7 @@ class AlbumSyncManager: ObservableObject {
         let orphanedIdentifiers = albumVideos.filter { !photosIdentifiersInCoreData.contains($0.localIdentifier) }
         
         if !orphanedIdentifiers.isEmpty {
-            logger.info("🔄 AlbumSyncManager: 🧹 Found \(orphanedIdentifiers.count) orphaned videos in BreakDex album")
+            // logger.info("🔄 AlbumSyncManager: 🧹 Found \(orphanedIdentifiers.count) orphaned videos in BreakDex album")
 
             // Note: In a production app, you might want to:
             // 1. Ask user for confirmation before deletion
@@ -270,7 +270,7 @@ class AlbumSyncManager: ObservableObject {
 
             // For now, we'll just log them
             for video in orphanedIdentifiers {
-                logger.info("🔄 AlbumSyncManager: 📋 Orphaned video: \(video.localIdentifier)")
+                // logger.info("🔄 AlbumSyncManager: 📋 Orphaned video: \(video.localIdentifier)")
             }
         }
     }

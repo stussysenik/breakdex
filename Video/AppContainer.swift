@@ -1,6 +1,8 @@
 import Foundation
 import CoreData
 
+// AppContainer.swift 
+
 // MARK: - App Container
 @MainActor
 public final class AppContainer {
@@ -20,10 +22,10 @@ public final class AppContainer {
     }()
     
     private(set) lazy var logger: AppLogger = {
-        let consoleLogger = ConsoleLogger()
+//        let consoleLogger = ConsoleLogger()
         let fileLogger = FileLogger()
-        let analyticsLogger = AnalyticsLogger()
-        return CompositeLogger(loggers: [consoleLogger, fileLogger, analyticsLogger])
+//        let analyticsLogger = AnalyticsLogger()
+        return CompositeLogger(loggers: [fileLogger])
     }()
     
     // MARK: - Core Video Services
@@ -85,6 +87,7 @@ public final class AppContainer {
     }()
     
     // MARK: - Memory Management
+    // MARK: - FUNC
     func setupMemoryMonitoring() {
         Task {
             for await memoryState in memoryManager.monitorMemoryUsage() {
@@ -108,6 +111,7 @@ public final class AppContainer {
     }
     
     // MARK: - Enhanced Cleanup
+    // MARK: - FUNC
     func cleanup() {
         let cleanupStart = CFAbsoluteTimeGetCurrent()
         logger.info("🧹 ENHANCED AppContainer cleanup starting...", metadata: nil)
@@ -135,9 +139,9 @@ public final class AppContainer {
     }
     
     private init() {
-        logger.info("🏗️ AppContainer initialized with enhanced video architecture", metadata: nil)
-        logger.info("🎯 UnifiedPlayerManager is now the single source of truth for video players", metadata: nil)
-        logger.info("🗑️ Legacy video services deprecated and will be removed", metadata: nil)
+        // logger.info("🏗️ AppContainer initialized with enhanced video architecture", metadata: nil)
+        // logger.info("🎯 UnifiedPlayerManager is now the single source of truth for video players", metadata: nil)
+        // logger.info("🗑️ Legacy video services deprecated and will be removed", metadata: nil)
         setupMemoryMonitoring()
     }
     

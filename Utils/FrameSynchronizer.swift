@@ -419,7 +419,7 @@ public final class FrameSynchronizer: ObservableObject {
 
     private func startPerformanceMonitoring() {
         // Periodic performance reporting could be added here
-        diagnosticLogger.logDebug("📊 Performance monitoring started")
+        diagnosticLogger.logDebug(" Performance monitoring started")
     }
 
     private func trackSyncPerformance(_ syncTime: TimeInterval) {

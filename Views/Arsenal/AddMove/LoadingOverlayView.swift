@@ -318,7 +318,7 @@ struct LoadingOverlayView: View {
             "🎬 LOADING_OVERLAY: 🎨 TYPOGRAPHY_INTEGRATION: └─ Timer: Font.caption (12pt, monospaced)"
         )
         logger.info(
-            "🎬 LOADING_OVERLAY: 📊 Progress: \(Int(progressValue * 100))% - \(statusMessage)"
+            "🎬 LOADING_OVERLAY:  Progress: \(Int(progressValue * 100))% - \(statusMessage)"
         )
 
         let formattedTime = formatTime(unifiedState.loadElapsedTime)
@@ -342,7 +342,7 @@ struct LoadingOverlayView: View {
             "🎬 LOADING_OVERLAY: 🎯 CRITICAL_FIX_LOG: State decoupled - loading overlay now depends only on unified state"
         )
         logger.info(
-            "🎬 LOADING_OVERLAY: 📊 Engine Status: \(unifiedState.unifiedProgressEngine.unifiedStatus)"
+            "🎬 LOADING_OVERLAY:  Engine Status: \(unifiedState.unifiedProgressEngine.unifiedStatus)"
         )
 
         logger.info(
@@ -481,48 +481,48 @@ struct LoadingOverlayView: View {
 
         let perfLogger = Logger(
             subsystem: "BreakingFlashcards",
-            category: "📊 PERFORMANCE_METRICS"
+            category: " PERFORMANCE_METRICS"
         )
 
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] 📈 Initial performance baseline:"
+            " VIEW_APPEARANCE: [(sessionId)] 📈 Initial performance baseline:"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] ├─ Progress: \(Int(progressValue * 100))%"
+            " VIEW_APPEARANCE: [(sessionId)] ├─ Progress: \(Int(progressValue * 100))%"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] ├─ Status message: '\(statusMessage)'"
+            " VIEW_APPEARANCE: [(sessionId)] ├─ Status message: '\(statusMessage)'"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] ├─ Elapsed time: \(formatTime(unifiedState.loadElapsedTime))"
+            " VIEW_APPEARANCE: [(sessionId)] ├─ Elapsed time: \(formatTime(unifiedState.loadElapsedTime))"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] ├─ File size: \(unifiedState.formattedFileSize.isEmpty ? "Not available" : unifiedState.formattedFileSize)"
+            " VIEW_APPEARANCE: [(sessionId)] ├─ File size: \(unifiedState.formattedFileSize.isEmpty ? "Not available" : unifiedState.formattedFileSize)"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] ├─ Raw file size: \(unifiedState.estimatedFileSize) bytes"
+            " VIEW_APPEARANCE: [(sessionId)] ├─ Raw file size: \(unifiedState.estimatedFileSize) bytes"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] ├─ Unified state: \(String(describing: unifiedState.flowState))"
+            " VIEW_APPEARANCE: [(sessionId)] ├─ Unified state: \(String(describing: unifiedState.flowState))"
         )
         perfLogger.info(
-            "📊 VIEW_APPEARANCE: [(sessionId)] └─ Animation state: pulsing = \(isPulsing)"
+            " VIEW_APPEARANCE: [(sessionId)] └─ Animation state: pulsing = \(isPulsing)"
         )
 
         perfLogger.info(
-            "📊 FILE_SIZE_DISPLAY: [(sessionId)] 📊 File size display verification:"
+            " FILE_SIZE_DISPLAY: [(sessionId)]  File size display verification:"
         )
         perfLogger.info(
-            "📊 FILE_SIZE_DISPLAY: [(sessionId)] ├─ Formatted Size Available: \(!unifiedState.formattedFileSize.isEmpty)"
+            " FILE_SIZE_DISPLAY: [(sessionId)] ├─ Formatted Size Available: \(!unifiedState.formattedFileSize.isEmpty)"
         )
         perfLogger.info(
-            "📊 FILE_SIZE_DISPLAY: [(sessionId)] ├─ Display Will Show: \(!unifiedState.formattedFileSize.isEmpty)"
+            " FILE_SIZE_DISPLAY: [(sessionId)] ├─ Display Will Show: \(!unifiedState.formattedFileSize.isEmpty)"
         )
         perfLogger.info(
-            "📊 FILE_SIZE_DISPLAY: [(sessionId)] ├─ Icon: doc.badge.gearshape"
+            " FILE_SIZE_DISPLAY: [(sessionId)] ├─ Icon: doc.badge.gearshape"
         )
         perfLogger.info(
-            "📊 FILE_SIZE_DISPLAY: [(sessionId)] └─ Transition: opacity + move(edge: .top)"
+            " FILE_SIZE_DISPLAY: [(sessionId)] └─ Transition: opacity + move(edge: .top)"
         )
 
         let a11yLogger = Logger(
@@ -576,26 +576,26 @@ struct LoadingOverlayView: View {
 
         let perfLogger = Logger(
             subsystem: "BreakingFlashcards",
-            category: "📊 PERFORMANCE_METRICS"
+            category: " PERFORMANCE_METRICS"
         )
 
         perfLogger.info(
-            "📊 VIEW_DISAPPEARANCE: [(sessionId)] 📊 Final performance metrics:"
+            " VIEW_DISAPPEARANCE: [(sessionId)]  Final performance metrics:"
         )
         perfLogger.info(
-            "📊 VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final progress: \(Int(progressValue * 100))%"
+            " VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final progress: \(Int(progressValue * 100))%"
         )
         perfLogger.info(
-            "📊 VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final status: '\(statusMessage)'"
+            " VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final status: '\(statusMessage)'"
         )
         perfLogger.info(
-            "📊 VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final elapsed time: \(formatTime(unifiedState.loadElapsedTime))"
+            " VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final elapsed time: \(formatTime(unifiedState.loadElapsedTime))"
         )
         perfLogger.info(
-            "📊 VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final unified state: \(String(describing: unifiedState.flowState))"
+            " VIEW_DISAPPEARANCE: [(sessionId)] ├─ Final unified state: \(String(describing: unifiedState.flowState))"
         )
         perfLogger.info(
-            "📊 VIEW_DISAPPEARANCE: [(sessionId)] └─ Animation cleanup: pulsing = \(isPulsing) → false"
+            " VIEW_DISAPPEARANCE: [(sessionId)] └─ Animation cleanup: pulsing = \(isPulsing) → false"
         )
 
         let layoutLogger = Logger(
@@ -964,24 +964,24 @@ struct LoadingOverlayView: View {
         let sessionId = UUID().uuidString.prefix(8)
         let perfLogger = Logger(
             subsystem: "BreakingFlashcards",
-            category: "📊 PERFORMANCE_METRICS"
+            category: " PERFORMANCE_METRICS"
         )
 
         perfLogger.info(
-            "📊 STATUS_CHANGE: [(sessionId)] 📝 Status message updated:"
+            " STATUS_CHANGE: [(sessionId)] 📝 Status message updated:"
         )
         perfLogger.info(
-            "📊 STATUS_CHANGE: [(sessionId)] ├─ From: '\(previous.isEmpty ? "[empty]" : previous)'"
+            " STATUS_CHANGE: [(sessionId)] ├─ From: '\(previous.isEmpty ? "[empty]" : previous)'"
         )
-        perfLogger.info("📊 STATUS_CHANGE: [(sessionId)] ├─ To: '\(new)'")
+        perfLogger.info(" STATUS_CHANGE: [(sessionId)] ├─ To: '\(new)'")
         perfLogger.info(
-            "📊 STATUS_CHANGE: [(sessionId)] ├─ Progress: \(Int(progressValue * 100))%"
-        )
-        perfLogger.info(
-            "📊 STATUS_CHANGE: [(sessionId)] ├─ Elapsed: \(formatTime(unifiedState.loadElapsedTime))"
+            " STATUS_CHANGE: [(sessionId)] ├─ Progress: \(Int(progressValue * 100))%"
         )
         perfLogger.info(
-            "📊 STATUS_CHANGE: [(sessionId)] └─ Phase: \(unifiedState.unifiedProgressEngine.currentPhase.displayName)"
+            " STATUS_CHANGE: [(sessionId)] ├─ Elapsed: \(formatTime(unifiedState.loadElapsedTime))"
+        )
+        perfLogger.info(
+            " STATUS_CHANGE: [(sessionId)] └─ Phase: \(unifiedState.unifiedProgressEngine.currentPhase.displayName)"
         )
     }
     // MARK: - helper LOG FUNC
@@ -991,28 +991,28 @@ struct LoadingOverlayView: View {
         let sessionId = UUID().uuidString.prefix(8)
         let perfLogger = Logger(
             subsystem: "BreakingFlashcards",
-            category: "📊 PERFORMANCE_METRICS"
+            category: " PERFORMANCE_METRICS"
         )
         let progressDelta = new - previous
 
-        perfLogger.info("📊 PROGRESS_CHANGE: [(sessionId)] 📈 Progress updated:")
+        perfLogger.info(" PROGRESS_CHANGE: [(sessionId)] 📈 Progress updated:")
         perfLogger.info(
-            "📊 PROGRESS_CHANGE: [(sessionId)] ├─ From: \(Int(previous * 100))%"
+            " PROGRESS_CHANGE: [(sessionId)] ├─ From: \(Int(previous * 100))%"
         )
         perfLogger.info(
-            "📊 PROGRESS_CHANGE: [(sessionId)] ├─ To: \(Int(new * 100))%"
+            " PROGRESS_CHANGE: [(sessionId)] ├─ To: \(Int(new * 100))%"
         )
         perfLogger.info(
-            "📊 PROGRESS_CHANGE: [(sessionId)] ├─ Delta: \(String(format: "%+.1f", progressDelta * 100))%"
+            " PROGRESS_CHANGE: [(sessionId)] ├─ Delta: \(String(format: "%+.1f", progressDelta * 100))%"
         )
         perfLogger.info(
-            "📊 PROGRESS_CHANGE: [(sessionId)] ├─ Status: '\(statusMessage)'"
+            " PROGRESS_CHANGE: [(sessionId)] ├─ Status: '\(statusMessage)'"
         )
         perfLogger.info(
-            "📊 PROGRESS_CHANGE: [(sessionId)] ├─ Elapsed: \(formatTime(unifiedState.loadElapsedTime))"
+            " PROGRESS_CHANGE: [(sessionId)] ├─ Elapsed: \(formatTime(unifiedState.loadElapsedTime))"
         )
         perfLogger.info(
-            "📊 PROGRESS_CHANGE: [(sessionId)] └─ Accuracy: \(String(format: "%.3f", new * 100))%"
+            " PROGRESS_CHANGE: [(sessionId)] └─ Accuracy: \(String(format: "%.3f", new * 100))%"
         )
 
         //MARK : - VAR DEF
@@ -1022,20 +1022,20 @@ struct LoadingOverlayView: View {
         // (CONDITIONAL) MARK: - LOG FUNC
         if newProgressInt % 25 == 0 && newProgressInt != previousProgressInt {
             perfLogger.info(
-                "📊 MILESTONE: [(sessionId)] 🎯 Progress milestone reached: \(newProgressInt)%"
+                " MILESTONE: [(sessionId)] 🎯 Progress milestone reached: \(newProgressInt)%"
             )
         }
         // (CONDITIONAL) MARK: - LOG FUNC
         if new >= 1.0 && previous < 1.0 {
-            perfLogger.info("📊 COMPLETION: [(sessionId)] 🏆 Loading completed!")
+            perfLogger.info(" COMPLETION: [(sessionId)] 🏆 Loading completed!")
             perfLogger.info(
-                "📊 COMPLETION: [(sessionId)] ├─ Total time: \(formatTime(unifiedState.loadElapsedTime))"
+                " COMPLETION: [(sessionId)] ├─ Total time: \(formatTime(unifiedState.loadElapsedTime))"
             )
             perfLogger.info(
-                "📊 COMPLETION: [(sessionId)] ├─ Final status: '\(statusMessage)'"
+                " COMPLETION: [(sessionId)] ├─ Final status: '\(statusMessage)'"
             )
             perfLogger.info(
-                "📊 COMPLETION: [(sessionId)] └─ Ready for transition"
+                " COMPLETION: [(sessionId)] └─ Ready for transition"
             )
         }
     }

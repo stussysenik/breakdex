@@ -49,12 +49,12 @@ public class PlayerItemStatusMonitor {
 
             // Log individual ranges for debugging (first 3 ranges only to avoid spam)
             if rangeIndex < 3 {
-                logger.info("🎬 MONITOR: 📊 Range \(rangeIndex + 1): \(String(format: "%.2f", rangeDuration))s")
+                logger.info("🎬 MONITOR:  Range \(rangeIndex + 1): \(String(format: "%.2f", rangeDuration))s")
             }
         }
 
         if self.playerItem.loadedTimeRanges.count > 3 {
-            self.logger.info("🎬 MONITOR: 📊 ... and \(self.playerItem.loadedTimeRanges.count - 3) more ranges")
+            self.logger.info("🎬 MONITOR:  ... and \(self.playerItem.loadedTimeRanges.count - 3) more ranges")
         }
 
         return totalDuration
@@ -165,7 +165,7 @@ public class PlayerItemStatusMonitor {
                         Task { @MainActor in
                             let oldStatus = change.oldValue.map { self.statusDescription($0) } ?? "unknown"
                             let newStatus = self.statusDescription(self.playerItem.status)
-                            self.logger.info("🎬 MONITOR: 📊 Status changed from \(oldStatus) to \(newStatus)")
+                            self.logger.info("🎬 MONITOR:  Status changed from \(oldStatus) to \(newStatus)")
                             checkReadiness()
                         }
                     })
@@ -177,9 +177,9 @@ public class PlayerItemStatusMonitor {
                             let rangeCount = self.playerItem.loadedTimeRanges.count
                             if let firstRange = self.playerItem.loadedTimeRanges.first?.timeRangeValue {
                                 let duration = CMTimeGetSeconds(firstRange.duration)
-                                self.logger.info("🎬 MONITOR: 📊 Loaded ranges updated: \(rangeCount) ranges, first duration: \(String(format: "%.2f", duration))s")
+                                self.logger.info("🎬 MONITOR:  Loaded ranges updated: \(rangeCount) ranges, first duration: \(String(format: "%.2f", duration))s")
                             } else {
-                                self.logger.info("🎬 MONITOR: 📊 Loaded ranges updated: \(rangeCount) ranges, no durations available")
+                                self.logger.info("🎬 MONITOR:  Loaded ranges updated: \(rangeCount) ranges, no durations available")
                             }
                             checkReadiness()
                         }
@@ -189,7 +189,7 @@ public class PlayerItemStatusMonitor {
                     observers.append(self.playerItem.observe(
                         \.isPlaybackBufferFull, options: [.new]) { _, _ in
                         Task { @MainActor in
-                            self.logger.info("🎬 MONITOR: 📊 Playback buffer full: \(self.playerItem.isPlaybackBufferFull)")
+                            self.logger.info("🎬 MONITOR:  Playback buffer full: \(self.playerItem.isPlaybackBufferFull)")
                             checkReadiness()
                         }
                     })
@@ -197,7 +197,7 @@ public class PlayerItemStatusMonitor {
                     observers.append(self.playerItem.observe(
                         \.isPlaybackLikelyToKeepUp, options: [.new]) { _, _ in
                         Task { @MainActor in
-                            self.logger.info("🎬 MONITOR: 📊 Likely to keep up: \(self.playerItem.isPlaybackLikelyToKeepUp)")
+                            self.logger.info("🎬 MONITOR:  Likely to keep up: \(self.playerItem.isPlaybackLikelyToKeepUp)")
                             checkReadiness()
                         }
                     })

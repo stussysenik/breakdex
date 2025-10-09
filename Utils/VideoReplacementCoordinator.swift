@@ -387,7 +387,7 @@ public final class VideoReplacementCoordinator: ObservableObject {
         replacementMetrics = metrics
 
         if configuration.enablePerformanceLogging {
-            diagnosticLogger.logInfo("📊 Replacement performance metrics", metadata: [
+            diagnosticLogger.logInfo(" Replacement performance metrics", metadata: [
                 "total_time_ms": "\(metrics.totalTime * 1000)",
                 "preparation_time_ms": "\(metrics.preparationTime * 1000)",
                 "transfer_time_ms": "\(metrics.transferTime * 1000)",

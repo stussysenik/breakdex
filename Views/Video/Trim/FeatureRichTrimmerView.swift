@@ -213,7 +213,7 @@ struct FeatureRichTrimmerView: View {
     @State private var viewModelLoadError: String?
     @State private var lazyInitializationAttempted = false
 
-    private let diagnosticLogger = DiagnosticLoggingHelper(
+    private let diagnosticLogger = DiagnosticLoggingHelper( // MARK: - DiagnosticLoggingHelper
         category: "FeatureRichTrimmer"
     )
 
@@ -267,7 +267,7 @@ struct FeatureRichTrimmerView: View {
         let initialMemoryUsage = MemoryHelper.getDetailedMemoryInfo().used
         let initialCPUUsage = await PerformanceOptimizer().getCPUUsagePercent()
         diagnosticLogger.logInfo(
-            "📊 SETUP_BASELINE - Memory: \(initialMemoryUsage)MB, CPU: \(String(format: "%.1f", initialCPUUsage))% [\(correlationId)]"
+            " SETUP_BASELINE - Memory: \(initialMemoryUsage)MB, CPU: \(String(format: "%.1f", initialCPUUsage))% [\(correlationId)]"
         )
 
         isViewModelLoading = true
@@ -352,7 +352,7 @@ struct FeatureRichTrimmerView: View {
                 "🎉 UNIFIED_LAZY_VIEWMODEL_SUCCESS - TrimmerViewModel fully created [\(correlationId)]"
             )
             diagnosticLogger.logInfo(
-                "📊 SETUP_METRICS - Total time: \(String(format: "%.3f", totalTime))s, Memory: +\(memoryDelta)MB, CPU: \(String(format: "%.1f", finalCPUUsage))% [\(correlationId)]"
+                " SETUP_METRICS - Total time: \(String(format: "%.3f", totalTime))s, Memory: +\(memoryDelta)MB, CPU: \(String(format: "%.1f", finalCPUUsage))% [\(correlationId)]"
             )
             diagnosticLogger.logInfo(
                 "🎯 PERFORMANCE_OPTIMIZATION - Heavy initialization deferred from state transition [\(correlationId)]"
@@ -869,11 +869,11 @@ struct FeatureRichTrimmerView: View {
             .onAppear(perform: onMainViewAppear)
             .onDisappear(perform: onMainViewDisappear)
             .photosPicker(
-                isPresented: $showPhotosPicker, // MARK: - Photos Picker
-                selection: $tempVideoSelection,
-                matching: .videos
+                isPresented: $showPhotosPicker, // MARK: - Photos Picker should be shown, $ access the projected value
+                selection: $tempVideoSelection, // MARK: - the item being shown and selected in the Photos picker
+                matching: .videos // MARK: - we're filtering for videos (these parameters are listed in Apple dev docs)
             )
-            .onChange(of: tempVideoSelection) { _, newItem in
+            .onChange(of: tempVideoSelection) { _, newItem in // MARK: - SELECTION PROCESS - expl. onChange of swap "nothing" with the new value
                 if let newItem = newItem {
                     diagnosticLogger.logDebug(
                         "🎯 RACE_CONDITION_FIX: 📥 Capturing video selection",
@@ -897,9 +897,9 @@ struct FeatureRichTrimmerView: View {
                     )
                 }
             }
-            .task(id: selectionToProcess) {
+            .task(id: selectionToProcess) { // MARK: SELECTION PROCESS
                 if let itemToProcess = selectionToProcess {
-                    await processVideoSelectionSafely(itemToProcess) // MARK: SELECTION PROCESS
+                    await processVideoSelectionSafely(itemToProcess) // MARK: triggers function at line 2176
                 }
             }
             .presentationDetents([.medium, .large])
@@ -1176,7 +1176,7 @@ struct FeatureRichTrimmerView: View {
             )
 
             diagnosticLogger.logInfo(
-                "🎬 FEATURE_RICH_TRIMMER: 📊 PERFORMANCE_METRICS [\(sessionId)]:"
+                "🎬 FEATURE_RICH_TRIMMER:  PERFORMANCE_METRICS [\(sessionId)]:"
             )
             diagnosticLogger.logInfo(
                 "🎬 FEATURE_RICH_TRIMMER: ├─ Lazy loading: ✅ Applied"
@@ -1921,7 +1921,7 @@ struct FeatureRichTrimmerView: View {
 
         do {
             diagnosticLogger.logInfo(
-                "🎯 SIMPLIFIED_VIDEO_REPLACEMENT: 📊 Step 1 - Performing atomic state reset"
+                "🎯 SIMPLIFIED_VIDEO_REPLACEMENT:  Step 1 - Performing atomic state reset"
             )
             let resetStartTime = Date()
 
@@ -1933,7 +1933,7 @@ struct FeatureRichTrimmerView: View {
             )
 
             diagnosticLogger.logInfo(
-                "🎯 SIMPLIFIED_VIDEO_REPLACEMENT: 📊 Step 2 - Loading new video via unified state"
+                "🎯 SIMPLIFIED_VIDEO_REPLACEMENT:  Step 2 - Loading new video via unified state"
             )
             let loadStartTime = Date()
 
@@ -1950,7 +1950,7 @@ struct FeatureRichTrimmerView: View {
 
             let totalDuration = Date().timeIntervalSince(replacementStartTime)
             diagnosticLogger.logInfo(
-                "🎯 SIMPLIFIED_VIDEO_REPLACEMENT: 📊 PERFORMANCE SUMMARY"
+                "🎯 SIMPLIFIED_VIDEO_REPLACEMENT:  PERFORMANCE SUMMARY"
             )
             diagnosticLogger.logInfo(
                 "🎯 SIMPLIFIED_VIDEO_REPLACEMENT: │  ├─ Total replacement time: \(String(format: "%.3f", totalDuration * 1000))ms"
@@ -2000,7 +2000,7 @@ struct FeatureRichTrimmerView: View {
             "🔄 TRIMMER_VIEW: 🔧 CRITICAL_FIX_ISSUE_2: Video replacement method corrected"
         )
         diagnosticLogger.logInfo(
-            "🔄 TRIMMER_VIEW: 📊 Video Replacement Analysis:"
+            "🔄 TRIMMER_VIEW:  Video Replacement Analysis:"
         )
         diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: ┌─ Method Selection Analysis")
         diagnosticLogger.logInfo(
@@ -2133,7 +2133,7 @@ struct FeatureRichTrimmerView: View {
             "🔄 TRIMMER_VIEW: 🔧 POST_FIX_VERIFICATION_ISSUE_2: Video replacement initiation verified"
         )
         diagnosticLogger.logInfo(
-            "🔄 TRIMMER_VIEW: 📊 Synchronous Video Replacement Results:"
+            "🔄 TRIMMER_VIEW:  Synchronous Video Replacement Results:"
         )
         diagnosticLogger.logInfo("🔄 TRIMMER_VIEW: ┌─ Initiation Analysis")
         diagnosticLogger.logInfo(
@@ -2173,7 +2173,7 @@ struct FeatureRichTrimmerView: View {
     }
     // MARK: - FUNC
     @MainActor
-    private func processVideoSelectionSafely(_ item: PhotosPickerItem) async { // MARK: - SELECTION PROCESS
+    private func processVideoSelectionSafely(_ item: PhotosPickerItem) async {
         let processStartTime = Date()
         let correlationId = UUID().uuidString.prefix(8)
 
@@ -2198,7 +2198,7 @@ struct FeatureRichTrimmerView: View {
             ]
         )
 
-        await unifiedState.handleVideoReplacement(item)
+        await unifiedState.handleVideoReplacement(item) // MARK: function from AddMoveUnifiedState.swift
 
         let processDuration = Date().timeIntervalSince(processStartTime)
         diagnosticLogger.logInfo(
@@ -2230,7 +2230,7 @@ struct FeatureRichTrimmerView: View {
         status: String
     ) {
         diagnosticLogger.logInfo(
-            "🔄 TRIMMER_VIEW: 📊 Progress updated synchronously - \(Int(progress * 100))%: \(status)"
+            "🔄 TRIMMER_VIEW:  Progress updated synchronously - \(Int(progress * 100))%: \(status)"
         )
     }
     // MARK: - FUNC

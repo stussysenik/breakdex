@@ -45,16 +45,16 @@ public class VideoLoadingServiceResilient: @preconcurrency
             unifiedProgressEngine: unifiedProgressEngine
         )
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ✅ FAULT_TOLERANT_REFACTOR: Initialized with simplified state management"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Timeout: 45s")
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Max retries: 3")
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Network monitoring: ENABLED")
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Progress Engine: GUARANTEED")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Binding Chain: ELIMINATED (direct UI binding)"
-        )
+        //         logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ✅ FAULT_TOLERANT_REFACTOR: Initialized with simplified state management"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Timeout: 45s")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Max retries: 3")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Network monitoring: ENABLED")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Progress Engine: GUARANTEED")
+        // logger.info(
+        //     "🚀 RESILIENT_VIDEO_SERVICE: └─ Binding Chain: ELIMINATED (direct UI binding)"
+        // )
     }
 
     // MARK: - FUNC
@@ -65,18 +65,18 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
         let correlationId = generateCorrelationId()
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🎬 Starting resilient video loading [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Asset ID: \(phAsset.localIdentifier)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Media type: \(phAsset.mediaType.rawValue)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Duration: \(phAsset.duration)s"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🎬 Starting resilient video loading [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Asset ID: \(phAsset.localIdentifier)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Media type: \(phAsset.mediaType.rawValue)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Duration: \(phAsset.duration)s"
+        //        )
 
         do {
             let asset = try await resilientIntegration.loadVideoAsset(
@@ -84,12 +84,12 @@ public class VideoLoadingServiceResilient: @preconcurrency
                 options: options
             )
 
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: ✅ Video loading completed successfully [\(correlationId)]"
-            )
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: 📊 STATE_MANAGEMENT: Delegated to UnifiedProgressEngine"
-            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: ✅ Video loading completed successfully [\(correlationId)]"
+            //            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE:  STATE_MANAGEMENT: Delegated to UnifiedProgressEngine"
+            //            )
             return asset
 
         } catch {
@@ -97,7 +97,7 @@ public class VideoLoadingServiceResilient: @preconcurrency
                 "🚀 RESILIENT_VIDEO_SERVICE: ❌ Video loading failed: \(error.localizedDescription) [\(correlationId)]"
             )
             logger.error(
-                "🚀 RESILIENT_VIDEO_SERVICE: 📊 STATE_MANAGEMENT: Error propagated to UnifiedProgressEngine"
+                "🚀 RESILIENT_VIDEO_SERVICE:  STATE_MANAGEMENT: Error propagated to UnifiedProgressEngine"
             )
             throw error
         }
@@ -110,9 +110,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
         progress: @escaping (Double) -> Void
     ) async throws -> AVAsset {
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Legacy compatibility method with progress callback"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Legacy compatibility method with progress callback"
+        //        )
 
         return try await loadVideoAsset(phAsset: phAsset, options: options)
     }
@@ -127,9 +127,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
         let operationId =
             correlationId.isEmpty ? generateCorrelationId() : correlationId
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 ImportManager compatibility request [\(operationId)]"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 ImportManager compatibility request [\(operationId)]"
+        //        )
 
         return try await resilientIntegration.requestAVAssetWithTimeout(
             for: asset,
@@ -140,16 +140,16 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
     // MARK: - FUNC
     public func cancelLoading() {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🚫 Cancelling video loading operation"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🚫 Cancelling video loading operation"
+        //        )
 
         resilientIntegration.cancelLoading()
 
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ✅ Loading operation cancelled")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 STATE_MANAGEMENT: Cancellation delegated to UnifiedProgressEngine"
-        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ✅ Loading operation cancelled")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  STATE_MANAGEMENT: Cancellation delegated to UnifiedProgressEngine"
+        //        )
     }
 
     public var diagnosticInfo: [String: Any] {
@@ -174,29 +174,29 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
     // MARK: - FUNC
     public func logDiagnostics() {
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: 📊 FAULT_TOLERANT_DIAGNOSTICS")
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Binding Chain: ELIMINATED")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ State Management: DELEGATED to UnifiedProgressEngine"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ File Size: \(self.formattedFileSize)"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Fault Tolerance: ENABLED")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE:  FAULT_TOLERANT_DIAGNOSTICS")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Binding Chain: ELIMINATED")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ State Management: DELEGATED to UnifiedProgressEngine"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ File Size: \(self.formattedFileSize)"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Fault Tolerance: ENABLED")
 
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: 📊 SIMPLIFIED_PROGRESS_FLOW")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Unified Phase: \(self.unifiedProgressEngine.currentPhase.displayName)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Unified Status: '\(self.unifiedProgressEngine.unifiedStatus)'"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Flow Status: ✅ SINGLE_SOURCE_OF_TRUTH"
-        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE:  SIMPLIFIED_PROGRESS_FLOW")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Unified Phase: \(self.unifiedProgressEngine.currentPhase.displayName)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Unified Status: '\(self.unifiedProgressEngine.unifiedStatus)'"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Flow Status: ✅ SINGLE_SOURCE_OF_TRUTH"
+        //        )
 
         resilientIntegration.logDiagnostics()
     }
@@ -212,18 +212,18 @@ public class VideoLoadingServiceResilient: @preconcurrency
     {
         let correlationId = generateCorrelationId()
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📱 Loading from PhotosPicker [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Item ID: \(item.itemIdentifier ?? "MISSING")"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Fallback Available: ✅")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 📱 Loading from PhotosPicker [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Item ID: \(item.itemIdentifier ?? "MISSING")"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Fallback Available: ✅")
 
         if let itemIdentifier = item.itemIdentifier {
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Attempting primary identifier-based loading [\(correlationId)]"
-            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Attempting primary identifier-based loading [\(correlationId)]"
+            //            )
 
             let fetchResult = PHAsset.fetchAssets(
                 withLocalIdentifiers: [itemIdentifier],
@@ -254,9 +254,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
             )
         }
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Initiating fallback data transfer loading [\(correlationId)]"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Initiating fallback data transfer loading [\(correlationId)]"
+        //        )
         return try await loadVideoViaDataTransfer(
             from: item,
             correlationId: correlationId
@@ -267,9 +267,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
     public func loadVideo(from url: URL) async throws -> VideoLoadingResult {
         let correlationId = generateCorrelationId()
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🌐 Loading from URL [\(correlationId)]: \(url.lastPathComponent)"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🌐 Loading from URL [\(correlationId)]: \(url.lastPathComponent)"
+        //        )
 
         let asset = AVURLAsset(url: url)
 
@@ -290,9 +290,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
             correlationId: correlationId
         )
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ✅ URL loading completed [\(correlationId)]"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ✅ URL loading completed [\(correlationId)]"
+        //        )
         return result
     }
 
@@ -301,68 +301,68 @@ public class VideoLoadingServiceResilient: @preconcurrency
         -> VideoLoadingResult
     {
         let correlationId = generateCorrelationId()
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📚 Loading from PHAsset [\(correlationId)]: \(phAsset.localIdentifier)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🎯 RACE_CONDITION_FIX: SRP enforcement - ResilientVideoLoaderIntegration is SINGLE source of truth"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Manual progress reporting: DISABLED"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Artificial delays: REMOVED")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Progress flow: DIRECT → UnifiedProgressEngine"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 📚 Loading from PHAsset [\(correlationId)]: \(phAsset.localIdentifier)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🎯 RACE_CONDITION_FIX: SRP enforcement - ResilientVideoLoaderIntegration is SINGLE source of truth"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Manual progress reporting: DISABLED"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Artificial delays: REMOVED")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Progress flow: DIRECT → UnifiedProgressEngine"
+        //        )
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 Retrieving file size for UI [\(correlationId)]"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  Retrieving file size for UI [\(correlationId)]"
+        //        )
         let fileSize = await getPHAssetFileSize(phAsset)
         await MainActor.run {
             self.estimatedFileSize = fileSize
             self.formattedFileSize = self.formatFileSize(fileSize)
         }
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ File size: \(self.formatFileSize(fileSize))"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Size retrieval: completed")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ File size: \(self.formatFileSize(fileSize))"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Size retrieval: completed")
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Delegating to ResilientVideoLoaderIntegration [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Progress reporting: MANAGED by UnifiedProgressEngine"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Race condition prevention: ACTIVE"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Delegating to ResilientVideoLoaderIntegration [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Progress reporting: MANAGED by UnifiedProgressEngine"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Race condition prevention: ACTIVE"
+        //        )
 
         let asset = try await resilientIntegration.loadVideoAsset(
             phAsset: phAsset
         )
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ✅ ResilientVideoLoaderIntegration completed [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 UnifiedProgressEngine state: .completed (100%)"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ✅ ResilientVideoLoaderIntegration completed [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  UnifiedProgressEngine state: .completed (100%)"
+        //        )
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔍 Gathering metadata and finalizing result [\(correlationId)]"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔍 Gathering metadata and finalizing result [\(correlationId)]"
+        //        )
 
         try await validateAsset(asset, correlationId: correlationId)
 
         let duration = try await asset.load(.duration)
         _ = try await asset.loadTracks(withMediaType: .video)
 
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Asset validation: ✅")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration.seconds))s"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Video tracks: ✅")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Asset validation: ✅")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration.seconds))s"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Video tracks: ✅")
 
         let sourceType: VideoSourceType =
             phAsset.sourceType == .typeCloudShared
@@ -380,21 +380,21 @@ public class VideoLoadingServiceResilient: @preconcurrency
             correlationId: correlationId
         )
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🏆 PHAsset loading completed successfully [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Source type: \(sourceType.description)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ File size: \(self.formatFileSize(fileSize))"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration.seconds))s"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Race condition fix: ELIMINATED rogue functor path"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🏆 PHAsset loading completed successfully [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Source type: \(sourceType.description)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ File size: \(self.formatFileSize(fileSize))"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration.seconds))s"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Race condition fix: ELIMINATED rogue functor path"
+        //        )
 
         return result
     }
@@ -404,13 +404,13 @@ public class VideoLoadingServiceResilient: @preconcurrency
         from item: PhotosPickerItem,
         correlationId: String
     ) async throws -> VideoLoadingResult {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Starting data transfer fallback loading [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Method: loadTransferable(type: Data.self)"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ iCloud Handling: Built-in")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 Starting data transfer fallback loading [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Method: loadTransferable(type: Data.self)"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ iCloud Handling: Built-in")
 
         let dataTransferStart = Date()
 
@@ -418,9 +418,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
             reportProgress(.initializing, correlationId: correlationId)
 
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: 📥 Loading video data from PhotosPickerItem [\(correlationId)]"
-            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: 📥 Loading video data from PhotosPickerItem [\(correlationId)]"
+            //            )
 
             let videoData = try await item.loadTransferable(type: Data.self)
 
@@ -435,19 +435,19 @@ public class VideoLoadingServiceResilient: @preconcurrency
                 self.formattedFileSize = self.formatFileSize(Int64(data.count))
             }
 
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: ✅ Video data loaded successfully [\(correlationId)]"
-            )
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: ├─ Data Size: \(self.formatFileSize(Int64(data.count)))"
-            )
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: └─ Loading Time: \(String(format: "%.2f", Date().timeIntervalSince(dataTransferStart)))s"
-            )
-
-            logger.info(
-                "🚀 RESILIENT_VIDEO_SERVICE: 💾 Creating temporary file for video data [\(correlationId)]"
-            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: ✅ Video data loaded successfully [\(correlationId)]"
+            //            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: ├─ Data Size: \(self.formatFileSize(Int64(data.count)))"
+            //            )
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: └─ Loading Time: \(String(format: "%.2f", Date().timeIntervalSince(dataTransferStart)))s"
+            //            )
+            //
+            //            logger.info(
+            //                "🚀 RESILIENT_VIDEO_SERVICE: 💾 Creating temporary file for video data [\(correlationId)]"
+            //            )
 
             let tempURL = createTemporaryFileURL()
             temporaryFiles.insert(tempURL)
@@ -532,14 +532,14 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
     // MARK: - FUNC
     public func cleanupTemporaryFiles() async {
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: 🧹 Cleaning up temporary files")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: 🧹 Cleaning up temporary files")
 
         for tempFile in temporaryFiles {
             do {
                 try FileManager.default.removeItem(at: tempFile)
-                logger.info(
-                    "🚀 RESILIENT_VIDEO_SERVICE: ✅ Removed temporary file: \(tempFile.lastPathComponent)"
-                )
+                //                logger.info(
+                //                    "🚀 RESILIENT_VIDEO_SERVICE: ✅ Removed temporary file: \(tempFile.lastPathComponent)"
+                //                )
             } catch {
                 logger.warning(
                     "🚀 RESILIENT_VIDEO_SERVICE: ⚠️ Failed to remove temporary file: \(tempFile.lastPathComponent) - \(error.localizedDescription)"
@@ -548,23 +548,23 @@ public class VideoLoadingServiceResilient: @preconcurrency
         }
 
         temporaryFiles.removeAll()
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ✅ Temporary files cleanup completed"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ✅ Temporary files cleanup completed"
+        //        )
     }
 
     // MARK: - FUNC
     public func cancelCurrentOperation() {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🚫 Cancelling current loading operation"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🚫 Cancelling current loading operation"
+        //        )
 
         resilientIntegration.cancelLoading()
 
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ✅ Current operation cancelled")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 STATE_MANAGEMENT: Cancellation delegated to UnifiedProgressEngine"
-        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ✅ Current operation cancelled")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  STATE_MANAGEMENT: Cancellation delegated to UnifiedProgressEngine"
+        //        )
     }
 
     // MARK: - FUNC
@@ -579,7 +579,7 @@ public class VideoLoadingServiceResilient: @preconcurrency
         progressSubject.send(progress)
 
         logger.debug(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 Progress [\(correlationId)]: \(phase.description)"
+            "🚀 RESILIENT_VIDEO_SERVICE:  Progress [\(correlationId)]: \(phase.description)"
         )
     }
 
@@ -587,9 +587,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
     private func validateAsset(_ asset: AVAsset, correlationId: String)
         async throws
     {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔍 Validating asset [\(correlationId)]"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔍 Validating asset [\(correlationId)]"
+        //        )
 
         let isReadable = try await asset.load(.isReadable)
         guard isReadable else {
@@ -601,9 +601,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
             throw VideoLoadingError.dataUnavailable
         }
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ✅ Asset validation passed [\(correlationId)] - Duration: \(duration.seconds)s"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ✅ Asset validation passed [\(correlationId)] - Duration: \(duration.seconds)s"
+        //        )
     }
 
     // MARK: - FUNC
@@ -616,23 +616,23 @@ public class VideoLoadingServiceResilient: @preconcurrency
     private func getPHAssetFileSize(_ phAsset: PHAsset) async -> Int64 {
         let correlationId = generateCorrelationId()
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 FILE_SIZE_QUERY: Starting PHAsset file size retrieval [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Asset ID: \(phAsset.localIdentifier)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Media Type: \(phAsset.mediaType.rawValue)"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Duration: \(phAsset.duration)s"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  FILE_SIZE_QUERY: Starting PHAsset file size retrieval [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Asset ID: \(phAsset.localIdentifier)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Media Type: \(phAsset.mediaType.rawValue)"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Duration: \(phAsset.duration)s"
+        //        )
 
         let resources = PHAssetResource.assetResources(for: phAsset)
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 RESOURCE_ANALYSIS: Found \(resources.count) asset resources"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  RESOURCE_ANALYSIS: Found \(resources.count) asset resources"
+        //        )
 
         for (index, resource) in resources.enumerated() {
             logger.info(
@@ -679,7 +679,7 @@ public class VideoLoadingServiceResilient: @preconcurrency
                 {
                     fileSize = estimatedSize
                     logger.info(
-                        "🚀 RESILIENT_VIDEO_SERVICE: 📊 FILE_SIZE_ESTIMATED: Calculated from duration"
+                        "🚀 RESILIENT_VIDEO_SERVICE:  FILE_SIZE_ESTIMATED: Calculated from duration"
                     )
                     logger.info(
                         "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration))s"
@@ -698,14 +698,14 @@ public class VideoLoadingServiceResilient: @preconcurrency
             )
         }
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📊 FILE_SIZE_COMPLETE: File size retrieval completed [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Final File Size: \(self.formatFileSize(fileSize))"
-        )
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Raw Bytes: \(fileSize)")
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Success: \(fileSize > 0)")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE:  FILE_SIZE_COMPLETE: File size retrieval completed [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Final File Size: \(self.formatFileSize(fileSize))"
+        //        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: ├─ Raw Bytes: \(fileSize)")
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE: └─ Success: \(fileSize > 0)")
 
         return fileSize
     }
@@ -721,22 +721,22 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
         let estimatedSize = Int64(fileSizeBytes)
 
-        logger.info("🚀 RESILIENT_VIDEO_SERVICE: 📊 SIZE_ESTIMATION_CALCULATION:")
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration))s"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Conservative Bitrate: \(conservativeBitrate / 1_000_000) Mbps"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Total Bits: \(String(format: "%.0f", fileSizeBits))"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Total Bytes: \(String(format: "%.0f", fileSizeBytes))"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Estimated Size: \(self.formatFileSize(estimatedSize))"
-        )
+        // logger.info("🚀 RESILIENT_VIDEO_SERVICE:  SIZE_ESTIMATION_CALCULATION:")
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Duration: \(String(format: "%.2f", duration))s"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Conservative Bitrate: \(conservativeBitrate / 1_000_000) Mbps"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Total Bits: \(String(format: "%.0f", fileSizeBits))"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Total Bytes: \(String(format: "%.0f", fileSizeBytes))"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Estimated Size: \(self.formatFileSize(estimatedSize))"
+        //        )
 
         return estimatedSize
     }
@@ -755,9 +755,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
         let filename = "fallback_video_\(UUID().uuidString).mov"
         let tempURL = tempDir.appendingPathComponent(filename)
 
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 📁 Created temporary file URL: \(tempURL.lastPathComponent)"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 📁 Created temporary file URL: \(tempURL.lastPathComponent)"
+        //        )
         return tempURL
     }
 
@@ -767,15 +767,15 @@ public class VideoLoadingServiceResilient: @preconcurrency
         to url: URL,
         correlationId: String
     ) async throws {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 💾 Writing video data to temporary file [\(correlationId)]"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Data Size: \(self.formatFileSize(Int64(videoData.count)))"
-        )
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: └─ Destination: \(url.lastPathComponent)"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 💾 Writing video data to temporary file [\(correlationId)]"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: ├─ Data Size: \(self.formatFileSize(Int64(videoData.count)))"
+        //        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: └─ Destination: \(url.lastPathComponent)"
+        //        )
 
         let writeStart = Date()
 
@@ -805,9 +805,9 @@ public class VideoLoadingServiceResilient: @preconcurrency
     // MARK: - FUNC
     private func generateTemporaryIdentifier() -> String {
         let tempId = "temp-\(UUID().uuidString.lowercased())"
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🆔 Generated temporary identifier: \(tempId)"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🆔 Generated temporary identifier: \(tempId)"
+        //        )
         return tempId
     }
 }
@@ -864,9 +864,9 @@ extension VideoLoadingServiceResilient {
 extension VideoLoadingServiceResilient {
     // MARK: - FUNC
     public func fetchAsset(with identifier: String) async -> AVAsset? {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 PhotosAssetLoader compatibility method"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 PhotosAssetLoader compatibility method"
+        //        )
 
         let fetchResult = PHAsset.fetchAssets(
             withLocalIdentifiers: [identifier],
@@ -894,9 +894,9 @@ extension VideoLoadingServiceResilient {
         options: PHVideoRequestOptions,
         correlationId: String = ""
     ) async throws -> AVAsset {
-        logger.info(
-            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 AddMoveVideoLoader compatibility method"
-        )
+        // logger.info(
+        //            "🚀 RESILIENT_VIDEO_SERVICE: 🔄 AddMoveVideoLoader compatibility method"
+        //        )
         return try await requestAVAssetWithTimeout(
             for: phAsset,
             options: options,

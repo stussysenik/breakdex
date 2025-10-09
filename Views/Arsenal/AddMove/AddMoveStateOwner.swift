@@ -23,25 +23,25 @@ struct AddMoveStateOwner: View {
         onSaveSuccess: ((Move) -> Void)? = nil,
         onLoadingStateChanged: ((Bool, AddMoveUnifiedState?) -> Void)? = nil
     ) {
-        logger.info(
-            "🎬 PERSISTENT_STATE_OWNER: 🏗️ INITIALIZING - State owner with persistent state object"
-        )
+        // logger.info(
+        //     "🎬 PERSISTENT_STATE_OWNER: 🏗️ INITIALIZING - State owner with persistent state object"
+        // )
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
-        logger.info(
-            "🎬 PERSISTENT_STATE_OWNER: 🎯 RECEIVED_PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 PERSISTENT_STATE_OWNER: 📊 SINGLE_INSTANCE_GUARANTEE - No dueling state machines can exist"
-        )
+        // logger.info(
+        //     "🎬 PERSISTENT_STATE_OWNER: 🎯 RECEIVED_PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 PERSISTENT_STATE_OWNER:  SINGLE_INSTANCE_GUARANTEE - No dueling state machines can exist"
+        // )
 
         self._selectedTab = selectedTab
         self.unifiedState = unifiedState
         self.onSaveSuccess = onSaveSuccess
         self.onLoadingStateChanged = onLoadingStateChanged
 
-        logger.info(
-            "🎬 PERSISTENT_STATE_OWNER: ✅ DUELING_MACHINES_FIXED - Using single persistent state object"
-        )
+        // logger.info(
+        //     "🎬 PERSISTENT_STATE_OWNER: ✅ DUELING_MACHINES_FIXED - Using single persistent state object"
+        // )
     }
 
     var body: some View {
@@ -90,78 +90,78 @@ struct AddMoveStateOwner: View {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
         let sessionId = UUID().uuidString.prefix(8)
 
-        logger.info(
-            "🎬 STATE_OWNER: 📱 TAB_APPEAR [\(sessionId)] AddMove tab appeared with persistent state"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🎯 TAB_APPEAR [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 TAB_APPEAR [\(sessionId)] Current flow state: \(String(describing: unifiedState.flowState))"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 TAB_APPEAR [\(sessionId)] Progress: \(Int(unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: ✅ TAB_APPEAR [\(sessionId)] Tab bar visibility fix active - content always present"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 📱 TAB_APPEAR [\(sessionId)] AddMove tab appeared with persistent state"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🎯 TAB_APPEAR [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  TAB_APPEAR [\(sessionId)] Current flow state: \(String(describing: unifiedState.flowState))"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  TAB_APPEAR [\(sessionId)] Progress: \(Int(unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: ✅ TAB_APPEAR [\(sessionId)] Tab bar visibility fix active - content always present"
+        // )
     }
 
     private func logTabDisappear() {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
         let sessionId = UUID().uuidString.prefix(8)
 
-        logger.info(
-            "🎬 STATE_OWNER: 📱 TAB_DISAPPEAR [\(sessionId)] AddMove tab disappeared - state persists in MainView"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🎯 TAB_DISAPPEAR [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 TAB_DISAPPEAR [\(sessionId)] State preserved: \(String(describing: unifiedState.flowState))"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 TAB_DISAPPEAR [\(sessionId)] Background operations continue: \(isInProgressState(unifiedState.flowState))"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: ✅ TAB_DISAPPEAR [\(sessionId)] Tab bar visibility fix prevents visual disappearance"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 📱 TAB_DISAPPEAR [\(sessionId)] AddMove tab disappeared - state persists in MainView"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🎯 TAB_DISAPPEAR [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  TAB_DISAPPEAR [\(sessionId)] State preserved: \(String(describing: unifiedState.flowState))"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  TAB_DISAPPEAR [\(sessionId)] Background operations continue: \(isInProgressState(unifiedState.flowState))"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: ✅ TAB_DISAPPEAR [\(sessionId)] Tab bar visibility fix prevents visual disappearance"
+        // )
     }
 
     private func logAppForeground() {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
         let sessionId = UUID().uuidString.prefix(8)
 
-        logger.info(
-            "🎬 STATE_OWNER: 🔄 APP_FOREGROUND [\(sessionId)] App entering foreground"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🎯 APP_FOREGROUND [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 APP_FOREGROUND [\(sessionId)] Restored flow state: \(String(describing: unifiedState.flowState))"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: ✅ APP_FOREGROUND [\(sessionId)] Tab bar visibility preserved"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔄 APP_FOREGROUND [\(sessionId)] App entering foreground"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🎯 APP_FOREGROUND [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  APP_FOREGROUND [\(sessionId)] Restored flow state: \(String(describing: unifiedState.flowState))"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: ✅ APP_FOREGROUND [\(sessionId)] Tab bar visibility preserved"
+        // )
     }
 
     private func logAppBackground() {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
         let sessionId = UUID().uuidString.prefix(8)
 
-        logger.info(
-            "🎬 STATE_OWNER: 🔄 APP_BACKGROUND [\(sessionId)] App entering background"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🎯 APP_BACKGROUND [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 APP_BACKGROUND [\(sessionId)] Preserved flow state: \(String(describing: unifiedState.flowState))"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: ✅ APP_BACKGROUND [\(sessionId)] Background operations maintained"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔄 APP_BACKGROUND [\(sessionId)] App entering background"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🎯 APP_BACKGROUND [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  APP_BACKGROUND [\(sessionId)] Preserved flow state: \(String(describing: unifiedState.flowState))"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: ✅ APP_BACKGROUND [\(sessionId)] Background operations maintained"
+        // )
     }
 
     private func handleTabChange(
@@ -173,54 +173,54 @@ struct AddMoveStateOwner: View {
         )
         let sessionId = UUID().uuidString.prefix(8)
 
-        logger.info(
-            "🎬 STATE_OWNER: 🔄 TAB_CHANGE [\(sessionId)] \(oldTab.rawValue) → \(newTab.rawValue)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🎯 TAB_CHANGE [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 TAB_CHANGE [\(sessionId)] Current flow state: \(String(describing: unifiedState.flowState))"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 📊 TAB_CHANGE [\(sessionId)] Progress: \(Int(unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔄 TAB_CHANGE [\(sessionId)] \(oldTab.rawValue) → \(newTab.rawValue)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🎯 TAB_CHANGE [\(sessionId)] PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  TAB_CHANGE [\(sessionId)] Current flow state: \(String(describing: unifiedState.flowState))"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER:  TAB_CHANGE [\(sessionId)] Progress: \(Int(unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
+        // )
 
         if newTab != .add && oldTab == .add {
-            logger.info(
-                "🎬 STATE_OWNER: 📱 TAB_CHANGE [\(sessionId)] Leaving Add tab - state persists in MainView"
-            )
-            logger.info(
-                "🎬 STATE_OWNER: 📊 TAB_CHANGE [\(sessionId)] Preserved state: \(String(describing: unifiedState.flowState))"
-            )
-            logger.info(
-                "🎬 STATE_OWNER: ✅ TAB_CHANGE [\(sessionId)] Background operations will continue"
-            )
+            // logger.info(
+            //     "🎬 STATE_OWNER: 📱 TAB_CHANGE [\(sessionId)] Leaving Add tab - state persists in MainView"
+            // )
+            // logger.info(
+            //     "🎬 STATE_OWNER:  TAB_CHANGE [\(sessionId)] Preserved state: \(String(describing: unifiedState.flowState))"
+            // )
+            // logger.info(
+            //     "🎬 STATE_OWNER: ✅ TAB_CHANGE [\(sessionId)] Background operations will continue"
+            // )
         } else if newTab == .add && oldTab != .add {
-            logger.info(
-                "🎬 STATE_OWNER: 📱 TAB_CHANGE [\(sessionId)] Returning to Add tab - reusing persistent state"
-            )
-            logger.info(
-                "🎬 STATE_OWNER: 📊 TAB_CHANGE [\(sessionId)] Restored state: \(String(describing: unifiedState.flowState))"
-            )
-            logger.info(
-                "🎬 STATE_OWNER: ✅ TAB_CHANGE [\(sessionId)] Tab bar visibility fix active - no conditional wrapper"
-            )
+            // logger.info(
+            //     "🎬 STATE_OWNER: 📱 TAB_CHANGE [\(sessionId)] Returning to Add tab - reusing persistent state"
+            // )
+            // logger.info(
+            //     "🎬 STATE_OWNER:  TAB_CHANGE [\(sessionId)] Restored state: \(String(describing: unifiedState.flowState))"
+            // )
+            // logger.info(
+            //     "🎬 STATE_OWNER: ✅ TAB_CHANGE [\(sessionId)] Tab bar visibility fix active - no conditional wrapper"
+            // )
         } else {
-            logger.info(
-                "🎬 STATE_OWNER: 📱 TAB_CHANGE [\(sessionId)] Non-Add tab transition - state unaffected"
-            )
+            // logger.info(
+            //     "🎬 STATE_OWNER: 📱 TAB_CHANGE [\(sessionId)] Non-Add tab transition - state unaffected"
+            // )
         }
 
-        logger.info(
-            "🎬 STATE_OWNER: 🔧 TAB_VISIBILITY_FIX [\(sessionId)] Conditional wrapper removed"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🔧 TAB_VISIBILITY_FIX [\(sessionId)] SwiftUI TabView manages visibility naturally"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🔧 TAB_VISIBILITY_FIX [\(sessionId)] Content persists across tab switches"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔧 TAB_VISIBILITY_FIX [\(sessionId)] Conditional wrapper removed"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔧 TAB_VISIBILITY_FIX [\(sessionId)] SwiftUI TabView manages visibility naturally"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔧 TAB_VISIBILITY_FIX [\(sessionId)] Content persists across tab switches"
+        // )
     }
 
     @MainActor
@@ -229,18 +229,18 @@ struct AddMoveStateOwner: View {
         to newState: AddMoveFlowState
     ) {
         let sessionId = UUID().uuidString.prefix(8)
-        logger.info(
-            "🎬 STATE_OWNER: 🔄 FLOW_STATE_CHANGE [\(sessionId)] \(String(describing: oldState)) → \(String(describing: newState))"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔄 FLOW_STATE_CHANGE [\(sessionId)] \(String(describing: oldState)) → \(String(describing: newState))"
+        // )
 
         let isLoading = isLoadingState(newState)
 
-        logger.info(
-            "🎬 STATE_OWNER: 🔄 LOADING_DETECTED [\(sessionId)] isLoading: \(isLoading)"
-        )
-        logger.info(
-            "🎬 STATE_OWNER: 🔄 LOADING_DETECTED [\(sessionId)] progress: \(Int(unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
-        )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔄 LOADING_DETECTED [\(sessionId)] isLoading: \(isLoading)"
+        // )
+        // logger.info(
+        //     "🎬 STATE_OWNER: 🔄 LOADING_DETECTED [\(sessionId)] progress: \(Int(unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
+        // )
 
         onLoadingStateChanged?(isLoading, unifiedState)
     }
@@ -250,9 +250,9 @@ struct AddMoveStateOwner: View {
         let sessionId = UUID().uuidString.prefix(8)
 
         if Int(progress * 100) % 10 == 0 {
-            logger.info(
-                "🎬 STATE_OWNER: 📊 PROGRESS_UPDATE [\(sessionId)] \(Int(progress * 100))%"
-            )
+            // logger.info(
+            //     "🎬 STATE_OWNER:  PROGRESS_UPDATE [\(sessionId)] \(Int(progress * 100))%"
+            // )
         }
 
         let currentStateIsLoading = isLoadingState(unifiedState.flowState)
@@ -320,23 +320,23 @@ private struct AddMoveContainerWithPersistentState: View {
         onSaveSuccess: ((Move) -> Void)?
     ) {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🏗️ INITIALIZING - AddMoveContainer with persistent state"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🏗️ INITIALIZING - AddMoveContainer with persistent state"
+        // )
 
         self._selectedTab = selectedTab
         self.unifiedState = unifiedState
         self.onSaveSuccess = onSaveSuccess
 
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: ✅ STATE_LIFECYCLE_INDEPENDENT - Container no longer owns state"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 📊 Container can be recreated without affecting state"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: ✅ STATE_LIFECYCLE_INDEPENDENT - Container no longer owns state"
+        // )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT:  Container can be recreated without affecting state"
+        // )
     }
 
     var body: some View {
@@ -351,15 +351,15 @@ private struct AddMoveContainerWithPersistentState: View {
             let stateIdString = String(
                 describing: ObjectIdentifier(unifiedState)
             )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📱 Container appeared with persistent state"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📊 Flow state: \(String(describing: unifiedState.flowState))"
-            )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 📱 Container appeared with persistent state"
+            // )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+            // )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT:  Flow state: \(String(describing: unifiedState.flowState))"
+            // )
 
             StateLifecycleDiagnosticLogger.logViewLifecycle(
                 "AddMoveContainerWithPersistentState",
@@ -373,15 +373,15 @@ private struct AddMoveContainerWithPersistentState: View {
             let stateIdString = String(
                 describing: ObjectIdentifier(unifiedState)
             )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📱 Container disappeared - state persists in MainView"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📊 State preserved: \(String(describing: unifiedState.flowState))"
-            )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 📱 Container disappeared - state persists in MainView"
+            // )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+            // )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT:  State preserved: \(String(describing: unifiedState.flowState))"
+            // )
 
             StateLifecycleDiagnosticLogger.logViewDisappearance(
                 "AddMoveContainerWithPersistentState",
@@ -395,14 +395,14 @@ private struct AddMoveContainerWithPersistentState: View {
             let stateIdString = String(
                 describing: ObjectIdentifier(unifiedState)
             )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🔄 State change: \(String(describing: oldState)) → \(String(describing: newState))"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-            )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 🔄 State change: \(String(describing: oldState)) → \(String(describing: newState))"
+            // )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+            // )
 
-            handleStateChange(from: oldState, to: newState)
+            //            handleStateChange(from: oldState, to: newState)
         }
     }
 
@@ -420,10 +420,10 @@ private struct AddMoveContainerWithPersistentState: View {
                         AddMoveSelectClipViewUnified(unifiedState: unifiedState)
                     case .loadingVideo:
 
-                        let _ = logger.info(
-                            "🎬 CONTAINER_PERSISTENT: 🏗️ Rendering loadingVideo state - app-wide overlay managed by MainView"
-                        )
-                        LoadingView(
+                        // let _ = logger.info(
+                        //     "🎬 CONTAINER_PERSISTENT: 🏗️ Rendering loadingVideo state - app-wide overlay managed by MainView"
+                        // )
+                        LoadingView( // MARK: - LoadingOverlayView should trigger imo
                             progress: unifiedState.unifiedProgressEngine
                                 .unifiedProgress,
                             status: "Loading Video...",
@@ -480,7 +480,7 @@ private struct AddMoveContainerWithPersistentState: View {
     }
 
     private func logRenderingState(_ state: String) {
-        logger.info("🎬 CONTAINER_PERSISTENT: 🏗️ Rendering \(state) state")
+        // logger.info("🎬 CONTAINER_PERSISTENT: 🏗️ Rendering \(state) state")
     }
 
     private func logLoadingVideoState() {
@@ -488,32 +488,32 @@ private struct AddMoveContainerWithPersistentState: View {
             format: "%.1f",
             unifiedState.unifiedProgressEngine.unifiedProgress * 100
         )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🏗️ Rendering loadingVideo state - progress: \(progress)%"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🏗️ Rendering loadingVideo state - progress: \(progress)%"
+        // )
     }
 
     private func logTrimmerViewAppear() {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: ✅ TrimmerView appeared with persistent state"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: ✅ TrimmerView appeared with persistent state"
+        // )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
     }
 
     private func logLoadingTrimmedAssetState(progress: SimpleProgress) {
         let progressPercent = String(format: "%.1f", progress.value * 100)
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🏗️ Rendering loadingTrimmedAsset state - progress: \(progressPercent)%"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🏗️ Rendering loadingTrimmedAsset state - progress: \(progressPercent)%"
+        // )
     }
 
     private func logSuccessCallback() {
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🔄 Success completion callback triggered"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🔄 Success completion callback triggered"
+        // )
     }
 
     private func logErrorState(message: String) {
@@ -523,7 +523,7 @@ private struct AddMoveContainerWithPersistentState: View {
     }
 
     private func logErrorRetry() {
-        logger.info("🎬 CONTAINER_PERSISTENT: 🔄 Error retry triggered")
+        // logger.info("🎬 CONTAINER_PERSISTENT: 🔄 Error retry triggered")
     }
 
     private func logErrorCancel() {
@@ -531,133 +531,133 @@ private struct AddMoveContainerWithPersistentState: View {
     }
 
     private func handleViewAppear() {
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🎬 Handling view appear with persistent state"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🎬 Handling view appear with persistent state"
+        // )
 
         unifiedState.onSaveSuccess = { savedMove in
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🚀 Save completion handler called"
-            )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 🚀 Save completion handler called"
+            // )
 
-            if let move = savedMove as? Move {
-                self.onSaveSuccess?(move)
-            }
+            // if let move = savedMove as? Move {
+            //     self.onSaveSuccess?(move)
+            // }
         }
 
         unifiedState.returnToTrimming = {
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🔙 Return to trimming closure triggered"
-            )
+            // logger.info(
+            //     "🎬 CONTAINER_PERSISTENT: 🔙 Return to trimming closure triggered"
+            // )
 
         }
 
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: ✅ Persistent state handlers configured"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: ✅ Persistent state handlers configured"
+        // )
     }
 
     private func handleViewDisappear() {
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🎬 Handling view disappear - state persists"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🎬 Handling view disappear - state persists"
+        // )
 
     }
 
-    private func handleStateChange(
-        from oldState: AddMoveFlowState,
-        to newState: AddMoveFlowState
-    ) {
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🔄 State change observed with persistent state"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 📊 \(String(describing: oldState)) → \(String(describing: newState))"
-        )
+    // private func handleStateChange(
+    //     from oldState: AddMoveFlowState,
+    //     to newState: AddMoveFlowState
+    // ) {
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 🔄 State change observed with persistent state"
+    // )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT:  \(String(describing: oldState)) → \(String(describing: newState))"
+    // )
 
-        switch (oldState, newState) {
-        case (.loadingVideo, .trimming):
-            let stateIdString = String(
-                describing: ObjectIdentifier(unifiedState)
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: ✅ Video loading completed - entering trimming"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-            )
+    // switch (oldState, newState) {
+    // case (.loadingVideo, .trimming):
+    //     let stateIdString = String(
+    //         describing: ObjectIdentifier(unifiedState)
+    //     )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: ✅ Video loading completed - entering trimming"
+    // )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+    // )
 
-        case (.loadingVideo, _):
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📊 Video loading progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PROGRESS_UPDATES_WORK: State persists across view recreations"
-            )
+    // case (.loadingVideo, _):
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT:  Video loading progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
+    // )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 🎯 PROGRESS_UPDATES_WORK: State persists across view recreations"
+    // )
 
-        default:
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📝 Standard transition: \(String(describing: oldState)) → \(String(describing: newState))"
-            )
-        }
-    }
+    // default:
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 📝 Standard transition: \(String(describing: oldState)) → \(String(describing: newState))"
+    // )
+    //     }
+    // }
 
     private func logStateChange(
         from oldState: AddMoveFlowState,
         to newState: AddMoveFlowState
     ) {
-        logStateChangeForMainContent(from: oldState, to: newState)
+        //        logStateChangeForMainContent(from: oldState, to: newState)
     }
 
-    private func logStateChangeForMainContent(
-        from oldState: AddMoveFlowState,
-        to newState: AddMoveFlowState
-    ) {
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🔄 State change observed with persistent state"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 📊 \(String(describing: oldState)) → \(String(describing: newState))"
-        )
+    // private func logStateChangeForMainContent(
+    //     from oldState: AddMoveFlowState,
+    //     to newState: AddMoveFlowState
+    // ) {
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 🔄 State change observed with persistent state"
+    // )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT:  \(String(describing: oldState)) → \(String(describing: newState))"
+    // )
 
-        switch (oldState, newState) {
-        case (.loadingVideo, .trimming):
-            let stateIdString = String(
-                describing: ObjectIdentifier(unifiedState)
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: ✅ Video loading completed - entering trimming"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-            )
+    // switch (oldState, newState) {
+    // case (.loadingVideo, .trimming):
+    //     let stateIdString = String(
+    //         describing: ObjectIdentifier(unifiedState)
+    //     )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: ✅ Video loading completed - entering trimming"
+    // )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+    // )
 
-        case (.loadingVideo, _):
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📊 Video loading progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
-            )
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 🎯 PROGRESS_UPDATES_WORK: State persists across view recreations"
-            )
+    // case (.loadingVideo, _):
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT:  Video loading progress: \(String(format: "%.1f", unifiedState.unifiedProgressEngine.unifiedProgress * 100))%"
+    // )
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 🎯 PROGRESS_UPDATES_WORK: State persists across view recreations"
+    // )
 
-        default:
-            logger.info(
-                "🎬 CONTAINER_PERSISTENT: 📝 Standard transition: \(String(describing: oldState)) → \(String(describing: newState))"
-            )
-        }
-    }
+    // default:
+    // logger.info(
+    //     "🎬 CONTAINER_PERSISTENT: 📝 Standard transition: \(String(describing: oldState)) → \(String(describing: newState))"
+    // )
+    //     }
+    // }
 
     private func logMainContentAppear() {
         let stateIdString = String(describing: ObjectIdentifier(unifiedState))
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 📱 Main content appeared with persistent state"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
-        )
-        logger.info(
-            "🎬 CONTAINER_PERSISTENT: 📊 Current flow state: \(String(describing: unifiedState.flowState))"
-        )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 📱 Main content appeared with persistent state"
+        // )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT: 🎯 PERSISTENT_STATE_ID: \(stateIdString)"
+        // )
+        // logger.info(
+        //     "🎬 CONTAINER_PERSISTENT:  Current flow state: \(String(describing: unifiedState.flowState))"
+        // )
     }
 
     private func isValidContainerState() -> Bool {
@@ -683,9 +683,9 @@ private struct AddMoveContainerWithPersistentState: View {
                 .padding(.horizontal)
 
             Button("Restart") {
-                logger.info(
-                    "🎬 CONTAINER_PERSISTENT: 🔄 Restart button triggered"
-                )
+                // logger.info(
+                //     "🎬 CONTAINER_PERSISTENT: 🔄 Restart button triggered"
+                // )
                 unifiedState.reset()
                 selectedTab = .add
             }

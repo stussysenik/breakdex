@@ -44,8 +44,8 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
 
         setupBindings()
 
-        logger.info("🔗 RESILIENT_INTEGRATION: ✅ Initialized with GUARANTEED UnifiedProgressEngine integration")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Data Flow Integrity: ENFORCED by compiler")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ✅ Initialized with GUARANTEED UnifiedProgressEngine integration")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Data Flow Integrity: ENFORCED by compiler")
     }
 
     // MARK: - Public API
@@ -64,9 +64,9 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
 
         let correlationId = generateCorrelationId()
 
-        logger.info("🔗 RESILIENT_INTEGRATION: 🚀 Starting integrated video loading [\(correlationId)]")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Asset ID: \(phAsset.localIdentifier)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Correlation ID: \(correlationId)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🚀 Starting integrated video loading [\(correlationId)]")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Asset ID: \(phAsset.localIdentifier)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Correlation ID: \(correlationId)")
 
         isLoading = true
         currentError = nil
@@ -90,7 +90,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
 
             unifiedProgressEngine.completeLoading()
 
-            logger.info("🔗 RESILIENT_INTEGRATION: ✅ Video loading completed successfully [\(correlationId)]")
+            // logger.info("🔗 RESILIENT_INTEGRATION: ✅ Video loading completed successfully [\(correlationId)]")
             return asset
 
         } catch {
@@ -126,16 +126,16 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
 
         let operationId = correlationId.isEmpty ? generateCorrelationId() : correlationId
 
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 Compatibility request for AVAsset [\(operationId)]")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Asset: \(asset.localIdentifier)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Timeout: 45s with network resilience")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 Compatibility request for AVAsset [\(operationId)]")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Asset: \(asset.localIdentifier)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Timeout: 45s with network resilience")
 
         return try await loadVideoAsset(phAsset: asset, options: options)
     }
     // MARK: - FUNC
     /// Cancel current loading operation
     public func cancelLoading() {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🚫 Cancelling integrated loading operation")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🚫 Cancelling integrated loading operation")
 
         resilientLoader.cancelLoading()
         unifiedProgressEngine.cancelLoading()
@@ -148,10 +148,10 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
         isWaitingForNetwork = false
         currentError = nil
 
-        logger.info("🔗 RESILIENT_INTEGRATION: ✅ Loading operation cancelled")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ ResilientVideoLoader: ✅ Cancelled")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ UnifiedProgressEngine: ✅ Cancelled")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Combine Subscription: ✅ Cancelled")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ✅ Loading operation cancelled")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ ResilientVideoLoader: ✅ Cancelled")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ UnifiedProgressEngine: ✅ Cancelled")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Combine Subscription: ✅ Cancelled")
     }
 
     /// Get current diagnostic information
@@ -168,14 +168,14 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     // MARK: - FUNC
     /// Log comprehensive diagnostic information
     public func logDiagnostics() {
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 COMPREHENSIVE INTEGRATION DIAGNOSTICS")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Loading State: \(self.isLoading ? "ACTIVE" : "IDLE")")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Waiting for Network: \(self.isWaitingForNetwork ? "YES" : "NO")")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Loading Progress: \(Int(self.loadingProgress * 100))%")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Loading Status: '\(self.loadingStatus)'")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Current Error: \(self.currentError?.localizedDescription ?? "None")")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress))")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Unified Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+        // logger.info("🔗 RESILIENT_INTEGRATION:  COMPREHENSIVE INTEGRATION DIAGNOSTICS")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Loading State: \(self.isLoading ? "ACTIVE" : "IDLE")")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Waiting for Network: \(self.isWaitingForNetwork ? "YES" : "NO")")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Loading Progress: \(Int(self.loadingProgress * 100))%")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Loading Status: '\(self.loadingStatus)'")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Current Error: \(self.currentError?.localizedDescription ?? "None")")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress))")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Unified Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
 
         resilientLoader.logDiagnostics()
     }
@@ -185,10 +185,10 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     private func setupBindings() {
         // 🔗 DURABLE_SUBSCRIPTION: Create subscription to ResilientVideoLoader progress publisher
         // This ensures iCloud progress is never lost due to nil references in closure captures
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔗 ESTABLISHING_DURABLE_SUBSCRIPTION: Creating Combine subscription")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Source: ResilientVideoLoader.progressPublisher")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Destination: UnifiedProgressEngine")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Purpose: Prevent progress loss due to nil references")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔗 ESTABLISHING_DURABLE_SUBSCRIPTION: Creating Combine subscription")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Source: ResilientVideoLoader.progressPublisher")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Destination: UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Purpose: Prevent progress loss due to nil references")
 
         progressSubscription = resilientLoader.progressPublisher
             .sink { [weak self] progress in
@@ -197,7 +197,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
                 }
             }
 
-        logger.info("🔗 RESILIENT_INTEGRATION: ✅ DURABLE_SUBSCRIPTION_ESTABLISHED: Combine subscription active")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ✅ DURABLE_SUBSCRIPTION_ESTABLISHED: Combine subscription active")
 
         // Bind resilient loader state to integration state
         Task { @MainActor in
@@ -238,55 +238,55 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     /// This is the core of the decoupled progress reporting system
     // MARK: - FUNC
     private func handleProgressFromPublisher(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 📥 PROGRESS_RECEIVED: Progress from ResilientVideoLoader publisher [\(progress.correlationId)]")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase: \(String(describing: progress.phase))")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Progress: \(String(format: "%.3f", progress.progress)) (\(Int(progress.progress * 100))%)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Timestamp: \(progress.timestamp)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 📥 PROGRESS_RECEIVED: Progress from ResilientVideoLoader publisher [\(progress.correlationId)]")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase: \(String(describing: progress.phase))")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Progress: \(String(format: "%.3f", progress.progress)) (\(Int(progress.progress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Timestamp: \(progress.timestamp)")
 
         // 🔄 PHASE_HANDLING: Process different loading phases
         switch progress.phase {
         case .initializing:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_INITIALIZING: Setting up initial loading state")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_INITIALIZING: Setting up initial loading state")
             await handleInitializingPhase(progress)
 
         case .requestingDownload:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_REQUESTING_DOWNLOAD: Preparing iCloud download")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_REQUESTING_DOWNLOAD: Preparing iCloud download")
             await handleRequestingDownloadPhase(progress)
 
         case .downloadingFromCloud(let downloadProgress):
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_DOWNLOADING: Processing iCloud download progress")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_DOWNLOADING: Processing iCloud download progress")
             await handleDownloadingPhase(progress, downloadProgress: downloadProgress)
 
         case .transferring:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_TRANSFERRING: Handling video transfer")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_TRANSFERRING: Handling video transfer")
             await handleTransferringPhase(progress)
 
         case .validating:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_VALIDATING: Validating video asset")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_VALIDATING: Validating video asset")
             await handleValidatingPhase(progress)
 
         case .creatingAsset:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_CREATING_ASSET: Creating final video asset")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_CREATING_ASSET: Creating final video asset")
             await handleCreatingAssetPhase(progress)
 
         case .generatingThumbnail:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_GENERATING_THUMBNAIL: Generating video thumbnail")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_GENERATING_THUMBNAIL: Generating video thumbnail")
             await handleGeneratingThumbnailPhase(progress)
 
         case .loadingTrimmerDuration:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_LOADING_TRIMMER_DURATION: Loading trimmer duration")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_LOADING_TRIMMER_DURATION: Loading trimmer duration")
             await handleLoadingTrimmerDurationPhase(progress)
 
         case .loadingTrimmerTracks:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_LOADING_TRIMMER_TRACKS: Loading trimmer tracks")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_LOADING_TRIMMER_TRACKS: Loading trimmer tracks")
             await handleLoadingTrimmerTracksPhase(progress)
 
         case .validatingTrimmer:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_VALIDATING_TRIMMER: Validating trimmer setup")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_VALIDATING_TRIMMER: Validating trimmer setup")
             await handleValidatingTrimmerPhase(progress)
 
         case .completed:
-            logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_COMPLETED: Video loading completed successfully")
+            // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 PHASE_COMPLETED: Video loading completed successfully")
             await handleCompletedPhase(progress)
 
         case .error(let error):
@@ -294,40 +294,40 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
             await handleErrorPhase(progress, error: error)
         }
 
-        // 📊 COMPREHENSIVE_DIAGNOSTIC: Log complete flow verification (engine now guaranteed)
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 PROGRESS_FLOW_VERIFICATION:")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Source: ResilientVideoLoader.progressPublisher")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Integration: ResilientVideoLoaderIntegration")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Engine Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Engine Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Complete Flow: iCloud → ResilientVideoLoader → Integration → UI (GUARANTEED)")
+        //  COMPREHENSIVE_DIAGNOSTIC: Log complete flow verification (engine now guaranteed)
+        // logger.info("🔗 RESILIENT_INTEGRATION:  PROGRESS_FLOW_VERIFICATION:")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Source: ResilientVideoLoader.progressPublisher")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Integration: ResilientVideoLoaderIntegration")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Engine Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Engine Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Complete Flow: iCloud → ResilientVideoLoader → Integration → UI (GUARANTEED)")
     }
 
     // MARK: - Phase Handlers
     // MARK: - FUNC
     private func handleInitializingPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 INITIALIZING_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 INITIALIZING_PHASE: Forwarding to UnifiedProgressEngine")
 
-        // 📊 DIAGNOSTIC_ENHANCEMENT: Track data flow integrity during initialization
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 DATA_FLOW_DIAGNOSTIC: Initializing phase started")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Source Progress: \(String(format: "%.3f", progress.progress))")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Before UnifiedProgress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress))")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+        //  DIAGNOSTIC_ENHANCEMENT: Track data flow integrity during initialization
+        // logger.info("🔗 RESILIENT_INTEGRATION:  DATA_FLOW_DIAGNOSTIC: Initializing phase started")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Source Progress: \(String(format: "%.3f", progress.progress))")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Before UnifiedProgress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress))")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
 
         self.unifiedProgressEngine.transitionToPhase(.initializing)
         self.unifiedProgressEngine.beginLoading()
 
-        // 📊 DIAGNOSTIC_ENHANCEMENT: Verify unified progress after initialization
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 DATA_FLOW_DIAGNOSTIC: After UnifiedProgressEngine.beginLoading()")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ UnifiedProgress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Expected: Should be > 0% (initializing weight: 3%)")
+        //  DIAGNOSTIC_ENHANCEMENT: Verify unified progress after initialization
+        // logger.info("🔗 RESILIENT_INTEGRATION:  DATA_FLOW_DIAGNOSTIC: After UnifiedProgressEngine.beginLoading()")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ UnifiedProgress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Expected: Should be > 0% (initializing weight: 3%)")
 
         updateProgress(progress.progress, status: "Initializing video loading...")
     }
     // MARK: - FUNC
     private func handleRequestingDownloadPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 REQUESTING_DOWNLOAD_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 REQUESTING_DOWNLOAD_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.requestingDownload)
 
@@ -335,32 +335,32 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleDownloadingPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress, downloadProgress: Double) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 DOWNLOADING_PHASE: Forwarding iCloud download progress")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Download Progress: \(String(format: "%.3f", downloadProgress)) (\(Int(downloadProgress * 100))%)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Overall Progress: \(String(format: "%.3f", progress.progress)) (\(Int(progress.progress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 DOWNLOADING_PHASE: Forwarding iCloud download progress")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Download Progress: \(String(format: "%.3f", downloadProgress)) (\(Int(downloadProgress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Overall Progress: \(String(format: "%.3f", progress.progress)) (\(Int(progress.progress * 100))%)")
 
-        // 📊 DIAGNOSTIC_ENHANCEMENT: Track critical download phase progress flow
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 DATA_FLOW_DIAGNOSTIC: Download phase - CRITICAL for progress bar movement")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Raw iCloud Download: \(Int(downloadProgress * 100))% (will be weighted)")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Before UnifiedProgress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase Weight: 45% (largest contribution)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Expected Range: 3% - 48% based on download progress")
+        //  DIAGNOSTIC_ENHANCEMENT: Track critical download phase progress flow
+        // logger.info("🔗 RESILIENT_INTEGRATION:  DATA_FLOW_DIAGNOSTIC: Download phase - CRITICAL for progress bar movement")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Raw iCloud Download: \(Int(downloadProgress * 100))% (will be weighted)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Before UnifiedProgress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase Weight: 45% (largest contribution)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Expected Range: 3% - 48% based on download progress")
 
         self.unifiedProgressEngine.transitionToPhase(.downloadingFromCloud)
         self.unifiedProgressEngine.updateDownloadProgress(downloadProgress)
 
-        // 📊 DIAGNOSTIC_ENHANCEMENT: Verify unified progress calculation
+        //  DIAGNOSTIC_ENHANCEMENT: Verify unified progress calculation
         let afterUnifiedProgress = self.unifiedProgressEngine.unifiedProgress
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 DATA_FLOW_DIAGNOSTIC: After updateDownloadProgress()")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ UnifiedProgress: \(String(format: "%.3f", afterUnifiedProgress)) (\(Int(afterUnifiedProgress * 100))%)")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Progress Movement: \(afterUnifiedProgress > 0.05 ? "✅ MOVED PAST 5% - GOOD!" : "⚠️ Still at 0-5% - investigating")")
+        // logger.info("🔗 RESILIENT_INTEGRATION:  DATA_FLOW_DIAGNOSTIC: After updateDownloadProgress()")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ UnifiedProgress: \(String(format: "%.3f", afterUnifiedProgress)) (\(Int(afterUnifiedProgress * 100))%)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Progress Movement: \(afterUnifiedProgress > 0.05 ? "✅ MOVED PAST 5% - GOOD!" : "⚠️ Still at 0-5% - investigating")")
 
         updateProgress(progress.progress, status: "Downloading from iCloud... (\(Int(downloadProgress * 100))%)")
     }
     // MARK: - FUNC
     private func handleTransferringPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 TRANSFERRING_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 TRANSFERRING_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.transferring)
 
@@ -368,7 +368,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleValidatingPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 VALIDATING_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 VALIDATING_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.validating)
 
@@ -376,7 +376,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleCreatingAssetPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 CREATING_ASSET_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 CREATING_ASSET_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.creatingAsset)
 
@@ -384,7 +384,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleGeneratingThumbnailPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 GENERATING_THUMBNAIL_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 GENERATING_THUMBNAIL_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.generatingThumbnail)
 
@@ -392,7 +392,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleLoadingTrimmerDurationPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 LOADING_TRIMMER_DURATION_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 LOADING_TRIMMER_DURATION_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.loadingTrimmerDuration)
 
@@ -400,7 +400,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
 
     private func handleLoadingTrimmerTracksPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 LOADING_TRIMMER_TRACKS_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 LOADING_TRIMMER_TRACKS_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.loadingTrimmerTracks)
 
@@ -408,7 +408,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleValidatingTrimmerPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 VALIDATING_TRIMMER_PHASE: Forwarding to UnifiedProgressEngine")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 VALIDATING_TRIMMER_PHASE: Forwarding to UnifiedProgressEngine")
 
         unifiedProgressEngine.transitionToPhase(.validatingTrimmer)
 
@@ -416,18 +416,18 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
     }
     // MARK: - FUNC
     private func handleCompletedPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress) async {
-        logger.info("🔗 RESILIENT_INTEGRATION: ✅ COMPLETED_PHASE: Video loading completed successfully")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ✅ COMPLETED_PHASE: Video loading completed successfully")
 
         unifiedProgressEngine.transitionToPhase(.validatingTrimmer)
         unifiedProgressEngine.completeLoading()
 
         updateProgress(1.0, status: "Video loaded successfully")
 
-        logger.info("🔗 RESILIENT_INTEGRATION: 🏆 SUCCESS: Complete progress flow executed successfully")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ iCloud → ResilientVideoLoader: ✅")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ ResilientVideoLoader → Integration: ✅")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Integration → UnifiedProgressEngine: ✅")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ UnifiedProgressEngine → UI: ✅")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🏆 SUCCESS: Complete progress flow executed successfully")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ iCloud → ResilientVideoLoader: ✅")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ ResilientVideoLoader → Integration: ✅")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Integration → UnifiedProgressEngine: ✅")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ UnifiedProgressEngine → UI: ✅")
     }
     // MARK: - FUNC
     private func handleErrorPhase(_ progress: ResilientVideoLoader.VideoLoadingProgress, error: Error) async {
@@ -454,14 +454,14 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
 
         loadingStatus = status
 
-        // 📊 COMPREHENSIVE_DIAGNOSTIC: Enhanced progress tracking with complete flow verification
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 PROGRESS_UPDATE: \(Int(progress * 100))% - '\(status)'")
-        logger.info("🔗 RESILIENT_INTEGRATION: 🚨 DATA_FLOW_INTEGRITY: Raw iCloud progress received but NOT applied to loadingProgress")
-        logger.info("🔗 RESILIENT_INTEGRATION: 📊 PROGRESS_FLOW_VERIFICATION:")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Raw iCloud Progress: \(Int(progress * 100))% (IGNORED - prevents override)")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%) [SSOT]")
-        logger.info("🔗 RESILIENT_INTEGRATION: ├─ Unified Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
-        logger.info("🔗 RESILIENT_INTEGRATION: └─ Complete Flow: iCloud → ResilientVideoLoader → UnifiedProgressEngine → UI (SSOT ENFORCED)")
+        //  COMPREHENSIVE_DIAGNOSTIC: Enhanced progress tracking with complete flow verification
+        // logger.info("🔗 RESILIENT_INTEGRATION:  PROGRESS_UPDATE: \(Int(progress * 100))% - '\(status)'")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🚨 DATA_FLOW_INTEGRITY: Raw iCloud progress received but NOT applied to loadingProgress")
+        // logger.info("🔗 RESILIENT_INTEGRATION:  PROGRESS_FLOW_VERIFICATION:")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Raw iCloud Progress: \(Int(progress * 100))% (IGNORED - prevents override)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgressEngine.unifiedProgress)) (\(Int(self.unifiedProgressEngine.unifiedProgress * 100))%) [SSOT]")
+        // logger.info("🔗 RESILIENT_INTEGRATION: ├─ Unified Phase: \(self.unifiedProgressEngine.currentPhase.displayName)")
+        // logger.info("🔗 RESILIENT_INTEGRATION: └─ Complete Flow: iCloud → ResilientVideoLoader → UnifiedProgressEngine → UI (SSOT ENFORCED)")
     }
     // MARK: - FUNC
     private func mapResilientErrorToProgressError(_ error: ResilientVideoLoader.ResilientVideoLoaderError) -> UnifiedProgressEngine.ProgressError {
@@ -521,7 +521,7 @@ extension ResilientVideoLoaderIntegration {
         options: PHVideoRequestOptions,
         correlationId: String = ""
     ) async throws -> AVAsset {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 Legacy compatibility method called")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 Legacy compatibility method called")
         return try await requestAVAssetWithTimeout(for: asset, options: options, correlationId: correlationId)
     }
 
@@ -537,7 +537,7 @@ extension ResilientVideoLoaderIntegration {
         options: PHVideoRequestOptions,
         correlationId: String = ""
     ) async throws -> AVAsset {
-        logger.info("🔗 RESILIENT_INTEGRATION: 🔄 AddMoveVideoLoader compatibility method called")
+        // logger.info("🔗 RESILIENT_INTEGRATION: 🔄 AddMoveVideoLoader compatibility method called")
         return try await requestAVAssetWithTimeout(for: phAsset, options: options, correlationId: correlationId)
     }
 }

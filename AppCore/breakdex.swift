@@ -80,8 +80,8 @@ struct BreakingFlashcardsApp: App {
                         do {
                             AlbumSyncManager.shared.configure(with: persistenceController.container.viewContext)
                             let results = try await AlbumSyncManager.shared.performFullSync()
-                            print("📊 App active sync completed:")
-                            print("   📊 Total moves: \(results.totalMoves)")
+                            print(" App active sync completed:")
+                            print("    Total moves: \(results.totalMoves)")
                             print("   ✅ Found in Photos: \(results.foundInPhotos)")
                             print("   ⚠️ Missing from Photos: \(results.missingFromPhotos)")
                             print("   🗂️ Orphaned metadata: \(results.orphanedMetadata)")
@@ -107,9 +107,9 @@ struct BreakingFlashcardsApp: App {
                     print("✅ Orphaned asset reconciliation completed successfully")
                 } else {
                     print("⚠️ Orphaned asset reconciliation completed with issues")
-                    print("   📊 Core Data moves: \(consistencyResults.coreDataMoves)")
-                    print("   📊 Photos assets: \(consistencyResults.photosAssets)")
-                    print("   📊 Mismatches: \(consistencyResults.mismatches)")
+                    print("    Core Data moves: \(consistencyResults.coreDataMoves)")
+                    print("    Photos assets: \(consistencyResults.photosAssets)")
+                    print("    Mismatches: \(consistencyResults.mismatches)")
                 }
             } catch {
                 print("❌ Orphaned asset reconciliation failed: \(error.localizedDescription)")
@@ -246,7 +246,7 @@ struct BreakingFlashcardsApp: App {
             let fetchOptions = PHFetchOptions()
             let assets = PHAsset.fetchAssets(in: album, options: fetchOptions)
             let videoCount = assets.count
-            print("📊 BreakDex status: Album found with \(videoCount) videos")
+            print(" BreakDex status: Album found with \(videoCount) videos")
 
             // Check for any Photos-migrated moves in Core Data
             let context = persistenceController.container.viewContext
@@ -255,15 +255,15 @@ struct BreakingFlashcardsApp: App {
 
             do {
                 let photosMigratedMoves = try context.count(for: fetchRequest)
-                print("📊 Core Data status: \(photosMigratedMoves) moves migrated to Photos")
+                print(" Core Data status: \(photosMigratedMoves) moves migrated to Photos")
 
                 let totalMoves = try context.count(for: Move.fetchRequest())
-                print("📊 Total moves: \(totalMoves)")
+                print(" Total moves: \(totalMoves)")
             } catch {
                 print("❌ Error checking Core Data migration status: \(error.localizedDescription)")
             }
         } catch {
-            print("📊 BreakDex status: Album not available")
+            print(" BreakDex status: Album not available")
             print("   Error details: \(error.localizedDescription)")
         }
     }
@@ -274,7 +274,7 @@ struct BreakingFlashcardsApp: App {
         do {
             let results = try await syncManager.performFullSync()
             print("🔄 Album sync completed:")
-            print("   📊 Total moves: \(results.totalMoves)")
+            print("    Total moves: \(results.totalMoves)")
             print("   ✅ Found in Photos: \(results.foundInPhotos)")
             print("   ⚠️ Missing from Photos: \(results.missingFromPhotos)")
             print("   🗂️ Orphaned metadata: \(results.orphanedMetadata)")

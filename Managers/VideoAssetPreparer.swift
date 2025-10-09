@@ -75,13 +75,13 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         memoryLogger.logMemoryState(context: "Before Loading", correlationId: correlationId, component: "VideoAssetPreparer")
 
         // Load video asset using VideoLoader
-        logger.info("🎬 VIDEO_PREPARER: 📊 Memory before loading: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
+        logger.info("🎬 VIDEO_PREPARER:  Memory before loading: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
         await diagnosticLogger.startTiming("video_loading_phase")
 
         let loaderResult = try await loadVideoWithRetry(from: item)
 
         await diagnosticLogger.stopTiming("video_loading_phase")
-        logger.info("🎬 VIDEO_PREPARER: 📊 Memory after loading: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
+        logger.info("🎬 VIDEO_PREPARER:  Memory after loading: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
         memoryLogger.logMemoryState(context: "After Loading", correlationId: correlationId, component: "VideoAssetPreparer")
 
         // Extract async calls to avoid autoclosure concurrency issues
@@ -90,7 +90,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         let tracksCount = try await loaderResult.asset.load(.tracks).count
         await diagnosticLogger.stopTiming("asset_metadata_extraction")
 
-        logger.info("🎬 VIDEO_PREPARER: 📊 Asset details - duration: \(duration)s, tracks: \(tracksCount)")
+        logger.info("🎬 VIDEO_PREPARER:  Asset details - duration: \(duration)s, tracks: \(tracksCount)")
         // AssetLoadingSuccess(correlationID: correlationId, asset: loaderResult.asset, loadTime: operationTimings["video_loading_phase"] ?? 0)
 
         // Create player view model
@@ -116,7 +116,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         if let player = playerViewModel.avPlayer {
             // PlayerInitializationSuccess(correlationID: correlationId, player: player, initTime: operationTimings["player_creation"] ?? 0)
         }
-        logger.info("🎬 VIDEO_PREPARER: 📊 Memory after creating player VM: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
+        logger.info("🎬 VIDEO_PREPARER:  Memory after creating player VM: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
         memoryLogger.logMemoryState(context: "After Player Creation", correlationId: correlationId, component: "VideoAssetPreparer")
 
         // Wait for player to be ready using robust monitoring
@@ -142,7 +142,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         await diagnosticLogger.stopTiming("player_readiness_wait")
         logger.info("🎬 VIDEO_PREPARER: ✅ Player item is confirmed ready (took \(String(format: "%.2f", readyTime))s)")
         // PlayerReadinessSuccess(correlationID: correlationId, waitTime: readyTime)
-        logger.info("🎬 VIDEO_PREPARER: 📊 Memory after player ready: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
+        logger.info("🎬 VIDEO_PREPARER:  Memory after player ready: \(MemoryHelper.getDetailedMemoryInfo().available) MB available")
         memoryLogger.logMemoryState(context: "After Player Readiness", correlationId: correlationId, component: "VideoAssetPreparer")
 
         let result = PreparedVideoResult(
@@ -155,7 +155,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
 
         await diagnosticLogger.stopTiming("total_video_preparation")
         logger.info("🎬 VIDEO_PREPARER: ✅ Video preparation completed successfully")
-        logger.info("🎬 VIDEO_PREPARER: 📊 Result details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
+        logger.info("🎬 VIDEO_PREPARER:  Result details - filename: \(result.filename), photosID: \(result.photosIdentifier ?? "nil")")
 
         // Log final summary
         await diagnosticLogger.logInfo("Video preparation completed", metadata: [
@@ -199,7 +199,7 @@ class VideoAssetPreparer: VideoAssetPreparerProtocol {
         let tracksCount = try await asset.load(.tracks).count
         await diagnosticLogger.stopTiming("asset_metadata_extraction")
 
-        logger.info("🎬 VIDEO_PREPARER: 📊 Asset details - duration: \(duration)s, tracks: \(tracksCount)")
+        logger.info("🎬 VIDEO_PREPARER:  Asset details - duration: \(duration)s, tracks: \(tracksCount)")
         // AssetLoadingStart(correlationID: correlationId, source: "DirectAsset")
 
         // Create player view model

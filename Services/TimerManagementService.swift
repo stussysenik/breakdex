@@ -161,7 +161,7 @@ public class TimerManagementService {
         ]
 
         onLogDiagnostic?("Save operation in progress", metadata)
-        logger.info("⏱️ TIMER_SERVICE: 📊 Save progress logged | elapsed: \(String(format: "%.2f", self.saveElapsedTime))s")
+        logger.info("⏱️ TIMER_SERVICE:  Save progress logged | elapsed: \(String(format: "%.2f", self.saveElapsedTime))s")
     }
     // MARK: - FUNC
     private func logLoadProgress() {
@@ -171,7 +171,7 @@ public class TimerManagementService {
         ]
 
         onLogDiagnostic?("Long video load in progress", metadata)
-        logger.info("⏱️ TIMER_SERVICE: 📊 Load progress logged | elapsed: \(String(format: "%.2f", self.loadElapsedTime))s")
+        logger.info("⏱️ TIMER_SERVICE:  Load progress logged | elapsed: \(String(format: "%.2f", self.loadElapsedTime))s")
     }
     // MARK: - FUNC
     private func logSaveTimerStopped() {

@@ -90,7 +90,7 @@ final class VideoAssetValidator {
             videoTracks = try await asset.loadTracks(withMediaType: .video)
             audioTracks = try await asset.loadTracks(withMediaType: .audio)
 
-            logger.info("🔍 VALIDATOR: 📊 Raw track count - Video: \(videoTracks.count), Audio: \(audioTracks.count)")
+            logger.info("🔍 VALIDATOR:  Raw track count - Video: \(videoTracks.count), Audio: \(audioTracks.count)")
         } catch {
             errors.append(.assetNotReadable)
             logger.error("🔍 VALIDATOR: ❌ Failed to load tracks: \(error)")
@@ -125,7 +125,7 @@ final class VideoAssetValidator {
         let isValid = errors.isEmpty && !validVideoTracks.isEmpty
 
         logger.info("🔍 VALIDATOR: ✅ Validation completed in \(String(format: "%.2f", (CFAbsoluteTimeGetCurrent() - validationStart) * 1000))ms")
-        logger.info("🔍 VALIDATOR: 📊 Final result - Valid: \(isValid), Complexity: \(complexity.localizedDescription)")
+        logger.info("🔍 VALIDATOR:  Final result - Valid: \(isValid), Complexity: \(complexity.localizedDescription)")
 
         return ValidationResult(
             isValid: isValid,
@@ -180,7 +180,7 @@ final class VideoAssetValidator {
                 // Log format details for debugging
                 for (descIndex, desc) in formatDescriptions.enumerated() {
                     let mediaType = CMFormatDescriptionGetMediaType(desc)
-                    logger.info("🔍 VALIDATOR: 📊 Format \(descIndex + 1): \(mediaType)")
+                    logger.info("🔍 VALIDATOR:  Format \(descIndex + 1): \(mediaType)")
                 }
             } catch {
                 warnings.append("Failed to load format descriptions for video track \(index + 1)")

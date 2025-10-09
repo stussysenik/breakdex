@@ -19,7 +19,7 @@ public final class UnifiedProgressEngine: ObservableObject {
     private var phaseProgress: Double = 0.0
 
     @Published public private(set) var currentPhase: LoadingPhase =
-        .initializing 
+        .initializing
 
     private var operationStartTime: Date = Date()
     private var lastProgressUpdate: Date = Date()
@@ -67,7 +67,7 @@ public final class UnifiedProgressEngine: ObservableObject {
     )
     private let progressLogger = Logger(
         subsystem: "breakdex",
-        category: "📊 ProgressCalculation"
+        category: " ProgressCalculation"
     )
     private let timerLogger = Logger(
         subsystem: "breakdex",
@@ -246,15 +246,15 @@ public final class UnifiedProgressEngine: ObservableObject {
 
     // MARK: - INIT
     public init() {
-        verifyStageWeights()
+        //        verifyStageWeights()
         setupF1Timer()
         setupAnimationTimer()
         setupNetworkMonitoring()
-        logger.info(
-            "🎯 DeterministicProgressEngine: Initialized with deterministic stage weights, F1-precision timer, and network monitoring"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: Initialized with deterministic stage weights, F1-precision timer, and network monitoring"
+        // )
         progressLogger.info(
-            "📊 Stage weights verified: Total = \(String(format: "%.3f", self.totalWeight))"
+            " Stage weights verified: Total = \(String(format: "%.3f", self.totalWeight))"
         )
     }
 
@@ -269,38 +269,38 @@ public final class UnifiedProgressEngine: ObservableObject {
     }
 
     // MARK: - FUNC
-    private func verifyStageWeights() {
-        let calculatedTotal = totalWeight
-        let expectedTotal = 1.0
+    // private func verifyStageWeights() {
+    //     let calculatedTotal = totalWeight
+    //     let expectedTotal = 1.0
 
-        if abs(calculatedTotal - expectedTotal) > 0.001 {
-            logger.error(
-                "🎯 DeterministicProgressEngine: ❌ CRITICAL - Stage weights sum to \(String(format: "%.6f", calculatedTotal)), expected \(expectedTotal)"
-            )
-            fatalError(
-                "Stage weights must sum to exactly 1.0 for deterministic progress"
-            )
-        } else {
-            logger.info(
-                "🎯 DeterministicProgressEngine: ✅ Stage weights verification passed - Sum = \(String(format: "%.3f", calculatedTotal))"
-            )
-        }
+    //     if abs(calculatedTotal - expectedTotal) > 0.001 {
+    //         logger.error(
+    //             "🎯 DeterministicProgressEngine: ❌ CRITICAL - Stage weights sum to \(String(format: "%.6f", calculatedTotal)), expected \(expectedTotal)"
+    //         )
+    //         fatalError(
+    //             "Stage weights must sum to exactly 1.0 for deterministic progress"
+    //         )
+    //     } else {
+    //         logger.info(
+    //             "🎯 DeterministicProgressEngine: Stage weights verification passed ✅ - Sum = \(String(format: "%.3f", calculatedTotal))"
+    //         )
+    //     }
 
-        for (phase, weight) in stageWeights {
-            progressLogger.debug(
-                "📊 Stage: \(phase.rawValue) → Weight: \(String(format: "%.3f", weight)) (\(Int(weight * 100))%)"
-            )
-        }
-    }
+    //     for (phase, weight) in stageWeights {
+    //         progressLogger.debug(
+    //             " Stage: \(phase.rawValue) → Weight: \(String(format: "%.3f", weight)) (\(Int(weight * 100))%)"
+    //         )
+    //     }
+    // }
 
     // MARK: - FUNC
     public func beginLoading(fileSizeEstimate: Int64 = 0) {
-        logger.info(
-            "🎯 DeterministicProgressEngine: 📥 Beginning deterministic video loading operation"
-        )
-        progressLogger.info(
-            "📊 Operation started - File size estimate: \(ByteCountFormatter.string(fromByteCount: fileSizeEstimate, countStyle: .file))"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: Beginning deterministic video loading operation"
+        // )
+        // progressLogger.info(
+        //     " Operation started - File size estimate: \(ByteCountFormatter.string(fromByteCount: fileSizeEstimate, countStyle: .file))"
+        // )
 
         resetProgress()
         operationStartTime = Date()
@@ -308,9 +308,9 @@ public final class UnifiedProgressEngine: ObservableObject {
         startF1Timer()
 
         if animationTimer == nil || !(animationTimer?.isValid ?? false) {
-            logger.info(
-                "🎯 DeterministicProgressEngine: 🔄 Animation timer is invalid, re-initializing for new operation."
-            )
+            // logger.info(
+            //     "🎯 DeterministicProgressEngine: 🔄 Animation timer is invalid, re-initializing for new operation."
+            // )
             setupAnimationTimer()
         }
 
@@ -318,20 +318,20 @@ public final class UnifiedProgressEngine: ObservableObject {
 
         calculateDeterministicProgress(phase: .initializing, phaseProgress: 1.0)
 
-        logger.info(
-            "🎯 DeterministicProgressEngine: ✅ Deterministic loading operation initialized"
-        )
-        progressLogger.info(
-            "📊 Initial progress: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: Deterministic loading operation initialized ✅ "
+        // )
+        // progressLogger.info(
+        //     " Initial progress: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
+        // )
     }
 
     // MARK: - FUNC
     public func updateDownloadProgress(_ progress: Double) {
         guard self.currentPhase == .downloadingFromCloud else {
-            logger.warning(
-                "🎯 DeterministicProgressEngine: ⚠️ Download progress update received in \(self.currentPhase.rawValue) phase"
-            )
+            // logger.warning(
+            //     "🎯 DeterministicProgressEngine: ⚠️ Download progress update received in \(self.currentPhase.rawValue) phase"
+            // )
             return
         }
 
@@ -339,7 +339,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         phaseProgress = clampedProgress
 
         progressLogger.debug(
-            "📊 Download progress: \(String(format: "%.1f", clampedProgress * 100))%"
+            " Download progress: \(String(format: "%.1f", clampedProgress * 100))%"
         )
 
         calculateDeterministicProgress(
@@ -351,9 +351,9 @@ public final class UnifiedProgressEngine: ObservableObject {
     // MARK: - FUNC
     public func updateTransferProgress(_ progress: Double) {
         guard self.currentPhase == .transferring else {
-            logger.warning(
-                "🎯 DeterministicProgressEngine: ⚠️ Transfer progress update received in \(self.currentPhase.rawValue) phase"
-            )
+            // logger.warning(
+            //     "🎯 DeterministicProgressEngine: ⚠️ Transfer progress update received in \(self.currentPhase.rawValue) phase"
+            // )
             return
         }
 
@@ -361,7 +361,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         phaseProgress = clampedProgress
 
         progressLogger.debug(
-            "📊 Transfer progress: \(String(format: "%.1f", clampedProgress * 100))%"
+            " Transfer progress: \(String(format: "%.1f", clampedProgress * 100))%"
         )
 
         calculateDeterministicProgress(
@@ -375,18 +375,18 @@ public final class UnifiedProgressEngine: ObservableObject {
         let transitionId = UUID().uuidString.prefix(8)
         let timestamp = Date()
 
-        logger.info(
-            "🎯 DeterministicProgressEngine: [\(transitionId)] 🔄 PHASE_TRANSITION: \(phase.displayName) [from: \(self.currentPhase.displayName)]"
-        )
-        progressLogger.info(
-            "📊 [\(transitionId)] 🔄 TRANSITION_START: \(self.currentPhase.displayName) → \(phase.displayName)"
-        )
-        progressLogger.info(
-            "📊 [\(transitionId)] ⏰ Timestamp: \(timestamp.description)"
-        )
-        progressLogger.info(
-            "📊 [\(transitionId)] 📈 Progress before: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: [\(transitionId)] 🔄 PHASE_TRANSITION: \(phase.displayName) [from: \(self.currentPhase.displayName)]"
+        // )
+        // progressLogger.info(
+        //     " [\(transitionId)] 🔄 TRANSITION_START: \(self.currentPhase.displayName) → \(phase.displayName)"
+        // )
+        // progressLogger.info(
+        //     " [\(transitionId)] ⏰ Timestamp: \(timestamp.description)"
+        // )
+        // progressLogger.info(
+        //     " [\(transitionId)] 📈 Progress before: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
+        // )
 
         if isNetworkDependentPhase(phase)
             || isNetworkDependentPhase(self.currentPhase)
@@ -422,7 +422,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         }
 
         progressLogger.info(
-            "📊 [\(transitionId)] 📈 Progress after: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
+            " [\(transitionId)] 📈 Progress after: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
         )
 
         logPhaseSpecificDetails(
@@ -441,19 +441,19 @@ public final class UnifiedProgressEngine: ObservableObject {
                 "🎯 [\(transitionId)] ⏱️ COMPLETION_METRICS: Total duration: \(String(format: "%.2f", totalDuration))s"
             )
             progressLogger.info(
-                "🎯 [\(transitionId)] 📊 COMPLETION_METRICS: Final progress: \(String(format: "%.3f", self.unifiedProgress))"
+                "🎯 [\(transitionId)]  COMPLETION_METRICS: Final progress: \(String(format: "%.3f", self.unifiedProgress))"
             )
         }
     }
 
     // MARK: - FUNC
     public func completeLoading() {
-        logger.info(
-            "🎯 DeterministicProgressEngine: ✅ Deterministic loading operation completed successfully"
-        )
-        progressLogger.info(
-            "📊 Final completion - Total elapsed time: \(String(format: "%.2f", self.elapsedTime))s"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: ✅ Deterministic loading operation completed successfully"
+        // )
+        // progressLogger.info(
+        //     " Final completion - Total elapsed time: \(String(format: "%.2f", self.elapsedTime))s"
+        // )
         transitionToPhase(.completed)
         stopF1Timer()
 
@@ -463,25 +463,25 @@ public final class UnifiedProgressEngine: ObservableObject {
             if let timer = self.animationTimer {
                 timer.invalidate()
                 self.animationTimer = nil
-                self.logger.info(
-                    "🎯 DeterministicProgressEngine: 🧹 Animation timer invalidated and set to nil after completion"
-                )
+                // self.logger.info(
+                //     "🎯 DeterministicProgressEngine: 🧹 Animation timer invalidated and set to nil after completion"
+                // )
             } else {
-                self.logger.warning(
-                    "🎯 DeterministicProgressEngine: ⚠️ Animation timer was already nil when attempting to clean up after completion"
-                )
+                // self.logger.warning(
+                //     "🎯 DeterministicProgressEngine: ⚠️ Animation timer was already nil when attempting to clean up after completion"
+                // )
             }
         }
     }
 
     // MARK: - FUNC
     public func handleError(_ error: ProgressError) {
-        logger.error(
-            "🎯 DeterministicProgressEngine: ❌ Loading error: \(error.localizedDescription)"
-        )
-        progressLogger.error(
-            "📊 Error occurred in phase: \(self.currentPhase.rawValue) at progress: \(String(format: "%.3f", self.unifiedProgress))"
-        )
+        // logger.error(
+        //     "🎯 DeterministicProgressEngine: ❌ Loading error: \(error.localizedDescription)"
+        // )
+        // progressLogger.error(
+        //     " Error occurred in phase: \(self.currentPhase.rawValue) at progress: \(String(format: "%.3f", self.unifiedProgress))"
+        // )
         currentError = error
         transitionToPhase(.error)
     }
@@ -519,7 +519,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         handleError(timeoutError)
 
         logger.info(
-            "🚀 UnifiedProgressEngine: 📊 Timeout context - Phase: \(phase.displayName), Progress: \(String(format: "%.1f", self.unifiedProgress * 100))%, Network: \(NetworkConnectionType.wifi.displayName)"
+            "🚀 UnifiedProgressEngine:  Timeout context - Phase: \(phase.displayName), Progress: \(String(format: "%.1f", self.unifiedProgress * 100))%, Network: \(NetworkConnectionType.wifi.displayName)"
         )
     }
 
@@ -537,7 +537,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: ❌ Zero-byte file detected - Size: \(fileSize) bytes"
         )
         progressLogger.error(
-            "📊 ZERO_BYTE_FILE: File validation failed - empty file detected"
+            " ZERO_BYTE_FILE: File validation failed - empty file detected"
         )
         handleError(.zeroByteFile)
     }
@@ -551,7 +551,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: ❌ Unsupported codec detected - \(detectedCodec)"
         )
         progressLogger.error(
-            "📊 UNSUPPORTED_CODEC: Detected: \(detectedCodec), Supported: \(supportedCodecs.joined(separator: ", "))"
+            " UNSUPPORTED_CODEC: Detected: \(detectedCodec), Supported: \(supportedCodecs.joined(separator: ", "))"
         )
         handleError(.unsupportedCodec(codec: detectedCodec))
     }
@@ -561,7 +561,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: ❌ Corrupted file detected - \(fileName)"
         )
         progressLogger.error(
-            "📊 CORRUPTED_FILE: File: \(fileName), Details: \(errorDetails)"
+            " CORRUPTED_FILE: File: \(fileName), Details: \(errorDetails)"
         )
         handleError(.corruptedFile)
     }
@@ -572,7 +572,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: ❌ Permission denied for resource: \(resource)"
         )
         progressLogger.error(
-            "📊 PERMISSION_DENIED: Access denied to \(resource)"
+            " PERMISSION_DENIED: Access denied to \(resource)"
         )
         handleError(.permissionDenied)
     }
@@ -586,7 +586,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: 💾 Critical disk space - Available: \(ByteCountFormatter.string(fromByteCount: availableSpace, countStyle: .file)), Required: \(ByteCountFormatter.string(fromByteCount: requiredSpace, countStyle: .file))"
         )
         progressLogger.error(
-            "📊 DISK_CRITICAL: Space shortage - Available: \(availableSpace) bytes, Required: \(requiredSpace) bytes"
+            " DISK_CRITICAL: Space shortage - Available: \(availableSpace) bytes, Required: \(requiredSpace) bytes"
         )
         handleError(.diskSpaceCritical(available: availableSpace))
     }
@@ -597,7 +597,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: ☁️ iCloud download quota exceeded - Type: \(quotaType)"
         )
         progressLogger.error(
-            "📊 QUOTA_EXCEEDED: \(quotaType) quota limit reached"
+            " QUOTA_EXCEEDED: \(quotaType) quota limit reached"
         )
         handleError(.downloadQuotaExceeded)
     }
@@ -609,7 +609,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🚀 UnifiedProgressEngine: ⚠️ Asset unavailable - ID: \(assetIdentifier), Reason: \(reason)"
         )
         progressLogger.warning(
-            "📊 ASSET_UNAVAILABLE: Asset \(assetIdentifier) not accessible - \(reason)"
+            " ASSET_UNAVAILABLE: Asset \(assetIdentifier) not accessible - \(reason)"
         )
         handleError(.assetUnavailable)
     }
@@ -660,7 +660,7 @@ public final class UnifiedProgressEngine: ObservableObject {
                 "🌐 Network validation failed - No network connection available"
             )
             progressLogger.error(
-                "📊 NETWORK_VALIDATION: Cannot proceed with download - network unavailable"
+                " NETWORK_VALIDATION: Cannot proceed with download - network unavailable"
             )
             return false
         }
@@ -950,7 +950,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         phaseProgress: Double
     ) {
         progressLogger.debug(
-            "📊 CALCULATION: Phase=\(phase.rawValue), PhaseProgress=\(String(format: "%.3f", phaseProgress))"
+            " CALCULATION: Phase=\(phase.rawValue), PhaseProgress=\(String(format: "%.3f", phaseProgress))"
         )
 
         var totalProgress = 0.0
@@ -959,7 +959,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             if currentPhase.order < phase.order {
                 totalProgress += weight
                 progressLogger.debug(
-                    "📊 Completed phase: \(currentPhase.rawValue) (+\(String(format: "%.3f", weight))) = \(String(format: "%.3f", totalProgress))"
+                    " Completed phase: \(currentPhase.rawValue) (+\(String(format: "%.3f", weight))) = \(String(format: "%.3f", totalProgress))"
                 )
             }
         }
@@ -968,7 +968,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             let phaseContribution = currentPhaseWeight * phaseProgress
             totalProgress += phaseContribution
             progressLogger.debug(
-                "📊 Current phase contribution: \(phase.rawValue) × \(String(format: "%.3f", phaseProgress)) = \(String(format: "%.3f", phaseContribution))"
+                " Current phase contribution: \(phase.rawValue) × \(String(format: "%.3f", phaseProgress)) = \(String(format: "%.3f", phaseContribution))"
             )
         }
 
@@ -983,13 +983,13 @@ public final class UnifiedProgressEngine: ObservableObject {
         _targetProgress = clampedProgress
 
         progressLogger.info(
-            "📊 DETERMINISTIC_CALCULATION: \(phase.rawValue) @ \(String(format: "%.1f", phaseProgress * 100))% → \(String(format: "%.3f", clampedProgress)) (\(Int(clampedProgress * 100))%)"
+            " DETERMINISTIC_CALCULATION: \(phase.rawValue) @ \(String(format: "%.1f", phaseProgress * 100))% → \(String(format: "%.3f", clampedProgress)) (\(Int(clampedProgress * 100))%)"
         )
 
         let progressPercentage = Int(clampedProgress * 100)
         if progressPercentage % 25 == 0 && phaseProgress > 0.01 {
             progressLogger.info(
-                "📊 MILESTONE: \(progressPercentage)% complete in phase \(phase.displayName)"
+                " MILESTONE: \(progressPercentage)% complete in phase \(phase.displayName)"
             )
         }
 
@@ -1001,7 +1001,7 @@ public final class UnifiedProgressEngine: ObservableObject {
         let clampedProgress = max(0.0, min(1.0, progress))
         _targetProgress = clampedProgress
         progressLogger.debug(
-            "📊 SET_PROGRESS: \(String(format: "%.3f", clampedProgress))"
+            " SET_PROGRESS: \(String(format: "%.3f", clampedProgress))"
         )
         updateUnifiedProgress()
     }
@@ -1039,7 +1039,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             }
         }
 
-        timerLogger.info("⏱️ F1 Timer: Initialized with 10ms precision")
+        // timerLogger.info("⏱️ F1 Timer: Initialized with 10ms precision")
     }
 
     // MARK: - FUNC
@@ -1076,9 +1076,9 @@ public final class UnifiedProgressEngine: ObservableObject {
         if Int(self.elapsedTime) % 10 == 0
             && self.elapsedTime.truncatingRemainder(dividingBy: 1) < 0.02
         {
-            timerLogger.info(
-                "⏱️ TIMING_MILESTONE: \(self.elapsedTimeString) elapsed"
-            )
+            // timerLogger.info(
+            //     "⏱️ TIMING_MILESTONE: \(self.elapsedTimeString) elapsed"
+            // )
         }
     }
 
@@ -1104,12 +1104,12 @@ public final class UnifiedProgressEngine: ObservableObject {
         }
         networkMonitor.start(queue: networkQueue)
 
-        logger.info(
-            "🌐 Network monitoring started for iCloud download resilience"
-        )
-        progressLogger.info(
-            "📊 Network state monitoring active - will handle network loss during downloads"
-        )
+        // logger.info(
+        //     "🌐 Network monitoring started for iCloud download resilience"
+        // )
+        // progressLogger.info(
+        //     " Network state monitoring active - will handle network loss during downloads"
+        // )
     }
 
     // MARK: - FUNC
@@ -1133,9 +1133,9 @@ public final class UnifiedProgressEngine: ObservableObject {
             }
         }
 
-        logger.debug(
-            "🌐 Network state: Available=\(newNetworkState), Type=\(newConnectionType.rawValue), Quality=\(newNetworkQuality.rawValue)"
-        )
+        // logger.debug(
+        //     "🌐 Network state: Available=\(newNetworkState), Type=\(newConnectionType.rawValue), Quality=\(newNetworkQuality.rawValue)"
+        // )
     }
 
     // MARK: - FUNC
@@ -1180,7 +1180,7 @@ public final class UnifiedProgressEngine: ObservableObject {
             "🌐 Network connection lost during video loading operation"
         )
         progressLogger.warning(
-            "📊 NETWORK_LOST: Current phase: \(self.currentPhase.displayName), Progress: \(String(format: "%.1f", self.unifiedProgress * 100))%"
+            " NETWORK_LOST: Current phase: \(self.currentPhase.displayName), Progress: \(String(format: "%.1f", self.unifiedProgress * 100))%"
         )
 
         if isNetworkDependentPhase(self.currentPhase) {
@@ -1201,7 +1201,7 @@ public final class UnifiedProgressEngine: ObservableObject {
     private func handleNetworkRestored() async {
         logger.info("🌐 Network connection restored")
         progressLogger.info(
-            "📊 NETWORK_RESTORED: Connection type: \(self.networkConnectionType.displayName), Quality: \(self.networkQuality.displayName)"
+            " NETWORK_RESTORED: Connection type: \(self.networkConnectionType.displayName), Quality: \(self.networkQuality.displayName)"
         )
 
         if self.networkLostDuringDownload && self.pausedPhase != nil {
@@ -1209,7 +1209,7 @@ public final class UnifiedProgressEngine: ObservableObject {
                 "🌐 Resuming from waitingForNetwork phase to \(self.pausedPhase?.displayName ?? "unknown")"
             )
             progressLogger.info(
-                "📊 RESUMING: Network restored, continuing video loading operation"
+                " RESUMING: Network restored, continuing video loading operation"
             )
 
             self.networkLostDuringDownload = false
@@ -1240,19 +1240,19 @@ public final class UnifiedProgressEngine: ObservableObject {
     // MARK: - FUNC
     private func setupAnimationTimer() {
 
-        logger.info(
-            "🎯 DeterministicProgressEngine: ⚠️ Animation timer DISABLED for deterministic progress tracking"
-        )
-        progressLogger.info(
-            "📊 Progress updates will be immediate and precise, no smoothing applied"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: ⚠️ Animation timer DISABLED for deterministic progress tracking"
+        // )
+        // progressLogger.info(
+        //     " Progress updates will be immediate and precise, no smoothing applied"
+        // )
     }
 
     // MARK: - FUNC
     private func updateAnimatedProgress() {
 
         progressLogger.debug(
-            "📊 ANIMATION_DISABLED: Progress updates are immediate for determinism"
+            " ANIMATION_DISABLED: Progress updates are immediate for determinism"
         )
     }
 
@@ -1283,71 +1283,71 @@ public final class UnifiedProgressEngine: ObservableObject {
 
     // MARK: - FUNC
     public func logDiagnostics() {
-        logger.info(
-            "🎯 DeterministicProgressEngine: 📊 COMPREHENSIVE DIAGNOSTIC REPORT"
-        )
-        progressLogger.info("📊 ┌─ Deterministic Progress Analysis")
-        progressLogger.info(
-            "📊 │  ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
-        )
-        progressLogger.info(
-            "📊 │  ├─ Target Progress: \(String(format: "%.3f", self._targetProgress))"
-        )
-        progressLogger.info(
-            "📊 │  ├─ Current Phase: \(self.currentPhase.displayName)"
-        )
-        progressLogger.info(
-            "📊 │  └─ Phase Progress: \(String(format: "%.3f", self.phaseProgress))"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine:  COMPREHENSIVE DIAGNOSTIC REPORT"
+        // )
+        // progressLogger.info(" ┌─ Deterministic Progress Analysis")
+        // progressLogger.info(
+        //     " │  ├─ Unified Progress: \(String(format: "%.3f", self.unifiedProgress)) (\(Int(self.unifiedProgress * 100))%)"
+        // )
+        // progressLogger.info(
+        //     " │  ├─ Target Progress: \(String(format: "%.3f", self._targetProgress))"
+        // )
+        // progressLogger.info(
+        //     " │  ├─ Current Phase: \(self.currentPhase.displayName)"
+        // )
+        // progressLogger.info(
+        //     " │  └─ Phase Progress: \(String(format: "%.3f", self.phaseProgress))"
+        // )
 
-        progressLogger.info("📊 ├─ Stage Weight Analysis")
-        progressLogger.info(
-            "📊 │  ├─ Total Stage Weight: \(String(format: "%.3f", self.totalWeight))"
-        )
-        progressLogger.info(
-            "📊 │  └─ Current Phase Weight: \(String(format: "%.3f", self.stageWeights[self.currentPhase] ?? 0.0))"
-        )
+        // progressLogger.info(" ├─ Stage Weight Analysis")
+        // progressLogger.info(
+        //     " │  ├─ Total Stage Weight: \(String(format: "%.3f", self.totalWeight))"
+        // )
+        // progressLogger.info(
+        //     " │  └─ Current Phase Weight: \(String(format: "%.3f", self.stageWeights[self.currentPhase] ?? 0.0))"
+        // )
 
-        progressLogger.info("📊 ├─ Timing Analysis")
-        progressLogger.info("📊 │  ├─ Elapsed Time: \(self.elapsedTimeString)")
-        progressLogger.info(
-            "📊 │  ├─ Total Seconds: \(String(format: "%.2f", self.elapsedTime))"
-        )
-        progressLogger.info(
-            "📊 │  └─ Estimated Time Remaining: \(String(format: "%.1f", self.estimatedTimeRemaining))s"
-        )
+        // progressLogger.info(" ├─ Timing Analysis")
+        // progressLogger.info(" │  ├─ Elapsed Time: \(self.elapsedTimeString)")
+        // progressLogger.info(
+        //     " │  ├─ Total Seconds: \(String(format: "%.2f", self.elapsedTime))"
+        // )
+        // progressLogger.info(
+        //     " │  └─ Estimated Time Remaining: \(String(format: "%.1f", self.estimatedTimeRemaining))s"
+        // )
 
-        progressLogger.info("📊 ├─ Network Resilience Analysis")
-        progressLogger.info(
-            "📊 │  ├─ Network Available: \(self.isNetworkAvailable ? "✅ YES" : "❌ NO")"
-        )
-        progressLogger.info(
-            "📊 │  ├─ Connection Type: \(self.networkConnectionType.displayName)"
-        )
-        progressLogger.info(
-            "📊 │  ├─ Network Quality: \(self.networkQuality.displayName)"
-        )
-        progressLogger.info(
-            "📊 │  ├─ Network Lost During Download: \(self.networkLostDuringDownload ? "⚠️ YES" : "✅ NO")"
-        )
-        progressLogger.info(
-            "📊 │  └─ Paused Phase: \(self.pausedPhase?.displayName ?? "None")"
-        )
+        // progressLogger.info(" ├─ Network Resilience Analysis")
+        // progressLogger.info(
+        //     " │  ├─ Network Available: \(self.isNetworkAvailable ? "✅ YES" : "❌ NO")"
+        // )
+        // progressLogger.info(
+        //     " │  ├─ Connection Type: \(self.networkConnectionType.displayName)"
+        // )
+        // progressLogger.info(
+        //     " │  ├─ Network Quality: \(self.networkQuality.displayName)"
+        // )
+        // progressLogger.info(
+        //     " │  ├─ Network Lost During Download: \(self.networkLostDuringDownload ? "⚠️ YES" : "✅ NO")"
+        // )
+        // progressLogger.info(
+        //     " │  └─ Paused Phase: \(self.pausedPhase?.displayName ?? "None")"
+        // )
 
-        progressLogger.info("📊 ├─ Deterministic System Analysis")
-        progressLogger.info("📊 │  ├─ Deterministic Mode: ✅ ENABLED")
-        progressLogger.info("📊 │  ├─ Animation Smoothing: ❌ DISABLED")
-        progressLogger.info("📊 │  ├─ Predictive Weighting: ❌ DISABLED")
-        progressLogger.info("📊 │  └─ Progress Updates: IMMEDIATE")
+        // progressLogger.info(" ├─ Deterministic System Analysis")
+        // progressLogger.info(" │  ├─ Deterministic Mode: ✅ ENABLED")
+        // progressLogger.info(" │  ├─ Animation Smoothing: ❌ DISABLED")
+        // progressLogger.info(" │  ├─ Predictive Weighting: ❌ DISABLED")
+        // progressLogger.info(" │  └─ Progress Updates: IMMEDIATE")
 
-        progressLogger.info("📊 └─ Stage Weights Breakdown")
-        for phase in LoadingPhase.allCases.sorted(by: { $0.order < $1.order }) {
-            if let weight = stageWeights[phase] {
-                progressLogger.info(
-                    "📊     ├─ \(phase.displayName): \(String(format: "%.3f", weight)) (\(Int(weight * 100))%)"
-                )
-            }
-        }
+        // progressLogger.info(" └─ Stage Weights Breakdown")
+        // for phase in LoadingPhase.allCases.sorted(by: { $0.order < $1.order }) {
+        //     if let weight = stageWeights[phase] {
+        //         progressLogger.info(
+        //             "     ├─ \(phase.displayName): \(String(format: "%.3f", weight)) (\(Int(weight * 100))%)"
+        //         )
+        //     }
+        // }
     }
 
     // MARK: - FUNC
@@ -1360,18 +1360,18 @@ public final class UnifiedProgressEngine: ObservableObject {
         for phase in LoadingPhase.allCases.sorted(by: { $0.order < $1.order }) {
             if let weight = stageWeights[phase] {
                 cumulativeProgress += weight
-                progressLogger.info("📊 Phase \(phase.order): \(phase.rawValue)")
+                progressLogger.info(" Phase \(phase.order): \(phase.rawValue)")
                 progressLogger.info(
-                    "📊   ├─ Weight: \(String(format: "%.3f", weight)) (\(Int(weight * 100))%)"
+                    "   ├─ Weight: \(String(format: "%.3f", weight)) (\(Int(weight * 100))%)"
                 )
                 progressLogger.info(
-                    "📊   └─ Cumulative: \(String(format: "%.3f", cumulativeProgress)) (\(Int(cumulativeProgress * 100))%)"
+                    "   └─ Cumulative: \(String(format: "%.3f", cumulativeProgress)) (\(Int(cumulativeProgress * 100))%)"
                 )
             }
         }
 
         progressLogger.info(
-            "📊 ✅ Stage weights verified - Total: \(String(format: "%.3f", cumulativeProgress))"
+            " ✅ Stage weights verified - Total: \(String(format: "%.3f", cumulativeProgress))"
         )
     }
 }
@@ -1380,56 +1380,56 @@ public final class UnifiedProgressEngine: ObservableObject {
 extension UnifiedProgressEngine {
     // MARK: - FUNC
     public func logAnimationTimerHealth() {
-        logger.info("🎯 DeterministicProgressEngine: 🏥 SYSTEM HEALTH CHECK")
+        // logger.info("🎯 DeterministicProgressEngine: 🏥 SYSTEM HEALTH CHECK")
 
-        if let timer = self.timerTimer {
-            if timer.isValid {
-                logger.info(
-                    "🎯 DeterministicProgressEngine: ✅ F1 Timer is HEALTHY - Valid and running"
-                )
-                timerLogger.info(
-                    "⏱️ F1 Timer Status: ✅ Active - Current time: \(self.elapsedTimeString)"
-                )
-            } else {
-                logger.warning(
-                    "🎯 DeterministicProgressEngine: ⚠️ F1 Timer is INVALID - Needs re-initialization"
-                )
-                timerLogger.warning(
-                    "⏱️ F1 Timer Status: ❌ Invalid - Call beginLoading() to re-initialize"
-                )
-            }
-        } else {
-            logger.warning(
-                "🎯 DeterministicProgressEngine: ❌ F1 Timer is NIL - Needs re-initialization"
-            )
-            timerLogger.warning(
-                "⏱️ F1 Timer Status: ❌ Nil - Call beginLoading() to re-initialize"
-            )
-        }
+        // if let timer = self.timerTimer {
+        //     if timer.isValid {
+        //         logger.info(
+        //             "🎯 DeterministicProgressEngine: ✅ F1 Timer is HEALTHY - Valid and running"
+        //         )
+        //         timerLogger.info(
+        //             "⏱️ F1 Timer Status: ✅ Active - Current time: \(self.elapsedTimeString)"
+        //         )
+        //     } else {
+        //         logger.warning(
+        //             "🎯 DeterministicProgressEngine: ⚠️ F1 Timer is INVALID - Needs re-initialization"
+        //         )
+        //         timerLogger.warning(
+        //             "⏱️ F1 Timer Status: ❌ Invalid - Call beginLoading() to re-initialize"
+        //         )
+        //     }
+        // } else {
+        //     logger.warning(
+        //         "🎯 DeterministicProgressEngine: ❌ F1 Timer is NIL - Needs re-initialization"
+        //     )
+        //     timerLogger.warning(
+        //         "⏱️ F1 Timer Status: ❌ Nil - Call beginLoading() to re-initialize"
+        //     )
+        // }
 
-        logger.info(
-            "🎯 DeterministicProgressEngine: ℹ️ Animation Timer: INTENTIONALLY DISABLED for deterministic progress"
-        )
-        progressLogger.info(
-            "📊 Progress System: ✅ Deterministic mode active - Immediate updates only"
-        )
+        // logger.info(
+        //     "🎯 DeterministicProgressEngine: ℹ️ Animation Timer: INTENTIONALLY DISABLED for deterministic progress"
+        // )
+        // progressLogger.info(
+        //     " Progress System: ✅ Deterministic mode active - Immediate updates only"
+        // )
     }
 
     // MARK: - FUNC
     public func processLegacyProgress(_ progress: VideoLoadingProgress) {
         progressLogger.info(
-            "📊 LEGACY_PROGRESS: Processing video loading progress with unified progress: \(String(format: "%.3f", progress.progress))"
+            " LEGACY_PROGRESS: Processing video loading progress with unified progress: \(String(format: "%.3f", progress.progress))"
         )
 
         switch progress.phase {
         case .initializing:
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .initializing → .initializing"
+                " LEGACY_MAPPING: .initializing → .initializing"
             )
             self.transitionToPhase(.initializing)
         case .downloadingFromCloud(let downloadProgress):
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .downloadingFromCloud → .downloadingFromCloud @ \(String(format: "%.1f", downloadProgress * 100))%"
+                " LEGACY_MAPPING: .downloadingFromCloud → .downloadingFromCloud @ \(String(format: "%.1f", downloadProgress * 100))%"
             )
 
             if self.currentPhase != .downloadingFromCloud {
@@ -1438,33 +1438,33 @@ extension UnifiedProgressEngine {
             self.updateDownloadProgress(downloadProgress)
         case .transferring:
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .transferring → .transferring"
+                " LEGACY_MAPPING: .transferring → .transferring"
             )
             if self.currentPhase != .transferring {
                 self.transitionToPhase(.transferring)
             }
             self.updateTransferProgress(progress.progress)
         case .validating:
-            progressLogger.debug("📊 LEGACY_MAPPING: .validating → .validating")
+            progressLogger.debug(" LEGACY_MAPPING: .validating → .validating")
             self.transitionToPhase(.validating)
         case .creatingAsset:
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .creatingAsset → .creatingAsset"
+                " LEGACY_MAPPING: .creatingAsset → .creatingAsset"
             )
             self.transitionToPhase(.creatingAsset)
         case .generatingThumbnail:
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .generatingThumbnail → .generatingThumbnail"
+                " LEGACY_MAPPING: .generatingThumbnail → .generatingThumbnail"
             )
             self.transitionToPhase(.generatingThumbnail)
         case .loadingTrimmerDuration:
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .loadingTrimmerDuration → .loadingTrimmerDuration"
+                " LEGACY_MAPPING: .loadingTrimmerDuration → .loadingTrimmerDuration"
             )
             self.transitionToPhase(.loadingTrimmerDuration)
         case .loadingTrimmerTracks:
             progressLogger.debug(
-                "📊 LEGACY_MAPPING: .loadingTrimmerTracks → .loadingTrimmerTracks"
+                " LEGACY_MAPPING: .loadingTrimmerTracks → .loadingTrimmerTracks"
             )
             self.transitionToPhase(.loadingTrimmerTracks)
         case .validatingTrimmer:
@@ -1473,7 +1473,7 @@ extension UnifiedProgressEngine {
                 "🎯 TERMINAL_STATE_MAPPING: .validatingTrimmer → .completed (1.0)"
             )
             progressLogger.info(
-                "📊 DETERMINISTIC_GUARANTEE: Setting progress to 1.0 for terminal state"
+                " DETERMINISTIC_GUARANTEE: Setting progress to 1.0 for terminal state"
             )
 
             self.calculateDeterministicProgress(
@@ -1489,10 +1489,10 @@ extension UnifiedProgressEngine {
                 "🎯 COMPLETION_GUARANTEE: All morphisms composed successfully to terminal object"
             )
             progressLogger.info(
-                "📊 DETERMINISTIC_RESULT: No more 99% stall - progress reaches exactly 1.0"
+                " DETERMINISTIC_RESULT: No more 99% stall - progress reaches exactly 1.0"
             )
         case .completed:
-            progressLogger.debug("📊 LEGACY_MAPPING: .completed → .completed")
+            progressLogger.debug(" LEGACY_MAPPING: .completed → .completed")
             self.transitionToPhase(.completed)
         }
     }

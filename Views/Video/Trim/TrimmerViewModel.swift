@@ -562,7 +562,7 @@ public final class TrimmerViewModel: ObservableObject {
             }
 
             let loadedDuration = try await asset.load(.duration)
-            diagnosticLogger.logInfo("📊 Asset duration loaded successfully", metadata: [
+            diagnosticLogger.logInfo(" Asset duration loaded successfully", metadata: [
                 "loaded_duration": "\(loadedDuration.seconds)",
                 "asset_timescale": "\(loadedDuration.timescale)",
                 "asset_value": "\(loadedDuration.value)"
@@ -592,7 +592,7 @@ public final class TrimmerViewModel: ObservableObject {
                 "mathematical_verification": "η(\(loadedIntrinsicRotation), \(userAppliedRotationTurns)) = (\(loadedIntrinsicRotation) + \(userAppliedRotationTurns)) mod 4 = \((loadedIntrinsicRotation + userAppliedRotationTurns) % 4)"
             ])
 
-            diagnosticLogger.logInfo("📊 Video tracks loaded", metadata: [
+            diagnosticLogger.logInfo(" Video tracks loaded", metadata: [
                 "track_count": "\(videoTracks.count)",
                 "frame_rate": "\(frameRate)"
             ])

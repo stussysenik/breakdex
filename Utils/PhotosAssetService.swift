@@ -49,7 +49,7 @@ class PhotosAssetService {
 
     /// Fetch AVAsset from Photos library using local identifier
     /// MARK: - ASYNC: Proper async/await with structured concurrency
-    /// 📊 METRICS: Logs performance and error states
+    ///  METRICS: Logs performance and error states
     // MARK: - FUNC
     func fetchAVAsset(with localIdentifier: String) async throws -> AVAsset {
         logger.info("📸 PHOTOS_ASSET: 🔄 Fetching AVAsset for identifier: \(localIdentifier.prefix(8))...")
@@ -82,7 +82,7 @@ class PhotosAssetService {
         options.deliveryMode = .automatic
         options.isNetworkAccessAllowed = true // Essential for iCloud photos
         options.progressHandler = { [weak self] progress, _, _, _ in
-            self?.logger.info("📸 PHOTOS_ASSET: 📊 Download progress: \(Int(progress * 100))%")
+            self?.logger.info("📸 PHOTOS_ASSET:  Download progress: \(Int(progress * 100))%")
         }
 
         // ✅ ASYNC: Use structured concurrency with continuation
@@ -93,11 +93,11 @@ class PhotosAssetService {
 
                     if let asset = avAsset {
                         self.logger.info("📸 PHOTOS_ASSET: ✅ Successfully fetched AVAsset: \(asset)")
-                        self.logger.info("📸 PHOTOS_ASSET: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
-                        self.logger.info("📸 PHOTOS_ASSET: 📊 Audio mix available: \(audioMix != nil)")
+                        self.logger.info("📸 PHOTOS_ASSET:  Asset duration: \(CMTimeGetSeconds(asset.duration))s")
+                        self.logger.info("📸 PHOTOS_ASSET:  Audio mix available: \(audioMix != nil)")
 
                         if let info = info {
-                            self.logger.info("📸 PHOTOS_ASSET: 📊 Request info: \(info)")
+                            self.logger.info("📸 PHOTOS_ASSET:  Request info: \(info)")
 
                             // Check for download degradation
                             if let isDegraded = info[PHImageResultIsDegradedKey] as? Bool, isDegraded {
@@ -138,7 +138,7 @@ class PhotosAssetService {
     }
 
     /// Get human-readable description of authorization status
-    /// 📊 METRICS: Useful for debugging permission issues
+    ///  METRICS: Useful for debugging permission issues
     // MARK: - FUNC
     private func authorizationStatusDescription(_ status: PHAuthorizationStatus) -> String {
         switch status {

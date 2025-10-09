@@ -5,6 +5,8 @@ import Network
 import OSLog
 import Combine
 
+// ResilientVideoLoader.swift
+
 /// MARK: - Resilient Video Loader Service
 ///
 /// Network-aware video loading service with timeout protection and automatic retry
@@ -182,11 +184,11 @@ public class ResilientVideoLoader: ObservableObject {
     public init() {
         setupNetworkMonitoring()
 
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: ✅ Initialized with network resilience (SRP-compliant)")
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Timeout: \(Self.defaultTimeout)s")
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Max retries: \(Self.maxRetryAttempts)")
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Network monitoring: ENABLED")
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: └─ Responsibility: Video loading & progress publishing only")
+        // logger.info("🛡️ RESILIENT_VIDEO_LOADER: ✅ Initialized with network resilience (SRP-compliant)")
+        // logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Timeout: \(Self.defaultTimeout)s")
+        // logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Max retries: \(Self.maxRetryAttempts)")
+        // logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Network monitoring: ENABLED")
+        // logger.info("🛡️ RESILIENT_VIDEO_LOADER: └─ Responsibility: Video loading & progress publishing only")
     }
 
     deinit {
@@ -396,7 +398,7 @@ public class ResilientVideoLoader: ObservableObject {
         // SRP COMPLIANCE: ResilientVideoLoader only handles video loading and publishes progress
         // Phase transitions are handled by ResilientVideoLoaderIntegration layer
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: 🔄 SRP_COMPLIANT: Starting video load operation [\(operation.operationId)]")
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 PROGRESS_FLOW_PUBLISHER: Data path configured for Combine publisher")
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER:  PROGRESS_FLOW_PUBLISHER: Data path configured for Combine publisher")
         logger.debug("🛡️ RESILIENT_VIDEO_LOADER: ├─ iCloud PHImageManager.progressHandler")
         logger.debug("🛡️ RESILIENT_VIDEO_LOADER: ├─ ResilientVideoLoader.handleDownloadProgress()")
         logger.debug("🛡️ RESILIENT_VIDEO_LOADER: └─ progressPublisher → ResilientVideoLoaderIntegration")
@@ -530,7 +532,7 @@ public class ResilientVideoLoader: ObservableObject {
 
         return try await performResilientAVAssetRequest(operation: retryOperation) { [self] progress, status in
             // Progress during retry is published through Combine publisher
-            self.logger.debug("🛡️ RESILIENT_VIDEO_LOADER: 📊 Retry progress: \(Int(progress * 100))%")
+            self.logger.debug("🛡️ RESILIENT_VIDEO_LOADER:  Retry progress: \(Int(progress * 100))%")
         }
     }
     // MARK: - FUNC
@@ -569,7 +571,7 @@ public class ResilientVideoLoader: ObservableObject {
         options.deliveryMode = .automatic
         options.isNetworkAccessAllowed = true
 
-        // 📊 SRP_COMPLIANT: Progress handler only publishes progress, no direct engine calls
+        //  SRP_COMPLIANT: Progress handler only publishes progress, no direct engine calls
         // This ensures clean separation of concerns and prevents lost progress updates
         options.progressHandler = { progress, error, stop, info in
             Task { @MainActor in
@@ -584,7 +586,7 @@ public class ResilientVideoLoader: ObservableObject {
         }
 
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ⚙️ Default request options configured [\(correlationId)]")
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 SRP_COMPLIANT: Progress handler publishes to Combine publisher only")
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER:  SRP_COMPLIANT: Progress handler publishes to Combine publisher only")
         return options
     }
     // MARK: - FUNC
@@ -594,12 +596,12 @@ public class ResilientVideoLoader: ObservableObject {
         error: Error?,
         info: [AnyHashable: Any]?
     ) async {
-        // 📊 DIAGNOSTIC LOG: Log raw iCloud progress percentages for transparent debugging
+        //  DIAGNOSTIC LOG: Log raw iCloud progress percentages for transparent debugging
         let progressPercentage = Int(progress * 100)
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 RAW_ICLOUD_PROGRESS: \(progressPercentage)% [\(correlationId)]")
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER:  RAW_ICLOUD_PROGRESS: \(progressPercentage)% [\(correlationId)]")
 
-        // 📊 SRP_COMPLIANT: ResilientVideoLoader only publishes progress, no direct engine calls
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 PROGRESS_PUBLISHING [\(correlationId)]:")
+        //  SRP_COMPLIANT: ResilientVideoLoader only publishes progress, no direct engine calls
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER:  PROGRESS_PUBLISHING [\(correlationId)]:")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ iCloud Progress: \(progressPercentage)%")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Raw Progress: \(String(format: "%.3f", progress))")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: └─ Progress Path: iCloud → ResilientVideoLoader → Combine Publisher → Integration")
@@ -729,7 +731,7 @@ extension ResilientVideoLoader {
     // MARK: - FUNC
     /// Log comprehensive diagnostic information with enhanced progress flow analysis
     public func logDiagnostics() {
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 COMPREHENSIVE DIAGNOSTIC REPORT")
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER:  COMPREHENSIVE DIAGNOSTIC REPORT")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Loading State: \(self.isLoading ? "ACTIVE" : "IDLE")")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Waiting for Network: \(self.isWaitingForNetwork ? "YES" : "NO")")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Current Attempt: \(self.currentAttempt)")
@@ -740,8 +742,8 @@ extension ResilientVideoLoader {
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Network Lost During Loading: \(self.networkLostDuringLoading ? "⚠️ YES" : "✅ NO")")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: └─ Retry Attempts: \(self.retryAttempts)")
 
-        // 📊 SRP_COMPLIANT_DIAGNOSTIC: Progress flow analysis
-        logger.info("🛡️ RESILIENT_VIDEO_LOADER: 📊 PROGRESS_FLOW_ANALYSIS:")
+        //  SRP_COMPLIANT_DIAGNOSTIC: Progress flow analysis
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER:  PROGRESS_FLOW_ANALYSIS:")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Engine Available: ❌ NOT APPLICABLE (SRP-compliant)")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Responsibility: Video loading & progress publishing only")
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: ├─ Publisher: PassthroughSubject<VideoLoadingProgress, Never>")

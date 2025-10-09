@@ -239,7 +239,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             let metrics = albumManager.getOperationMetrics()
             if !metrics.isEmpty {
                 let recentMetrics = Array(metrics.suffix(5))
-                logger.info("📸 PHOTOS_PERSISTENCE: 📊 Recent album operations [\(correlationId)]:")
+                logger.info("📸 PHOTOS_PERSISTENCE:  Recent album operations [\(correlationId)]:")
                 for metric in recentMetrics {
                     logger.info("📸 PHOTOS_PERSISTENCE:   - \(metric.operationType): \(String(format: "%.3f", metric.duration))s, Success: \(metric.success), Cache Hit: \(metric.cacheHit), Retries: \(metric.retryCount)")
                 }
@@ -317,7 +317,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
             // Log album manager metrics for monitoring
             let metrics = albumManager.getOperationMetrics()
             if let latestMetric = metrics.last {
-                logger.info("📸 PHOTOS_PERSISTENCE: 📊 Album operation metrics [\(correlationId)]: \(latestMetric.operationType) - \(String(format: "%.3f", latestMetric.duration))s - Success: \(latestMetric.success)")
+                logger.info("📸 PHOTOS_PERSISTENCE:  Album operation metrics [\(correlationId)]: \(latestMetric.operationType) - \(String(format: "%.3f", latestMetric.duration))s - Success: \(latestMetric.success)")
             }
 
             return album
@@ -543,7 +543,7 @@ public final class PhotosPersistenceService: PhotosPersistenceServiceProtocol {
 
         let progressPercentage = Int(progress * 100)
         let phaseString = "\(phase)"
-        logger.info("📸 PHOTOS_PERSISTENCE: 📊 Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(message)")
+        logger.info("📸 PHOTOS_PERSISTENCE:  Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(message)")
     }
     // MARK: - FUNC
     /// Log completion

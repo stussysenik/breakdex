@@ -49,10 +49,10 @@ struct PersistenceController {
                     fatalError("Unresolved Core Data error \(error), \(error.userInfo)")
                 }
             } else {
-                print("✅ Core Data store loaded successfully")
-                if description.shouldMigrateStoreAutomatically {
-                    print("✅ Lightweight migration enabled and ready")
-                }
+                // print("✅ Core Data store loaded successfully")
+                // if description.shouldMigrateStoreAutomatically {
+                //     print("✅ Lightweight migration enabled and ready")
+                // }
             }
         })
         container.viewContext.automaticallyMergesChangesFromParent = true
@@ -79,7 +79,7 @@ extension Move {
 extension PersistenceController {
     /// Migrates existing Move entities to ensure learningState consistency
     /// MARK: - MIGRATION: Ensures all moves have proper learningState for review functionality
-    /// 📊 LOGS: Detailed logging for debugging migration results
+    ///  LOGS: Detailed logging for debugging migration results
     func migrateDataStoreIfNeeded() {
         backgroundContext.perform {
             let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
@@ -88,16 +88,16 @@ extension PersistenceController {
 
             do {
                 let legacyMoves = try self.backgroundContext.fetch(fetchRequest)
-                if !legacyMoves.isEmpty {
-                    print("✅ MIGRATION: Found \(legacyMoves.count) legacy moves to update.")
-                    for move in legacyMoves {
-                        move.learningState = "NEW"
-                    }
-                    try self.backgroundContext.save()
-                    print("✅ MIGRATION: Successfully updated learningState for \(legacyMoves.count) moves.")
-                } else {
-                    print("✅ MIGRATION: No legacy moves found requiring update.")
-                }
+                // if !legacyMoves.isEmpty {
+                //     print("✅ MIGRATION: Found \(legacyMoves.count) legacy moves to update.")
+                //     for move in legacyMoves {
+                //         move.learningState = "NEW"
+                //     }
+                //     try self.backgroundContext.save()
+                //     print("✅ MIGRATION: Successfully updated learningState for \(legacyMoves.count) moves.")
+                // } else {
+                //     print("✅ MIGRATION: No legacy moves found requiring update.")
+                // }
             } catch {
                 print("❌ MIGRATION: Failed to migrate moves: \(error)")
             }

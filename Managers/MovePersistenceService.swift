@@ -111,7 +111,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         // MARK: - FIXED: Removed binary video storage from Core Data - architectural violation
         // 🗑️ REMOVED: Storing entire video files as binary Data in Core Data causes performance issues
         // if let videoData = try? Data(contentsOf: videoURL) {
-        //     logger.info("💾 MOVE_PERSISTENCE: 📊 Video data size: \(videoData.count) bytes")
+        //     logger.info("💾 MOVE_PERSISTENCE:  Video data size: \(videoData.count) bytes")
         //     move.videoReference = videoData
         //     logger.info("💾 MOVE_PERSISTENCE: ✅ Video data stored successfully")
         // } else {
@@ -132,8 +132,8 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
             let saveDuration = Date().timeIntervalSince(saveStartTime)
 
             logger.info("💾 MOVE_PERSISTENCE: ✅ Move entity saved to Core Data [duration:\(String(format: "%.2f", saveDuration))s]")
-            logger.info("💾 MOVE_PERSISTENCE: 📊 Move ID: \(move.id ?? UUID())")
-            logger.info("💾 MOVE_PERSISTENCE: 📊 Total operation duration: \(String(format: "%.2f", Date().timeIntervalSince(operationStartTime)))s")
+            logger.info("💾 MOVE_PERSISTENCE:  Move ID: \(move.id ?? UUID())")
+            logger.info("💾 MOVE_PERSISTENCE:  Total operation duration: \(String(format: "%.2f", Date().timeIntervalSince(operationStartTime)))s")
 
             // Categorical analysis: Log success metrics
             logger.info("💾 MOVE_PERSISTENCE: 🧮 Save operation metrics - duration: \(Int(Date().timeIntervalSince(operationStartTime) * 1000))ms, context: \(threadContext), name: \(name)")
@@ -189,7 +189,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         )
         
         logger.info("💾 MOVE_PERSISTENCE: ✅ Complete save operation finished successfully")
-        logger.info("💾 MOVE_PERSISTENCE: 📊 Final Move entity: \(move)")
+        logger.info("💾 MOVE_PERSISTENCE:  Final Move entity: \(move)")
     }
 
     /// Delete video from Photos library (for rollback operations)
@@ -228,7 +228,7 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         // ✨ ENHANCED: Log detailed information when duplicate is found
         if exists {
             logger.warning("💾 MOVE_PERSISTENCE: ⚠️ DUPLICATE DETECTION: Move name '\(name)' already exists in database")
-            logger.info("💾 MOVE_PERSISTENCE: 📊 Duplicate detection details: name=\(name), method=doesMoveExist, case_insensitive=true")
+            logger.info("💾 MOVE_PERSISTENCE:  Duplicate detection details: name=\(name), method=doesMoveExist, case_insensitive=true")
         }
 
         return exists

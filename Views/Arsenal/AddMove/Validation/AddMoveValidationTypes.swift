@@ -189,7 +189,7 @@ public enum TrimmingReadinessIssue {
 public struct TrimmingReadinessResult {
     public let isReady: Bool
     public let issues: [TrimmingReadinessIssue]
-    public let trimmerViewModel: TrimmerViewModel?
+    public let trimmerViewModel: TrimmerViewModel? // MARK: - AddMoveUnifiedState.swift connection
     public let videoAsset: AVAsset
     public let playerViewModel: UnifiedVideoPlayerViewModel?
 

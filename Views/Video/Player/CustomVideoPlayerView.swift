@@ -245,7 +245,7 @@ public struct CustomVideoPlayerView: View {
                             let endMemory = diagnosticLogger.getMemoryInfo()
                             let endCPU = diagnosticLogger.getCurrentCPUUsage()
 
-                            diagnosticLogger.logInfo("📊 Video render task performance", metadata: [
+                            diagnosticLogger.logInfo(" Video render task performance", metadata: [
                                 "memory_before_mb": "\(String(format: "%.1f", startMemory.used))",
                                 "memory_after_mb": "\(String(format: "%.1f", endMemory.used))",
                                 "memory_increase_mb": "\(String(format: "%.1f", endMemory.used - startMemory.used))",
@@ -682,7 +682,7 @@ public struct CustomVideoPlayerView: View {
                 let renderMemory = diagnosticLogger.getMemoryInfo()
                 let renderCPU = diagnosticLogger.getCurrentCPUUsage()
 
-                diagnosticLogger.logInfo("📊 Fullscreen player rendering performance", metadata: [
+                diagnosticLogger.logInfo(" Fullscreen player rendering performance", metadata: [
                     "memory_before_mb": "\(String(format: "%.1f", startMemory.used))",
                     "memory_after_mb": "\(String(format: "%.1f", renderMemory.used))",
                     "memory_increase_mb": "\(String(format: "%.1f", renderMemory.used - startMemory.used))",

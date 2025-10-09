@@ -157,7 +157,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol
         // MARK: ACTION
         do {
             logger.info(
-                "🎬 VIDEO_LOADING: 📊 Fetching file metadata [\(correlationId)]"
+                "🎬 VIDEO_LOADING:  Fetching file metadata [\(correlationId)]"
             )
 
             // MARK: - TOTAL BYTES
@@ -815,7 +815,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol
         let progressPercentage = Int(progressReport.progress * 100)
         let phaseString = "\(phase)"
         logger.info(
-            "🎬 VIDEO_LOADING: 📊 Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(progressReport.message)"
+            "🎬 VIDEO_LOADING:  Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(progressReport.message)"
         )
     }
 

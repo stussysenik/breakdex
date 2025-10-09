@@ -61,7 +61,7 @@ struct FlashcardReviewView: View {
     
     /// Optimized combo learning state calculation using in-memory relationship data
     /// 🚀 PERFORMANCE: Eliminates database queries by using existing relationship data
-    /// 📊 LOGS: Provides detailed logging for debugging combo state logic
+    ///  LOGS: Provides detailed logging for debugging combo state logic
     private func getComboLearningState(for combo: Combo) -> String {
         logger.info("🎮 FLASHCARD_REVIEW: 🔄 Calculating state for combo: \(combo.name ?? "Unknown")")
 
@@ -72,7 +72,7 @@ struct FlashcardReviewView: View {
         }
 
         let moveStates = comboMoves.compactMap { $0.move?.learningState }
-        logger.info("🎮 FLASHCARD_REVIEW: 📊 Found \(moveStates.count) move states: \(moveStates)")
+        logger.info("🎮 FLASHCARD_REVIEW:  Found \(moveStates.count) move states: \(moveStates)")
 
         // Business logic for determining combo learning state
         let calculatedState: String
@@ -171,7 +171,7 @@ struct MoveReviewView: View {
 
     /// Load video asset asynchronously using PhotosAssetService
     /// MARK: - ASYNC: Modern async/await pattern with proper error handling
-    /// 📊 LOGS: Comprehensive logging for debugging
+    ///  LOGS: Comprehensive logging for debugging
     private func loadVideoAsset() async {
         logger.info("🎮 MOVE_REVIEW: 🔄 Starting video asset load")
 
@@ -195,7 +195,7 @@ struct MoveReviewView: View {
             // MARK: - PHOTOS_SERVICE: Use centralized asset loading
             let asset = try await PhotosAssetService.shared.fetchAVAsset(with: photosIdentifier)
             logger.info("🎮 MOVE_REVIEW: ✅ Video asset loaded successfully")
-            logger.info("🎮 MOVE_REVIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
+            logger.info("🎮 MOVE_REVIEW:  Asset duration: \(CMTimeGetSeconds(asset.duration))s")
 
             await MainActor.run {
                 self.videoAsset = asset
@@ -416,7 +416,7 @@ struct ComboReviewView: View {
 
     /// Load video asset asynchronously for a specific move in combo
     /// MARK: - ASYNC: Modern async/await pattern with proper error handling
-    /// 📊 LOGS: Comprehensive logging for debugging combo moves
+    ///  LOGS: Comprehensive logging for debugging combo moves
     private func loadVideoAsset(for move: Move) async {
         logger.info("🎮 COMBO_REVIEW: 🔄 Starting video asset load for combo move: \(move.name ?? "Unknown")")
 
@@ -440,7 +440,7 @@ struct ComboReviewView: View {
             // MARK: - PHOTOS_SERVICE: Use centralized asset loading
             let asset = try await PhotosAssetService.shared.fetchAVAsset(with: photosIdentifier)
             logger.info("🎮 COMBO_REVIEW: ✅ Video asset loaded successfully")
-            logger.info("🎮 COMBO_REVIEW: 📊 Asset duration: \(CMTimeGetSeconds(asset.duration))s")
+            logger.info("🎮 COMBO_REVIEW:  Asset duration: \(CMTimeGetSeconds(asset.duration))s")
 
             await MainActor.run {
                 self.videoAsset = asset
