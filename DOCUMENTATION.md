@@ -39,7 +39,7 @@ NOTE: purpose of this document is to serve as a quick reference + allow new deve
 BreakingFlashcards/
 ├── breakdex/                           # Main app source code
 │   ├── AppCore/
-│   │   ├── breakdex.swift     # Main app entry point
+│   │   ├── Breakdex.swift     # Main app entry point
 │   │   ├── BreakingArsenalView.swift       # Arsenal tab container
 │   │   └── FeatureFlag.swift               # Feature flag management
 │   ├── CoreData/                         # Data models and persistence
