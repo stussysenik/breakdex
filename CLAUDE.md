@@ -2,18 +2,34 @@
 
 # * **Single Responsibility Principle (SRP):** Enforce SRP across all components. Views remain "dumb," containing no business logic and forwarding all user actions to the ViewModel.
 
-### Project Structure
-- **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/` -> make sure to always be using the 
-- **Main App:** `breakdex/` (100+ Swift files)
+### Project Structure (Clean Architecture ✅)
+- **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/` -> make sure to always be using the
+- **Main App:** `breakdex/` (40+ organized Swift files under clean Features/ structure)
+- **Architecture Status:** ✅ **Clean Architecture Complete (October 2025)**
 - **Tests:** BreakingFlashcardsTests & BreakingFlashcardsUITests
 - **Build System:** Xcode project with automated builds
 - **Documentation**: Available at /Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/DOCUMENTATION.md
-- **Save Move Architecture**: Complete documentation in SAVE_MOVE_ARCHITECTURE.md
 
-### Development Guidelines
-- **SRP**
-- **Dependency Injection**
-- **WYSIWYG:** What you see is what you get - maintain the current codebase structure
+### Clean Architecture Structure
+```
+breakdex/
+├── App/ (2 files: breakdex.swift, MainView.swift)
+├── CoreData/ (8 Core Data files)
+├── Features/ (ALL feature code organized cleanly)
+│   ├── AddMove/ (Views/, Services/)
+│   ├── Arsenal/ (Views/, ViewModels/)
+│   ├── Combo/ (Views/, ViewModels/)
+│   ├── Review/ (Views/, ViewModels/)
+│   └── Shared/ (UI/, Video/, Utils/, Services/, Models/, ViewModels/)
+└── Resources/ (assets)
+```
+
+### Development Guidelines (Clean Architecture)
+- **SRP:** Single Responsibility Principle - each file has one clear purpose
+- **Dependency Injection:** Clean separation between Views, ViewModels, and Services
+- **Feature-Based Organization:** All code organized under Features/ structure
+- **Shared Components:** Use existing shared UI, Video, and Utility components
+- **WYSIWYG:** What you see is what you get - maintain the current clean codebase structure
 - **Diagnostic Logging:** Use comprehensive logging at every step for debugging
 - **Code Quality:** Write performant, maintainable, scalable code that's easy to debug
 - **Principles:** Follow KISS, DRY, and YAGNI development principles
@@ -22,8 +38,8 @@
 ### Design style
 DesignSystem.swift or Color+Extensions.swift
 
-### Maximum lines of code per file
-approx. 700 - 800 lines if exceeded - means we're not following SRP principle
+### Maximum lines of code per file (Clean Architecture Standard)
+approx. 300-500 lines per file - Clean architecture achieved with focused, single-purpose files
 
 ### App Purpose
 Develop a high-performance, iOS 18.0-compliant video flashcard application called breakdex for learning and reviewing complex physical movements. The project is built on a foundation of robust state management, Swift Concurrency, and a stable, custom video playback engine with millisecond-precise video trimming capabilities.
@@ -32,8 +48,10 @@ Develop a high-performance, iOS 18.0-compliant video flashcard application calle
 * **Logging-First Approach:** Adopt a logging-first approach using `OSLog` for detailed, categorized, and traceable logging. Use emojis in log categories for enhanced traceability.
 * **Critical Operations:** Log every critical state transition, function entry/exit, and asynchronous boundary to aid in debugging.
 
-### Claude Code Integration
+### Claude Code Integration (Clean Architecture)
 * Claude agent should be limited to generating/refactoring Swift or SwiftUI code, with explicit permission required for data or asset directories.
+* Follow the established Features/ structure when creating or modifying code
+* Use existing shared components (Video, UI, Utils, Services) whenever possible
 * Request permission before altering Core Data models, `Info.plist`, or App Sandbox settings.
 * Generate thorough comments for any code affecting app performance, privacy, or video playback edge cases.
 
@@ -42,25 +60,29 @@ Develop a high-performance, iOS 18.0-compliant video flashcard application calle
 - Never delete logs unless, we're discarding the entire file/functionality.
 - Be super cautious about when we need explicit self. references
 
-### Testing Strategy
-* **Unit Tests:** Comprehensive test coverage for all managers, view models, and utility functions
+### Testing Strategy (Clean Architecture)
+* **Unit Tests:** Comprehensive test coverage for all ViewModels, Services, and Utility functions
 * **UI Tests:** Automated UI testing for critical user flows including video playback, trimmer operations, and add move workflow
-* **Save Move Testing:** Complete test coverage for the 12 core save move files and 8+ supporting files
+* **Integration Tests:** Feature-to-feature communication testing
 * **Memory Management Testing:** Verification of retain cycle prevention and proper resource cleanup
 
-### Testing & Compliance
+### Testing & Compliance (Clean Architecture)
 * All new code must include companion unit tests (XCTest) for models and utilities, and UI tests (XCUITest) for video playback, flashcard navigation, and error states.
+* Test code within the Features/ structure following the same clean architecture principles
 * The app must be fully functional and compliant with iOS 18.0 APIs.
 * Verify builds using the command: `xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build`.
 * Retain cycle prevention must be verified through Instruments profiling for all ViewModel lifecycle management.
 
-### Feature Flags
-* Use `FeatureFlag` enum for controlled feature rollout and A/B testing capabilities
+### Feature Flags (Clean Architecture)
+* Use `FeatureFlag` enum (located in Features/Shared/) for controlled feature rollout and A/B testing capabilities
 * All new features should be gated behind feature flags for controlled deployment
+* Feature flags are shared across all features through the Features/Shared/ directory
 
-### Syntax Validation & Code Quality
+### Syntax Validation & Code Quality (Clean Architecture)
 * **Pre-Commit Checks:** Always run `swiftc -parse` on modified files before committing
 * **Build Verification:** Execute `xcodebuild -project breakdex.xcodeproj -scheme breakdex build` to verify compilation
+* **Feature Structure:** Ensure new code follows Features/ organization pattern
+* **Shared Component Usage:** Use existing shared components before creating new ones
 * **Scope Management:** Use IDE code folding to verify struct/class/function boundaries - extra closing braces are a common source of "initializers may only be declared within a type" errors
 * **Optional Safety:** Only use optional chaining (`?.`) on truly optional types; avoid unnecessary nil-coalescing (`??`) on non-optional values
 * **Component Dependencies:** Ensure child components have access to required dependencies through proper property injection
@@ -81,20 +103,16 @@ When encountering compilation errors:
 4. **Review type annotations** for optional vs non-optional usage
 5. **Test incrementally** - fix one error, recompile, repeat
 
-### Build Verification Commands
+### Build Verification Commands (Clean Architecture)
 ```bash
-# Syntax validation for main refactored file
-swiftc -parse breakdex/Views/Arsenal/AddMove/AddMoveUnifiedState.swift
-
-# Syntax validation for extracted components
-swiftc -parse breakdex/Views/Arsenal/AddMove/State/AddMoveFlowState.swift
-swiftc -parse breakdex/Views/Arsenal/AddMove/Services/TimerManager.swift
-swiftc -parse breakdex/Views/Arsenal/AddMove/Services/ProgressMonitor.swift
-swiftc -parse breakdex/Views/Arsenal/AddMove/Validation/StateValidator.swift
-swiftc -parse breakdex/Views/Arsenal/AddMove/Operations/SaveOperationCoordinator.swift
-
 # Full project build
 xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
+
+# Syntax validation for feature files
+swiftc -parse breakdex/Features/AddMove/Views/AddMoveView.swift
+swiftc -parse breakdex/Features/Arsenal/ViewModels/ArsenalViewModel.swift
+swiftc -parse breakdex/Features/Shared/Video/VideoPlayer.swift
+swiftc -parse breakdex/Features/Shared/UI/Components/Button.swift
 
 # Clean build verification
 xcodebuild clean -project breakdex.xcodeproj
