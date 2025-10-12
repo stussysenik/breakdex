@@ -95,7 +95,7 @@ public struct Movie: Transferable {
                 logger.info("📥 Movie: Security scoped resource access started: \(needsAccess)")
                 
                 if !needsAccess {
-                    logger.warning("📥 Movie: ⚠️ Failed to start accessing security scoped resource - trying fallback approaches")
+                    logger.info("📥 Movie: ⚠️ Failed to start accessing security scoped resource - trying fallback approaches")
                     
                     // Approach 1: Check if the file is already in our container
                     let appContainerURLs = [

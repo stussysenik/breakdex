@@ -1,4 +1,24 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Font Weight Conversion
+extension Font.Weight {
+    /// Convert SwiftUI Font.Weight to UIFont.Weight
+    var uiFontWeight: UIFont.Weight {
+        switch self {
+        case .ultraLight: return .ultraLight
+        case .thin: return .thin
+        case .light: return .light
+        case .regular: return .regular
+        case .medium: return .medium
+        case .semibold: return .semibold
+        case .bold: return .bold
+        case .heavy: return .heavy
+        case .black: return .black
+        default: return .regular
+        }
+    }
+}
 
 // MARK: - Shared Typography
 /// Centralized typography system for consistent text styling across features
@@ -171,7 +191,7 @@ public struct SharedTypography {
         )
 
         public static let videoTime = TextStyle(
-            font: .monospacedDigitSystem(size: FontSize.videoTime, weight: .medium),
+            font: Font.system(size: FontSize.videoTime, design: .monospaced),
             weight: .medium,
             size: FontSize.videoTime,
             lineHeight: FontSize.videoTime * 1.2
@@ -261,7 +281,7 @@ public extension Font {
 // MARK: - Text Style Extensions
 public extension Text {
     /// Apply shared typography style
-    func sharedFont(_ style: SharedTypography.TextStyle) -> Text {
+    func sharedFont(_ style: SharedTypography.TextStyle) -> some View {
         self
             .font(style.weightedFont)
             .lineSpacing(style.lineHeight - style.size)
@@ -269,97 +289,97 @@ public extension Text {
     }
 
     // Convenience methods for common styles
-    func massiveTitle() -> Text {
+    func massiveTitle() -> some View {
         sharedFont(SharedTypography.Styles.massiveTitle)
     }
 
-    func largeTitle() -> Text {
+    func largeTitle() -> some View {
         sharedFont(SharedTypography.Styles.largeTitle)
     }
 
-    func title1() -> Text {
+    func title1() -> some View {
         sharedFont(SharedTypography.Styles.title1)
     }
 
-    func title2() -> Text {
+    func title2() -> some View {
         sharedFont(SharedTypography.Styles.title2)
     }
 
-    func headline() -> Text {
+    func headline() -> some View {
         sharedFont(SharedTypography.Styles.headline)
     }
 
-    func body() -> Text {
+    func body() -> some View {
         sharedFont(SharedTypography.Styles.body)
     }
 
-    func bodyEmphasized() -> Text {
+    func bodyEmphasized() -> some View {
         sharedFont(SharedTypography.Styles.bodyEmphasized)
     }
 
-    func callout() -> Text {
+    func callout() -> some View {
         sharedFont(SharedTypography.Styles.callout)
     }
 
-    func subheadline() -> Text {
+    func subheadline() -> some View {
         sharedFont(SharedTypography.Styles.subheadline)
     }
 
-    func subheadlineEmphasized() -> Text {
+    func subheadlineEmphasized() -> some View {
         sharedFont(SharedTypography.Styles.subheadlineEmphasized)
     }
 
-    func footnote() -> Text {
+    func footnote() -> some View {
         sharedFont(SharedTypography.Styles.footnote)
     }
 
-    func footnoteEmphasized() -> Text {
+    func footnoteEmphasized() -> some View {
         sharedFont(SharedTypography.Styles.footnoteEmphasized)
     }
 
-    func caption1() -> Text {
+    func caption1() -> some View {
         sharedFont(SharedTypography.Styles.caption1)
     }
 
-    func caption2() -> Text {
+    func caption2() -> some View {
         sharedFont(SharedTypography.Styles.caption2)
     }
 
     // Video-specific styles
-    func videoControls() -> Text {
+    func videoControls() -> some View {
         sharedFont(SharedTypography.Styles.videoControls)
     }
 
-    func videoTime() -> Text {
+    func videoTime() -> some View {
         sharedFont(SharedTypography.Styles.videoTime)
     }
 
-    func videoTitle() -> Text {
+    func videoTitle() -> some View {
         sharedFont(SharedTypography.Styles.videoTitle)
     }
 
-    func videoSubtitle() -> Text {
+    func videoSubtitle() -> some View {
         sharedFont(SharedTypography.Styles.videoSubtitle)
     }
 
     // Specialized styles
-    func buttonStyle() -> Text {
+    func buttonStyle() -> some View {
         sharedFont(SharedTypography.Styles.button)
     }
 
-    func navigationTitle() -> Text {
+    func navigationTitle() -> some View {
         sharedFont(SharedTypography.Styles.navigationTitle)
     }
 
-    func tabLabel() -> Text {
+    func tabLabel() -> some View {
         sharedFont(SharedTypography.Styles.tabLabel)
     }
 
-    func errorStyle() -> Text {
+    func errorStyle() -> some View {
         sharedFont(SharedTypography.Styles.error)
     }
 
-    func successStyle() -> Text {
+    func successStyle() -> some View {
         sharedFont(SharedTypography.Styles.success)
     }
 }
@@ -373,22 +393,18 @@ public extension NSAttributedString {
         color: Color = .primary
     ) -> NSAttributedString {
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont(
-                descriptor: UIFontDescriptor(
-                    fontAttributes: [
-                        .name: style.font.fontName,
-                        .size: style.size,
-                        .traits: [UIFontDescriptor.TraitKey.weight: style.weight]
-                    ]
-                ),
-                size: style.size
-            ),
+            .font: UIFont.systemFont(ofSize: style.size, weight: style.weight.uiFontWeight),
             .foregroundColor: UIColor(color),
             .kern: style.letterSpacing
         ]
 
         return NSAttributedString(string: string, attributes: attributes)
     }
+}
+
+// MARK: - Heading Level Enum
+public enum TypographyHeadingLevel {
+    case h1, h2, h3, h4
 }
 
 // MARK: - View Modifiers
@@ -399,19 +415,16 @@ public extension View {
         color: Color = .primary,
         multilineTextAlignment: TextAlignment? = nil
     ) -> some View {
-        var view = self
-            .sharedFont(style)
+        return self
+            .font(style.weightedFont)
+            .lineSpacing(style.lineHeight - style.size)
+            .tracking(style.letterSpacing)
             .foregroundColor(color)
-
-        if let alignment = multilineTextAlignment {
-            view = view.multilineTextAlignment(alignment)
-        }
-
-        return view
+            .multilineTextAlignment(multilineTextAlignment ?? .leading)
     }
 
     /// Apply heading typography
-    func heading(_ level: HeadingLevel = .h1, color: Color = .primary) -> some View {
+    func heading(_ level: TypographyHeadingLevel = .h1, color: Color = .primary) -> some View {
         let style: SharedTypography.TextStyle
         switch level {
         case .h1: style = SharedTypography.Styles.title1
@@ -434,11 +447,6 @@ public extension View {
         let style = emphasized ? SharedTypography.Styles.caption2 : SharedTypography.Styles.caption1
         return sharedTypography(style, color: color)
     }
-
-    // MARK: - Heading Level Enum
-    enum HeadingLevel {
-        case h1, h2, h3, h4
-    }
 }
 
 // MARK: - Preview
@@ -446,38 +454,38 @@ public extension View {
     ScrollView {
         VStack(alignment: .leading, spacing: 20) {
             GroupHeader("Header Styles")
-            TextSample("Massive Title", style: .massiveTitle)
-            TextSample("Large Title", style: .largeTitle)
-            TextSample("Title 1", style: .title1)
-            TextSample("Title 2", style: .title2)
-            TextSample("Headline", style: .headline)
+            TextSample("Massive Title", style: SharedTypography.Styles.massiveTitle)
+            TextSample("Large Title", style: SharedTypography.Styles.largeTitle)
+            TextSample("Title 1", style: SharedTypography.Styles.title1)
+            TextSample("Title 2", style: SharedTypography.Styles.title2)
+            TextSample("Headline", style: SharedTypography.Styles.headline)
 
             GroupHeader("Body Styles")
-            TextSample("Body text regular weight", style: .body)
-            TextSample("Body text emphasized", style: .bodyEmphasized)
-            TextSample("Callout text", style: .callout)
-            TextSample("Subheadline text", style: .subheadline)
-            TextSample("Subheadline emphasized", style: .subheadlineEmphasized)
+            TextSample("Body text regular weight", style: SharedTypography.Styles.body)
+            TextSample("Body text emphasized", style: SharedTypography.Styles.bodyEmphasized)
+            TextSample("Callout text", style: SharedTypography.Styles.callout)
+            TextSample("Subheadline text", style: SharedTypography.Styles.subheadline)
+            TextSample("Subheadline emphasized", style: SharedTypography.Styles.subheadlineEmphasized)
 
             GroupHeader("Caption Styles")
-            TextSample("Footnote text", style: .footnote)
-            TextSample("Footnote emphasized", style: .footnoteEmphasized)
-            TextSample("Caption 1 text", style: .caption1)
-            TextSample("CAPTION 2 TEXT", style: .caption2)
+            TextSample("Footnote text", style: SharedTypography.Styles.footnote)
+            TextSample("Footnote emphasized", style: SharedTypography.Styles.footnoteEmphasized)
+            TextSample("Caption 1 text", style: SharedTypography.Styles.caption1)
+            TextSample("CAPTION 2 TEXT", style: SharedTypography.Styles.caption2)
 
             GroupHeader("Video Styles")
-            TextSample("Video Controls", style: .videoControls)
-            TextSample("00:00 / 01:23", style: .videoTime)
-            TextSample("Video Title", style: .videoTitle)
-            TextSample("Video subtitle text", style: .videoSubtitle)
+            TextSample("Video Controls", style: SharedTypography.Styles.videoControls)
+            TextSample("00:00 / 01:23", style: SharedTypography.Styles.videoTime)
+            TextSample("Video Title", style: SharedTypography.Styles.videoTitle)
+            TextSample("Video subtitle text", style: SharedTypography.Styles.videoSubtitle)
 
             GroupHeader("Specialized Styles")
-            TextSample("Button Text", style: .button)
-            TextSample("Navigation Title", style: .navigationTitle)
-            TextSample("Tab Label", style: .tabLabel)
-            TextSample("Error Message", style: .error)
+            TextSample("Button Text", style: SharedTypography.Styles.button)
+            TextSample("Navigation Title", style: SharedTypography.Styles.navigationTitle)
+            TextSample("Tab Label", style: SharedTypography.Styles.tabLabel)
+            TextSample("Error Message", style: SharedTypography.Styles.error)
                 .foregroundColor(SharedColors.Semantic.error)
-            TextSample("Success Message", style: .success)
+            TextSample("Success Message", style: SharedTypography.Styles.success)
                 .foregroundColor(SharedColors.Semantic.success)
         }
         .padding()

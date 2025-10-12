@@ -39,6 +39,8 @@ public struct SharedColors {
         public static let gray400 = Color(UIColor.systemGray2) // Medium dark gray
         public static let gray500 = Color(UIColor.systemGray)  // Dark gray
         public static let gray600 = Color(UIColor.darkGray)    // Very dark gray
+        public static let gray700 = Color.black.opacity(0.8)   // Extra dark gray
+        public static let gray800 = Color.black.opacity(0.9)   // Darkest gray
 
         // Opacity variants
         public static let whiteOpacity10 = Color.white.opacity(0.1)
@@ -255,41 +257,41 @@ public extension SharedColors {
     }
 }
 
+// MARK: - Color Style Enums
+public enum ColorBackgroundStyle {
+    case primary, secondary, tertiary, overlay, videoPlayer
+}
+
+public enum ColorTextStyle {
+    case primary, secondary, tertiary, inverse, videoControls
+}
+
+public enum ColorBorderStyle {
+    case primary, secondary, tertiary, focus, disabled
+}
+
 // MARK: - View Modifiers
 public extension View {
     /// Apply consistent background color
-    func sharedBackground(_ style: BackgroundStyle = .primary) -> some View {
+    func sharedBackground(_ style: ColorBackgroundStyle = .primary) -> some View {
         self.background(backgroundColor(for: style))
     }
 
     /// Apply consistent text color
-    func sharedTextColor(_ style: TextStyle = .primary) -> some View {
+    func sharedTextColor(_ style: ColorTextStyle = .primary) -> some View {
         self.foregroundColor(textColor(for: style))
     }
 
     /// Apply consistent border color
-    func sharedBorderColor(_ style: BorderStyle = .primary) -> some View {
+    func sharedBorderColor(_ style: ColorBorderStyle = .primary) -> some View {
         self.overlay(
             RoundedRectangle(cornerRadius: 8)
                 .stroke(borderColor(for: style), lineWidth: 1)
         )
     }
 
-    // MARK: - Helper Enums
-    enum BackgroundStyle {
-        case primary, secondary, tertiary, overlay, videoPlayer
-    }
-
-    enum TextStyle {
-        case primary, secondary, tertiary, inverse, videoControls
-    }
-
-    enum BorderStyle {
-        case primary, secondary, tertiary, focus, disabled
-    }
-
     // MARK: - Helper Methods
-    private func backgroundColor(for style: BackgroundStyle) -> Color {
+    private func backgroundColor(for style: ColorBackgroundStyle) -> Color {
         switch style {
         case .primary: return SharedColors.Background.primary
         case .secondary: return SharedColors.Background.secondary
@@ -299,7 +301,7 @@ public extension View {
         }
     }
 
-    private func textColor(for style: TextStyle) -> Color {
+    private func textColor(for style: ColorTextStyle) -> Color {
         switch style {
         case .primary: return SharedColors.Text.primary
         case .secondary: return SharedColors.Text.secondary
@@ -309,7 +311,7 @@ public extension View {
         }
     }
 
-    private func borderColor(for style: BorderStyle) -> Color {
+    private func borderColor(for style: ColorBorderStyle) -> Color {
         switch style {
         case .primary: return SharedColors.Border.primary
         case .secondary: return SharedColors.Border.secondary

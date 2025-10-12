@@ -32,7 +32,7 @@ public class SharedVideoPlayer: ObservableObject {
     }
 
     // MARK: - Player States
-    public enum PlayerState {
+    public enum PlayerState: Equatable {
         case idle
         case loading(progress: Double, message: String)
         case ready
@@ -68,7 +68,17 @@ public class SharedVideoPlayer: ObservableObject {
     }
 
     deinit {
-        cleanup()
+        // Cleanup resources synchronously in deinit
+        player?.pause()
+        player?.replaceCurrentItem(with: nil)
+        player = nil
+        playerItem = nil
+        cancellables.removeAll()
+
+        if let timeObserver = timeObserver {
+            player?.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
     }
 
     // MARK: - Public Methods
@@ -293,9 +303,9 @@ public class SharedVideoPlayer: ObservableObject {
         if wasPlaying != isCurrentlyPlaying {
             isPlaying = isCurrentlyPlaying
 
-            if isCurrentlyPlaying && state == .ready {
+            if isCurrentlyPlaying, case .ready = state {
                 state = .playing
-            } else if !isCurrentlyPlaying && state == .playing {
+            } else if !isCurrentlyPlaying, case .playing = state {
                 state = .paused
             }
         }

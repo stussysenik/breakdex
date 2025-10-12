@@ -464,7 +464,7 @@ public class ResilientVideoLoaderIntegration: ObservableObject {
         // logger.info("🔗 RESILIENT_INTEGRATION: └─ Complete Flow: iCloud → ResilientVideoLoader → UnifiedProgressEngine → UI (SSOT ENFORCED)")
     }
     // MARK: - FUNC
-    private func mapResilientErrorToProgressError(_ error: ResilientVideoLoader.ResilientVideoLoaderError) -> UnifiedProgressEngine.ProgressError {
+    private func mapResilientErrorToProgressError(_ error: ResilientVideoLoader.ResilientVideoLoaderError) -> ProgressError {
         switch error {
         case .timeout(_, let duration):
             return .timeout(duration: duration)

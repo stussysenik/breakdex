@@ -104,7 +104,7 @@ public protocol ModernVideoLoadingServiceProtocol: AnyObject {  // protocol
 // MARK: - keyword
 @MainActor
 @preconcurrency
-public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol
+public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProtocol
 {  // service
     private let imageManager = PHImageManager.default()
 
@@ -594,7 +594,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol
         options.progressHandler = { progress, _, _, _ in
             Task { @MainActor in
                 let downloadProgress = VideoLoadingProgress(
-                    phase: .downloadingFromCloud(progress: progress),
+                    phase: .downloadingFromCloud(progress),
                     correlationId: correlationId
                 )
                 self.progressSubject.send(downloadProgress)
@@ -872,10 +872,11 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol
     }
 
     // MARK: - FUNC
-    public func cancelCurrentOperation() {
-        logger.info("🎬 VIDEO_LOADING: 🚫 Cancelling current operation")
-        currentCorrelationId = nil
-
+    nonisolated public func cancelCurrentOperation() {
+        Task { @MainActor in
+            logger.info("🎬 VIDEO_LOADING: 🚫 Cancelling current operation")
+            currentCorrelationId = nil
+        }
     }
 
     deinit {
@@ -887,7 +888,7 @@ public final class ModernVideoLoadingService: ModernVideoLoadingServiceProtocol
 }
 
 // MARK: - EXTEONSION
-extension ModernVideoLoadingService {
+extension ModernVideoLoadingServiceImpl {
     // MARK: - FUNC
     func loadVideoWithProgress(from item: PhotosPickerItem) -> AnyPublisher<
         VideoLoadingResult, VideoLoadingError

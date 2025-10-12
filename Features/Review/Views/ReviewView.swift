@@ -42,7 +42,9 @@ struct ReviewView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
-            viewModel.loadData()
+            Task {
+                await viewModel.loadData()
+            }
         }
         .refreshable {
             await viewModel.loadData()
@@ -59,11 +61,7 @@ struct ReviewView: View {
     // MARK: - View Components
     private var loadingView: some View {
         VStack(spacing: 20) {
-            LoadingView(
-                style: .circular,
-                message: "Loading review data...",
-                showMessage: true
-            )
+            SharedLoadingView.withMessage("Loading review data...", style: .circular)
 
             Text("Preparing your learning materials")
                 .font(.ibmPlexMono(size: 16))
@@ -184,7 +182,15 @@ struct ReviewView: View {
 
     private func reviewNavigationRow(title: String, count: Int, learningState: String, type: ReviewType) -> some View {
         NavigationLink {
-            FlashcardReviewView(learningState: learningState, reviewType: type)
+            // TODO: Implement FlashcardReviewView
+            // FlashcardReviewView(learningState: learningState, reviewType: type)
+            VStack {
+                Text("Review: \(title)")
+                    .font(.largeTitle)
+                Text("Learning State: \(learningState)")
+                Text("Type: \(type)")
+                Text("FlashcardReviewView - To be implemented")
+            }
         } label: {
             HStack {
                 Text(title)
@@ -255,8 +261,7 @@ extension ReviewView {
 }
 
 // MARK: - Preview
-#Preview {
+#Preview("Review View") {
     ReviewView()
         .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
-        .previewDisplayName("Review View")
 }

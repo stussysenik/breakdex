@@ -157,6 +157,7 @@ public class VideoLoadingServiceResilient: @preconcurrency
 
         info["service_loading"] =
             unifiedProgressEngine.currentPhase != .initializing
+            && unifiedProgressEngine.currentPhase != .complete
             && unifiedProgressEngine.currentPhase != .completed
         info["service_progress"] = unifiedProgressEngine.unifiedProgress
         info["service_status"] = unifiedProgressEngine.unifiedStatus
@@ -816,14 +817,16 @@ public class VideoLoadingServiceResilient: @preconcurrency
 extension VideoLoadingProgress.LoadingPhase {
     var description: String {
         switch self {
+        case .idle:
+            return "Ready"
         case .initializing:
             return "Initializing..."
+        case .requestingDownload:
+            return "Requesting download..."
         case .downloadingFromCloud(let progress):
             return "Downloading from iCloud... (\(Int(progress * 100))%)"
         case .transferring:
             return "Transferring video..."
-        case .validating:
-            return "Validating video..."
         case .creatingAsset:
             return "Creating video asset..."
         case .generatingThumbnail:
@@ -832,10 +835,24 @@ extension VideoLoadingProgress.LoadingPhase {
             return "Loading trimmer duration..."
         case .loadingTrimmerTracks:
             return "Loading trimmer tracks..."
+        case .validating:
+            return "Validating video..."
         case .validatingTrimmer:
             return "Validating trimmer setup..."
+        case .waitingForNetwork:
+            return "Waiting for network..."
+        case .loading:
+            return "Loading..."
+        case .processing:
+            return "Processing..."
+        case .saving:
+            return "Saving..."
         case .completed:
             return "Completed"
+        case .complete:
+            return "Complete"
+        case .error(let message):
+            return "Error: \(message)"
         }
     }
 }

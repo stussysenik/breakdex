@@ -7,6 +7,8 @@
 
 import SwiftUI
 import OSLog
+import UIKit
+import CoreData
 
 /// Clean combo timeline view using shared components
 /// Displays a horizontal timeline of moves with selection and deletion capabilities
@@ -31,8 +33,8 @@ struct ComboTimelineView: View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 0) {
-                    ForEach(Array(moves.enumerated()), id: \.element.managedObjectID) { index, move in
-                        moveNode(at: index, move: move, proxy: proxy)
+                    ForEach(Array(moves.enumerated()), id: \.element.objectID) { index, move in
+                        moveNode(at: index, move: move)
 
                         if index < moves.count - 1 {
                             connectionLine
@@ -51,7 +53,7 @@ struct ComboTimelineView: View {
     }
 
     // MARK: - View Components
-    private func moveNode(at index: Int, move: Move, proxy: ScrollViewReader) -> some View {
+    private func moveNode(at index: Int, move: Move) -> some View {
         HStack(spacing: 0) {
             VStack(spacing: 8) {
                 // Timeline node with shared styling
@@ -77,7 +79,7 @@ struct ComboTimelineView: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
             }
-            .id(move.managedObjectID)
+            .id(move.objectID)
         }
     }
 
@@ -98,7 +100,7 @@ struct ComboTimelineView: View {
         activeIndex = index
     }
 
-    private func handleActiveIndexChange(_ newIndex: Int?, proxy: ScrollViewReader) {
+    private func handleActiveIndexChange(_ newIndex: Int?, proxy: ScrollViewProxy) {
         guard let newIndex, moves.indices.contains(newIndex) else {
             logger.warning("🎯 COMBO_TIMELINE_VIEW: Invalid activeIndex change to \(String(describing: newIndex))")
             return
@@ -107,7 +109,7 @@ struct ComboTimelineView: View {
         logger.info("🎯 COMBO_TIMELINE_VIEW: Scrolling to active index \(newIndex)")
 
         withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-            proxy.scrollTo(moves[newIndex].managedObjectID, anchor: .center)
+            proxy.scrollTo(moves[newIndex].objectID, anchor: UnitPoint.center)
         }
     }
 
@@ -146,7 +148,7 @@ extension ComboTimelineView {
 }
 
 // MARK: - Preview
-#Preview {
+#Preview("Combo Timeline View") {
     VStack(spacing: 20) {
         Text("Combo Timeline")
             .font(.title)
@@ -166,5 +168,4 @@ extension ComboTimelineView {
         Spacer()
     }
     .padding()
-    .previewDisplayName("Combo Timeline View")
 }

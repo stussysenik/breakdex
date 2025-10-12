@@ -95,7 +95,7 @@ class VideoLoader: ObservableObject {
                         }
 
                         await self.updateProgress(1.0, status: "Video loaded successfully")
-                        logger.info("✅ PHAsset video loaded successfully")
+                        self.logger.info("✅ PHAsset video loaded successfully")
                         continuation.resume(returning: asset)
 
                     } catch {
@@ -103,7 +103,7 @@ class VideoLoader: ObservableObject {
                             self.isLoading = false
                             self.statusMessage = "Loading failed: \(error.localizedDescription)"
                         }
-                        logger.error("❌ PHAsset video loading failed: \(error.localizedDescription)")
+                        self.logger.error("❌ PHAsset video loading failed: \(error.localizedDescription)")
                         continuation.resume(throwing: VideoLoaderError.loadingFailed(underlying: error))
                     }
                 }

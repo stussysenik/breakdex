@@ -80,7 +80,7 @@ extension PersistenceController {
     /// Migrates existing Move entities to ensure learningState consistency
     /// MARK: - MIGRATION: Ensures all moves have proper learningState for review functionality
     ///  LOGS: Detailed logging for debugging migration results
-    func migrateDataStoreIfNeeded() {
+    public func migrateDataStoreIfNeeded() {
         backgroundContext.perform {
             let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
             // Fetch moves where learningState is nil or an empty string

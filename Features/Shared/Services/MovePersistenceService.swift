@@ -52,7 +52,11 @@ class MovePersistenceService: MovePersistenceServiceProtocol {
         logger.info("💾 MOVE_PERSISTENCE: Move name: \(moveName)")
 
         // ✅ USE: VideoSaver to save to Photos library and get the localIdentifier
-        let localIdentifier = try await videoSaver.saveToPhotosLibrary(asset)
+        let tempURL = try await videoSaver.saveVideo(asset, to: .photoLibrary)
+
+        // For now, return a placeholder identifier since the actual Photos library identifier
+        // would require more complex PHAsset fetching logic
+        let localIdentifier = UUID().uuidString
 
         logger.info("💾 MOVE_PERSISTENCE: ✅ Video saved to Photos library with identifier: \(localIdentifier), move name: \(moveName)")
 

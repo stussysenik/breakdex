@@ -1,6 +1,8 @@
 ## Claude.md — breakdex Video App (iOS 18.0)
 
 # * **Single Responsibility Principle (SRP):** Enforce SRP across all components. Views remain "dumb," containing no business logic and forwarding all user actions to the ViewModel.
+# **Essentialism**
+# **Avoid Over-engineering**
 
 ### Project Structure (Clean Architecture ✅)
 - **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/` -> make sure to always be using the

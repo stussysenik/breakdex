@@ -9,6 +9,7 @@
 import SwiftUI
 import CoreData
 import OSLog
+import UIKit
 
 // MARK: - Combo List View
 /// Clean view for displaying and managing combos list using ArsenalViewModel
@@ -51,15 +52,15 @@ struct ComboListView: View {
                 logger.info("📋 COMBO_LIST_VIEW: 🚀 View appeared with clean architecture")
                 viewModel.refreshCombos()
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil), actions: {
-                SharedButton("OK", style: .secondary) {
+            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") {
                     viewModel.clearError()
                 }
-            }, message: {
+            } message: {
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                 }
-            })
+            }
         }
     }
 
@@ -67,7 +68,7 @@ struct ComboListView: View {
     @ViewBuilder
     private var loadingView: some View {
         VStack(spacing: 20) {
-            LoadingView(message: "Loading combos...", style: .spinner)
+            SharedLoadingView(message: "Loading combos...")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -109,14 +110,16 @@ struct ComboListView: View {
                 .font(.ibmPlexMono(size: 16))
                 .foregroundColor(.secondary)
 
-            SharedButton.secondary(
-                "Clear Search",
-                size: .small,
-                action: {
-                    viewModel.clearCombosSearch()
-                    logger.info("📋 COMBO_LIST_VIEW: 🧹 Cleared search")
-                }
-            )
+            Button("Clear Search") {
+                viewModel.clearCombosSearch()
+                logger.info("📋 COMBO_LIST_VIEW: 🧹 Cleared search")
+            }
+            .font(.ibmPlexMono(size: 14, weight: .medium))
+            .foregroundColor(.blue)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.gray.opacity(0.2))
+            .clipShape(Capsule())
             .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -167,7 +170,18 @@ private struct ComboRowView: View {
     // MARK: - Body
     var body: some View {
         NavigationLink {
-            ComboDetailView(combo: combo)
+            // Placeholder for combo detail view
+            VStack {
+                Text("Combo Details")
+                    .font(.title)
+                Text(combo.name ?? "Untitled Combo")
+                    .font(.headline)
+                Text("Move count: \(moveCount)")
+                    .font(.subheadline)
+                Text("State: \(learningState)")
+                    .font(.subheadline)
+            }
+            .padding()
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
@@ -194,15 +208,11 @@ private struct ComboRowView: View {
             MotionCatalog.Accessibility.selectionHaptic()
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            SharedButton.danger(
-                "Delete",
-                size: .small,
-                action: {
-                    onDelete()
-                    MotionCatalog.Accessibility.actionHaptic()
-                    logger.info("📋 COMBO_ROW_VIEW: 🗑️ Deleted combo: \(combo.name ?? "Untitled Combo")")
-                }
-            )
+            Button("Delete", role: .destructive) {
+                onDelete()
+                MotionCatalog.Accessibility.actionHaptic()
+                logger.info("📋 COMBO_ROW_VIEW: 🗑️ Deleted combo: \(combo.name ?? "Untitled Combo")")
+            }
             .tint(.red)
         }
     }
@@ -230,9 +240,8 @@ private struct SpringButtonStyle: ButtonStyle {
         .environment(\.managedObjectContext, context)
 }
 
-#Preview("Combo List - With Data") {
-    let context = PersistenceController.shared.container.viewContext
-
+// MARK: - Test Data Creation
+private func createTestCombos(in context: NSManagedObjectContext) {
     // Add test data for preview
     let testCombos = ["Basic Six Step Combo", "Powermove Sequence", "Freeze Combination"]
     for (index, name) in testCombos.enumerated() {
@@ -250,10 +259,15 @@ private struct SpringButtonStyle: ButtonStyle {
             let comboMove = ComboMove(context: context)
             comboMove.combo = combo
             comboMove.move = move
-            comboMove.sequenceIndex = Int16(moveIndex)
+            comboMove.sequenceIndex = Int64(moveIndex)
         }
     }
-    try? context.save()
+    _ = try? context.save()
+}
+
+#Preview("Combo List - With Data") {
+    let context = PersistenceController.shared.container.viewContext
+    createTestCombos(in: context)
 
     return ComboListView()
         .environment(\.managedObjectContext, context)

@@ -36,8 +36,8 @@ extension View {
 extension Color {
     // PRIMARY COLORS
 
-    /// IBM Black 100 - Primary background (#000000)
-    static let backgroundPrimary = Color.black
+    // Note: backgroundPrimary is defined in SharedColors.Background.primary
+    // This avoids redeclaration conflicts
 
     /// IBM White - Legacy primary text (#FFFFFF) - DEPRECATED: Use DesignSystem.Colors.textPrimary
     static let textPrimaryLegacy = Color.white

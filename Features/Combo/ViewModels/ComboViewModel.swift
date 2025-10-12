@@ -304,8 +304,11 @@ class ComboViewModel: ObservableObject {
     /// Clean up resources when view model is deallocated
     deinit {
         logger.info("🚀 COMBO_VIEWMODEL: Deinitializing and cleaning up resources")
-        currentPlayer?.pause()
-        currentPlayer = nil
+        // Access MainActor-isolated properties safely in deinit
+        Task { @MainActor in
+            self.currentPlayer?.pause()
+            self.currentPlayer = nil
+        }
     }
 }
 

@@ -8,11 +8,25 @@ struct NameMoveView: View {
     @State private var moveName: String = ""
     @State private var isSaving = false
     @State private var estimatedFileSize: String = "Calculating..."
+    @StateObject private var moveSaver: MoveSaver
 
     private let logger = Logger(
         subsystem: "com.breakingflashcards",
         category: "NameMoveView"
     )
+
+    init(unifiedState: AddMoveUnifiedState) {
+        self.unifiedState = unifiedState
+        let videoSaver = SimpleVideoSaver()
+        let movePersistenceService = MovePersistenceService(
+            viewContext: PersistenceController.shared.container.viewContext,
+            videoSaver: videoSaver
+        )
+        self._moveSaver = StateObject(wrappedValue: MoveSaver(
+            persistentContainer: PersistenceController.shared.container,
+            movePersistenceService: movePersistenceService
+        ))
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -330,17 +344,18 @@ struct NameMoveView: View {
                     ])
                 }
 
-                // Save the move using our trimmed asset
-                let savedMove = try await unifiedState.saveMove(name: finalName, videoAsset: asset)
+                // Save the move using MoveSaver service
+                let savedMove = try await moveSaver.saveSimpleMove(name: finalName, asset: asset)
                 logger.info("✅ Move saved successfully: \(savedMove.name ?? "unnamed")")
+
+                await MainActor.run {
+                    unifiedState.flowState = .success("Move saved successfully!")
+                }
 
             } catch {
                 logger.error("❌ Save failed: \(error.localizedDescription)")
                 await MainActor.run {
-                    unifiedState.flowState = .error(
-                        message: "Failed to save move",
-                        underlyingError: error.localizedDescription
-                    )
+                    unifiedState.flowState = .error("Failed to save move", error.localizedDescription)
                 }
             }
         }
@@ -367,19 +382,9 @@ struct NameMoveView: View {
 #Preview {
     struct PreviewWrapper: View {
         private var unifiedState: AddMoveUnifiedState {
-            let appContainer = AppContainer.shared
-            let state = AddMoveUnifiedState(
-                unifiedPlayerManager: UnifiedPlayerManager(),
-                modernVideoLoadingService: appContainer.modernVideoLoadingService,
-                videoProcessingPipeline: appContainer.videoProcessingPipeline,
-                timecodeCalculationService: TimecodeCalculationService(),
-                persistentContainer: PersistenceController(inMemory: true).container,
-                movePersistenceService: appContainer.movePersistenceService,
-                appContainer: appContainer
-            )
+            let state = AddMoveUnifiedState()
 
             // Simulate a loaded video for preview
-            state.currentVideoAsset = AVAsset(url: URL(fileURLWithPath: "/dev/null"))
             state.flowState = .naming
             return state
         }

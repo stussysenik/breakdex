@@ -15,7 +15,7 @@ public class SharedVideoTrimmer: ObservableObject {
 
     // MARK: - Private Properties
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "SharedVideoTrimmer")
-    private let videoProcessingPipeline: VideoProcessingPipeline
+    private var videoProcessingPipeline: VideoProcessingPipeline
 
     // MARK: - Trimming Configuration
     public struct TrimConfiguration {
@@ -66,17 +66,19 @@ public class SharedVideoTrimmer: ObservableObject {
         }
 
         // Validate configuration
-        try validateTrimConfiguration(configuration)
+        try await validateTrimConfiguration(configuration)
 
         do {
             await updateProgress(0.2, status: "Setting up trim operation...")
 
             // Perform the trim using the video processing pipeline
             let outputURL = try await videoProcessingPipeline.exportVideo(
-                asset: try await getAssetFromConfiguration(configuration),
-                trimRange: configuration.trimRange,
-                quarterTurns: configuration.rotationQuarterTurns,
-                outputURL: configuration.outputURL!
+                try await getAssetFromConfiguration(configuration),
+                to: configuration.outputURL!,
+                configuration: VideoProcessingConfiguration.trim(
+                    startTime: configuration.startTime,
+                    endTime: configuration.endTime
+                )
             )
 
             await updateProgress(0.9, status: "Finalizing trimmed video...")

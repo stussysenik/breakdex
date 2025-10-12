@@ -82,6 +82,12 @@ public struct SharedLoadingView: View {
             style: .circular,
             size: .small
         )
+
+        // Default configuration for general use
+        public static let `default` = LoadingConfiguration(
+            style: .circular,
+            size: .medium
+        )
     }
 
     // MARK: - Initialization
@@ -323,7 +329,7 @@ public extension View {
     VStack(spacing: 40) {
         // Circular with message
         SharedLoadingView(
-            configuration: LoadingConfiguration(
+            configuration: SharedLoadingView.LoadingConfiguration(
                 style: .circular,
                 message: "Loading video...",
                 size: .large
@@ -332,7 +338,7 @@ public extension View {
 
         // Linear with progress
         SharedLoadingView(
-            configuration: LoadingConfiguration(
+            configuration: SharedLoadingView.LoadingConfiguration(
                 style: .linear,
                 message: "Processing video...",
                 progress: 0.65,
@@ -342,7 +348,7 @@ public extension View {
 
         // Dots animation
         SharedLoadingView(
-            configuration: LoadingConfiguration(
+            configuration: SharedLoadingView.LoadingConfiguration(
                 style: .dots,
                 message: "Loading...",
                 size: .medium
@@ -351,7 +357,7 @@ public extension View {
 
         // Pulse animation
         SharedLoadingView(
-            configuration: LoadingConfiguration(
+            configuration: SharedLoadingView.LoadingConfiguration(
                 style: .pulse,
                 message: "Preparing...",
                 size: .large

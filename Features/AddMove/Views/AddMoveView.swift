@@ -1,8 +1,9 @@
 import SwiftUI
+import OSLog
 
 // MARK: - AddMoveView
 /// Clean main container for the add move workflow
-struct AddMoveView: View {
+public struct AddMoveView: View {
     @Binding var selectedTab: TabSelection
     @ObservedObject var unifiedState: AddMoveUnifiedState
 
@@ -14,9 +15,25 @@ struct AddMoveView: View {
         category: "AddMoveView"
     )
 
-    var body: some View {
+    // MARK: - Initialization
+    public init(
+        selectedTab: Binding<TabSelection>,
+        unifiedState: AddMoveUnifiedState,
+        onSaveSuccess: ((Move) -> Void)? = nil,
+        onLoadingStateChanged: ((Bool, AddMoveUnifiedState?) -> Void)? = nil
+    ) {
+        self._selectedTab = selectedTab
+        self.unifiedState = unifiedState
+        self.onSaveSuccess = onSaveSuccess
+        self.onLoadingStateChanged = onLoadingStateChanged
+    }
+
+    public var body: some View {
         Group {
             switch unifiedState.flowState {
+            case .loading:
+                loadingView
+
             case .ready:
                 VideoPickerView(unifiedState: unifiedState)
 
@@ -34,6 +51,9 @@ struct AddMoveView: View {
 
             case .saving:
                 savingView
+
+            case .done:
+                successView(message: "Move saved successfully!")
 
             case .success(let message):
                 successView(message: message)
@@ -90,7 +110,7 @@ struct AddMoveView: View {
                         .font(.headline)
                         .foregroundColor(.white)
 
-                    Text(progress.message)
+                    Text(progress.message ?? "Processing...")
                         .font(.subheadline)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center)
@@ -254,43 +274,29 @@ struct AddMoveView: View {
         logger.info("✅ Done button tapped")
 
         // Reset the workflow
-        unifiedState.resetWorkflow()
+        unifiedState.reset()
 
         // Navigate back to Arsenal tab if callback provided
-        onSaveSuccess?(unifiedState.currentVideoAsset as? Move ?? Move())
+        // Note: unifiedState.currentVideoAsset is AVAsset, not Move, so create a new Move if needed
+        onSaveSuccess?(Move())
     }
 
     private func handleRetry() {
         logger.info("🔄 Retry button tapped")
 
         // Reset to ready state
-        unifiedState.resetWorkflow()
+        unifiedState.reset()
     }
 
     private func handleCancel() {
         logger.info("❌ Cancel button tapped")
 
         // Reset and navigate back to Arsenal
-        unifiedState.resetWorkflow()
+        unifiedState.reset()
         selectedTab = .arsenal
     }
 }
 
-// MARK: - Initializers
-
-extension AddMoveView {
-    init(
-        selectedTab: Binding<TabSelection> = .constant(.add),
-        unifiedState: AddMoveUnifiedState,
-        onSaveSuccess: ((Move) -> Void)? = nil,
-        onLoadingStateChanged: ((Bool, AddMoveUnifiedState?) -> Void)? = nil
-    ) {
-        self._selectedTab = selectedTab
-        self.unifiedState = unifiedState
-        self.onSaveSuccess = onSaveSuccess
-        self.onLoadingStateChanged = onLoadingStateChanged
-    }
-}
 
 // MARK: - Preview
 #Preview {
@@ -298,16 +304,7 @@ extension AddMoveView {
         @State private var selectedTab: TabSelection = .add
 
         private var unifiedState: AddMoveUnifiedState {
-            let appContainer = AppContainer.shared
-            return AddMoveUnifiedState(
-                unifiedPlayerManager: UnifiedPlayerManager(),
-                modernVideoLoadingService: appContainer.modernVideoLoadingService,
-                videoProcessingPipeline: appContainer.videoProcessingPipeline,
-                timecodeCalculationService: TimecodeCalculationService(),
-                persistentContainer: PersistenceController(inMemory: true).container,
-                movePersistenceService: appContainer.movePersistenceService,
-                appContainer: appContainer
-            )
+            return AddMoveUnifiedState()
         }
 
         var body: some View {
@@ -321,7 +318,7 @@ extension AddMoveView {
                     print("Loading state changed: \(isLoading)")
                 }
             )
-            .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
+            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
             .preferredColorScheme(.dark)
         }
     }

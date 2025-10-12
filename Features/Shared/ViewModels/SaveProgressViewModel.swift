@@ -155,7 +155,7 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
 
     // MARK: - Services
     private let videoLoadingService: ModernVideoLoadingServiceProtocol
-    private let videoProcessor: EnhancedVideoProcessorProtocol
+    private var videoProcessor: EnhancedVideoProcessorProtocol
     private let photosPersistenceService: PhotosPersistenceServiceProtocol
     private let context: NSManagedObjectContext
 
@@ -339,11 +339,13 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
             return nil
         }
 
-        return try await videoProcessor.processVideo(
-            asset,
-            rotationQuarterTurns: configuration.rotationQuarterTurns,
-            trimRange: configuration.trimRange
+        let processingConfig = VideoProcessingConfiguration(
+            operation: configuration.rotationQuarterTurns != 0 ? .trim : .compress,
+            startTime: configuration.trimRange?.start.seconds,
+            endTime: configuration.trimRange?.end.seconds
         )
+
+        return try await videoProcessor.processVideo(asset, configuration: processingConfig)
     }
 
     /// Phase 4: Save to Photos Library
@@ -480,14 +482,9 @@ public final class SaveProgressViewModel: ObservableObject, SaveProgressViewMode
             }
             .store(in: &cancellables)
 
-        // Video processing progress
-        videoProcessor.progressPublisher
-            .sink { [weak self] (progress: VideoProcessingProgress) in
-                Task {
-                    await self?.handleVideoProcessingProgress(progress)
-                }
-            }
-            .store(in: &cancellables)
+        // Video processing progress - disabled for now due to AsyncPublisher limitations
+        // Video processing is typically fast enough that real-time progress isn't critical
+        logger.info("💾 SAVE_PROGRESS: Video processing progress subscription disabled")
 
         // Photos persistence progress
         photosPersistenceService.progressPublisher

@@ -9,6 +9,7 @@
 import SwiftUI
 import CoreData
 import OSLog
+import UIKit
 
 // MARK: - Move List View
 /// Clean view for displaying and managing moves list using ArsenalViewModel
@@ -53,15 +54,15 @@ struct MoveListView: View {
                 logger.info("📋 MOVE_LIST_VIEW: 🚀 View appeared with clean architecture")
                 viewModel.refreshMoves()
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil), actions: {
-                SharedButton("OK", style: .secondary) {
+            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") {
                     viewModel.clearError()
                 }
-            }, message: {
+            } message: {
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                 }
-            })
+            }
         }
     }
 
@@ -69,7 +70,7 @@ struct MoveListView: View {
     @ViewBuilder
     private var loadingView: some View {
         VStack(spacing: 20) {
-            LoadingView(message: "Loading moves...", style: .spinner)
+            SharedLoadingView.withMessage("Loading moves...", style: .circular)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -91,28 +92,32 @@ struct MoveListView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            SharedButton.primary(
-                "Add Move",
-                size: .medium,
-                action: {
-                    onNavigateToAdd()
-                    logger.info("📋 MOVE_LIST_VIEW: ➕ Navigate to Add Move")
-                }
-            )
+            Button("Add Move") {
+                onNavigateToAdd()
+                logger.info("📋 MOVE_LIST_VIEW: ➕ Navigate to Add Move")
+            }
+            .font(.ibmPlexMono(size: 16, weight: .medium))
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color.blue)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal, 40)
             .padding(.top, 20)
 
             // Development helper - add test moves
             if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
-                SharedButton.secondary(
-                    "Add Test Moves",
-                    size: .small,
-                    action: {
-                        Task {
-                            await viewModel.addTestMoves()
-                        }
+                Button("Add Test Moves") {
+                    Task {
+                        await viewModel.addTestMoves()
                     }
-                )
+                }
+                .font(.ibmPlexMono(size: 14, weight: .medium))
+                .foregroundColor(.blue)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.gray.opacity(0.2))
+                .clipShape(Capsule())
                 .padding(.top, 10)
             }
         }
@@ -136,14 +141,16 @@ struct MoveListView: View {
                 .font(.ibmPlexMono(size: 16))
                 .foregroundColor(.secondary)
 
-            SharedButton.secondary(
-                "Clear Search",
-                size: .small,
-                action: {
-                    viewModel.clearMovesSearch()
-                    logger.info("📋 MOVE_LIST_VIEW: 🧹 Cleared search")
-                }
-            )
+            Button("Clear Search") {
+                viewModel.clearMovesSearch()
+                logger.info("📋 MOVE_LIST_VIEW: 🧹 Cleared search")
+            }
+            .font(.ibmPlexMono(size: 14, weight: .medium))
+            .foregroundColor(.blue)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.gray.opacity(0.2))
+            .clipShape(Capsule())
             .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -206,28 +213,24 @@ private struct MoveRowView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                StatePillView(learningState: move.learningState)
+                StatePillView(learningState: move.learningState ?? "NEW")
                     .fixedSize()
                     .frame(maxHeight: .infinity, alignment: .center)
             }
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(SpringButtonStyle())
+        .buttonStyle(PlainButtonStyle())
         .onTapGesture {
             onTap()
             MotionCatalog.Accessibility.selectionHaptic()
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            SharedButton.danger(
-                "Delete",
-                size: .small,
-                action: {
-                    onDelete()
-                    MotionCatalog.Accessibility.actionHaptic()
-                    logger.info("📋 MOVE_ROW_VIEW: 🗑️ Deleted move: \(move.name ?? "Untitled Move")")
-                }
-            )
+            Button("Delete", role: .destructive) {
+                onDelete()
+                MotionCatalog.Accessibility.actionHaptic()
+                logger.info("📋 MOVE_ROW_VIEW: 🗑️ Deleted move: \(move.name ?? "Untitled Move")")
+            }
             .tint(.red)
         }
     }
@@ -244,9 +247,8 @@ private struct MoveRowView: View {
         .environment(\.managedObjectContext, context)
 }
 
-#Preview("Move List - With Data") {
-    let context = PersistenceController.shared.container.viewContext
-
+// MARK: - Test Data Creation
+private func createTestMoves(in context: NSManagedObjectContext) {
     // Add test data for preview
     let testMoves = ["Windmill", "Flare", "Top Rock"]
     for (index, name) in testMoves.enumerated() {
@@ -256,7 +258,12 @@ private struct MoveRowView: View {
         move.learningState = ["NEW", "LEARNING", "MASTERY"][index]
         move.photosIdentifier = "test-\(UUID().uuidString)"
     }
-    try? context.save()
+    _ = try? context.save()
+}
+
+#Preview("Move List - With Data") {
+    let context = PersistenceController.shared.container.viewContext
+    createTestMoves(in: context)
 
     return MoveListView(onNavigateToAdd: {})
         .environment(\.managedObjectContext, context)

@@ -6,7 +6,7 @@ import PhotosUI
 struct VideoPickerView: View {
     @ObservedObject var unifiedState: AddMoveUnifiedState
     @State private var showPhotosPicker = false
-    @State private var tempSelection: PhotosPickerItem?
+    @State private var tempSelection: PhotosUI.PhotosPickerItem?
 
     private let logger = Logger(
         subsystem: "com.breakingflashcards",
@@ -87,7 +87,7 @@ struct VideoPickerView: View {
 
     // MARK: - Private Methods
 
-    private func handleVideoSelection(_ item: PhotosPickerItem?) {
+    private func handleVideoSelection(_ item: PhotosUI.PhotosPickerItem?) {
         guard let newItem = item else {
             logger.info("📹 Video selection cleared")
             return
@@ -107,27 +107,8 @@ struct VideoPickerView: View {
 }
 
 // MARK: - Preview
-#Preview {
-    struct PreviewWrapper: View {
-        private var unifiedState: AddMoveUnifiedState {
-            let appContainer = AppContainer.shared
-            return AddMoveUnifiedState(
-                unifiedPlayerManager: UnifiedPlayerManager(),
-                modernVideoLoadingService: appContainer.modernVideoLoadingService,
-                videoProcessingPipeline: appContainer.videoProcessingPipeline,
-                timecodeCalculationService: TimecodeCalculationService(),
-                persistentContainer: PersistenceController(inMemory: true).container,
-                movePersistenceService: appContainer.movePersistenceService,
-                appContainer: appContainer
-            )
-        }
-
-        var body: some View {
-            VideoPickerView(unifiedState: unifiedState)
-                .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
-                .preferredColorScheme(.dark)
-        }
-    }
-
-    return PreviewWrapper()
+#Preview("Video Picker View") {
+    VideoPickerView(unifiedState: AddMoveUnifiedState())
+        .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
+        .preferredColorScheme(.dark)
 }

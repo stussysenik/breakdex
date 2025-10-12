@@ -1,5 +1,43 @@
 import SwiftUI
 import AVKit
+import AVFoundation
+
+// MARK: - AVPlayerViewRepresentable
+/// Simple wrapper for AVPlayer in SwiftUI using AVPlayerLayer
+struct AVPlayerViewRepresentable: UIViewRepresentable {
+    let player: AVPlayer
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+
+        let playerLayer = AVPlayerLayer(player: player)
+        playerLayer.videoGravity = .resizeAspect
+
+        view.layer.addSublayer(playerLayer)
+
+        // Store the player layer in the context to update its frame later
+        context.coordinator.playerLayer = playerLayer
+
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.playerLayer?.player = player
+
+        // Update player layer frame when view bounds change
+        if context.coordinator.playerLayer?.frame != uiView.bounds {
+            context.coordinator.playerLayer?.frame = uiView.bounds
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    class Coordinator {
+        var playerLayer: AVPlayerLayer?
+    }
+}
 
 // MARK: - VideoTrimView
 /// Clean video trimming interface for selecting video segments
@@ -74,19 +112,19 @@ struct VideoTrimView: View {
             HStack {
                 Text(formatTime(trimStartTime))
                     .videoTime()
-                    .foregroundColor(SharedColors.Video.videoTime)
+                    .foregroundColor(SharedColors.Text.videoTime)
 
                 Spacer()
 
                 Text("Duration: \(formatTime(videoDuration))")
                     .caption1()
-                    .foregroundColor(SharedColors.Video.videoTime)
+                    .foregroundColor(SharedColors.Text.videoTime)
 
                 Spacer()
 
                 Text(formatTime(trimEndTime))
                     .videoTime()
-                    .foregroundColor(SharedColors.Video.videoTime)
+                    .foregroundColor(SharedColors.Text.videoTime)
             }
             .padding(.horizontal)
         }
@@ -95,7 +133,7 @@ struct VideoTrimView: View {
     // MARK: - Video Player Content
     private var videoPlayerContent: some View {
         Group {
-            if let asset = unifiedState.currentVideoAsset {
+            if let asset = unifiedState.selectedVideo {
                 AVPlayerViewRepresentable(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)))
                     .onAppear {
                         setupVideoDuration()
@@ -209,13 +247,13 @@ struct VideoTrimView: View {
     // MARK: - Private Methods
 
     private func setupInitialValues() {
-        videoDuration = unifiedState.currentVideoDurationSeconds
+        videoDuration = unifiedState.currentVideoDuration
         trimEndTime = videoDuration
         logger.info("✂️ Video trim view setup - duration: \(videoDuration)s")
     }
 
     private func setupVideoDuration() {
-        guard let asset = unifiedState.currentVideoAsset else { return }
+        guard let asset = unifiedState.selectedVideo else { return }
 
         Task {
             do {
@@ -277,25 +315,16 @@ struct VideoTrimView: View {
 #Preview {
     struct PreviewWrapper: View {
         private var unifiedState: AddMoveUnifiedState {
-            let appContainer = AppContainer.shared
-            let state = AddMoveUnifiedState(
-                unifiedPlayerManager: UnifiedPlayerManager(),
-                modernVideoLoadingService: appContainer.modernVideoLoadingService,
-                videoProcessingPipeline: appContainer.videoProcessingPipeline,
-                timecodeCalculationService: TimecodeCalculationService(),
-                persistentContainer: PersistenceController(inMemory: true).container,
-                movePersistenceService: appContainer.movePersistenceService,
-                appContainer: appContainer
-            )
+            let state = AddMoveUnifiedState()
 
             // Simulate a loaded video for preview
-            state.currentVideoAsset = AVAsset(url: URL(fileURLWithPath: "/dev/null"))
+            state.selectedVideo = AVAsset(url: URL(fileURLWithPath: "/dev/null"))
             return state
         }
 
         var body: some View {
             VideoTrimView(unifiedState: unifiedState)
-                .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
+                .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
                 .preferredColorScheme(.dark)
         }
     }

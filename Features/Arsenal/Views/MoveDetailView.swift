@@ -8,6 +8,7 @@
 
 import SwiftUI
 import AVKit
+import CoreData
 import OSLog
 
 // MARK: - Move Detail View
@@ -28,7 +29,7 @@ struct MoveDetailView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            Color.backgroundPrimary.ignoresSafeArea()
+            SharedColors.Background.primary.ignoresSafeArea()
 
             VStack(spacing: 24) {
                 // MARK: - Video Player Section
@@ -40,7 +41,9 @@ struct MoveDetailView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 20)
             .onAppear {
-                MotionCatalog.Accessibility.selectionHaptic()
+                // Simple haptic feedback
+                let impact = UIImpactFeedbackGenerator(style: .light)
+                impact.impactOccurred()
                 logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 View appeared for move: \(move.name ?? "Untitled Move")")
             }
             .onDisappear {
@@ -67,7 +70,7 @@ struct MoveDetailView: View {
     private var videoPlayerSection: some View {
         Group {
             if isLoading {
-                LoadingView(message: "Loading video...", style: .spinner)
+                SharedLoadingView(message: "Loading video...")
                     .frame(height: 300)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
@@ -98,17 +101,15 @@ struct MoveDetailView: View {
                         .foregroundColor(.secondary)
 
                     // Additional move details if available
-                    if let trimStartTime = move.trimStartTime,
-                       let trimEndTime = move.trimEndTime,
-                       trimEndTime > trimStartTime {
-                        Text("Duration: \(String(format: "%.1f", trimEndTime - trimStartTime))s")
+                    if move.trimEndTime > move.trimStartTime {
+                        Text("Duration: \(String(format: "%.1f", move.trimEndTime - move.trimStartTime))s")
                             .font(.ibmPlexMono(size: 12))
                             .foregroundColor(.secondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                StatePillView(learningState: move.learningState)
+                StatePillView(learningState: move.learningState ?? "NEW")
                     .fixedSize()
             }
         }
@@ -119,16 +120,15 @@ struct MoveDetailView: View {
     @ViewBuilder
     private func playerView(for asset: AVAsset) -> some View {
         ZStack {
-            if let viewModel = playerViewModel {
-                VideoPlayerView(
-                    viewModel: viewModel,
-                    configuration: .default,
-                    controlsEnabled: true
+            if let asset = videoAsset {
+                SharedVideoPlayerView(
+                    asset: asset,
+                    configuration: .default
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
                 // Fallback loading state
-                LoadingView(message: "Preparing player...", style: .minimal)
+                SharedLoadingView(configuration: .minimal)
                     .frame(height: 300)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
@@ -202,17 +202,12 @@ struct MoveDetailView: View {
             logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Asset loaded - duration: \(CMTimeGetSeconds(duration))s")
 
             // Create player from unified manager
-            let playerViewModel = try await AppContainer.shared.unifiedPlayerManager.createOrUpdatePlayer(
-                asset: asset,
-                photosIdentifier: photosIdentifier,
-                rotationQuarterTurns: 0,
-                appContainer: AppContainer.shared
-            )
+            AppContainer.shared.unifiedPlayerManager.loadAsset(asset)
 
             // Atomic state update
             await MainActor.run {
                 self.videoAsset = asset
-                self.playerViewModel = playerViewModel
+                self.playerViewModel = nil // Simplified - let UnifiedPlayerManager handle the player
                 self.isLoading = false
                 logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Video loaded successfully")
             }
@@ -238,7 +233,7 @@ struct MoveDetailView: View {
         logger.info("🎬 MOVE_DETAIL_VIEW: 🧹 Cleaning up player resources")
 
         // Let unified manager handle cleanup
-        AppContainer.shared.unifiedPlayerManager.currentPlayer?.avPlayer?.pause()
+        AppContainer.shared.unifiedPlayerManager.pause()
 
         // Clear local reference
         Task { @MainActor in
@@ -249,9 +244,8 @@ struct MoveDetailView: View {
     }
 }
 
-// MARK: - Preview
-#Preview("Move Detail - With Video") {
-    let context = PersistenceController.shared.container.viewContext
+// MARK: - Test Data Creation
+private func createMockMoveWithVideo(in context: NSManagedObjectContext) -> Move {
     let mockMove = Move(context: context)
     mockMove.name = "Windmill"
     mockMove.learningState = "LEARNING"
@@ -259,8 +253,24 @@ struct MoveDetailView: View {
     mockMove.photosIdentifier = "sample-identifier"
     mockMove.trimStartTime = 0.0
     mockMove.trimEndTime = 5.0
+    return mockMove
+}
 
-    return NavigationView {
+private func createMockMoveNoVideo(in context: NSManagedObjectContext) -> Move {
+    let mockMove = Move(context: context)
+    mockMove.name = "Top Rock"
+    mockMove.learningState = "MASTERY"
+    mockMove.createdAt = Date()
+    // No photos identifier to test unavailable state
+    return mockMove
+}
+
+// MARK: - Preview
+#Preview("Move Detail - With Video") {
+    let context = PersistenceController.shared.container.viewContext
+    let mockMove = createMockMoveWithVideo(in: context)
+
+    NavigationView {
         MoveDetailView(move: mockMove)
     }
     .environment(\.managedObjectContext, context)
@@ -268,13 +278,9 @@ struct MoveDetailView: View {
 
 #Preview("Move Detail - No Video") {
     let context = PersistenceController.shared.container.viewContext
-    let mockMove = Move(context: context)
-    mockMove.name = "Top Rock"
-    mockMove.learningState = "MASTERY"
-    mockMove.createdAt = Date()
-    // No photos identifier to test unavailable state
+    let mockMove = createMockMoveNoVideo(in: context)
 
-    return NavigationView {
+    NavigationView {
         MoveDetailView(move: mockMove)
     }
     .environment(\.managedObjectContext, context)

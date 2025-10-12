@@ -110,7 +110,8 @@ public struct SharedVideoPlayerView: View {
         }
         .onAppear {
             Task {
-                await player.loadVideo(asset) // Note: This would need to be passed in differently
+                // Note: Asset loading would need to be handled differently
+                // since the view doesn't have direct access to the asset here
                 if configuration.autoplay && player.state.canPlay {
                     player.play()
                 }
@@ -119,12 +120,12 @@ public struct SharedVideoPlayerView: View {
         .onDisappear {
             player.cleanup()
         }
-        .onChange(of: player.state) { _, newState in
-            if newState.isReady {
+        .onChange(of: player.state) {
+            if case .ready = player.state {
                 onPlayerReady?()
             }
 
-            if case .ended = newState {
+            if case .ended = player.state {
                 onPlaybackComplete?()
             }
 

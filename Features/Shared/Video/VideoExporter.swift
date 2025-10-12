@@ -15,7 +15,7 @@ public class SharedVideoExporter: ObservableObject {
 
     // MARK: - Private Properties
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "SharedVideoExporter")
-    private let videoProcessingPipeline: VideoProcessingPipeline
+    private var videoProcessingPipeline: VideoProcessingPipeline
     private var exportTask: Task<URL, Error>?
 
     // MARK: - Export Configuration
@@ -90,7 +90,10 @@ public class SharedVideoExporter: ObservableObject {
     }
 
     deinit {
-        cancelExport()
+        // Safely cancel export in deinit
+        Task { @MainActor in
+            self.cancelExport()
+        }
     }
 
     // MARK: - Public Methods
@@ -114,7 +117,7 @@ public class SharedVideoExporter: ObservableObject {
         }
 
         // Validate configuration
-        try validateExportConfiguration(configuration)
+        try await validateExportConfiguration(configuration)
 
         // Cancel any existing export
         cancelExport()
@@ -135,10 +138,13 @@ public class SharedVideoExporter: ObservableObject {
 
             // Perform export
             let exportURL = try await videoProcessingPipeline.exportVideo(
-                asset: configuration.asset,
-                trimRange: effectiveTrimRange,
-                quarterTurns: configuration.rotationQuarterTurns,
-                outputURL: configuration.outputURL
+                configuration.asset,
+                to: configuration.outputURL,
+                configuration: VideoProcessingConfiguration(
+                    operation: .trim,
+                    startTime: effectiveTrimRange.start.seconds,
+                    endTime: effectiveTrimRange.end.seconds
+                )
             )
 
             await updateProgress(0.9, status: "Finalizing export...")
@@ -150,7 +156,7 @@ public class SharedVideoExporter: ObservableObject {
 
             // Get file info for logging
             let attributes = try? FileManager.default.attributesOfItem(atPath: exportURL.path)
-            let fileSize = attributes?[.size] as? Int64 ?? 0
+            let fileSize: Int64 = (attributes?[.size] as? Int64) ?? 0
 
             await updateProgress(1.0, status: "Export completed successfully")
 

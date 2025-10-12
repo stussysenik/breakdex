@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Button Style System
 // Centralized button styling system for consistent UI across the app

@@ -140,9 +140,7 @@ public actor PerformanceOptimizer {
     private let maxMetricsHistory = 100
 
     // MARK: - Diagnostic Logging
-    private let diagnosticLogger = DiagnosticLoggingHelper(
-        category: "⚡ ACTOR_OPTIMIZER"
-    )
+    private let diagnosticLogger = DiagnosticLoggingHelper(category: "⚡ ACTOR_OPTIMIZER")
 
     // MARK: - FUNC
     private func logThreadSafetyDiagnostics(

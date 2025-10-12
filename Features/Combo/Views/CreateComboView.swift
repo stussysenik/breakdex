@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVKit
+import AVFoundation
 import CoreData
 import OSLog
 
@@ -54,31 +55,39 @@ struct CreateComboView: View {
             .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemBackground))
         }
-        .onAppear {
-            // Inject proper viewContext when view appears
-            viewModel.viewContext = viewContext
-        }
-        .sheet(isPresented: $viewModel.isMovePickerPresented) {
-            MovePickerSheet(allMoves: allMoves, selectedMoves: Binding(
-                get: { viewModel.comboMoves },
-                set: { newMoves in
-                    // Handle moves being added/removed from the picker
-                    let currentMoves = Set(viewModel.comboMoves.map { $0.id })
-                    let newMovesSet = Set(newMoves.map { $0.id })
-
-                    // Add new moves
-                    for move in newMoves where !currentMoves.contains(move.id) {
-                        viewModel.addMove(move)
+          .sheet(isPresented: $viewModel.isMovePickerPresented) {
+            // Simple move picker implementation
+            NavigationView {
+                List(allMoves) { move in
+                    HStack {
+                        Text(move.name ?? "Unnamed Move")
+                            .font(.body)
+                        Spacer()
+                        if viewModel.comboMoves.contains(where: { $0.id == move.id }) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.blue)
+                        }
                     }
-
-                    // Remove moves that are no longer selected
-                    for move in viewModel.comboMoves where !newMovesSet.contains(move.id) {
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        HapticFeedback.selectionHaptic()
                         if let index = viewModel.comboMoves.firstIndex(where: { $0.id == move.id }) {
                             viewModel.removeMove(at: index)
+                        } else {
+                            viewModel.addMove(move)
                         }
                     }
                 }
-            ))
+                .navigationTitle("Select Moves")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            viewModel.hideMovePicker()
+                        }
+                    }
+                }
+            }
         }
         .alert("Name Your Combo", isPresented: $viewModel.isNamingAlertPresented) {
             TextField("Combo Name", text: $viewModel.comboName)
@@ -106,7 +115,7 @@ struct CreateComboView: View {
             Text(viewModel.errorMessage)
         }
         .task(id: viewModel.activeMove?.id) {
-            if let activeMove = viewModel.activeMove {
+            if viewModel.activeMove != nil {
                 await viewModel.loadVideoForActiveMove()
             }
         }
@@ -115,17 +124,14 @@ struct CreateComboView: View {
     // MARK: - View Components
     private var headerSection: some View {
         VStack(spacing: 16) {
-            SharedButton(
-                title: "+ Create Combo",
-                style: .primary,
-                size: .large,
-                isLoading: false,
-                action: {
-                    MotionCatalog.Accessibility.buttonTap()
-                    MotionCatalog.Accessibility.actionHaptic()
-                    viewModel.showMovePicker()
-                }
-            )
+            SharedButton.primary(
+                "+ Create Combo",
+                size: .large
+            ) {
+                HapticFeedback.buttonTap()
+                HapticFeedback.actionHaptic()
+                viewModel.showMovePicker()
+            }
             .padding(.horizontal, 20)
 
             if !viewModel.comboMoves.isEmpty {
@@ -140,21 +146,20 @@ struct CreateComboView: View {
         VStack(spacing: 16) {
             if let activeMove = viewModel.activeMove {
                 ZStack {
-                    if let player = viewModel.currentPlayer {
-                        // Use shared VideoPlayerView for consistent video playback
-                        VideoPlayerView(
-                            player: player,
-                            configuration: .preview,
-                            showsControls: true,
-                            autoPlay: true
-                        )
+                    if let currentPlayer = viewModel.currentPlayer {
+                        // Use AVPlayerViewRepresentable for video playback
+                        AVPlayerViewRepresentable(player: currentPlayer)
+                            .onAppear {
+                                // Start playing when view appears
+                                currentPlayer.play()
+                            }
+                            .onDisappear {
+                                // Pause when view disappears
+                                currentPlayer.pause()
+                            }
                     } else if viewModel.isLoadingVideo {
-                        // Use shared LoadingView for consistent loading states
-                        LoadingView(
-                            style: .circular,
-                            message: "Loading video...",
-                            showMessage: true
-                        )
+                        // Use shared SharedLoadingView
+                        SharedLoadingView.withMessage("Loading video...", style: .circular)
                     } else {
                         ContentUnavailableView(
                             "Video Unavailable",
@@ -222,36 +227,24 @@ struct CreateComboView: View {
     private var actionsSection: some View {
         VStack(spacing: 16) {
             if !viewModel.comboMoves.isEmpty {
-                SharedButton(
-                    title: "Save Combo",
-                    style: .primary,
-                    size: .large,
-                    isLoading: false,
-                    isDisabled: !viewModel.canSaveCombo,
-                    action: {
-                        MotionCatalog.Accessibility.actionHaptic()
-                        MotionCatalog.Accessibility.successHaptic()
-                        viewModel.showNamingAlert()
-                    }
-                )
+                SharedButton.primary(
+                    "Save Combo",
+                    size: .large
+                ) {
+                    HapticFeedback.actionHaptic()
+                    HapticFeedback.notificationHaptic(.success)
+                    viewModel.showNamingAlert()
+                }
                 .padding(.horizontal, 20)
+                .disabled(!viewModel.canSaveCombo)
             }
         }
     }
 }
 
-// MARK: - Dependency Injection Extension
-extension ComboViewModel {
-    /// Allow viewContext injection after initialization
-    var viewContext: NSManagedObjectContext {
-        get { fatalError("Use injected viewContext") }
-        set { /* handled via closure */ }
-    }
-}
 
 // MARK: - Preview
-#Preview {
+#Preview("Create Combo View") {
     CreateComboView()
         .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
-        .previewDisplayName("Create Combo View")
 }

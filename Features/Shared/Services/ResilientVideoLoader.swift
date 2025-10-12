@@ -339,7 +339,7 @@ public class ResilientVideoLoader: ObservableObject {
     private func handleNetworkLost() async {
         guard isLoading && pausedOperation == nil else { return }
 
-        logger.warning("🛡️ RESILIENT_VIDEO_LOADER: ⚠️ Network lost during loading")
+        logger.info("🛡️ RESILIENT_VIDEO_LOADER: ⚠️ Network lost during loading")
 
         networkLostDuringLoading = true
         isWaitingForNetwork = true
@@ -435,7 +435,7 @@ public class ResilientVideoLoader: ObservableObject {
             try await Task.sleep(for: .seconds(Self.defaultTimeout))
 
             if !Task.isCancelled {
-                logger.warning("🛡️ RESILIENT_VIDEO_LOADER: ⏱️ Timeout reached for operation [\(operation.operationId)]")
+                logger.info("🛡️ RESILIENT_VIDEO_LOADER: ⏱️ Timeout reached for operation [\(operation.operationId)]")
                 currentLoadingTask?.cancel()
             }
         }
@@ -607,7 +607,7 @@ public class ResilientVideoLoader: ObservableObject {
         logger.info("🛡️ RESILIENT_VIDEO_LOADER: └─ Progress Path: iCloud → ResilientVideoLoader → Combine Publisher → Integration")
 
         if let error = error {
-            logger.warning("🛡️ RESILIENT_VIDEO_LOADER: ⚠️ Download progress error: \(error.localizedDescription) [\(correlationId)]")
+            logger.info("🛡️ RESILIENT_VIDEO_LOADER: ⚠️ Download progress error: \(error.localizedDescription) [\(correlationId)]")
         }
 
         // 🔄 COMBINE PUBLISHER: Publish progress through Combine publisher (SRP-compliant)
