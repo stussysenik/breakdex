@@ -27,17 +27,17 @@ struct breakdex: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .task {
                     // MARK: - Basic App Initialization
-                    print("✅ breakdex app initialized successfully")
+                    // print("✅ breakdex app initialized successfully")
                 }
             // Handle system-level errors gracefully
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in
                     // Clear any cached images when memory is low
-                    print("Memory warning received - clearing caches")
+                    // print("Memory warning received - clearing caches")
                 }
                 // MARK: - App became active notification
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     Task {
-                        print("🚀 App became active")
+                        // print("🚀 App became active")
                     }
                 }
         }

@@ -16,10 +16,10 @@ public class PersistenceController {
         // Load the persistent stores
         container.loadPersistentStores { _, error in
             if let error = error as NSError? {
-                Logger.coreData.error("Core Data store loading failed: \(error)")
-                fatalError("Unresolved error \(error), \(error.userInfo)")
+                // Logger.coreData.error("Core Data store loading failed: \(error)")
+                // fatalError("Unresolved error \(error), \(error.userInfo)")
             } else {
-                Logger.coreData.info("Core Data store loaded successfully")
+                // Logger.coreData.info("Core Data store loaded successfully")
             }
         }
 
@@ -114,17 +114,17 @@ public class PersistenceController {
             do {
                 let legacyMoves = try context.fetch(fetchRequest)
                 if !legacyMoves.isEmpty {
-                    Logger.coreData.info("MIGRATION: Found \(legacyMoves.count) legacy moves to update.")
+                    // Logger.coreData.info("MIGRATION: Found \(legacyMoves.count) legacy moves to update.")
                     for move in legacyMoves {
                         move.learningState = "NEW"
                     }
                     try context.save()
-                    Logger.coreData.info("MIGRATION: Successfully updated learningState for \(legacyMoves.count) moves.")
+                    // Logger.coreData.info("MIGRATION: Successfully updated learningState for \(legacyMoves.count) moves.")
                 } else {
-                    Logger.coreData.info("MIGRATION: No legacy moves found requiring update.")
+                    // Logger.coreData.info("MIGRATION: No legacy moves found requiring update.")
                 }
             } catch {
-                Logger.coreData.error("MIGRATION: Failed to migrate moves: \(error)")
+                // Logger.coreData.error("MIGRATION: Failed to migrate moves: \(error)")
             }
         }
     }
