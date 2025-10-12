@@ -19,7 +19,7 @@ struct MainView: View {
                 .tag(0)
 
             // Add Move Tab
-            AddMoveView(
+            SelectClip(
                 selectedTab: Binding(
                     get: { .add },
                     set: { _ in }
@@ -81,27 +81,14 @@ struct MainView: View {
                 }
                 .tag(0)
 
-                // Add Move Tab - using dummy text
-                NavigationStack {
-                    VStack(spacing: 30) {
-                        Spacer()
-                        Text("Add Move")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                        Text("📹 Video picker will be here")
-                            .font(.title2)
-                        Button("Back to Arsenal") {
-                            selectedTab = 0
-                        }
-                        .font(.ibmPlexMono(size: 16, weight: .medium))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 12)
-                        .background(Color.accent)
-                        .cornerRadius(8)
-                        Spacer()
-                    }
-                }
+                // Add Move Tab - using SelectClip
+                SelectClip(
+                    selectedTab: Binding(
+                        get: { .add },
+                        set: { _ in }
+                    ),
+                    unifiedState: unifiedState
+                )
                 .tabItem {
                     Image(systemName: "plus.app")
                     Text("Add Move")
@@ -149,4 +136,5 @@ struct MainView: View {
     }
 
     return PreviewWrapper()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

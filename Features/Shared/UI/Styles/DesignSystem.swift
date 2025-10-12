@@ -143,6 +143,21 @@ extension Font {
     static let systemCaption = Font.system(size: 12, design: .monospaced)
 }
 
+// MARK: - BUTTON STYLES
+struct SelectClipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.ibmPlexMono(size: 18, weight: .thin))
+            .foregroundColor(.white)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 11)
+            .background(Color.primary)
+            .cornerRadius(12)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0) // MARK: - MODIFIABLE
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed) // MARK: - MODIFIABLE
+    }
+}
+
 // MARK: - Transform Assertions
 // extension View {
 //     /// Runtime assertion to ensure video surfaces don't have transforms
