@@ -88,7 +88,9 @@ BreakingFlashcards/
 │   │       ├── UI/
 │   │       │   ├── Components/
 │   │       │   │   ├── Button.swift    # Reusable button component
-│   │       │   │   └── LoadingView.swift # Loading states
+│   │       │   │   ├── LoadingView.swift # Loading states
+│   │       │   │   ├── StatePillView.swift # State indicator pills
+│   │       │   │   └── TimelineNodeView.swift # Timeline node components
 │   │       │   └── Styles/
 │   │       │       ├── Colors.swift    # Color system
 │   │       │       └── Typography.swift # Typography system
@@ -106,18 +108,33 @@ BreakingFlashcards/
 │   │       │   ├── TimecodeFormatter.swift # Time formatting
 │   │       │   ├── ButtonStyles.swift # Button styling
 │   │       │   ├── PerformanceOptimizer.swift # Performance tools
-│   │       │   └── MemoryHelper.swift # Memory utilities
+│   │       │   ├── MemoryHelper.swift # Memory utilities
+│   │       │   └── HapticFeedback.swift # Haptic feedback utilities
 │   │       ├── Models/
 │   │       │   ├── PhotosPickerItem.swift # Photos picker model
-│   │       │   └── VideoImportTypes.swift # Import type definitions
+│   │       │   ├── VideoImportTypes.swift # Import type definitions
+│   │       │   ├── LoggerTypes.swift # Logging system types
+│   │       │   ├── ProgressTypes.swift # Progress tracking types
+│   │       │   ├── TabState.swift # Tab state management
+│   │       │   ├── UnifiedState.swift # Unified state management
+│   │       │   └── VideoProcessingTypes.swift # Video processing types
 │   │       ├── Services/
 │   │       │   ├── MovePersistenceService.swift # Move CRUD operations
 │   │       │   ├── PhotoKitService.swift # PhotoKit integration
 │   │       │   ├── PhotosAssetLoader.swift # Asset loading
 │   │       │   ├── PhotosPersistenceService.swift # Photos persistence
 │   │       │   ├── ResilientVideoLoader.swift # Resilient video loading
+│   │       │   ├── ResilientVideoLoaderIntegration.swift # Integration layer
 │   │       │   ├── VideoLoadingService.swift # Video loading
-│   │       │   └── VideoProgressMonitoringService.swift # Progress monitoring
+│   │       │   ├── VideoLoadingServiceResilient.swift # Enhanced video loading
+│   │       │   ├── VideoProgressMonitoringService.swift # Progress monitoring
+│   │       │   ├── UnifiedPlayerManager.swift # Unified video player management
+│   │       │   ├── UnifiedProgressEngine.swift # Unified progress tracking
+│   │       │   ├── PersistenceBridge.swift # Persistence integration bridge
+│   │       │   ├── VideoProcessingBridge.swift # Video processing bridge
+│   │       │   ├── TimecodeCalculationService.swift # Timecode calculations
+│   │       │   ├── VideoSaver.swift # Enhanced video saving
+│   │       │   └── AppContainer.swift # Dependency injection container
 │   │       ├── ViewModels/
 │   │       │   └── SaveProgressViewModel.swift # Save progress UI
 │   │       └── FeatureFlag.swift        # Feature flag management
@@ -129,7 +146,7 @@ BreakingFlashcards/
 └── DOCUMENTATION.md                  # This documentation file
 ```
 
-**Architecture Achievement:** From 100+ scattered files → 40+ organized files under clean feature-based structure
+**Architecture Achievement:** From 100+ scattered files → 73+ organized files under clean feature-based structure with advanced unified services
 
 ---
 
@@ -191,7 +208,12 @@ BreakingFlashcards/
 
 ---
 
-## 🎯 Key Services (Clean Architecture)
+## 🎯 Key Services (Advanced Unified Architecture)
+
+### Unified Management Services
+- **UnifiedPlayerManager**: Centralized video player management across all features
+- **UnifiedProgressEngine**: Unified progress tracking for all async operations
+- **AppContainer**: Dependency injection container for service management
 
 ### Shared Video Services
 - **VideoLoader**: Unified video loading from Photos with iCloud support
@@ -199,6 +221,14 @@ BreakingFlashcards/
 - **VideoPlayer**: Consistent video playback across all features
 - **VideoTrimmer**: Frame-accurate trimming with rotation support
 - **VideoExporter**: High-quality export with multiple quality presets
+- **VideoSaver**: Enhanced video saving with resilience
+- **VideoLoadingServiceResilient**: Advanced resilient video loading
+- **ResilientVideoLoaderIntegration**: Integration layer for resilient loading
+
+### Bridge Services
+- **PersistenceBridge**: Integration between persistence layers
+- **VideoProcessingBridge**: Bridge for video processing operations
+- **TimecodeCalculationService**: Precise timecode calculations
 
 ### Photos Services
 - **PhotoKitService**: PhotoKit integration and asset management
@@ -214,10 +244,17 @@ BreakingFlashcards/
 - **Colors & Typography**: Consistent design system across features
 - **Button & LoadingView**: Reusable UI components
 - **DesignSystem**: Centralized styling and theming
+- **StatePillView & TimelineNodeView**: Advanced UI components
 
 ---
 
-## 🔍 State Management (Clean Architecture)
+## 🔍 State Management (Advanced Unified Architecture)
+
+### Unified State Management
+- **UnifiedState**: Centralized state management across all features
+- **TabState**: Unified tab navigation state
+- **ProgressTypes**: Standardized progress tracking types
+- **LoggerTypes**: Comprehensive logging system types
 
 ### Feature-Based State Management
 - **AddMove**: Clean state flow through Views → Services → Core Data
@@ -226,9 +263,10 @@ BreakingFlashcards/
 - **Review**: Learning state progression with spaced repetition
 
 ### Shared State Components
-- **VideoPlayer State**: Unified player state across all features
-- **Progress Tracking**: Consistent progress monitoring for async operations
+- **VideoPlayer State**: Unified player state across all features via UnifiedPlayerManager
+- **Progress Tracking**: Unified progress monitoring via UnifiedProgressEngine
 - **Error Handling**: Centralized error states and user feedback
+- **Performance Monitoring**: Advanced performance optimization with PerformanceOptimizer
 
 ### Learning States
 - **NEW**: Blue state - not yet reviewed
@@ -372,12 +410,12 @@ fi
 
 ## 📊 Project Statistics (Clean Architecture)
 
-- **Total Swift Files**: 40+ (organized, down from 100+ scattered)
+- **Total Swift Files**: 73+ (organized, down from 100+ scattered)
 - **Main Architecture Components**: Features-based (AddMove, Arsenal, Combo, Review, Shared)
 - **Core Data Entities**: 4 (Move, Combo, ComboMove, Review)
 - **Shared Components**: Comprehensive (Video, UI, Utils, Services, Models)
 - **Code Reduction**: 84% reduction in AddMove feature (7k LOC → 1.1k LOC)
-- **Architecture Achievement**: Complete transformation from scattered to organized
+- **Architecture Achievement**: Complete transformation from scattered to organized with advanced unified service architecture
 - **Supported iOS Version**: iOS 18.0+
 - **Primary Frameworks**: SwiftUI, Core Data, Photos, AVFoundation
 
@@ -385,12 +423,14 @@ fi
 
 ## 🔄 Version History
 
-### October 2025 - Clean Architecture Complete ✅
+### October 2025 - Advanced Unified Architecture Complete ✅
 - **Week 1**: Clean AddMove Feature - Replaced 7k LOC monolith with ~1.1k LOC (84% reduction)
 - **Week 2**: Shared Video Components - Created reusable Video, UI, and Utility components
-- **Final Cleanup**: Complete reorganization into Features/ structure
-- **Architecture Achievement**: From 100+ scattered files → 40+ organized files
-- **Key Result**: Production-ready, maintainable architecture achieved
+- **Week 3**: Advanced Service Integration - Unified Player Manager, Progress Engine, and Bridge Services
+- **Week 4**: Enhanced Architecture - Resilient loading, performance optimization, and advanced state management
+- **Final State**: 73+ Swift files with advanced unified architecture
+- **Key Result**: Production-ready, maintainable architecture with sophisticated service integration
+- **Latest Milestone**: Functional build achieved with all advanced components integrated
 
 ### September 2025
 - Critical video playback fixes (flicker, deadlock resolution)
@@ -405,6 +445,6 @@ fi
 
 ---
 
-**Architecture Status: ✅ CLEAN ARCHITECTURE TRANSFORMATION COMPLETE**
+**Architecture Status: ✅ ADVANCED UNIFIED ARCHITECTURE COMPLETE**
 
-*This documentation now accurately reflects the current clean, organized state of the codebase and serves as a reference for ongoing development and maintenance.*
+*This documentation now accurately reflects the current advanced unified architecture state of the codebase with 73+ organized Swift files, sophisticated service integration, and production-ready components. It serves as a comprehensive reference for ongoing development and maintenance.*
