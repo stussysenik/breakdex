@@ -29,7 +29,7 @@ struct MoveDetailView: View {
     // MARK: - Body
     var body: some View {
         ZStack {
-            SharedColors.Background.primary.ignoresSafeArea()
+            Color.backgroundPrimary.ignoresSafeArea()
 
             VStack(spacing: 24) {
                 // MARK: - Video Player Section

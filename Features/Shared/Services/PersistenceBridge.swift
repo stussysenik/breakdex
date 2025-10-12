@@ -167,7 +167,8 @@ public extension PersistenceController {
         sortDescriptors: [NSSortDescriptor] = [],
         predicate: NSPredicate? = nil
     ) -> [T] {
-        let request = NSFetchRequest<T>(entityName: String(describing: type))
+        // Use the auto-generated fetch request method from the Core Data entity
+        let request = T.fetchRequest() as! NSFetchRequest<T>
         request.sortDescriptors = sortDescriptors
         request.predicate = predicate
 
@@ -184,7 +185,8 @@ public extension PersistenceController {
         _ type: T.Type,
         predicate: NSPredicate? = nil
     ) -> Int {
-        let request = NSFetchRequest<T>(entityName: String(describing: type))
+        // Use the auto-generated fetch request method from the Core Data entity
+        let request = T.fetchRequest() as! NSFetchRequest<T>
         request.predicate = predicate
 
         do {
@@ -203,7 +205,8 @@ public extension PersistenceController {
 
     /// Delete all entities of a given type
     func deleteAll<T: NSManagedObject>(_ type: T.Type) {
-        let request = NSFetchRequest<NSFetchRequestResult>(entityName: String(describing: type))
+        // Use the auto-generated fetch request method from the Core Data entity
+        let request = T.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
 
         do {
@@ -219,7 +222,7 @@ public extension PersistenceController {
 extension PersistenceController {
     /// Create preview persistence controller for SwiftUI previews
     static var preview: PersistenceController = {
-        let controller = PersistenceController()
+        let controller = PersistenceController(inMemory: true)
         let context = controller.container.viewContext
 
         // Add sample data for previews if needed

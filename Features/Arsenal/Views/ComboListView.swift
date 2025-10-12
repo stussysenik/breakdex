@@ -47,6 +47,8 @@ struct ComboListView: View {
             }
             .navigationTitle("Combos")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
             .searchable(text: $viewModel.combosSearchText, prompt: "Search Combos...")
             .onAppear {
                 logger.info("📋 COMBO_LIST_VIEW: 🚀 View appeared with clean architecture")
@@ -231,9 +233,9 @@ private struct SpringButtonStyle: ButtonStyle {
 
 // MARK: - Preview
 #Preview("Combo List - Empty") {
-    let context = PersistenceController.shared.container.viewContext
+    let context = PersistenceController.preview.container.viewContext
     // Clear any existing combos for empty state preview
-    let request = NSBatchDeleteRequest(fetchRequest: NSFetchRequest<NSFetchRequestResult>(entityName: "Combo"))
+    let request = NSBatchDeleteRequest(fetchRequest: Combo.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>)
     try? context.execute(request)
 
     return ComboListView()
@@ -266,7 +268,7 @@ private func createTestCombos(in context: NSManagedObjectContext) {
 }
 
 #Preview("Combo List - With Data") {
-    let context = PersistenceController.shared.container.viewContext
+    let context = PersistenceController.preview.container.viewContext
     createTestCombos(in: context)
 
     return ComboListView()

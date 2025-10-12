@@ -49,6 +49,8 @@ struct MoveListView: View {
             }
             .navigationTitle("Moves")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
             .searchable(text: $viewModel.movesSearchText, prompt: "Search Moves...")
             .onAppear {
                 logger.info("📋 MOVE_LIST_VIEW: 🚀 View appeared with clean architecture")
@@ -238,9 +240,9 @@ private struct MoveRowView: View {
 
 // MARK: - Preview
 #Preview("Move List - Empty") {
-    let context = PersistenceController.shared.container.viewContext
+    let context = PersistenceController.preview.container.viewContext
     // Clear any existing moves for empty state preview
-    let request = NSBatchDeleteRequest(fetchRequest: NSFetchRequest<NSFetchRequestResult>(entityName: "Move"))
+    let request = NSBatchDeleteRequest(fetchRequest: Move.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>)
     try? context.execute(request)
 
     return MoveListView(onNavigateToAdd: {})
@@ -262,7 +264,7 @@ private func createTestMoves(in context: NSManagedObjectContext) {
 }
 
 #Preview("Move List - With Data") {
-    let context = PersistenceController.shared.container.viewContext
+    let context = PersistenceController.preview.container.viewContext
     createTestMoves(in: context)
 
     return MoveListView(onNavigateToAdd: {})

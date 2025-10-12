@@ -29,13 +29,13 @@ class ArsenalViewModel: ObservableObject {
 
     // MARK: - Core Data Fetch Requests
     private lazy var movesFetchRequest: NSFetchRequest<Move> = {
-        let request = NSFetchRequest<Move>(entityName: "Move")
+        let request = Move.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Move.createdAt, ascending: false)]
         return request
     }()
 
     private lazy var combosFetchRequest: NSFetchRequest<Combo> = {
-        let request = NSFetchRequest<Combo>(entityName: "Combo")
+        let request = Combo.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \Combo.name, ascending: true)]
         return request
     }()
@@ -215,7 +215,7 @@ class ArsenalViewModel: ObservableObject {
     // MARK: - Combo Helper Methods
     /// Gets the number of moves in a combo
     func getMoveCount(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
+        let fetchRequest = ComboMove.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
 
         do {
@@ -229,7 +229,7 @@ class ArsenalViewModel: ObservableObject {
 
     /// Determines the learning state for a combo based on its moves
     func getComboLearningState(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
+        let fetchRequest = ComboMove.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
 
         do {

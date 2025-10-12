@@ -484,9 +484,9 @@ public extension View {
             TextSample("Navigation Title", style: SharedTypography.Styles.navigationTitle)
             TextSample("Tab Label", style: SharedTypography.Styles.tabLabel)
             TextSample("Error Message", style: SharedTypography.Styles.error)
-                .foregroundColor(SharedColors.Semantic.error)
+                .foregroundColor(.error)
             TextSample("Success Message", style: SharedTypography.Styles.success)
-                .foregroundColor(SharedColors.Semantic.success)
+                .foregroundColor(.success)
         }
         .padding()
     }
@@ -504,7 +504,7 @@ private struct GroupHeader: View {
             Text(title)
                 .font(.headline)
                 .fontWeight(.semibold)
-                .foregroundColor(SharedColors.Brand.primary)
+                .foregroundColor(.primary)
             Spacer()
         }
         .padding(.top)

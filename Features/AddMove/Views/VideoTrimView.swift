@@ -80,11 +80,11 @@ struct VideoTrimView: View {
         VStack(spacing: 8) {
             Text("Trim Video")
                 .title2()
-                .foregroundColor(SharedColors.Video.controlsForeground)
+                .foregroundColor(.videoControlsForeground)
 
             Text("Select the portion of the video you want to save")
                 .subheadline()
-                .foregroundColor(SharedColors.Text.videoOverlay)
+                .foregroundColor(.textOnDark)
                 .multilineTextAlignment(.center)
         }
         .padding(.top)
@@ -112,19 +112,19 @@ struct VideoTrimView: View {
             HStack {
                 Text(formatTime(trimStartTime))
                     .videoTime()
-                    .foregroundColor(SharedColors.Text.videoTime)
+                    .foregroundColor(.textOnDark)
 
                 Spacer()
 
                 Text("Duration: \(formatTime(videoDuration))")
                     .caption1()
-                    .foregroundColor(SharedColors.Text.videoTime)
+                    .foregroundColor(.textOnDark)
 
                 Spacer()
 
                 Text(formatTime(trimEndTime))
                     .videoTime()
-                    .foregroundColor(SharedColors.Text.videoTime)
+                    .foregroundColor(.textOnDark)
             }
             .padding(.horizontal)
         }

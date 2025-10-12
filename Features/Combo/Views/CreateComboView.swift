@@ -16,7 +16,11 @@ import OSLog
 struct CreateComboView: View {
     // MARK: - Environment & Dependencies
     @Environment(\.managedObjectContext) private var viewContext
-    @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Move.createdAt, ascending: true)])
+    @FetchRequest(
+        entity: Move.entity(),
+        sortDescriptors: [NSSortDescriptor(keyPath: \Move.createdAt, ascending: true)],
+        animation: .default
+    )
     private var allMoves: FetchedResults<Move>
 
     // MARK: - State
@@ -246,5 +250,5 @@ struct CreateComboView: View {
 // MARK: - Preview
 #Preview("Create Combo View") {
     CreateComboView()
-        .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

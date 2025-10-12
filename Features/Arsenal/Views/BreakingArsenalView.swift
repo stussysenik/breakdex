@@ -11,24 +11,23 @@ import Foundation
 // MARK: - Tab Selection Enum
 
 struct BreakingArsenalView: View {
-    @Binding var selectedTab: TabSelection
-    
+    @Binding var selectedTab: Int
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 40) {
                 Spacer()
-                
+
                 // Move Section
-                NavigationLink {
-                    MoveListView(onNavigateToAdd: {
-                        selectedTab = .add
-                    })
+                Button {
+                    selectedTab = 1 // Switch to Add Move tab
                 } label: {
                     Text("MOVE")
                         .font(.ibmPlexMono(size: 42, weight: .bold))
                         .foregroundColor(Color(red: 237/255, green: 245/255, blue: 255/255))
                 }
-                
+                .buttonStyle(.plain)
+
                 // Combo Section
                 NavigationLink {
                     ComboListView()
@@ -37,9 +36,13 @@ struct BreakingArsenalView: View {
                         .font(.ibmPlexMono(size: 42, weight: .bold))
                         .foregroundColor(Color(red: 237/255, green: 255/255, blue: 255/255))
                 }
-                
+                .buttonStyle(.plain)
+
                 Spacer()
             }
+            .navigationTitle("Arsenal")
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
         }
     }
 }

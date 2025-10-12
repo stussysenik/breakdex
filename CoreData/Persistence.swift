@@ -36,14 +36,14 @@ struct PersistenceController {
                 if error.domain == NSCocoaErrorDomain,
                    error.code == NSPersistentStoreIncompatibleVersionHashError ||
                     error.code == NSMigrationMissingSourceModelError {
-                    
+
                     print("⚠️ Core Data migration required. Error: \(error.localizedDescription)")
-                    
+
                     // In a production app, you might want to:
                     // 1. Show user a migration progress indicator
                     // 2. Handle migration failures more gracefully
                     // 3. Provide fallback options
-                    
+
                     fatalError("Core Data migration failed: \(error), \(error.userInfo)")
                 } else {
                     fatalError("Unresolved Core Data error \(error), \(error.userInfo)")
@@ -53,6 +53,9 @@ struct PersistenceController {
                 // if description.shouldMigrateStoreAutomatically {
                 //     print("✅ Lightweight migration enabled and ready")
                 // }
+
+                // Run data migration after successful store loading
+                self.migrateDataStoreIfNeeded()
             }
         })
         container.viewContext.automaticallyMergesChangesFromParent = true
@@ -81,7 +84,19 @@ extension PersistenceController {
     /// MARK: - MIGRATION: Ensures all moves have proper learningState for review functionality
     ///  LOGS: Detailed logging for debugging migration results
     public func migrateDataStoreIfNeeded() {
+        // Ensure the persistent store is loaded before attempting migration
+        guard !container.persistentStoreDescriptions.isEmpty else {
+            print("⚠️ MIGRATION: Persistent store not loaded, skipping migration")
+            return
+        }
+
         backgroundContext.perform {
+            // Check if the Move entity is available in the model
+            guard let entity = self.container.managedObjectModel.entitiesByName["Move"] else {
+                print("⚠️ MIGRATION: Move entity not found in model, skipping migration")
+                return
+            }
+
             let fetchRequest: NSFetchRequest<Move> = Move.fetchRequest()
             // Fetch moves where learningState is nil or an empty string
             fetchRequest.predicate = NSPredicate(format: "learningState == nil OR learningState == ''")
