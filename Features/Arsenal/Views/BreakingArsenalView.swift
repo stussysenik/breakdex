@@ -24,7 +24,7 @@ struct BreakingArsenalView: View {
                 } label: {
                     Text("MOVE")
                         .font(.ibmPlexMono(size: 42, weight: .bold))
-                        .foregroundColor(Color(red: 237/255, green: 245/255, blue: 255/255))
+                        .foregroundColor(.textPrimary)
                 }
                 .buttonStyle(.plain)
 
@@ -34,15 +34,14 @@ struct BreakingArsenalView: View {
                 } label: {
                     Text("COMBO")
                         .font(.ibmPlexMono(size: 42, weight: .bold))
-                        .foregroundColor(Color(red: 237/255, green: 255/255, blue: 255/255))
+                        .foregroundColor(.textPrimary)
                 }
                 .buttonStyle(.plain)
 
                 Spacer()
             }
-            .navigationTitle("Arsenal")
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
+            // .toolbarBackground(.visible, for: .navigationBar)
+            // .toolbarBackground(Color(.systemBackground), for: .navigationBar)
         }
     }
 }

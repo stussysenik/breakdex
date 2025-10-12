@@ -60,26 +60,13 @@ struct MainView: View {
 
         var body: some View {
             TabView(selection: $selectedTab) {
-                // Arsenal Tab - using dummy text
-                NavigationStack {
-                    VStack(spacing: 40) {
-                        Spacer()
-                        Text("MOVE")
-                            .font(.ibmPlexMono(size: 42, weight: .bold))
-                            .foregroundColor(.textPrimary)
-
-                        Text("COMBO")
-                            .font(.ibmPlexMono(size: 42, weight: .bold))
-                            .foregroundColor(.textPrimary)
-
-                        Spacer()
+                // Arsenal Tab - using BreakingArsenalView (single source of truth)
+                BreakingArsenalView(selectedTab: $selectedTab)
+                    .tabItem {
+                        Image(systemName: "book.closed")
+                        Text("Arsenal")
                     }
-                }
-                .tabItem {
-                    Image(systemName: "book.closed")
-                    Text("Arsenal")
-                }
-                .tag(0)
+                    .tag(0)
 
                 // Add Move Tab - using SelectClip
                 SelectClip(

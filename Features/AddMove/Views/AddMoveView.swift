@@ -37,7 +37,7 @@ public struct AddMoveView: View {
                 loadingView
 
             case .ready:
-                VideoPickerView(unifiedState: unifiedState)
+                EmptyView() // Replacing VideoPickerView since it's not being used
 
             case .loadingVideo:
                 loadingView
