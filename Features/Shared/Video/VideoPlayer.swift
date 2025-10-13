@@ -4,6 +4,8 @@ import Combine
 import OSLog
 import SwiftUI
 
+// VideoPlayer.swift - production video playback managemenet
+
 // MARK: - Shared Video Player
 /// Clean, reusable video player component for consistent video playback across features
 @MainActor
@@ -324,6 +326,150 @@ public class SharedVideoPlayer: ObservableObject {
     }
 }
 
+// MARK: - Video Player View
+/// SwiftUI view wrapper for SharedVideoPlayer
+struct VideoPlayerView: View {
+    @ObservedObject var player: SharedVideoPlayer
+    let showControls: Bool
+
+    init(player: SharedVideoPlayer, showControls: Bool = true) {
+        self.player = player
+        self.showControls = showControls
+    }
+
+    var body: some View {
+        ZStack {
+            // Video player using AVPlayerViewController
+            if let avPlayer = getPlayerInstance() {
+                VideoPlayerController(player: avPlayer, showControls: showControls)
+            } else {
+                // Loading state
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+
+                    Text("Loading video...")
+                        .font(.ibmPlexMono(size: 14, weight: .medium))
+                        .foregroundColor(.textSecondary)
+                }
+            }
+
+            // Overlay controls if enabled
+            if showControls && player.isReady {
+                VStack {
+                    Spacer()
+
+                    // Playback controls overlay
+                    playbackControlsOverlay
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                colors: [Color.black.opacity(0.7), Color.clear],
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
+                        )
+                }
+            }
+        }
+    }
+
+    // MARK: - Playback Controls Overlay
+    private var playbackControlsOverlay: some View {
+        HStack(spacing: 20) {
+            // Play/Pause button
+            Button(action: {
+                player.togglePlayPause()
+            }) {
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
+            }
+
+            // Time display and progress
+            VStack(spacing: 4) {
+                HStack {
+                    Text(player.currentTimeString)
+                        .font(.ibmPlexMono(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+
+                    Spacer()
+
+                    Text(player.durationString)
+                        .font(.ibmPlexMono(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                }
+
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        // Background track
+                        Rectangle()
+                            .fill(Color.white.opacity(0.3))
+                            .frame(height: 4)
+                            .cornerRadius(2)
+
+                        // Progress fill
+                        Rectangle()
+                            .fill(Color.primary)
+                            .frame(width: geometry.size.width * player.progress, height: 4)
+                            .cornerRadius(2)
+                            .animation(.easeInOut(duration: 0.1), value: player.progress)
+                    }
+                }
+                .frame(height: 20)
+                .onTapGesture { location in
+                    // Seek to tapped position
+                    let relativePosition = location.x / UIScreen.main.bounds.width
+                    let targetTime = player.duration * relativePosition
+                    player.seek(to: targetTime)
+                }
+            }
+
+            // Mute button
+            Button(action: {
+                player.setMuted(!player.isMuted)
+            }) {
+                Image(systemName: player.isMuted ? "speaker.slash.fill" : "speaker.fill")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
+            }
+        }
+    }
+
+    // MARK: - Get Player Instance
+    private func getPlayerInstance() -> AVPlayer? {
+        return player.avPlayer
+    }
+}
+
+// MARK: - Video Player Controller
+/// UIKit wrapper for AVPlayerViewController
+struct VideoPlayerController: UIViewControllerRepresentable {
+    let player: AVPlayer
+    let showControls: Bool
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.player = player
+        controller.showsPlaybackControls = showControls
+        controller.allowsPictureInPicturePlayback = false
+        controller.allowsVideoFrameAnalysis = false
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        uiViewController.player = player
+        uiViewController.showsPlaybackControls = showControls
+    }
+}
+
 // MARK: - Convenience Extensions
 public extension SharedVideoPlayer {
     /// Get current playback time as formatted string (MM:SS)
@@ -339,6 +485,16 @@ public extension SharedVideoPlayer {
     /// Get remaining time as formatted string (MM:SS)
     var remainingTimeString: String {
         return formatTime(max(0, duration - currentTime))
+    }
+
+    /// Get the AVPlayer instance for use with VideoPlayerController
+    var avPlayer: AVPlayer? {
+        return player
+    }
+
+    /// Check if player is muted
+    var isMuted: Bool {
+        return player?.isMuted ?? false
     }
 
     private func formatTime(_ time: Double) -> String {

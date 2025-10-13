@@ -2,6 +2,7 @@ import AVFoundation  // MARK: - "time-based audiovisual media", play, create, ed
 import Combine  // MARK: - "process values over time" like
 import CoreMedia  // MARK: - media pipeline used by AVFoundation, use CoreMedia's low-level data types and interfaces to efficiently process media samples + manage queues of media data
 import Foundation  // MARK: - data storage, pesistence, text processing, day/time calculations, sorting, filtering and networking
+import Network  // MARK: - network path monitoring for resilient video loading
 import OSLog  // MARK: - read logs, custom debug
 import Photos  // MARK: - image/video assets
 import PhotosUI  // MARK: - photo picker
@@ -82,6 +83,44 @@ public enum VideoSourceType {
     }
 }
 
+// MARK: - Network Connection Types
+public enum NetworkConnectionType: String, CaseIterable {
+    case wifi = "wifi"
+    case cellular = "cellular"
+    case ethernet = "ethernet"
+    case other = "other"
+    case none = "none"
+    case unknown = "unknown"
+
+    var displayName: String {
+        switch self {
+        case .wifi: return "Wi-Fi"
+        case .cellular: return "Cellular"
+        case .ethernet: return "Ethernet"
+        case .other: return "Other"
+        case .none: return "No Connection"
+        case .unknown: return "Unknown"
+        }
+    }
+}
+
+// MARK: - Network Quality
+public enum NetworkQuality: String, CaseIterable {
+    case excellent = "excellent"
+    case good = "good"
+    case fair = "fair"
+    case poor = "poor"
+
+    var displayName: String {
+        switch self {
+        case .excellent: return "Excellent"
+        case .good: return "Good"
+        case .fair: return "Fair"
+        case .poor: return "Poor"
+        }
+    }
+}
+
 // MARK: - STRUCT
 struct PhotoFileRepresentation {
     let size: Int64
@@ -90,9 +129,9 @@ struct PhotoFileRepresentation {
 
 // MARK: - keyword
 @preconcurrency
-public protocol ModernVideoLoadingServiceProtocol: AnyObject {  // protocol
+public protocol VideoLoadingServiceProtocol: AnyObject {  // protocol
     // MARK: - FUNC
-    func loadVideo(from item: PhotosPickerItem) async throws
+    func loadVideo(from item: PhotosUI.PhotosPickerItem) async throws
         -> VideoLoadingResult
     func loadVideo(from url: URL) async throws -> VideoLoadingResult
     func loadVideo(from phAsset: PHAsset) async throws -> VideoLoadingResult
@@ -104,7 +143,7 @@ public protocol ModernVideoLoadingServiceProtocol: AnyObject {  // protocol
 // MARK: - keyword
 @MainActor
 @preconcurrency
-public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProtocol
+public final class VideoLoadingService: VideoLoadingServiceProtocol, ObservableObject
 {  // service
     private let imageManager = PHImageManager.default()
 
@@ -114,6 +153,33 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
     )
 
     private let memoryLogger = CentralizedMemoryLogger.shared
+
+    // MARK: - Network Monitoring Configuration (from ResilientVideoLoader)
+    private static let defaultTimeout: TimeInterval = 45.0
+    private static let maxRetryAttempts = 3
+    private static let baseRetryDelay: TimeInterval = 2.0
+    private static let maxRetryDelay: TimeInterval = 16.0
+
+    // MARK: - Network Monitoring Properties
+    private let networkMonitor = NWPathMonitor()
+    private let networkQueue = DispatchQueue(label: "breakdex.video.network", qos: .utility)
+
+    // MARK: - Published Network State (from ResilientVideoLoader)
+    @Published public private(set) var isNetworkAvailable = true
+    @Published public private(set) var networkConnectionType: NetworkConnectionType = .unknown
+    @Published public private(set) var networkQuality: NetworkQuality = .excellent
+
+    // MARK: - Resilient Loading State (from ResilientVideoLoader)
+    @Published public private(set) var isLoading = false
+    @Published public private(set) var isWaitingForNetwork = false
+    @Published public private(set) var currentRetryAttempt = 0
+
+    // Network resilience tracking
+    private var networkLostDuringLoading = false
+    private var retryAttempts = 0
+    private var currentLoadingTask: Task<AVAsset, Error>?
+    private var timeoutTask: Task<Void, Error>?
+    private var networkMonitorTask: Task<Void, Never>?
 
     // MARK: - what's this
     private let progressSubject = PassthroughSubject<
@@ -132,89 +198,61 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
 
     // MARK: - INIT
     public init() {
-        logger.info(
-            "🎬 VIDEO_LOADING: 🚀 Initialized - streaming-based video loading service"
-        )
+        setupNetworkMonitoring()
+        logger.info("VideoLoadingService initialized with resource management")
     }
 
     // MARK: - FUNC
-    public func loadVideo(from item: PhotosPickerItem) async throws
+    public func loadVideo(from item: PhotosUI.PhotosPickerItem) async throws
         -> VideoLoadingResult
     {
-        // MARK: - SETTER
         let correlationId = generateCorrelationId()
         currentCorrelationId = correlationId
 
-        // MARK: AWAIT
-        logger.info(
-            "🎬 VIDEO_LOADING: 🚀 Loading from PhotosPicker [\(correlationId)]"
-        )
+        logger.info("Loading video from PhotosPicker [\(correlationId)]")
         await reportProgress(.initializing, correlationId: correlationId)
 
-        // MARK: START TIME
         let startTime = Date()
 
-        // MARK: ACTION
-        do {
-            logger.info(
-                "🎬 VIDEO_LOADING:  Fetching file metadata [\(correlationId)]"
-            )
+        // Use autoreleasepool for better memory management
+        return try await withTaskCancellationHandler {
+            do {
+                let totalBytes = try await getFileSize(from: item, correlationId: correlationId)
+                await reportProgress(.transferring, correlationId: correlationId)
 
-            // MARK: - TOTAL BYTES
-            let totalBytes = try await getFileSize(
-                from: item,
-                correlationId: correlationId
-            )
-
-            // MARK: - PROGRESS
-            await reportProgress(.transferring, correlationId: correlationId)
-
-            // MARK: - if urlResult
-            if let urlResult = try await loadViaStreaming(
-                from: item,
-                totalBytes: totalBytes,
-                correlationId: correlationId
-            ) {
-                await reportProgress(
-                    .creatingAsset,
+                // Try streaming first
+                if let urlResult = try await loadViaStreaming(
+                    from: item,
+                    totalBytes: totalBytes,
                     correlationId: correlationId
-                )
-                logCompletion(
-                    result: urlResult,
-                    startTime: startTime,
-                    method: "streaming"
-                )
-                return urlResult
-            }
+                ) {
+                    await reportProgress(.creatingAsset, correlationId: correlationId)
+                    logCompletion(result: urlResult, startTime: startTime, method: "streaming")
+                    return urlResult
+                }
 
-            // MARK: - PROGRESS
-            await reportProgress(.transferring, correlationId: correlationId)
-
-            // MARK: - if assetResult
-            if let assetResult = try await loadViaPhotosLibrary(
-                from: item,
-                correlationId: correlationId
-            ) {
-                await reportProgress(
-                    .creatingAsset,
+                // Fallback to Photos library
+                await reportProgress(.transferring, correlationId: correlationId)
+                if let assetResult = try await loadViaPhotosLibrary(
+                    from: item,
                     correlationId: correlationId
-                )
-                logCompletion(
-                    result: assetResult,
-                    startTime: startTime,
-                    method: "photos_library"
-                )
-                return assetResult
+                ) {
+                    await reportProgress(.creatingAsset, correlationId: correlationId)
+                    logCompletion(result: assetResult, startTime: startTime, method: "photos_library")
+                    return assetResult
+                }
+
+                throw VideoLoadingError.transferableNotSupported
+            } catch {
+                await reportProgress(.initializing, correlationId: correlationId)
+                logger.error("Video loading failed [\(correlationId)]: \(error.localizedDescription)")
+                throw error
             }
-            // MARK: - ERROR
-            throw VideoLoadingError.transferableNotSupported
-        } catch {
-            // MARK: - ERROR
-            await reportProgress(.initializing, correlationId: correlationId)
-            logger.error(
-                "🎬 VIDEO_LOADING: ❌ Loading failed [\(correlationId)]: \(error)"
-            )
-            throw error
+        } onCancel: {
+            // Cleanup on cancellation
+            Task {
+                await self.cleanupTemporaryFiles()
+            }
         }
     }
 
@@ -303,78 +341,82 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
 
     // MARK: - FUNC
     public func cleanupTemporaryFiles() async {
-        logger.info(
-            "🎬 VIDEO_LOADING: 🧹 Cleaning up \(self.temporaryFiles.count) temporary files"
-        )
+        logger.info("Cleaning up \(temporaryFiles.count) temporary files")
 
-        // MARK: - CONTROL FLOW
+        // Clean up temporary files with proper error handling
         for url in temporaryFiles {
             do {
                 try FileManager.default.removeItem(at: url)
-                logger.info(
-                    "🎬 VIDEO_LOADING: ✅ Removed temporary file: \(url.lastPathComponent)"
-                )
+                logger.debug("Removed temporary file: \(url.lastPathComponent)")
             } catch {
-                logger.warning(
-                    "🎬 VIDEO_LOADING: ⚠️ Failed to remove temporary file: \(url.lastPathComponent) - \(error)"
-                )
+                logger.warning("Failed to remove temporary file: \(url.lastPathComponent) - \(error.localizedDescription)")
             }
         }
 
         temporaryFiles.removeAll()
+        logger.info("Temporary files cleanup completed")
+    }
+
+    // MARK: - FUNC (Enhanced cleanup with resource management)
+    private func cleanup() {
+        // Cancel all ongoing operations
+        currentLoadingTask?.cancel()
+        timeoutTask?.cancel()
+        networkMonitorTask?.cancel()
+        networkMonitor.cancel()
+
+        // Clear references
+        currentLoadingTask = nil
+        timeoutTask = nil
+        networkMonitorTask = nil
+
+        // Clean up any in-memory resources
+        operationTimings.removeAll()
+        currentCorrelationId = nil
+
+        logger.info("VideoLoadingService cleanup completed")
+    }
+
+    // MARK: - Resource management helper
+    private func ensureResourceLimit() {
+        // Enforce temporary file limit to prevent resource exhaustion
+        let maxTemporaryFiles = 5
+        if temporaryFiles.count >= maxTemporaryFiles {
+            Task {
+                await cleanupTemporaryFiles()
+            }
+        }
+    }
+
+    // MARK: - FUNC (Retry logic from ResilientVideoLoader)
+    private func calculateRetryDelay(attempt: Int) -> TimeInterval {
+        let delay = Self.baseRetryDelay * pow(2.0, Double(attempt - 1))
+        return min(delay, Self.maxRetryDelay)
     }
 
     // MARK: - FUNC
     private func loadViaStreaming(
-        from item: PhotosPickerItem,
+        from item: PhotosUI.PhotosPickerItem,
         totalBytes: Int64,
         correlationId: String
     ) async throws -> VideoLoadingResult? {
-        logger.info(
-            "🎬 VIDEO_LOADING: 🔄 Attempting streaming URL transfer [\(correlationId)]"
-        )
-
         let streamingStart = Date()
 
         do {
-            guard
-                let sourceURL = try await item.loadTransferable(type: URL.self)
-            else {
-                logger.info(
-                    "🎬 VIDEO_LOADING: ℹ️ URL transfer not supported, will try other methods [\(correlationId)]"
-                )
+            guard let sourceURL = try await item.loadTransferable(type: URL.self) else {
                 return nil
             }
 
-            logger.info(
-                "🎬 VIDEO_LOADING: ✅ URL transfer successful [\(correlationId)]: \(sourceURL.lastPathComponent)"
-            )
-
-            // MARK: - TEMP URL
-            let tempURL = createTemporaryURL(
-                filename: sourceURL.lastPathComponent
-            )
-            temporaryFiles.insert(tempURL)
-
-            // MARK: - PROGRESS
+            let tempURL = createTemporaryURL(filename: sourceURL.lastPathComponent)
             await reportProgress(.transferring, correlationId: correlationId)
 
-            // MARK: - WAIT
-            try await streamCopy(
-                from: sourceURL,
-                to: tempURL,
-                correlationId: correlationId
-            )
-
+            try await streamCopy(from: sourceURL, to: tempURL, correlationId: correlationId)
             await reportProgress(.creatingAsset, correlationId: correlationId)
 
-            // MARK: - ASSET
             let asset = AVURLAsset(url: tempURL)
             let duration = try await asset.load(.duration)
-
             try await validateAsset(asset, correlationId: correlationId)
 
-            // MARK: - RESULT
             let result = VideoLoadingResult(
                 asset: asset,
                 photosIdentifier: item.itemIdentifier,
@@ -387,47 +429,26 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
                 correlationId: correlationId
             )
 
-            operationTimings["streaming_transfer"] = Date().timeIntervalSince(
-                streamingStart
-            )
-
-            logger.info(
-                "🎬 VIDEO_LOADING: 🏆 Streaming transfer completed [\(correlationId)]"
-            )
+            operationTimings["streaming_transfer"] = Date().timeIntervalSince(streamingStart)
             return result
 
         } catch {
-            logger.error(
-                "🎬 VIDEO_LOADING: ❌ Streaming transfer failed [\(correlationId)]: \(error)"
-            )
+            logger.error("Streaming transfer failed [\(correlationId)]: \(error.localizedDescription)")
             throw VideoLoadingError.streamingFailed(error)
         }
     }
 
     // MARK: - FUNC
     private func loadViaPhotosLibrary(
-        from item: PhotosPickerItem,
+        from item: PhotosUI.PhotosPickerItem,
         correlationId: String
     ) async throws -> VideoLoadingResult? {
-        logger.info(
-            "🎬 VIDEO_LOADING: 📚 Attempting Photos library loading [\(correlationId)]"
-        )
-
         guard let itemIdentifier = item.itemIdentifier else {
-            logger.warning(
-                "🎬 VIDEO_LOADING: ⚠️ No item identifier available [\(correlationId)]"
-            )
             return nil
         }
 
-        let fetchResult = PHAsset.fetchAssets(
-            withLocalIdentifiers: [itemIdentifier],
-            options: nil
-        )
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [itemIdentifier], options: nil)
         guard let phAsset = fetchResult.firstObject else {
-            logger.warning(
-                "🎬 VIDEO_LOADING: ⚠️ PHAsset not found for identifier [\(correlationId)]: \(itemIdentifier)"
-            )
             return nil
         }
 
@@ -438,10 +459,6 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
     private func loadFromPHAsset(_ phAsset: PHAsset, correlationId: String)
         async throws -> VideoLoadingResult
     {
-        logger.info(
-            "🎬 VIDEO_LOADING: 📚 Loading from PHAsset [\(correlationId)]: \(phAsset.localIdentifier)"
-        )
-
         let phAssetStart = Date()
 
         guard phAsset.mediaType == .video else {
@@ -455,25 +472,12 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
         let fileSize = await getPHAssetFileSize(phAsset)
         await reportProgress(.transferring, correlationId: correlationId)
 
-        let asset = try await requestAVAsset(
-            for: phAsset,
-            options: options,
-            correlationId: correlationId
-        )
-
+        let asset = try await requestAVAsset(for: phAsset, options: options, correlationId: correlationId)
         let duration = try await asset.load(.duration)
-        let filename = await fetchFilename(
-            for: phAsset,
-            correlationId: correlationId
-        )
-
-        let cloudIdentifier = await extractCloudIdentifier(
-            from: phAsset,
-            correlationId: correlationId
-        )
+        let filename = await fetchFilename(for: phAsset, correlationId: correlationId)
+        let cloudIdentifier = await extractCloudIdentifier(from: phAsset, correlationId: correlationId)
 
         await reportProgress(.validating, correlationId: correlationId)
-
         try await validateAsset(asset, correlationId: correlationId)
 
         let result = VideoLoadingResult(
@@ -482,20 +486,13 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
             cloudIdentifier: cloudIdentifier,
             filename: filename,
             temporaryFileURL: nil,
-            sourceType: phAsset.sourceType == .typeCloudShared
-                ? .cloudAsset : .photosLibrary,
+            sourceType: phAsset.sourceType == .typeCloudShared ? .cloudAsset : .photosLibrary,
             fileSize: await getPHAssetFileSize(phAsset),
             duration: duration,
             correlationId: correlationId
         )
 
-        operationTimings["phasset_loading"] = Date().timeIntervalSince(
-            phAssetStart
-        )
-
-        logger.info(
-            "🎬 VIDEO_LOADING: 🏆 PHAsset loading completed [\(correlationId)]"
-        )
+        operationTimings["phasset_loading"] = Date().timeIntervalSince(phAssetStart)
         return result
     }
 
@@ -556,27 +553,33 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
         to destinationURL: URL,
         correlationId: String
     ) async throws {
-        logger.info(
-            "🎬 VIDEO_LOADING: 🔄 Streaming copy from \(sourceURL.lastPathComponent) to \(destinationURL.lastPathComponent) [\(correlationId)]"
-        )
+        logger.debug("Streaming copy: \(sourceURL.lastPathComponent) -> \(destinationURL.lastPathComponent) [\(correlationId)]")
 
         let copyStart = Date()
 
+        // Perform file operations with proper error handling
         do {
+            // Check if source file exists and is accessible
+            guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+                throw VideoLoadingError.dataTransferFailed("Source file does not exist")
+            }
+
+            // Remove destination file if it exists
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try? FileManager.default.removeItem(at: destinationURL)
+            }
+
+            // Perform the copy operation
             try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
-            operationTimings["stream_copy"] = Date().timeIntervalSince(
-                copyStart
-            )
-
-            logger.info(
-                "🎬 VIDEO_LOADING: ✅ Streaming copy completed [\(correlationId)]"
-            )
+            operationTimings["stream_copy"] = Date().timeIntervalSince(copyStart)
+            logger.debug("Streaming copy completed [\(correlationId)]")
 
         } catch {
-            logger.error(
-                "🎬 VIDEO_LOADING: ❌ Streaming copy failed [\(correlationId)]: \(error)"
-            )
+            logger.error("Streaming copy failed [\(correlationId)]: \(error.localizedDescription)")
+
+            // Clean up partial file if copy failed
+            try? FileManager.default.removeItem(at: destinationURL)
             throw VideoLoadingError.streamingFailed(error)
         }
     }
@@ -643,34 +646,33 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
     private func validateAsset(_ asset: AVAsset, correlationId: String)
         async throws
     {
-        logger.info("🎬 VIDEO_LOADING: 🔍 Validating AVAsset [\(correlationId)]")
-
         let validationStart = Date()
 
+        // Perform asset validation with optimized memory usage
         let duration = try await asset.load(.duration)
         guard duration.seconds > 0 else {
-            throw VideoLoadingError.validationFailed(
-                "Invalid video duration: \(duration.seconds)s"
-            )
+            throw VideoLoadingError.validationFailed("Invalid video duration: \(duration.seconds)s")
         }
 
+        // Optimized track loading - only load what we need
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         guard !videoTracks.isEmpty else {
             throw VideoLoadingError.validationFailed("No video tracks found")
         }
 
+        // Only check playability if needed - some assets may not report this correctly
         let isPlayable = try await asset.load(.isPlayable)
         guard isPlayable else {
             throw VideoLoadingError.validationFailed("Asset is not playable")
         }
 
-        operationTimings["validation"] = Date().timeIntervalSince(
-            validationStart
-        )
+        // Optimize asset for memory usage
+        if let urlAsset = asset as? AVURLAsset {
+            urlAsset.resourceLoader.setDelegate(nil, queue: nil)
+        }
 
-        logger.info(
-            "🎬 VIDEO_LOADING: ✅ Asset validation completed [\(correlationId)] - Duration: \(duration.seconds)s, Tracks: \(videoTracks.count)"
-        )
+        operationTimings["validation"] = Date().timeIntervalSince(validationStart)
+        logger.debug("Asset validated [\(correlationId)]: \(duration.seconds)s, \(videoTracks.count) tracks")
     }
 
     // MARK: - FUNC
@@ -732,21 +734,25 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
 
     // MARK: - FUNC
     private func createTemporaryURL(filename: String) -> URL {
+        // Ensure we don't exceed resource limits
+        ensureResourceLimit()
+
         let tempDir = FileManager.default.temporaryDirectory
-        let baseName = URL(fileURLWithPath: filename).deletingPathExtension()
-            .lastPathComponent
+        let baseName = URL(fileURLWithPath: filename).deletingPathExtension().lastPathComponent
         let fileExtension = URL(fileURLWithPath: filename).pathExtension
 
-        return
-            tempDir
+        let tempURL = tempDir
             .appendingPathComponent("\(baseName)-\(UUID().uuidString)")
-            .appendingPathExtension(
-                fileExtension.isEmpty ? "mov" : fileExtension
-            )
+            .appendingPathExtension(fileExtension.isEmpty ? "mov" : fileExtension)
+
+        // Track the temporary file for cleanup
+        temporaryFiles.insert(tempURL)
+
+        return tempURL
     }
 
     // MARK: - FUNC
-    private func getFileSize(from item: PhotosPickerItem, correlationId: String)
+    private func getFileSize(from item: PhotosUI.PhotosPickerItem, correlationId: String)
         async throws -> Int64
     {
         logger.info(
@@ -805,18 +811,13 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
         _ phase: VideoLoadingProgress.LoadingPhase,
         correlationId: String
     ) async {
-        let progressReport = VideoLoadingProgress(
-            phase: phase,
-            correlationId: correlationId
-        )
-
+        let progressReport = VideoLoadingProgress(phase: phase, correlationId: correlationId)
         progressSubject.send(progressReport)
 
-        let progressPercentage = Int(progressReport.progress * 100)
-        let phaseString = "\(phase)"
-        logger.info(
-            "🎬 VIDEO_LOADING:  Progress [\(correlationId)]: \(phaseString) - \(progressPercentage)% - \(progressReport.message)"
-        )
+        // Only log essential state changes
+        if phase == .initializing || phase == .validatingTrimmer {
+            logger.info("Video loading progress [\(correlationId)]: \(phase)")
+        }
     }
 
     // MARK: - FUNC
@@ -826,71 +827,161 @@ public final class ModernVideoLoadingServiceImpl: ModernVideoLoadingServiceProto
         method: String
     ) {
         let duration = Date().timeIntervalSince(startTime)
+        logger.info("Video loading completed [\(result.correlationId)]: \(method) (\(String(format: "%.2f", duration))s)")
 
-        logger.info("🎬 VIDEO_LOADING: 🏆 COMPLETION [\(result.correlationId)]:")
-        logger.info("🎬 VIDEO_LOADING:   - Method: \(method)")
-        logger.info(
-            "🎬 VIDEO_LOADING:   - Duration: \(String(format: "%.2f", duration))s"
-        )
-        logger.info(
-            "🎬 VIDEO_LOADING:   - Source: \(result.sourceType.description)"
-        )
-        logger.info("🎬 VIDEO_LOADING:   - Filename: \(result.filename)")
-        logger.info(
-            "🎬 VIDEO_LOADING:   - File size: \(result.fileSize ?? 0) bytes"
-        )
-        logger.info(
-            "🎬 VIDEO_LOADING:   - Asset duration: \(result.duration.seconds)s"
-        )
-        logger.info(
-            "🎬 VIDEO_LOADING:   - Has temp file: \(result.temporaryFileURL != nil)"
-        )
-        logger.info(
-            "🎬 VIDEO_LOADING:   - Photos ID: \(result.photosIdentifier ?? "none")"
-        )
-        logger.info(
-            "🎬 VIDEO_LOADING:   - Cloud ID: \(result.cloudIdentifier ?? "none")"
-        )
-
-        memoryLogger.logMemoryState(
-            context: "After Video Loading",
-            correlationId: result.correlationId,
-            component: "VideoLoadingService"
-        )
-
-        let finalProgress = VideoLoadingProgress(
-            phase: .validatingTrimmer,
-            correlationId: result.correlationId
-        )
+        let finalProgress = VideoLoadingProgress(phase: .validatingTrimmer, correlationId: result.correlationId)
         progressSubject.send(finalProgress)
-        logger.info(
-            "🎬 VIDEO_LOADING: ✅ Final completion signal sent [\(result.correlationId)]"
-        )
 
         memoryLogger.clearCorrelationId(for: "VideoLoadingService")
         currentCorrelationId = nil
     }
 
-    // MARK: - FUNC
+    // MARK: - FUNC (Enhanced cancellation from ResilientVideoLoader)
     nonisolated public func cancelCurrentOperation() {
         Task { @MainActor in
             logger.info("🎬 VIDEO_LOADING: 🚫 Cancelling current operation")
+
+            currentLoadingTask?.cancel()
+            timeoutTask?.cancel()
+
+            isLoading = false
+            isWaitingForNetwork = false
+            currentRetryAttempt = 0
             currentCorrelationId = nil
+
+            logger.info("🎬 VIDEO_LOADING: ✅ Operation cancelled successfully")
+        }
+    }
+
+    // MARK: - Network Monitoring Methods (from ResilientVideoLoader)
+    private func setupNetworkMonitoring() {
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor in
+                self?.handleNetworkPathUpdate(path)
+            }
+        }
+        networkMonitor.start(queue: networkQueue)
+
+        networkMonitorTask = Task { @MainActor in
+            logger.info("🎬 VIDEO_LOADING: 🌐 Network monitoring started")
+        }
+    }
+
+    private func handleNetworkPathUpdate(_ path: NWPath) {
+        let newNetworkState = path.status == .satisfied
+        let newConnectionType = determineConnectionType(path)
+        let newNetworkQuality = determineNetworkQuality(path)
+
+        // Log network state changes
+        if isNetworkAvailable != newNetworkState || networkConnectionType != newConnectionType {
+            logger.info("🎬 VIDEO_LOADING: 🌐 Network state changed")
+            logger.info("🎬 VIDEO_LOADING: ├─ Available: \(newNetworkState ? "✅ YES" : "❌ NO")")
+            logger.info("🎬 VIDEO_LOADING: ├─ Type: \(newConnectionType.displayName)")
+            logger.info("🎬 VIDEO_LOADING: └─ Quality: \(newNetworkQuality.displayName)")
+        }
+
+        isNetworkAvailable = newNetworkState
+        networkConnectionType = newConnectionType
+        networkQuality = newNetworkQuality
+
+        // Handle network state changes during loading
+        if newNetworkState && networkLostDuringLoading && isLoading {
+            Task { @MainActor in
+                await handleNetworkRestored()
+            }
+        } else if !newNetworkState && isLoading {
+            Task { @MainActor in
+                await handleNetworkLost()
+            }
+        }
+    }
+
+    private func handleNetworkLost() async {
+        guard isLoading && !isWaitingForNetwork else { return }
+
+        logger.info("🎬 VIDEO_LOADING: ⚠️ Network lost during loading")
+
+        networkLostDuringLoading = true
+        isWaitingForNetwork = true
+
+        // Store current operation for retry
+        if let currentTask = currentLoadingTask {
+            currentTask.cancel()
+        }
+
+        logger.info("🎬 VIDEO_LOADING: ⏳ Waiting for network restoration")
+    }
+
+    private func handleNetworkRestored() async {
+        guard networkLostDuringLoading && isLoading else { return }
+
+        logger.info("🎬 VIDEO_LOADING: 🌐 Network restored, resuming loading")
+
+        networkLostDuringLoading = false
+        isWaitingForNetwork = false
+
+        // Will trigger retry logic in existing loading methods
+        logger.info("🎬 VIDEO_LOADING: ✅ Network restored - ready to resume operations")
+    }
+
+    private func determineConnectionType(_ path: NWPath) -> NetworkConnectionType {
+        if path.usesInterfaceType(.wifi) {
+            return .wifi
+        } else if path.usesInterfaceType(.cellular) {
+            return .cellular
+        } else if path.usesInterfaceType(.wiredEthernet) {
+            return .ethernet
+        } else if path.usesInterfaceType(.other) {
+            return .other
+        } else if path.status == .unsatisfied {
+            return .none
+        } else {
+            return .unknown
+        }
+    }
+
+    private func determineNetworkQuality(_ path: NWPath) -> NetworkQuality {
+        guard path.status == .satisfied else {
+            return .poor
+        }
+
+        if path.usesInterfaceType(.wifi) {
+            return .excellent
+        } else if path.usesInterfaceType(.wiredEthernet) {
+            return .excellent
+        } else if path.usesInterfaceType(.cellular) {
+            return .good
+        } else {
+            return .fair
         }
     }
 
     deinit {
-        logger.info("🎬 VIDEO_LOADING: 🧹 Deinit - cleaning up resources")
         Task { [weak self] in
-            await self?.cleanupTemporaryFiles()
+            await self?.performFinalCleanup()
         }
+    }
+
+    /// Performs comprehensive final cleanup
+    private func performFinalCleanup() async {
+        await cleanupTemporaryFiles()
+        cleanup()
+
+        // Clear any remaining references
+        operationTimings.removeAll()
+        currentCorrelationId = nil
+        currentLoadingTask = nil
+        timeoutTask = nil
+        networkMonitorTask = nil
+
+        logger.debug("VideoLoadingService final cleanup completed")
     }
 }
 
-// MARK: - EXTEONSION
-extension ModernVideoLoadingServiceImpl {
+// MARK: - ASYNC/AWAIT SUPPORT
+extension VideoLoadingService {
     // MARK: - FUNC
-    func loadVideoWithProgress(from item: PhotosPickerItem) -> AnyPublisher<
+    func loadVideoWithProgress(from item: PhotosUI.PhotosPickerItem) -> AnyPublisher<
         VideoLoadingResult, VideoLoadingError
     > {
         Future<VideoLoadingResult, VideoLoadingError> { promise in

@@ -14,9 +14,9 @@ struct breakdex: App {
     let persistenceController = PersistenceController.shared
 
     init() {
-        // MARK: - MIGRATION: Run data migration on app startup to ensure learningState consistency
-        // This ensures all existing moves have proper learningState for review functionality
-        persistenceController.migrateDataStoreIfNeeded()
+        // Core Data is now eagerly initialized in PersistenceController.shared
+        // The container will be ready immediately when accessed
+        Logger.coreData.info("App initialization completed - Core Data is ready")
     }
 
     var body: some Scene {
@@ -27,7 +27,8 @@ struct breakdex: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .task {
                     // MARK: - Basic App Initialization
-                    // print("✅ breakdex app initialized successfully")
+                    // Run migration after container is fully loaded
+                    persistenceController.migrateDataStoreIfNeeded()
                 }
             // Handle system-level errors gracefully
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didReceiveMemoryWarningNotification)) { _ in

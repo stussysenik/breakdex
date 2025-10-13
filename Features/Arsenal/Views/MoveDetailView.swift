@@ -23,7 +23,7 @@ struct MoveDetailView: View {
     // MARK: - State
     @State private var videoAsset: AVAsset?
     @State private var isLoading = true
-    @State private var playerViewModel: UnifiedVideoPlayerViewModel?
+    @State private var player: SharedVideoPlayer?
     @State private var errorMessage: String?
 
     // MARK: - Body
@@ -53,7 +53,7 @@ struct MoveDetailView: View {
                 await loadVideoAsset()
             }
             .alert("Video Error", isPresented: .constant(errorMessage != nil), actions: {
-                SharedButton("OK", style: .secondary) {
+                SharedButton(title: "OK", style: .secondary) {
                     errorMessage = nil
                 }
             }, message: {
@@ -120,12 +120,10 @@ struct MoveDetailView: View {
     @ViewBuilder
     private func playerView(for asset: AVAsset) -> some View {
         ZStack {
-            if let asset = videoAsset {
-                SharedVideoPlayerView(
-                    asset: asset,
-                    configuration: .default
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16))
+            if let player = player {
+                // Use the state-managed SharedVideoPlayer with VideoPlayerView
+                VideoPlayerView(player: player, showControls: true)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
                 // Fallback loading state
                 SharedLoadingView(configuration: .minimal)
@@ -201,13 +199,14 @@ struct MoveDetailView: View {
 
             logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Asset loaded - duration: \(CMTimeGetSeconds(duration))s")
 
-            // Create player from unified manager
-            AppContainer.shared.unifiedPlayerManager.loadAsset(asset)
+            // Create and configure the SharedVideoPlayer
+            let sharedPlayer = SharedVideoPlayer(mode: .preview)
+            await sharedPlayer.loadVideo(asset)
 
             // Atomic state update
             await MainActor.run {
                 self.videoAsset = asset
-                self.playerViewModel = nil // Simplified - let UnifiedPlayerManager handle the player
+                self.player = sharedPlayer
                 self.isLoading = false
                 logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Video loaded successfully")
             }
@@ -228,16 +227,16 @@ struct MoveDetailView: View {
     }
 
     // MARK: - Player Cleanup
-    /// Simplified player cleanup using unified manager
+    /// Proper cleanup of SharedVideoPlayer resources
     private func cleanupPlayer() {
         logger.info("🎬 MOVE_DETAIL_VIEW: 🧹 Cleaning up player resources")
 
-        // Let unified manager handle cleanup
-        AppContainer.shared.unifiedPlayerManager.pause()
+        // Cleanup the SharedVideoPlayer
+        player?.cleanup()
 
         // Clear local reference
         Task { @MainActor in
-            self.playerViewModel = nil
+            self.player = nil
         }
 
         logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Cleanup completed")

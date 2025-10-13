@@ -128,6 +128,16 @@ public struct VideoLoadingProgress {
         return Int(progress * 100)
     }
 
+    /// Download percentage for compatibility with existing code
+    public var downloadPercentage: Int? {
+        return percentage
+    }
+
+    /// Download speed for compatibility with existing code
+    public var formattedDownloadSpeed: String? {
+        return nil
+    }
+
     /// Progress message based on phase
     public var message: String {
         return phase.displayName
@@ -203,7 +213,7 @@ public struct SimpleProgress: Equatable {
 // MARK: - Loading Phase Extension
 extension VideoLoadingProgress {
     /// Simple progress phase enumeration for tracking operation states
-    public enum LoadingPhase {
+    public enum LoadingPhase: Equatable {
         case idle
         case initializing
         case requestingDownload

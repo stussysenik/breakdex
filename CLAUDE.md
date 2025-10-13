@@ -1,8 +1,29 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+# Make sure to avoid adding .md, or any extra files to the copy bundle resources in the build phases except for fonts and .xcassets files
+<!-- OPENSPEC:END -->
+
 ## Claude.md — breakdex Video App (iOS 18.0)
 
 # * **Single Responsibility Principle (SRP):** Enforce SRP across all components. Views remain "dumb," containing no business logic and forwarding all user actions to the ViewModel.
 # **Essentialism**
 # **Avoid Over-engineering**
+# Make sure to avoid adding .md, or any extra files to the copy bundle resources in the build phases except for fonts and .xcassets files
 
 ### Project Structure (Clean Architecture ✅)
 - **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/` -> make sure to always be using the
@@ -123,3 +144,7 @@ xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=i
 # Build with specific simulator (useful when multiple simulators available)
 xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,id=86FFC075-5BA3-4125-9534-C9F8B525E72A' build
 ```
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md

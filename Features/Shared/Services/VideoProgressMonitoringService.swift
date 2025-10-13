@@ -12,7 +12,7 @@ public class VideoProgressMonitoringService {
     // MARK: - Properties
 
     private let logger = Logger(subsystem: "BreakingFlashcards", category: "🎬 VIDEO_PROGRESS")
-    private let modernVideoLoadingService: ModernVideoLoadingServiceProtocol
+    private let modernVideoLoadingService: VideoLoadingServiceProtocol
     private var cancellables = Set<AnyCancellable>()
     private var progressMonitoringTask: Task<Void, Never>?
 
@@ -26,7 +26,7 @@ public class VideoProgressMonitoringService {
     // MARK: - Initialization
 
     @MainActor
-    public init(modernVideoLoadingService: ModernVideoLoadingServiceProtocol) {
+    public init(modernVideoLoadingService: VideoLoadingServiceProtocol) {
         self.modernVideoLoadingService = modernVideoLoadingService
         // logger.info("🎬 VIDEO_PROGRESS: ✅ Service initialized")
     }

@@ -19,10 +19,12 @@ struct MainView: View {
                 .tag(0)
 
             // Add Move Tab
-            SelectClip(
+            AddMoveView(
                 selectedTab: Binding(
-                    get: { .add },
-                    set: { _ in }
+                    get: { unifiedState.currentTab },
+                    set: { newTab in
+                        unifiedState.updateTab(newTab)
+                    }
                 ),
                 unifiedState: unifiedState
             )
@@ -68,11 +70,13 @@ struct MainView: View {
                     }
                     .tag(0)
 
-                // Add Move Tab - using SelectClip
-                SelectClip(
+                // Add Move Tab - using AddMoveView
+                AddMoveView(
                     selectedTab: Binding(
-                        get: { .add },
-                        set: { _ in }
+                        get: { unifiedState.currentTab },
+                        set: { newTab in
+                            unifiedState.updateTab(newTab)
+                        }
                     ),
                     unifiedState: unifiedState
                 )

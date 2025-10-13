@@ -5,7 +5,7 @@ import Foundation
 
 @objc(Combo)
 public class Combo: NSManagedObject, Identifiable {
-    public var identifiableId: NSManagedObjectID { objectID }  // // use objectID as the Identifiable id since id is already declared in properties
+    public var identifiableId: NSManagedObjectID { objectID }  // use objectID as the Identifiable id since id is already declared in properties
 
 }
 
