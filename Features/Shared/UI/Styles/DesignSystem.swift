@@ -27,7 +27,7 @@ extension Color {
     static let backgroundPrimary = Color(.systemBackground)  // Primary background - adapts to light/dark mode
     static let backgroundSecondary = Color(.secondarySystemBackground)  // Secondary background for cards and content areas
     static let backgroundTertiary = Color(.tertiarySystemBackground)  // Tertiary background for nested content
-    static let videoBackground = Color.black  // Video player background - always black
+    static let videoBackground = Color.white  // Video player background - changed to white for better contrast
 
     // MARK: - Text Colors
     static let textPrimary = Color(.label)  // Primary text color - adapts to light/dark mode
@@ -84,9 +84,9 @@ extension Color {
     static let neutralGray300 = Color(.systemGray3)
 
     // MARK: - Video Colors
-    static let videoControlsBackground = Color.black.opacity(0.8)  // Video controls background
+    static let videoControlsBackground = Color.black.opacity(0.6)  // Video controls background - adjusted for white theme
     static let videoControlsForeground = Color.white  // Video controls foreground
-    static let videoAccent = Color.red  // Video accent color
+    static let videoAccent = Color.primary  // Video accent color - changed to primary blue
 
     // MARK: - Border Colors
     static let borderPrimary = Color.accent  // Primary border

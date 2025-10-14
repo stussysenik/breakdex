@@ -77,21 +77,29 @@ public class AddMoveUnifiedState: ObservableObject {
 
    // MARK: - State Updates
    func updateTab(_ newTab: TabSelection) {
-       currentTab = newTab
-       Logger.addMove.logStateTransition(from: currentTab, to: newTab, context: "Tab navigation")
+       Task { @MainActor in
+           self.currentTab = newTab
+           Logger.addMove.logStateTransition(from: newTab, to: newTab, context: "Tab navigation")
+       }
    }
 
    func updateFlowState(_ newState: AddMoveFlowState) {
-       flowState = newState
-       Logger.addMove.logStateTransition(from: flowState, to: newState, context: "Flow state")
+       Task { @MainActor in
+           self.flowState = newState
+           Logger.addMove.logStateTransition(from: newState, to: newState, context: "Flow state")
+       }
    }
 
    func setSelectedVideo(_ asset: AVAsset, url: URL?) async {
-       selectedVideo = asset
-       originalVideoURL = url
+       await MainActor.run {
+           self.selectedVideo = asset
+           self.originalVideoURL = url
+       }
        do {
            let duration = try await asset.load(.duration)
-           trimEndTime = duration.seconds
+           await MainActor.run {
+               self.trimEndTime = duration.seconds
+           }
            Logger.addMove.info("Video selected: duration \(duration.seconds)s", emoji: "🎥")
        } catch {
            Logger.addMove.error("Failed to load video duration: \(error.localizedDescription)", emoji: "❌")
@@ -99,7 +107,9 @@ public class AddMoveUnifiedState: ObservableObject {
    }
 
    func setTrimmedAsset(_ asset: AVAsset) async {
-       trimmedAsset = asset
+       await MainActor.run {
+           self.trimmedAsset = asset
+       }
        do {
            let duration = try await asset.load(.duration)
            Logger.addMove.info("Video trimmed: duration \(duration.seconds)s", emoji: "✂️")
@@ -109,28 +119,49 @@ public class AddMoveUnifiedState: ObservableObject {
    }
 
    func updateProgress(_ progress: VideoLoadingProgress) {
-       DispatchQueue.main.async {
+       Task { @MainActor in
            self.loadingProgress = progress
-           // Automatically update flowState based on VideoLoadingState
+
+           // CRITICAL FIX: Ensure state synchronization happens reliably on MainActor
            let newFlowState = progress.state.toAddMoveFlowState
            if self.flowState != newFlowState {
-               Logger.addMove.info("Auto-updating flowState from \(self.flowState) to \(newFlowState) based on loading progress", emoji: "🔄")
+               let previousState = self.flowState
                self.flowState = newFlowState
+               Logger.addMove.info("ENHANCED STATE SYNC: Auto-updating flowState from \(previousState) to \(newFlowState) based on loading progress", emoji: "🔄")
+
+               // CRITICAL: Log state transition completion for debugging
+               Logger.addMove.info("✅ FLOW STATE TRANSITION COMPLETE: \(previousState) → \(newFlowState), isLoading: \(newFlowState.isLoading)", emoji: "🎯")
+           }
+
+           // ENHANCED: Additional logging for completion state
+           if progress.phase == .completed || progress.phase == .complete {
+               Logger.addMove.info("🎯 COMPLETION DETECTED: Video loading completed - ensuring all components are synchronized", emoji: "✅")
+
+               // Schedule verification check to ensure state consistency
+               DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                   Logger.addMove.info("🔍 POST-COMPLETION VERIFICATION: flowState=\(self.flowState), isLoading=\(self.flowState.isLoading), hasVideo=\(self.selectedVideo != nil)", emoji: "🔍")
+               }
            }
        }
    }
 
    func updateProcessingProgress(_ progress: Double) {
-       processingProgress = progress
+       Task { @MainActor in
+           self.processingProgress = progress
+       }
    }
 
    func setError(_ message: String) {
-       errorMessage = message
+       Task { @MainActor in
+           self.errorMessage = message
+       }
        Logger.addMove.error("Error set: \(message)", emoji: "❌")
    }
 
    func clearError() {
-       errorMessage = nil
+       Task { @MainActor in
+           self.errorMessage = nil
+       }
        Logger.addMove.debug("Error cleared", emoji: "🧹")
    }
 
@@ -158,7 +189,9 @@ public class AddMoveUnifiedState: ObservableObject {
    }
 
    func loadVideo(from item: PhotosUI.PhotosPickerItem) async {
-       Logger.addMove.info("Loading video from PhotosPicker")
+       // Generate unified correlation ID for this entire loading operation
+       let unifiedCorrelationId = "LOAD-\(UUID().uuidString.prefix(8))"
+       Logger.addMove.info("Loading video from PhotosPicker [\(unifiedCorrelationId)]")
 
        await MainActor.run {
            self.updateFlowState(.loadingVideo)
@@ -169,13 +202,34 @@ public class AddMoveUnifiedState: ObservableObject {
        var retryCount = 0
        var lastError: Error?
 
+       // CRITICAL FIX: Create operation manager once and coordinate with VideoLoadingService
+       let operationManager = await VideoLoadingOperationManager()
+       await operationManager.setupCoordination(unifiedState: self)
+
+       let videoLoadingService = await VideoLoadingService()
+
+       // Set up coordination - this connects VideoLoadingService to UnifiedState and OperationManager
+       await videoLoadingService.setupCoordination(unifiedState: self, operationManager: operationManager)
+
        while retryCount < maxRetries {
-           let videoLoadingService = VideoLoadingService()
+
+           // Pass unified correlation ID to VideoLoadingService for consistent tracking
+           await videoLoadingService.setUnifiedCorrelationId(unifiedCorrelationId)
+
+           // Initialize progress with unified correlation ID
+           let initialProgress = VideoLoadingProgress(phase: .initializing, correlationId: unifiedCorrelationId)
+           updateProgress(initialProgress)
 
            do {
                let result = try await videoLoadingService.loadVideo(from: item)
 
+               // CRITICAL FIX: Set video asset first, then update completion state
                await setSelectedVideo(result.asset, url: result.temporaryFileURL)
+
+               // Explicit completion progress update to ensure TrimmerView updates
+               let completionProgress = VideoLoadingProgress(phase: .completed, correlationId: unifiedCorrelationId)
+               updateProgress(completionProgress)
+
                updateFlowState(.trimming)
                updateTab(.trimming)
 
@@ -212,22 +266,24 @@ public class AddMoveUnifiedState: ObservableObject {
    }
 
    func reset() {
-       currentTab = .ready
-       flowState = .loading
-       selectedVideo = nil
-       originalVideoURL = nil
-       trimmedAsset = nil
-       videoThumbnail = nil
-       moveName = ""
-       moveDescription = ""
-       moveCategory = ""
-       tags = []
-       trimStartTime = 0.0
-       trimEndTime = 0.0
-       loadingProgress = VideoLoadingProgress(phase: .idle, correlationId: "")
-       processingProgress = 0.0
-       isProcessing = false
-       errorMessage = nil
+       Task { @MainActor in
+           self.currentTab = .ready
+           self.flowState = .loading
+           self.selectedVideo = nil
+           self.originalVideoURL = nil
+           self.trimmedAsset = nil
+           self.videoThumbnail = nil
+           self.moveName = ""
+           self.moveDescription = ""
+           self.moveCategory = ""
+           self.tags = []
+           self.trimStartTime = 0.0
+           self.trimEndTime = 0.0
+           self.loadingProgress = VideoLoadingProgress(phase: .idle, correlationId: "")
+           self.processingProgress = 0.0
+           self.isProcessing = false
+           self.errorMessage = nil
+       }
        Logger.addMove.info("State reset to initial values", emoji: "🔄")
    }
 }
@@ -251,12 +307,23 @@ extension AddMoveUnifiedState {
 
    /// Current video duration
    var currentVideoDuration: TimeInterval {
-       return selectedVideo?.duration.seconds ?? 0.0
+       get async {
+           guard let asset = selectedVideo else { return 0.0 }
+           do {
+               let duration = try await asset.load(.duration)
+               return duration.seconds
+           } catch {
+               Logger.addMove.error("Failed to load video duration: \(error.localizedDescription)", emoji: "❌")
+               return 0.0
+           }
+       }
    }
 
    /// Current video duration in seconds (compatibility)
    var currentVideoDurationSeconds: Double {
-       return currentVideoDuration
+       get async {
+           return await currentVideoDuration
+       }
    }
 
    /// Current video asset (compatibility)

@@ -144,7 +144,3 @@ xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=i
 # Build with specific simulator (useful when multiple simulators available)
 xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,id=86FFC075-5BA3-4125-9534-C9F8B525E72A' build
 ```
-
-## Task Master AI Instructions
-**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
-@./.taskmaster/CLAUDE.md

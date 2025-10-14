@@ -102,25 +102,39 @@ public enum ProcessingPhase {
 public typealias UnifiedProgress = Double
 
 // MARK: - Video Loading Progress Struct
-/// Detailed video loading progress with phase and correlation tracking
+/// Enhanced video loading progress with detailed phase tracking, timing, and metadata
 public struct VideoLoadingProgress {
     public let phase: LoadingPhase
     public let progress: Double
     public let correlationId: String
     public let timestamp: Date
 
-    public init(phase: LoadingPhase, correlationId: String) {
+    // Enhanced tracking properties
+    public let startTime: Date
+    public let estimatedTimeRemaining: TimeInterval?
+    public let currentPhaseStartTime: Date
+    public let metadata: [String: Any]
+
+    public init(phase: LoadingPhase, correlationId: String, startTime: Date = Date(), metadata: [String: Any] = [:]) {
         self.phase = phase
         self.progress = phase.defaultProgress
         self.correlationId = correlationId
         self.timestamp = Date()
+        self.startTime = startTime
+        self.estimatedTimeRemaining = nil
+        self.currentPhaseStartTime = Date()
+        self.metadata = metadata
     }
 
-    public init(phase: LoadingPhase, progress: Double, correlationId: String) {
+    public init(phase: LoadingPhase, progress: Double, correlationId: String, startTime: Date = Date(), estimatedTimeRemaining: TimeInterval? = nil, metadata: [String: Any] = [:]) {
         self.phase = phase
         self.progress = max(0.0, min(1.0, progress))
         self.correlationId = correlationId
         self.timestamp = Date()
+        self.startTime = startTime
+        self.estimatedTimeRemaining = estimatedTimeRemaining
+        self.currentPhaseStartTime = Date()
+        self.metadata = metadata
     }
 
     /// Progress percentage (0-100)
@@ -135,12 +149,21 @@ public struct VideoLoadingProgress {
 
     /// Download speed for compatibility with existing code
     public var formattedDownloadSpeed: String? {
-        return nil
+        return metadata["downloadSpeed"] as? String
     }
 
     /// Progress message based on phase
     public var message: String {
         return phase.displayName
+    }
+
+    /// Enhanced progress message with additional context
+    public var detailedMessage: String {
+        let baseMessage = phase.displayName
+        if let timeRemaining = estimatedTimeRemaining, timeRemaining > 0 {
+            return "\(baseMessage) • \(String(format: "%.0f", timeRemaining))s remaining"
+        }
+        return baseMessage
     }
 
     /// Check if progress is complete
@@ -151,6 +174,66 @@ public struct VideoLoadingProgress {
     /// Check if progress has started
     public var hasStarted: Bool {
         return progress > 0.0
+    }
+
+    /// Time elapsed since start
+    public var timeElapsed: TimeInterval {
+        return timestamp.timeIntervalSince(startTime)
+    }
+
+    /// Time spent in current phase
+    public var timeInCurrentPhase: TimeInterval {
+        return timestamp.timeIntervalSince(currentPhaseStartTime)
+    }
+
+    /// Average speed (progress per second)
+    public var averageSpeed: Double {
+        let elapsed = timeElapsed
+        return elapsed > 0 ? progress / elapsed : 0.0
+    }
+
+    /// Check if loading is taking longer than expected
+    public var isSlowLoading: Bool {
+        return timeElapsed > 30.0 // Consider slow after 30 seconds
+    }
+
+    /// Create progress with updated phase
+    public func withPhase(_ newPhase: LoadingPhase) -> VideoLoadingProgress {
+        return VideoLoadingProgress(
+            phase: newPhase,
+            progress: newPhase.defaultProgress,
+            correlationId: correlationId,
+            startTime: startTime,
+            estimatedTimeRemaining: estimatedTimeRemaining,
+            metadata: metadata
+        )
+    }
+
+    /// Create progress with updated progress value
+    public func withProgress(_ newProgress: Double) -> VideoLoadingProgress {
+        return VideoLoadingProgress(
+            phase: phase,
+            progress: newProgress,
+            correlationId: correlationId,
+            startTime: startTime,
+            estimatedTimeRemaining: estimatedTimeRemaining,
+            metadata: metadata
+        )
+    }
+
+    /// Create progress with new metadata
+    public func withMetadata(_ newMetadata: [String: Any]) -> VideoLoadingProgress {
+        var updatedMetadata = metadata
+        updatedMetadata.merge(newMetadata) { (_, new) in new }
+
+        return VideoLoadingProgress(
+            phase: phase,
+            progress: progress,
+            correlationId: correlationId,
+            startTime: startTime,
+            estimatedTimeRemaining: estimatedTimeRemaining,
+            metadata: updatedMetadata
+        )
     }
 }
 
@@ -212,7 +295,7 @@ public struct SimpleProgress: Equatable {
 
 // MARK: - Loading Phase Extension
 extension VideoLoadingProgress {
-    /// Simple progress phase enumeration for tracking operation states
+    /// Enhanced progress phase enumeration for tracking operation states
     public enum LoadingPhase: Equatable {
         case idle
         case initializing
@@ -229,6 +312,8 @@ extension VideoLoadingProgress {
         case loading
         case processing
         case saving
+        case retrying(Int, Double) // (attempt, delay seconds)
+        case timeout(TimeInterval) // (timeout duration)
         case completed
         case complete
         case error(String)
@@ -250,6 +335,8 @@ extension VideoLoadingProgress {
             case .loading: return "Loading"
             case .processing: return "Processing"
             case .saving: return "Saving"
+            case .retrying(let attempt, let delay): return "Retrying (attempt \(attempt), retrying in \(String(format: "%.1f", delay))s)"
+            case .timeout(let duration): return "Loading timed out after \(String(format: "%.1f", duration))s"
             case .completed: return "Completed"
             case .complete: return "Complete"
             case .error(let message): return "Error: \(message)"
@@ -274,6 +361,8 @@ extension VideoLoadingProgress {
             case .loading: return 0.25
             case .processing: return 0.5
             case .saving: return 0.75
+            case .retrying: return 0.3 // Retry maintains partial progress
+            case .timeout: return 0.0 // Timeout resets progress
             case .completed: return 1.0
             case .complete: return 1.0
             case .error: return 0.0
@@ -282,7 +371,7 @@ extension VideoLoadingProgress {
 
         public var isActive: Bool {
             switch self {
-            case .idle, .complete, .completed, .error:
+            case .idle, .complete, .completed, .error, .timeout:
                 return false
             default:
                 return true
@@ -291,9 +380,42 @@ extension VideoLoadingProgress {
 
         public var isError: Bool {
             switch self {
-            case .error: return true
+            case .error(_):
+                return true
+            case .timeout(_):
+                return true
+            default:
+                return false
+            }
+        }
+
+        /// Check if this phase represents a retry state
+        public var isRetry: Bool {
+            switch self {
+            case .retrying: return true
             default: return false
             }
+        }
+
+        /// Check if this phase requires user intervention
+        public var requiresUserAction: Bool {
+            switch self {
+            case .error(_), .timeout(_):
+                return true
+            default:
+                return false
+            }
+        }
+
+        /// Check if phase represents recoverable error (can retry)
+        public var isRecoverable: Bool {
+            if case .error(_) = self {
+                return true
+            }
+            if case .timeout(_) = self {
+                return true
+            }
+            return false
         }
     }
 
@@ -311,6 +433,16 @@ extension VideoLoadingProgress {
     /// Create error phase
     public static func error(_ message: String) -> LoadingPhase {
         return .error(message)
+    }
+
+    /// Create retry phase
+    public static func retry(_ attempt: Int, delay: Double) -> LoadingPhase {
+        return .retrying(attempt, delay)
+    }
+
+    /// Create timeout phase
+    public static func timeout(_ duration: TimeInterval) -> LoadingPhase {
+        return .timeout(duration)
     }
 }
 

@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import OSLog
 
 // MARK: - NameMoveView
 /// Clean move naming interface for finalizing the video move
@@ -8,6 +9,7 @@ struct NameMoveView: View {
     @State private var moveName: String = ""
     @State private var isSaving = false
     @State private var estimatedFileSize: String = "Calculating..."
+    @State private var videoDuration: String = "0:00"
     @StateObject private var moveSaver: MoveSaver
 
     private let logger = Logger(
@@ -90,7 +92,7 @@ struct NameMoveView: View {
 
             // Video Info
             HStack {
-                Text("Duration: \(formatTime(unifiedState.currentVideoDurationSeconds))")
+                Text("Duration: \(videoDuration)")
                     .font(.caption)
                     .foregroundColor(.textSecondary)
 
@@ -281,6 +283,7 @@ struct NameMoveView: View {
     private func calculateEstimatedFileSize() {
         guard let asset = unifiedState.currentVideoAsset else {
             estimatedFileSize = "Unknown"
+            videoDuration = "0:00"
             return
         }
 
@@ -288,6 +291,11 @@ struct NameMoveView: View {
             do {
                 let duration = try await asset.load(.duration)
                 let durationInSeconds = duration.seconds
+
+                // Update video duration
+                await MainActor.run {
+                    videoDuration = formatTime(durationInSeconds)
+                }
 
                 // Base bitrate estimation (rough estimate for H.264 video)
                 let baseBitrateMbps: Double = 5.0 // 5 Mbps for standard quality
@@ -315,6 +323,7 @@ struct NameMoveView: View {
             } catch {
                 await MainActor.run {
                     estimatedFileSize = "Estimate unavailable"
+                    videoDuration = "0:00"
                     logger.warning("⚠️ File size calculation failed: \(error.localizedDescription)")
                 }
             }

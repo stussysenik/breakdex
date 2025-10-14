@@ -162,6 +162,10 @@ extension VideoLoadingProgress {
             return .initializing(progress: self.progress, message: self.message)
         case .completed, .complete:
             return .ready(asset: AVURLAsset(url: URL(fileURLWithPath: "/dev/null")), url: URL(fileURLWithPath: "/dev/null"))
+        case .retrying(let attempt, let delay):
+            return .initializing(progress: self.progress, message: "Retrying (attempt \(attempt), retrying in \(String(format: "%.1f", delay))s)")
+        case .timeout(let duration):
+            return .error(error: .timeout(duration), retryAvailable: true)
         case .error(let message):
             return .error(error: .validationFailed(message), retryAvailable: true)
         }
