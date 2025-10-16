@@ -14,7 +14,7 @@
 - Core Data persistence with Photos sync
 - iOS 18.0 native SwiftUI interface
 
-**Architecture Status:** ✅ **Clean Architecture Complete (October 2025)** - Successfully transformed from complex scattered structure to organized feature-based architecture.
+**Architecture Status:** ✅ **Clean Architecture Optimized (October 2025)** - Successfully refined to 63 Swift files with streamlined video trimming and enhanced service integration.
 
 ---
 
@@ -58,13 +58,12 @@ BreakingFlashcards/
 │   │   ├── AddMove/                    # Video import workflow
 │   │   │   ├── Views/
 │   │   │   │   ├── AddMoveView.swift   # Main add move container
-│   │   │   │   ├── VideoPickerView.swift # Photos picker interface
-│   │   │   │   ├── VideoTrimView.swift # Video trimming interface
+│   │   │   │   ├── SelectClip.swift    # Enhanced video selection interface
 │   │   │   │   └── NameMoveView.swift  # Move naming interface
 │   │   │   └── Services/
-│   │   │       ├── VideoLoader.swift   # Video loading service
-│   │   │       ├── VideoProcessor.swift # Video processing service
-│   │   │       └── MoveSaver.swift     # Move saving service
+│   │   │       ├── MovePersistenceService.swift # Move CRUD operations
+│   │   │       ├── MoveSaver.swift     # Enhanced move saving service
+│   │   │       └── VideoProcessor.swift # Video processing service
 │   │   ├── Arsenal/                    # Move/combo management
 │   │   │   ├── Views/
 │   │   │   │   ├── BreakingArsenalView.swift # Arsenal tab container
@@ -87,54 +86,46 @@ BreakingFlashcards/
 │   │   └── Shared/                     # Shared components across features
 │   │       ├── UI/
 │   │       │   ├── Components/
-│   │       │   │   ├── Button.swift    # Reusable button component
+│   │       │   │   ├── SharedButton.swift # Enhanced reusable button component
 │   │       │   │   ├── LoadingView.swift # Loading states
 │   │       │   │   ├── StatePillView.swift # State indicator pills
 │   │       │   │   └── TimelineNodeView.swift # Timeline node components
 │   │       │   └── Styles/
-│   │       │       ├── Colors.swift    # Color system
+│   │       │       ├── DesignSystem.swift # Complete design system with colors, fonts, spacing
 │   │       │       └── Typography.swift # Typography system
 │   │       ├── Video/
 │   │       │   ├── VideoPlayer.swift   # Core video player
-│   │       │   ├── VideoPlayerView.swift # SwiftUI wrapper
-│   │       │   ├── VideoTrimmer.swift  # Video trimming logic
-│   │       │   └── VideoExporter.swift # Video export functionality
+│   │       │   ├── AVPlayerViewRepresentable.swift # AVFoundation SwiftUI wrapper
+│   │       │   ├── MinimalTrimmerView.swift # Streamlined video trimming interface
+│   │       │   ├── VideoLoadingState.swift # Video loading state management
+│   │       │   └── SimpleLoading.swift # Simple loading component
 │   │       ├── Utils/
-│   │       │   ├── Color+Extensions.swift # Color utilities
-│   │       │   ├── Font+Extensions.swift # Font utilities
 │   │       │   ├── AVAsset+Extensions.swift # AVAsset extensions
 │   │       │   ├── Combine+Extensions.swift # Combine utilities
-│   │       │   ├── DesignSystem.swift # Design system
+│   │       │   ├── Font+Extensions.swift # Font utilities
+│   │       │   ├── ButtonStyles.swift # Enhanced button styling
 │   │       │   ├── TimecodeFormatter.swift # Time formatting
-│   │       │   ├── ButtonStyles.swift # Button styling
-│   │       │   ├── PerformanceOptimizer.swift # Performance tools
-│   │       │   ├── MemoryHelper.swift # Memory utilities
+│   │       │   ├── PerformanceOptimizer.swift # Performance optimization tools
+│   │       │   ├── MemoryHelper.swift # Memory management utilities
 │   │       │   └── HapticFeedback.swift # Haptic feedback utilities
 │   │       ├── Models/
 │   │       │   ├── PhotosPickerItem.swift # Photos picker model
-│   │       │   ├── VideoImportTypes.swift # Import type definitions
-│   │       │   ├── LoggerTypes.swift # Logging system types
 │   │       │   ├── ProgressTypes.swift # Progress tracking types
+│   │       │   ├── LoggerTypes.swift # Logging system types
 │   │       │   ├── TabState.swift # Tab state management
 │   │       │   ├── UnifiedState.swift # Unified state management
-│   │       │   └── VideoProcessingTypes.swift # Video processing types
+│   │       │   └── TrimModification.swift # Video trim modification model
 │   │       ├── Services/
-│   │       │   ├── MovePersistenceService.swift # Move CRUD operations
+│   │       │   ├── AppContainer.swift # Dependency injection container
+│   │       │   ├── PersistenceBridge.swift # Persistence integration bridge
 │   │       │   ├── PhotoKitService.swift # PhotoKit integration
 │   │       │   ├── PhotosAssetLoader.swift # Asset loading
-│   │       │   ├── PhotosPersistenceService.swift # Photos persistence
-│   │       │   ├── ResilientVideoLoader.swift # Resilient video loading
-│   │       │   ├── ResilientVideoLoaderIntegration.swift # Integration layer
-│   │       │   ├── VideoLoadingService.swift # Video loading
-│   │       │   ├── VideoLoadingServiceResilient.swift # Enhanced video loading
-│   │       │   ├── VideoProgressMonitoringService.swift # Progress monitoring
-│   │       │   ├── UnifiedPlayerManager.swift # Unified video player management
-│   │       │   ├── UnifiedProgressEngine.swift # Unified progress tracking
-│   │       │   ├── PersistenceBridge.swift # Persistence integration bridge
-│   │       │   ├── VideoProcessingBridge.swift # Video processing bridge
 │   │       │   ├── TimecodeCalculationService.swift # Timecode calculations
-│   │       │   ├── VideoSaver.swift # Enhanced video saving
-│   │       │   └── AppContainer.swift # Dependency injection container
+│   │       │   ├── VideoInitializationCoordinator.swift # Video initialization coordination
+│   │       │   ├── VideoLoadingOperationManager.swift # Video loading operation management
+│   │       │   ├── VideoLoadingService.swift # Video loading service
+│   │       │   ├── VideoProgressMonitoringService.swift # Progress monitoring
+│   │       │   └── VideoSaver.swift # Enhanced video saving
 │   │       ├── ViewModels/
 │   │       │   └── SaveProgressViewModel.swift # Save progress UI
 │   │       └── FeatureFlag.swift        # Feature flag management
@@ -146,7 +137,7 @@ BreakingFlashcards/
 └── DOCUMENTATION.md                  # This documentation file
 ```
 
-**Architecture Achievement:** From 100+ scattered files → 73+ organized files under clean feature-based structure with advanced unified services
+**Architecture Achievement:** From 100+ scattered files → 63 optimized files with streamlined video trimming and enhanced service coordination
 
 ---
 
@@ -164,10 +155,10 @@ BreakingFlashcards/
 
 ### Feature Architecture
 
-#### AddMove Feature (Clean Implementation ✅)
-- **Views**: VideoPickerView, VideoTrimView, NameMoveView, AddMoveView
-- **Services**: VideoLoader, VideoProcessor, MoveSaver
-- **Key Achievement**: 84% code reduction from 7k LOC to ~1.1k LOC
+#### AddMove Feature (Streamlined Implementation ✅)
+- **Views**: AddMoveView, SelectClip (enhanced video selection), NameMoveView
+- **Services**: MovePersistenceService, VideoProcessor, MoveSaver
+- **Key Achievement**: Optimized video selection workflow with enhanced loading states and error handling
 
 #### Arsenal Feature
 - **Views**: BreakingArsenalView, MoveListView, MoveDetailView, ComboListView
@@ -181,92 +172,82 @@ BreakingFlashcards/
 - **Views**: ReviewView for learning interface
 - **ViewModels**: ReviewViewModel for spaced repetition logic
 
-#### Shared Components (Reusable ✅)
-- **Video Components**: VideoPlayer, VideoPlayerView, VideoTrimmer, VideoExporter
-- **UI Components**: Button, LoadingView, Colors, Typography
-- **Services**: Photos, Video Loading, Persistence services
-- **Utils**: Extensions, Design System, Performance tools
+#### Shared Components (Streamlined ✅)
+- **Video Components**: VideoPlayer, AVPlayerViewRepresentable, MinimalTrimmerView, VideoLoadingState, SimpleLoading
+- **UI Components**: SharedButton, LoadingView, StatePillView, TimelineNodeView, DesignSystem (integrated colors/fonts)
+- **Services**: PhotoKitService, VideoLoadingService, VideoInitializationCoordinator, AppContainer
+- **Utils**: Performance-optimized extensions and utilities
 
 ### Key Workflows
 
-#### Add Move Flow (Simplified & Clean)
-1. **Video Selection** - Photos picker interface
-2. **Video Trimming** - Frame-accurate trimming with shared VideoTrimmer
+#### Add Move Flow (Streamlined & Enhanced)
+1. **Video Selection** - Enhanced SelectClip interface with loading states and error handling
+2. **Video Trimming** - Streamlined MinimalTrimmerView with frame-accurate trimming and rotation
 3. **Move Naming** - Clean naming interface
-4. **Save Processing** - Background processing with progress tracking
+4. **Save Processing** - Background processing with progress tracking via VideoInitializationCoordinator
 
 #### Review System
 - **Learning States**: NEW → LEARNING → MASTERY
 - **Spaced Repetition**: Performance-based scheduling
 - **Video Flashcards**: Full-motion learning aids
 
-#### Video Processing (Shared Components ✅)
+#### Video Processing (Streamlined Components ✅)
 - **VideoPlayer**: Unified video playback across all features
-- **VideoTrimmer**: Reusable trimming with rotation support
-- **VideoExporter**: High-quality export with multiple presets
-- **iCloud Support**: Automatic download and processing of iCloud assets
+- **MinimalTrimmerView**: Streamlined trimming interface with rotation support and optimized performance
+- **VideoLoadingState**: Enhanced loading state management
+- **SimpleLoading**: Reusable loading component with error handling
+- **iCloud Support**: Automatic download and processing via VideoInitializationCoordinator
 
 ---
 
-## 🎯 Key Services (Advanced Unified Architecture)
+## 🎯 Key Services (Streamlined Architecture)
 
-### Unified Management Services
-- **UnifiedPlayerManager**: Centralized video player management across all features
-- **UnifiedProgressEngine**: Unified progress tracking for all async operations
+### Core Services
 - **AppContainer**: Dependency injection container for service management
-
-### Shared Video Services
-- **VideoLoader**: Unified video loading from Photos with iCloud support
-- **VideoProcessor**: Video composition, trimming, and export operations
-- **VideoPlayer**: Consistent video playback across all features
-- **VideoTrimmer**: Frame-accurate trimming with rotation support
-- **VideoExporter**: High-quality export with multiple quality presets
-- **VideoSaver**: Enhanced video saving with resilience
-- **VideoLoadingServiceResilient**: Advanced resilient video loading
-- **ResilientVideoLoaderIntegration**: Integration layer for resilient loading
-
-### Bridge Services
 - **PersistenceBridge**: Integration between persistence layers
-- **VideoProcessingBridge**: Bridge for video processing operations
-- **TimecodeCalculationService**: Precise timecode calculations
-
-### Photos Services
 - **PhotoKitService**: PhotoKit integration and asset management
-- **PhotosAssetLoader**: Resilient asset loading from iCloud
-- **PhotosPersistenceService**: Photos library synchronization
 
-### Data Services
+### Video Services (Streamlined)
+- **VideoLoadingService**: Background video loading with progress monitoring
+- **VideoInitializationCoordinator**: Enhanced video initialization and coordination
+- **VideoLoadingOperationManager**: Advanced video loading operation management
+- **VideoProgressMonitoringService**: Progress tracking for all video operations
+- **VideoSaver**: Enhanced video saving with resilience
+
+### Support Services
+- **PhotosAssetLoader**: Asset loading from Photos library
+- **TimecodeCalculationService**: Precise timecode calculations
 - **MovePersistenceService**: Move CRUD operations with Core Data
-- **VideoLoadingService**: Background video loading with progress
-- **VideoProgressMonitoringService**: Progress tracking for operations
 
-### UI Services
-- **Colors & Typography**: Consistent design system across features
-- **Button & LoadingView**: Reusable UI components
-- **DesignSystem**: Centralized styling and theming
-- **StatePillView & TimelineNodeView**: Advanced UI components
+### UI Components & Design System
+- **DesignSystem**: Complete design system with integrated colors, fonts, spacing, and styling
+- **SharedButton**: Enhanced reusable button component
+- **LoadingView**: Comprehensive loading states with error handling
+- **StatePillView**: State indicator pills for learning progression
+- **TimelineNodeView**: Timeline node components for combo creation
 
 ---
 
-## 🔍 State Management (Advanced Unified Architecture)
+## 🔍 State Management (Streamlined Architecture)
 
 ### Unified State Management
 - **UnifiedState**: Centralized state management across all features
 - **TabState**: Unified tab navigation state
 - **ProgressTypes**: Standardized progress tracking types
 - **LoggerTypes**: Comprehensive logging system types
+- **TrimModification**: Video trim modification state management
 
 ### Feature-Based State Management
-- **AddMove**: Clean state flow through Views → Services → Core Data
+- **AddMove**: Enhanced state flow through SelectClip → MinimalTrimmerView → NameMoveView
 - **Arsenal**: ViewModel-driven state with @Published properties
 - **Combo**: Centralized combo creation and management state
 - **Review**: Learning state progression with spaced repetition
 
-### Shared State Components
-- **VideoPlayer State**: Unified player state across all features via UnifiedPlayerManager
-- **Progress Tracking**: Unified progress monitoring via UnifiedProgressEngine
-- **Error Handling**: Centralized error states and user feedback
-- **Performance Monitoring**: Advanced performance optimization with PerformanceOptimizer
+### Video State Management
+- **VideoLoadingState**: Enhanced video loading state with progress tracking
+- **SimpleLoading**: Reusable loading component with error states
+- **VideoInitializationCoordinator**: Streamlined video initialization state
+- **Performance Monitoring**: Optimized performance with PerformanceOptimizer
 
 ### Learning States
 - **NEW**: Blue state - not yet reviewed
@@ -312,6 +293,10 @@ xcodebuild clean -project breakdex.xcodeproj
 - **Reusability**: Shared components reduce code duplication
 - **Testability**: Clean separation enables focused testing
 - **Onboarding**: New developers can understand structure quickly
+
+---
+
+## 🛠 Development Guidelines (Clean Architecture)
 
 ---
 
@@ -408,14 +393,14 @@ fi
 
 ---
 
-## 📊 Project Statistics (Clean Architecture)
+## 📊 Project Statistics (Streamlined Architecture)
 
-- **Total Swift Files**: 73+ (organized, down from 100+ scattered)
+- **Total Swift Files**: 63 (optimized, down from 100+ scattered)
 - **Main Architecture Components**: Features-based (AddMove, Arsenal, Combo, Review, Shared)
 - **Core Data Entities**: 4 (Move, Combo, ComboMove, Review)
-- **Shared Components**: Comprehensive (Video, UI, Utils, Services, Models)
-- **Code Reduction**: 84% reduction in AddMove feature (7k LOC → 1.1k LOC)
-- **Architecture Achievement**: Complete transformation from scattered to organized with advanced unified service architecture
+- **Shared Components**: Streamlined (Video, UI, Utils, Services, Models)
+- **Key Improvements**: Streamlined video trimming workflow, enhanced loading states, integrated design system
+- **Architecture Achievement**: Optimized from scattered to streamlined with enhanced service coordination
 - **Supported iOS Version**: iOS 18.0+
 - **Primary Frameworks**: SwiftUI, Core Data, Photos, AVFoundation
 
@@ -423,14 +408,14 @@ fi
 
 ## 🔄 Version History
 
-### October 2025 - Advanced Unified Architecture Complete ✅
-- **Week 1**: Clean AddMove Feature - Replaced 7k LOC monolith with ~1.1k LOC (84% reduction)
-- **Week 2**: Shared Video Components - Created reusable Video, UI, and Utility components
-- **Week 3**: Advanced Service Integration - Unified Player Manager, Progress Engine, and Bridge Services
-- **Week 4**: Enhanced Architecture - Resilient loading, performance optimization, and advanced state management
-- **Final State**: 73+ Swift files with advanced unified architecture
-- **Key Result**: Production-ready, maintainable architecture with sophisticated service integration
-- **Latest Milestone**: Functional build achieved with all advanced components integrated
+### October 2025 - Streamlined Architecture Complete ✅
+- **Week 1**: Video Selection Enhancement - Replaced complex picker with streamlined SelectClip interface
+- **Week 2**: Trimming Optimization - Implemented MinimalTrimmerView replacing complex trimming UI
+- **Week 3**: Service Coordination - Enhanced VideoInitializationCoordinator and VideoLoadingOperationManager
+- **Week 4**: Design System Integration - Consolidated colors, fonts, and styling into unified DesignSystem
+- **Final State**: 63 optimized Swift files with streamlined architecture
+- **Key Result**: Enhanced user experience with simplified video workflow and robust error handling
+- **Latest Milestone**: Production-ready architecture with optimized video processing and enhanced service coordination
 
 ### September 2025
 - Critical video playback fixes (flicker, deadlock resolution)
@@ -445,6 +430,6 @@ fi
 
 ---
 
-**Architecture Status: ✅ ADVANCED UNIFIED ARCHITECTURE COMPLETE**
+**Architecture Status: ✅ STREAMLINED ARCHITECTURE COMPLETE**
 
-*This documentation now accurately reflects the current advanced unified architecture state of the codebase with 73+ organized Swift files, sophisticated service integration, and production-ready components. It serves as a comprehensive reference for ongoing development and maintenance.*
+*This documentation now accurately reflects the current streamlined architecture state of the codebase with 63 optimized Swift files, enhanced video processing workflow, and integrated design system. It serves as a comprehensive reference for ongoing development and maintenance.*

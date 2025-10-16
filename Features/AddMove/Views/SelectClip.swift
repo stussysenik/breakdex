@@ -75,7 +75,7 @@ struct SelectClip: View {
                     tempSelection = nil
                     showPhotosPicker = true
                 }
-                .buttonStyle(SecondaryButtonStyle())
+                .buttonStyle(.appSecondary())
             }
             .padding(.bottom, 20),
             alignment: .bottom

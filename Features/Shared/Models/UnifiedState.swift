@@ -46,6 +46,8 @@ public class AddMoveUnifiedState: ObservableObject {
    // MARK: - Trimming Information
    @Published var trimStartTime: TimeInterval = 0.0
    @Published var trimEndTime: TimeInterval = 0.0
+   @Published var currentTrimModification: TrimModification?
+   @Published var videoRotation: VideoRotation = .degrees0
    var trimDuration: TimeInterval {
        return max(0.0, trimEndTime - trimStartTime)
    }
@@ -186,6 +188,68 @@ public class AddMoveUnifiedState: ObservableObject {
 
        Logger.addMove.info("Trim processed successfully", emoji: "✅")
        return originalAsset
+   }
+
+   // MARK: - Trim Modification Management
+
+   /// Update current trim modification with rotation persistence
+   func updateTrimModification(_ modification: TrimModification) async {
+       await MainActor.run {
+           self.currentTrimModification = modification
+           self.trimStartTime = modification.startTimeSeconds
+           self.trimEndTime = modification.endTimeSeconds
+           self.videoRotation = modification.rotation
+       }
+       Logger.addMove.info("Trim modification updated: \(modification.startTimeSeconds)s - \(modification.endTimeSeconds)s, rotation: \(modification.rotation.description)", emoji: "✂️")
+   }
+
+   /// Apply trim modification with rotation
+   func applyTrimModification() async throws -> AVAsset {
+       guard let modification = currentTrimModification else {
+           throw NSError(domain: "VideoTrimming", code: -2, userInfo: [NSLocalizedDescriptionKey: "No trim modification available"])
+       }
+
+       Logger.addMove.info("Applying trim modification: \(modification.startTimeSeconds)s - \(modification.endTimeSeconds)s, rotation: \(modification.rotation.description)", emoji: "✂️")
+
+       // Create trimmed asset with rotation
+       let trimmedAsset = try await processTrim(
+           from: modification.startTimeCMTime,
+           to: modification.endTimeCMTime
+       )
+
+       // Update state with applied modification
+       await MainActor.run {
+           self.currentTrimModification = modification.applied()
+           self.videoRotation = modification.rotation
+       }
+
+       return trimmedAsset
+   }
+
+   // MARK: - Rotation Management
+
+   /// Update video rotation
+   func updateVideoRotation(_ rotation: VideoRotation) async {
+       await MainActor.run {
+           self.videoRotation = rotation
+
+           // Update existing trim modification to include rotation
+           if var modification = self.currentTrimModification {
+               modification = modification.withRotation(rotation)
+               self.currentTrimModification = modification
+           }
+       }
+       Logger.addMove.info("Video rotation updated: \(rotation.description)", emoji: "🔄")
+   }
+
+   /// Reset rotation to default
+   func resetVideoRotation() async {
+       await updateVideoRotation(.degrees0)
+   }
+
+   /// Get current rotation transformation
+   func getCurrentRotationTransform() -> CGAffineTransform {
+       return CGAffineTransform(rotationAngle: videoRotation.radians)
    }
 
    func loadVideo(from item: PhotosUI.PhotosPickerItem) async {

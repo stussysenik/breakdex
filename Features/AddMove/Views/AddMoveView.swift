@@ -31,8 +31,8 @@ struct AddMoveView: View {
                 )
 
             case .trimming:
-                // Video trimming - show TrimmerView
-                TrimmerView(unifiedState: unifiedState)
+                // Video trimming - show MinimalTrimmerView
+                MinimalTrimmerView(unifiedState: unifiedState)
 
             case .naming:
                 // Move naming - show NameMoveView

@@ -18,10 +18,10 @@ extension Color {
     public static let secondary = Color.purple // Secondary brand color
 
     // MARK: - Semantic Colors
-    static let success = Color.green  // Success state color - green
-    static let warning = Color.orange  // Warning state color - orange
-    static let error = Color.red  // Error state color - red
-    static let info = Color.blue  // Information state color - blue
+    public static let success = Color.green  // Success state color - green
+    public static let warning = Color.orange  // Warning state color - orange
+    public static let error = Color.red  // Error state color - red
+    public static let info = Color.blue  // Information state color - blue
 
     // MARK: - Background Colors
     static let backgroundPrimary = Color(.systemBackground)  // Primary background - adapts to light/dark mode
@@ -141,6 +141,42 @@ extension Font {
     )
     static let systemBody = Font.system(size: 16, design: .monospaced)
     static let systemCaption = Font.system(size: 12, design: .monospaced)
+}
+
+// MARK: - SPACING SYSTEM (8-Point Grid)
+struct Spacing {
+    // 8-point grid system for consistent spacing
+    static let xs: CGFloat = 4      // 0.5x grid unit
+    static let sm: CGFloat = 8      // 1x grid unit
+    static let md: CGFloat = 16     // 2x grid unit
+    static let lg: CGFloat = 24     // 3x grid unit
+    static let xl: CGFloat = 32     // 4x grid unit
+    static let xxl: CGFloat = 48    // 6x grid unit
+    static let xxxl: CGFloat = 64   // 8x grid unit
+
+    // Component-specific spacing
+    static let componentPadding: CGFloat = md
+    static let sectionSpacing: CGFloat = lg
+    static let elementSpacing: CGFloat = sm
+    static let tightSpacing: CGFloat = xs
+}
+
+// MARK: - LAYOUT CONSTANTS
+struct Layout {
+    // Corner radius
+    static let smallRadius: CGFloat = 8
+    static let mediumRadius: CGFloat = 12
+    static let largeRadius: CGFloat = 16
+    static let xlRadius: CGFloat = 24
+
+    // Heights
+    static let buttonHeight: CGFloat = 50
+    static let smallButtonHeight: CGFloat = 40
+    static let timelineHeight: CGFloat = 50 // Increased from 60pt to 50pt for better touch targets
+    static let handleWidth: CGFloat = 20
+
+    // Aspect ratios
+    static let videoAspectRatio: CGFloat = 16/9
 }
 
 // MARK: - BUTTON STYLES

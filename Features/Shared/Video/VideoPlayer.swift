@@ -495,7 +495,7 @@ public class SharedVideoPlayer: ObservableObject {
     private func safelyRegisterNotificationObserver(
         name: NSNotification.Name,
         object: Any?,
-        queue: OperationQueue? = .main,
+        queue: Foundation.OperationQueue? = Foundation.OperationQueue.main,
         handler: @escaping (Notification) -> Void
     ) {
         let observer = NotificationCenter.default.addObserver(
