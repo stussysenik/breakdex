@@ -1,5 +1,7 @@
 import SwiftUI
 
+// Test2 - Loading interface prototype
+
 struct TrimmingView: View {
     @State private var trimRange: ClosedRange<CGFloat> = 0.2...0.8 // Example trim range (adjust as needed)
     

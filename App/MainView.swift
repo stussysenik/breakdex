@@ -6,7 +6,6 @@ import SwiftUI
 struct MainView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var selectedTab = 0
-    @State private var unifiedState = AddMoveUnifiedState()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -19,15 +18,7 @@ struct MainView: View {
                 .tag(0)
 
             // Add Move Tab
-            AddMoveView(
-                selectedTab: Binding(
-                    get: { unifiedState.currentTab },
-                    set: { newTab in
-                        unifiedState.updateTab(newTab)
-                    }
-                ),
-                unifiedState: unifiedState
-            )
+            AddMoveView(selectedTab: .constant(.add))
             .tabItem {
                 Image(systemName: "plus.app")
                 Text("Add Move")
@@ -58,7 +49,6 @@ struct MainView: View {
     // Create a preview that bypasses Core Data initialization issues
     struct PreviewWrapper: View {
         @State private var selectedTab = 0
-        @State private var unifiedState = AddMoveUnifiedState()
 
         var body: some View {
             TabView(selection: $selectedTab) {
@@ -71,15 +61,7 @@ struct MainView: View {
                     .tag(0)
 
                 // Add Move Tab - using AddMoveView
-                AddMoveView(
-                    selectedTab: Binding(
-                        get: { unifiedState.currentTab },
-                        set: { newTab in
-                            unifiedState.updateTab(newTab)
-                        }
-                    ),
-                    unifiedState: unifiedState
-                )
+                AddMoveView(selectedTab: .constant(.add))
                 .tabItem {
                     Image(systemName: "plus.app")
                     Text("Add Move")

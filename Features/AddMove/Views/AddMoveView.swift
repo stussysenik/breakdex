@@ -2,105 +2,158 @@ import SwiftUI
 import PhotosUI
 import Combine
 
+// MARK: - Add Move Step
+/// Simplified step enumeration for AddMove flow
+enum AddMoveStep {
+    case ready      // Initial ready state
+    case selecting  // Selecting video from library
+    case trimming   // Trimming video
+    case naming     // Naming the move
+    case saving     // Saving process
+    case complete   // Process complete
+}
+
 // AddMoveView.swift - Main coordinator for Add Move flow
+// Updated to use simplified AddMoveViewModel architecture
 
 // MARK: - Add Move View
 /// Main coordinator view for the Add Move feature
-/// Handles navigation between SelectClip, TrimmerView, and other steps
+/// Uses simplified AddMoveViewModel instead of complex UnifiedState
 struct AddMoveView: View {
     @Binding var selectedTab: TabSelection
-    @ObservedObject var unifiedState: AddMoveUnifiedState
-    @StateObject private var videoLoadingService = VideoLoadingService()
-    @State private var cancellables = Set<AnyCancellable>()
+    @StateObject private var viewModel = AddMoveViewModel()
+    @State private var currentStep: AddMoveStep = .ready
+    @State private var viewTransitionID = UUID().uuidString
 
     var body: some View {
+        let _ = Logger.addMove.debug("🔄 AddMoveView: Body recomputed - currentStep: \(currentStep)", emoji: "🔄")
+
         Group {
-            switch unifiedState.currentTab {
+            switch currentStep {
             case .ready:
                 // Initial ready state - show SelectClip
                 SelectClip(
                     selectedTab: $selectedTab,
-                    unifiedState: unifiedState
-                )
+                    viewModel: viewModel
+                ) { step in
+                    handleStepChange(step)
+                }
+                .onAppear {
+                    Logger.addMove.info("📱 AddMoveView: .ready case appeared", emoji: "📱")
+                }
 
-            case .add:
+            case .selecting:
                 // Video selection - show SelectClip
                 SelectClip(
                     selectedTab: $selectedTab,
-                    unifiedState: unifiedState
-                )
+                    viewModel: viewModel
+                ) { step in
+                    handleStepChange(step)
+                }
+                .onAppear {
+                    Logger.addMove.info("🎬 AddMoveView: .selecting case appeared", emoji: "🎬")
+                }
 
             case .trimming:
-                // Video trimming - show MinimalTrimmerView
-                MinimalTrimmerView(unifiedState: unifiedState)
+                // Video trimming - show MinimalTrimmerView (clean MVVM)
+                let _ = Logger.addMove.info("🎯 OPENSPEC FIX: AddMoveView: About to render MinimalTrimmerView - PlayerReady: \(viewModel.videoPlayer.isReady)", emoji: "🎯")
+                MinimalTrimmerView(viewModel: viewModel)
+                    .id("trimmer-\(viewTransitionID)") // Force view identity
+                    .onAppear {
+                        Logger.addMove.info("✅ OPENSPEC FIX: AddMoveView: .trimming case appeared - MinimalTrimmerView loaded successfully", emoji: "✅")
+                    }
+                    .onDisappear {
+                        Logger.addMove.info("❌ OPENSPEC FIX: AddMoveView: MinimalTrimmerView disappeared", emoji: "❌")
+                    }
 
             case .naming:
-                // Move naming - show NameMoveView
-                NameMoveView(unifiedState: unifiedState)
+                // Move naming - show NameMoveView (clean MVVM)
+                NameMoveView(viewModel: viewModel)
+                    .onAppear {
+                        Logger.addMove.info("📝 AddMoveView: .naming case appeared", emoji: "📝")
+                    }
 
             case .saving:
                 // Saving process - show loading view
-                SavingView(unifiedState: unifiedState)
+                SavingView(viewModel: viewModel) { step in
+                    handleStepChange(step)
+                }
+                .onAppear {
+                    Logger.addMove.info("💾 AddMoveView: .saving case appeared", emoji: "💾")
+                }
 
-            case .arsenal:
-                // Navigate back to arsenal
+            case .complete:
+                // Process complete - navigate back to arsenal
                 EmptyView() // Will be handled by parent
+                    .onAppear {
+                        Logger.addMove.info("🎉 AddMoveView: .complete case appeared", emoji: "🎉")
+                    }
             }
         }
+        .id(viewTransitionID)
         .onAppear {
-            setupVideoLoadingMonitoring()
+            setupInitialState()
         }
-        .onChange(of: unifiedState.flowState) { _, newState in
-            handleFlowStateChange(newState)
-        }
-        .onChange(of: unifiedState.hasError) { _, hasError in
-            if hasError {
-                handleError()
+          .onChange(of: viewModel.errorMessage) { _, errorMessage in
+            if let errorMessage = errorMessage {
+                handleError(errorMessage)
             }
+        }
+        .onChange(of: currentStep) { oldStep, newStep in
+            Logger.addMove.info("🚨 AddMoveView: currentStep changed from \(oldStep) to \(newStep)", emoji: "🚨")
+            Logger.addMove.debug("📊 AddMoveView: Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "📊")
+            if newStep == .trimming {
+                Logger.addMove.info("🎯 AddMoveView: CRITICAL - About to show MinimalTrimmerView", emoji: "🎯")
+            }
+        }
+        .onChange(of: viewTransitionID) { oldID, newID in
+            Logger.addMove.info("🔄 AddMoveView: viewTransitionID changed from \(oldID) to \(newID)", emoji: "🔄")
         }
     }
 
     // MARK: - Private Methods
 
-    private func setupVideoLoadingMonitoring() {
-        // Monitor video loading progress
-        videoLoadingService.progressPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { progress in
-                unifiedState.updateProgress(progress)
-            }
-            .store(in: &cancellables)
+    private func setupInitialState() {
+        Logger.addMove.info("🌱 AddMoveView: Setting up initial state", emoji: "🌱")
+        Logger.addMove.info("📊 AddMoveView: Initial viewTransitionID: \(viewTransitionID)", emoji: "📊")
+        currentStep = .ready
+        Logger.addMove.info("🎬 AddMoveView: Initialized with simplified architecture - currentStep: \(currentStep)", emoji: "🎬")
     }
 
-    private func handleFlowStateChange(_ newState: AddMoveFlowState) {
-        switch newState {
-        case .loadingVideo:
-            // Already handled by progress monitoring
-            break
+    private func handleStepChange(_ newStep: AddMoveStep) {
+        Task { @MainActor in
+            let previousStep = currentStep
 
-        case .trimming:
-            // Ensure we're on the trimming tab
-            if unifiedState.currentTab != .trimming {
-                unifiedState.updateTab(.trimming)
+            // Enhanced diagnostic logging
+            Logger.addMove.info("🎯 AddMoveView: handleStepChange CALLED", emoji: "🎯")
+            Logger.addMove.info("📊 AddMoveView: Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "📊")
+            Logger.addMove.info("🔄 AddMoveView: State transition: \(previousStep) → \(newStep)", emoji: "🔄")
+            Logger.addMove.debug("AddMoveView: ViewModel state - LoadingState: \(viewModel.loadingState), PlayerReady: \(viewModel.videoPlayer.isReady)", emoji: "📊")
+
+            // Force view recomposition when transitioning to trimming
+            if newStep == .trimming {
+                Logger.addMove.info("🔄 AddMoveView: Forcing view recomposition for trimming transition", emoji: "🔄")
+                self.viewTransitionID = UUID().uuidString
             }
 
-        case .error(let message, _):
-            // Handle error state
-            Logger.addMove.error("AddMove error: \(message)", emoji: "❌")
+            // Update state with explicit main thread safety
+            self.currentStep = newStep
+            Logger.addMove.info("✅ AddMoveView: currentStep updated to: \(self.currentStep)", emoji: "✅")
 
-        case .success(let message):
-            Logger.addMove.info("AddMove success: \(message)", emoji: "✅")
+            // Small delay to ensure SwiftUI processes the change
+            await Task.yield()
 
-        default:
-            break
+            Logger.addMove.info("🔄 View transition: \(previousStep) → \(newStep), ID: \(self.viewTransitionID)")
         }
     }
 
-    private func handleError() {
+  
+    private func handleError(_ message: String) {
+        Logger.addMove.error("AddMove error: \(message)", emoji: "❌")
         // If there's an error during trimming, go back to selection
-        if unifiedState.currentTab == .trimming {
+        if currentStep == .trimming {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                unifiedState.updateTab(.add)
+                currentStep = .selecting
             }
         }
     }
@@ -108,7 +161,8 @@ struct AddMoveView: View {
 
 // MARK: - Saving View
 private struct SavingView: View {
-    @ObservedObject var unifiedState: AddMoveUnifiedState
+    @ObservedObject var viewModel: AddMoveViewModel
+    let onStepChange: (AddMoveStep) -> Void
 
     var body: some View {
         VStack(spacing: 24) {
@@ -128,13 +182,13 @@ private struct SavingView: View {
                 .multilineTextAlignment(.center)
 
             // Progress bar if available
-            if unifiedState.processingProgress > 0 {
-                ProgressView(value: unifiedState.processingProgress, total: 1.0)
+            if viewModel.progress > 0 {
+                ProgressView(value: viewModel.progress, total: 1.0)
                     .progressViewStyle(LinearProgressViewStyle(tint: Color.primary))
                     .frame(height: 8)
                     .padding(.horizontal, 40)
 
-                Text("\(Int(unifiedState.processingProgress * 100))%")
+                Text("\(viewModel.progressPercentage)%")
                     .font(.ibmPlexMono(size: 14, weight: .medium))
                     .foregroundColor(.textSecondary)
             }
@@ -151,11 +205,8 @@ private struct SavingView: View {
         @State private var selectedTab: TabSelection = .ready
 
         var body: some View {
-            AddMoveView(
-                selectedTab: $selectedTab,
-                unifiedState: AddMoveUnifiedState()
-            )
-            .preferredColorScheme(.dark)
+            AddMoveView(selectedTab: $selectedTab)
+                .preferredColorScheme(.dark)
         }
     }
 

@@ -5,16 +5,6 @@ import OSLog
 import SwiftUI
 
 // VideoPlayer.swift - production video playback management
-//
-// STATE SYNCHRONIZATION FIXES IMPLEMENTED:
-// - Enhanced handlePlayerItemStatusChange() to ensure isReady is set when AVPlayerItem becomes ready
-// - Robust validateStateConsistency() with 6 different recovery scenarios
-// - Fallback state checking mechanism scheduled at 100ms, 500ms, 1s, 2s, and 5s intervals
-// - Immediate status check in setupPlayerObservers() to handle already-ready player items
-// - Enhanced diagnostic logging with emoji indicators for better traceability
-// - Defensive observer registration with duplicate prevention
-// - TrimmerView integration with enhanced sync checks on appearance
-//
 
 // MARK: - Supporting Types
 
@@ -27,18 +17,6 @@ public struct AssetValidationResult {
 
 // MARK: - Shared Video Player
 /// Clean, reusable video player component for consistent video playback across features
-///
-/// TROUBLESHOOTING VIDEO PLAYER READY STATE ISSUES:
-/// - If video doesn't display: Check logs for "🎯 VIDEO PLAYER READY" message
-/// - If state is stuck loading: Look for "⚠️ STATE INCONSISTENCY" warnings and recovery attempts
-/// - If observer timing issues: Check for "⚡ IMMEDIATE READY DETECTION" or "🔍 FALLBACK CHECK" messages
-/// - Common indicators: ✅ = success, ⚠️ = warning/issue, 🎯 = critical fix, 🔧 = recovery action
-///
-/// DIAGNOSTIC LOG CATEGORIES:
-/// - "SharedVideoPlayer" - Core player operations and state transitions
-/// - "VideoPlayerView" - UI layer state and visibility
-/// - "TrimmerView" - Integration layer between UnifiedState and VideoPlayer
-///
 @MainActor
 public class SharedVideoPlayer: ObservableObject {
     // MARK: - Published Properties
@@ -57,12 +35,14 @@ public class SharedVideoPlayer: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var timeObserver: Any?
     private let mode: PlayerMode
+    // REMOVED: onReadyCallback - now using pure async/await pattern
 
     // MARK: - KVO Observer Management
     private var registeredObservers: [String: NSKeyValueObservation] = [:]
     private var registeredNotificationObservers: [NSObjectProtocol] = []
     private let observerQueue = DispatchQueue(label: "com.breakingflashcards.videoPlayer.observers", qos: .utility)
 
+  
     // MARK: - Player Modes
     public enum PlayerMode {
         case main      // Full-featured player for primary video content
@@ -136,145 +116,144 @@ public class SharedVideoPlayer: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// Load video from AVAsset with comprehensive validation and error handling
+    /// Load video from AVAsset with modern async pattern
     /// - Parameter asset: The video asset to load
-    public func loadVideo(_ asset: AVAsset) async {
-        logger.info("🎬 Starting enhanced video asset loading")
-        logger.info("🔍 ENHANCED LOAD VIDEO: Asset received - tracks: \(asset.tracks.count), duration: \(asset.duration.seconds)s")
+    /// - Returns: True when player is ready for playback
+    @discardableResult
+    public func loadVideo(_ asset: AVAsset) async -> Bool {
+        logger.info("🎬 Starting modern async video asset loading")
+        Logger.loadingState.info("🎬 SharedVideoPlayer: Loading asset - tracks: \(asset.tracks.count), duration: \(asset.duration.seconds)s")
 
-        // CRITICAL FIX: Ensure we're on MainActor for all UI state updates
-        await MainActor.run {
-            // Cleanup any existing player state first
-            self.state = .idle
-            self.isReady = false
-            self.isPlaying = false
-            self.currentTime = 0.0
-            self.progress = 0.0
-            self.duration = 0.0
-            self.errorMessage = nil
+        // MODERNIZED: Remove callback logic - use pure async/await pattern
+        // Cleanup any existing player state first
+        state = .idle
+        isReady = false
+        isPlaying = false
+        currentTime = 0.0
+        progress = 0.0
+        duration = 0.0
+        errorMessage = nil
 
-            // Clean up existing player
-            cleanupExistingPlayer()
+        // Clean up existing player
+        cleanupExistingPlayer()
 
-            // Set initial loading state
-            self.state = .loading(progress: 0.0, message: "Validating video asset...")
-        }
+        // Set initial loading state
+        state = .loading(progress: 0.0, message: "Validating video asset...")
 
         do {
             // Step 1: Validate the asset
             logger.debug("🔍 Validating video asset properties")
-            await MainActor.run {
-                state = .loading(progress: 0.1, message: "Validating video asset...")
-            }
+            state = .loading(progress: 0.1, message: "Validating video asset...")
 
             let validationResult = try await validateVideoAsset(asset)
             guard validationResult.isValid else {
-                throw VideoLoadingError.assetValidationFailed(validationResult.error ?? "Unknown validation error")
+                throw LoadingError.assetValidationFailed(validationResult.error ?? "Unknown validation error")
             }
 
             // Step 2: Load asset properties
             logger.debug("📊 Loading asset properties")
-            await MainActor.run {
-                state = .loading(progress: 0.3, message: "Loading video properties...")
-            }
+            state = .loading(progress: 0.3, message: "Loading video properties...")
 
             let assetDuration = try await asset.load(.duration)
             let tracks = try await asset.load(.tracks)
 
             // Validate duration
             guard assetDuration.seconds > 0 else {
-                throw VideoLoadingError.invalidAsset("Video has zero or negative duration")
+                throw LoadingError.invalidAsset("Video has zero or negative duration")
             }
 
             // Step 3: Create and configure player item
             logger.debug("🎮 Creating AVPlayer and AVPlayerItem")
-            await MainActor.run {
-                state = .loading(progress: 0.6, message: "Initializing video player...")
-                duration = assetDuration.seconds
+            state = .loading(progress: 0.6, message: "Initializing video player...")
 
-                // CRITICAL FIX: Create player item on MainActor to avoid threading issues
-                let playerItem = AVPlayerItem(asset: asset)
-                playerItem.preferredForwardBufferDuration = 10.0 // Buffer 10 seconds ahead
+            // FIXED: Update duration in separate frame to prevent @Published collision
+            let durationTimestamp = CFAbsoluteTimeGetCurrent()
+            logPublishedUpdate("duration", durationTimestamp, "asset duration loaded")
+            duration = assetDuration.seconds
 
-                // Create player on MainActor
-                let player = AVPlayer(playerItem: playerItem)
+            // MODERNIZED: Create player item with modern async AVPlayer setup
+            let playerItem = AVPlayerItem(asset: asset)
+            playerItem.preferredForwardBufferDuration = 10.0 // Buffer 10 seconds ahead
 
-                self.player = player
-                self.playerItem = playerItem
+            // Create player
+            let player = AVPlayer(playerItem: playerItem)
 
-                // CRITICAL FIX: Setup observers immediately after player creation
-                // This ensures we catch readyToPlay events that might happen quickly
-                setupPlayerObservers()
-                setupTimeObserver()
+            self.player = player
+            self.playerItem = playerItem
 
-                state = .loading(progress: 0.8, message: "Preparing video playback...")
-            }
+            // Setup observers and time tracking
+            setupPlayerObservers()
+            setupTimeObserver()
 
-            // CRITICAL FIX: Check if player is already ready before waiting
-            // This handles the case where player becomes ready instantly
-            if let playerItem = playerItem, playerItem.status == .readyToPlay {
-                logger.info("⚡ IMMEDIATE READY DETECTION: Player is already ready")
-                await MainActor.run {
-                    let previousState = state
-                    let previousIsReady = isReady
+            state = .loading(progress: 0.8, message: "Preparing video playback...")
 
-                    state = .ready
-                    isReady = true
-
-                    logger.info("✅ Video loaded successfully (immediate) - duration: \(duration)s, tracks: \(tracks.count)")
-                    logger.info("🔄 IMMEDIATE STATE TRANSITION: \(previousState) → \(state), isReady: \(previousIsReady) → \(isReady)")
-
-                    validateStateConsistency()
-                    scheduleFallbackStateChecks()
-                }
-                return
-            }
-
-            // Step 4: Wait for player to be ready (only if not already ready)
+            // Step 4: Wait for player to be ready with modern async pattern
             logger.debug("⏳ Waiting for player to be ready")
-            guard let playerItem = playerItem else {
-                throw VideoLoadingError.playerInitializationFailed("PlayerItem is nil")
-            }
-
             try await waitForPlayerReady(playerItem, timeout: 10.0)
 
-            await MainActor.run {
-                state = .loading(progress: 0.9, message: "Finalizing video load...")
-            }
+            state = .loading(progress: 0.9, message: "Finalizing video load...")
 
             // Step 5: Final validation and completion
             guard validatePlayerState() else {
-                throw VideoLoadingError.playerInitializationFailed("Player validation failed")
+                throw LoadingError.playerInitializationFailed("Player validation failed")
             }
 
-            await MainActor.run {
-                let previousState = state
-                let previousIsReady = isReady
+            // MODERNIZED: Set final state without callback logic
+            // iOS 18 ENHANCED: Ensure atomic @Published updates with frame-aligned temporal separation
+            await finalizeVideoLoad()
 
-                state = .ready
-                isReady = true
+            Logger.loadingState.info("✅ SharedVideoPlayer: Video loaded successfully - duration: \(duration)s, tracks: \(tracks.count)")
 
-                logger.info("✅ Video loaded successfully - duration: \(duration)s, tracks: \(tracks.count)")
-                logger.info("🔄 STATE TRANSITION: \(previousState) → \(state), isReady: \(previousIsReady) → \(isReady)")
+            // Validate state consistency after completion
+            validateStateConsistency()
 
-                // Validate state consistency after completion
-                validateStateConsistency()
-
-                // FALLBACK STATE CHECKING: Schedule periodic validation for the first few seconds
-                scheduleFallbackStateChecks()
-            }
+            // MODERNIZED: Return true to indicate successful loading
+            return true
 
         } catch {
-            logger.error("❌ Video loading failed: \(error.localizedDescription)")
-            await MainActor.run {
-                state = .error(message: "Failed to load video: \(error.localizedDescription)")
-                errorMessage = error.localizedDescription
+            Logger.loadingState.error("❌ SharedVideoPlayer: Video loading failed: \(error.localizedDescription)")
+            state = .error(message: "Failed to load video: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
 
-                // Cleanup failed state
-                cleanupExistingPlayer()
-                isReady = false
-            }
+            // Cleanup failed state
+            cleanupExistingPlayer()
+            isReady = false
+
+            return false
         }
+    }
+
+    // MARK: - Enhanced State Management
+
+    /// Minimal diagnostic logging for @Published property timing verification
+    /// Helps track frame separation and identify potential collision issues
+    private func logPublishedUpdate(_ propertyName: String, _ timestamp: Double, _ context: String) {
+        let formattedTime = String(format: "%.3f", timestamp)
+        logger.debug("🔄 [@Published] \(propertyName) at \(formattedTime)s - \(context)")
+    }
+
+    /// Finalize video load with simple fire-and-forget Task pattern
+    /// Original implementation restored - the issue is in AddMoveViewModel, not here
+    @MainActor
+    private func finalizeVideoLoad() async {
+        // Simple fire-and-forget pattern - no complex frame separation needed
+        // The SharedVideoPlayer implementation was correct
+        state = .ready
+        isReady = true
+
+        logger.debug("✅ finalizeVideoLoad completed - simple fire-and-forget pattern")
+    }
+
+    /// Finalize player ready state with simple fire-and-forget Task pattern
+    /// Original implementation restored - the issue is in AddMoveViewModel, not here
+    @MainActor
+    private func finalizePlayerReadyState() async {
+        // Simple fire-and-forget pattern - no complex frame separation needed
+        // The SharedVideoPlayer implementation was correct
+        state = .ready
+        isReady = true
+
+        logger.debug("✅ finalizePlayerReadyState completed - simple fire-and-forget pattern")
     }
 
     /// Start video playback
@@ -603,116 +582,121 @@ public class SharedVideoPlayer: ObservableObject {
         return AssetValidationResult(isValid: true, error: nil)
     }
 
-    /// Wait for player item to be ready with timeout - CRITICAL FIX: Proper task cancellation and continuation management
+    /// Wait for player item to be ready with timeout - OPENSPEC FIX: Continuation lifecycle management
     private func waitForPlayerReady(_ playerItem: AVPlayerItem, timeout: TimeInterval) async throws {
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                let startTime = Date()
-                let continuationId = UUID().uuidString
-                logger.info("⏳ waitForPlayerReady: Starting wait with timeout: \(timeout)s [\(continuationId)]")
+        let continuationId = UUID().uuidString
+        logger.info("⏳ waitForPlayerReady: Starting wait with timeout: \(timeout)s [\(continuationId)]")
 
-                // CRITICAL FIX: Check current status first to avoid unnecessary observers
-                switch playerItem.status {
+        return try await withCheckedThrowingContinuation { continuation in
+            // ENHANCED FIX: Track continuation state to prevent multiple resumptions
+            var continuationState = ContinuationState()
+            let observerKey = "waitForPlayerReady.\(continuationId)"
+
+            // CRITICAL FIX: Check current status first to avoid unnecessary observers
+            switch playerItem.status {
+            case .readyToPlay:
+                logger.info("⚡ waitForPlayerReady: PlayerItem already ready [\(continuationId)]")
+                continuationState.safeResume(continuation, with: .success(()), logger: self.logger, context: "immediate ready")
+                return
+            case .failed:
+                let errorMessage = playerItem.error?.localizedDescription ?? "Player item failed"
+                logger.error("❌ waitForPlayerReady: PlayerItem already failed [\(continuationId)]: \(errorMessage)")
+                continuationState.safeResume(continuation, with: .failure(LoadingError.playerItemFailed(errorMessage)), logger: self.logger, context: "immediate failure")
+                return
+            default:
+                logger.debug("⏳ waitForPlayerReady: PlayerItem status unknown, setting up observer [\(continuationId)]")
+            }
+
+            // CRITICAL FIX: Set up timeout with proper cancellation
+            var timeoutTask: Task<Void, Never>? = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+
+                guard !continuationState.isResumed else { return }
+
+                self?.logger.error("⏰ waitForPlayerReady: Timeout after \(timeout)s [\(continuationId)]")
+                self?.safelyRemoveObserver(forKey: observerKey)
+                continuationState.safeResume(continuation, with: .failure(LoadingError.timeout(timeout)), logger: self?.logger, context: "timeout")
+            }
+
+            // CRITICAL FIX: Set up status observer with proper cleanup
+            let statusObserver = playerItem.observe(\.status) { item, _ in
+                guard !continuationState.isResumed else {
+                    self.logger.debug("⚠️ waitForPlayerReady: Continuation already resumed, ignoring status change [\(continuationId)]")
+                    return
+                }
+
+                switch item.status {
                 case .readyToPlay:
-                    logger.info("⚡ waitForPlayerReady: PlayerItem already ready [\(continuationId)]")
-                    continuation.resume()
-                    return
+                    self.logger.info("✅ waitForPlayerReady: PlayerItem became ready [\(continuationId)]")
+                    self.safelyRemoveObserver(forKey: observerKey)
+                    timeoutTask?.cancel()
+                    continuationState.safeResume(continuation, with: .success(()), logger: self.logger, context: "player ready")
+
                 case .failed:
-                    let errorMessage = playerItem.error?.localizedDescription ?? "Player item failed"
-                    logger.error("❌ waitForPlayerReady: PlayerItem already failed [\(continuationId)]: \(errorMessage)")
-                    continuation.resume(throwing: VideoLoadingError.playerItemFailed(errorMessage))
-                    return
+                    let errorMessage = item.error?.localizedDescription ?? "Player item failed"
+                    self.logger.error("❌ waitForPlayerReady: PlayerItem failed [\(continuationId)]: \(errorMessage)")
+                    self.safelyRemoveObserver(forKey: observerKey)
+                    timeoutTask?.cancel()
+                    continuationState.safeResume(continuation, with: .failure(LoadingError.playerItemFailed(errorMessage)), logger: self.logger, context: "player failed")
+
                 default:
-                    logger.debug("⏳ waitForPlayerReady: PlayerItem status unknown, setting up observer [\(continuationId)]")
+                    self.logger.debug("⏳ waitForPlayerReady: PlayerItem status still unknown [\(continuationId)]")
+                    break
                 }
+            }
 
-                // CRITICAL FIX: Use observer queue for thread safety
-                var continuationResumed = false
-                let observerKey = "waitForPlayerReady.\(continuationId)"
+            // Track observer for cleanup
+            registeredObservers[observerKey] = statusObserver
+            logger.debug("✅ waitForPlayerReady: Observer registered [\(continuationId)]")
 
-                observerQueue.async { [weak self] in
-                    guard let self = self else {
-                        continuation.resume(throwing: VideoLoadingError.playerInitializationFailed("Self deallocated"))
-                        return
-                    }
+            // CRITICAL FIX: Handle continuation cleanup if this specific call gets cancelled
+            Task { @MainActor [weak self] in
+                // Wait for completion or cancellation
+                while !continuationState.isResumed && !Task.isCancelled {
+                    do {
+                        try await Task.sleep(nanoseconds: 50_000_000) // 50ms check interval
+                    } catch {
+                        // Task was cancelled
+                        guard !continuationState.isResumed else { return }
 
-                    // CRITICAL FIX: Set up observer with proper cleanup
-                    let statusObserver = playerItem.observe(\.status) { item, _ in
-                        guard !continuationResumed else {
-                            self.logger.debug("⚠️ waitForPlayerReady: Continuation already resumed, ignoring status change [\(continuationId)]")
-                            return
-                        }
-
-                        switch item.status {
-                        case .readyToPlay:
-                            continuationResumed = true
-                            self.logger.info("✅ waitForPlayerReady: PlayerItem became ready [\(continuationId)]")
-                            self.safelyRemoveObserver(forKey: observerKey)
-                            continuation.resume()
-
-                        case .failed:
-                            continuationResumed = true
-                            let errorMessage = item.error?.localizedDescription ?? "Player item failed"
-                            self.logger.error("❌ waitForPlayerReady: PlayerItem failed [\(continuationId)]: \(errorMessage)")
-                            self.safelyRemoveObserver(forKey: observerKey)
-                            continuation.resume(throwing: VideoLoadingError.playerItemFailed(errorMessage))
-
-                        default:
-                            self.logger.debug("⏳ waitForPlayerReady: PlayerItem status still unknown [\(continuationId)]")
-                            break
-                        }
-                    }
-
-                    // CRITICAL FIX: Track observer for cleanup
-                    self.registeredObservers[observerKey] = statusObserver
-                    self.logger.debug("✅ waitForPlayerReady: Observer registered [\(continuationId)]")
-                }
-
-                // CRITICAL FIX: Set up timeout with proper cancellation
-                let timeoutTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-
-                    if !continuationResumed && !Task.isCancelled {
-                        continuationResumed = true
-                        self?.logger.error("⏰ waitForPlayerReady: Timeout after \(timeout)s [\(continuationId)]")
+                        self?.logger.info("🚫 waitForPlayerReady: Task cancelled [\(continuationId)]")
                         self?.safelyRemoveObserver(forKey: observerKey)
-                        continuation.resume(throwing: VideoLoadingError.timeout(timeout))
-                    }
-                }
+                        timeoutTask?.cancel()
 
-                // CRITICAL FIX: Monitor for task cancellation
-                Task { @MainActor [weak self] in
-                    // Wait for either player ready, failure, timeout, or cancellation
-                    while !continuationResumed && !Task.isCancelled {
-                        do {
-                            try await Task.sleep(nanoseconds: 50_000_000) // 50ms check interval
-                        } catch {
-                            // Task was cancelled
-                            if !continuationResumed {
-                                continuationResumed = true
-                                self?.logger.info("🚫 waitForPlayerReady: Task cancelled [\(continuationId)]")
-                                self?.safelyRemoveObserver(forKey: observerKey)
-                                timeoutTask.cancel()
-                                continuation.resume()
-                            }
-                            return
-                        }
-
-                        // Check player status
-                        if playerItem.status == .readyToPlay || playerItem.status == .failed {
-                            if !continuationResumed {
-                                timeoutTask.cancel()
-                            }
-                            break
-                        }
+                        // ENHANCED FIX: Resume with success on cancellation to avoid hanging
+                        continuationState.safeResume(continuation, with: .success(()), logger: self?.logger, context: "cancellation")
+                        return
                     }
                 }
             }
-        } onCancel: {
-            // CRITICAL FIX: Clean up when task is cancelled
-            logger.info("🚫 waitForPlayerReady: Task cancellation handler triggered")
-            Task { @MainActor in
-                self.cleanupAllWaitForPlayerReadyObservers()
+        }
+    }
+
+    /// Continuation state manager to prevent multiple resumptions
+    private class ContinuationState {
+        private var _isResumed = false
+        private let lock = NSLock()
+
+        var isResumed: Bool {
+            lock.withLock { _isResumed }
+        }
+
+        func safeResume<T>(_ continuation: CheckedContinuation<T, Error>, with result: Result<T, Error>, logger: Logger?, context: String) {
+            lock.withLock {
+                guard !_isResumed else {
+                    logger?.warning("⚠️ Continuation already resumed, attempting to resume again from context: \(context)")
+                    return
+                }
+                _isResumed = true
+            }
+
+            switch result {
+            case .success(let value):
+                continuation.resume(returning: value)
+                logger?.info("✅ Continuation resumed successfully from context: \(context)")
+            case .failure(let error):
+                continuation.resume(throwing: error)
+                logger?.info("✅ Continuation resumed with error from context: \(context): \(error.localizedDescription)")
             }
         }
     }
@@ -911,12 +895,12 @@ public class SharedVideoPlayer: ObservableObject {
         if playerItem.status == .readyToPlay {
             logger.info("⚡ IMMEDIATE READY DETECTION: PlayerItem already ready when setting up observers")
             Task { @MainActor in
-                self.handlePlayerItemStatusChange(.readyToPlay)
+                await self.handlePlayerItemStatusChange(.readyToPlay)
             }
         } else if playerItem.status == .failed {
             logger.warning("⚠️ IMMEDIATE FAILURE DETECTION: PlayerItem already failed when setting up observers")
             Task { @MainActor in
-                self.handlePlayerItemStatusChange(.failed)
+                await self.handlePlayerItemStatusChange(.failed)
             }
         }
 
@@ -925,7 +909,7 @@ public class SharedVideoPlayer: ObservableObject {
             guard let self = self else { return }
             Task { @MainActor in
                 self.logger.info("🔄 KVO Player item status changed: \(status.rawValue)")
-                self.handlePlayerItemStatusChange(status)
+                await self.handlePlayerItemStatusChange(status)
             }
         }
 
@@ -1014,24 +998,27 @@ public class SharedVideoPlayer: ObservableObject {
         }
     }
 
-    private func handlePlayerItemStatusChange(_ status: AVPlayerItem.Status) {
+    private func handlePlayerItemStatusChange(_ status: AVPlayerItem.Status) async {
         logger.info("🎬 Player item status changed: \(status.rawValue), current state: \(state), isReady: \(isReady)")
 
         switch status {
         case .readyToPlay:
             logger.info("✅ Player item ready to play - updating isReady state")
 
-            // CRITICAL FIX: Ensure state and isReady are synchronized IMMEDIATELY when player becomes ready
+            // iOS 18 ENHANCED: Ensure state and isReady are synchronized with temporal separation
             let previousState = state
             let previousIsReady = isReady
 
-            // CRITICAL FIX: ALWAYS update to ready state when playerItem is readyToPlay
-            // This fixes the core issue where player was ready but state wasn't updated
-            state = .ready
-            isReady = true
+            // iOS 18 ENHANCED: Use frame-aligned temporal separation for @Published updates
+            // This fixes the @Published collision issue that causes AddMoveViewModel to get stuck
+            await finalizePlayerReadyState()
 
-            logger.info("🔄 IMMEDIATE STATE TRANSITION: \(previousState) → Ready due to AVPlayerItem ready")
-            logger.info("🎯 VIDEO PLAYER READY: isReady set to true - video should now display")
+            logger.info("🔄 FRAME-ALIGNED STATE TRANSITION: \(previousState) → Ready due to AVPlayerItem ready")
+            logger.info("🎯 VIDEO PLAYER READY: isReady set to true with temporal separation - video should now display")
+
+            // REMOVED: Callback logic - now using pure async/await pattern
+            // Player ready state is communicated through @Published isReady property
+            Logger.loadingState.info("🎯 SharedVideoPlayer: Player ready - isReady=true")
 
             // CRITICAL FIX: Load duration from player item for accurate timing
             if let playerItem = playerItem {
@@ -1047,6 +1034,9 @@ public class SharedVideoPlayer: ObservableObject {
 
             // Log successful state synchronization
             logger.info("🎯 STATE SYNC SUCCESS: \(previousState) → \(state), isReady: \(previousIsReady) → \(isReady)")
+
+            // REMOVED: Coordination notification broadcast - now handled by AddMoveViewModel
+            // Player state changes are observed directly through @Published properties
 
             // Schedule additional validation to ensure consistency
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [self] in

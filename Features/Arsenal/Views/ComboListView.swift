@@ -236,7 +236,7 @@ private struct SpringButtonStyle: ButtonStyle {
     let context = PersistenceController.preview.container.viewContext
     // Clear any existing combos for empty state preview
     let request = NSBatchDeleteRequest(fetchRequest: Combo.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>)
-    try? context.execute(request)
+    _ = try? context.execute(request)
 
     return ComboListView()
         .environment(\.managedObjectContext, context)

@@ -14,7 +14,7 @@
 - Core Data persistence with Photos sync
 - iOS 18.0 native SwiftUI interface
 
-**Architecture Status:** ✅ **Clean Architecture Optimized (October 2025)** - Successfully refined to 63 Swift files with streamlined video trimming and enhanced service integration.
+**Architecture Status:** ✅ **Clean Architecture Optimized (October 2025)** - Successfully refined to 62 Swift files with streamlined video trimming and enhanced service integration.
 
 ---
 
@@ -55,16 +55,18 @@ BreakingFlashcards/
 │   │   ├── Review+CoreDataClass.swift  # Review entity
 │   │   └── Review+CoreDataProperties.swift # Review properties
 │   ├── Features/                       # ALL feature code organized cleanly
-│   │   ├── AddMove/                    # Video import workflow
+│   │   ├── AddMove/                    # Video import workflow (7 files)
 │   │   │   ├── Views/
 │   │   │   │   ├── AddMoveView.swift   # Main add move container
 │   │   │   │   ├── SelectClip.swift    # Enhanced video selection interface
 │   │   │   │   └── NameMoveView.swift  # Move naming interface
+│   │   │   ├── ViewModels/
+│   │   │   │   └── AddMoveViewModel.swift # Add move business logic
 │   │   │   └── Services/
 │   │   │       ├── MovePersistenceService.swift # Move CRUD operations
 │   │   │       ├── MoveSaver.swift     # Enhanced move saving service
 │   │   │       └── VideoProcessor.swift # Video processing service
-│   │   ├── Arsenal/                    # Move/combo management
+│   │   ├── Arsenal/                    # Move/combo management (5 files)
 │   │   │   ├── Views/
 │   │   │   │   ├── BreakingArsenalView.swift # Arsenal tab container
 │   │   │   │   ├── MoveListView.swift  # List all moves
@@ -72,19 +74,19 @@ BreakingFlashcards/
 │   │   │   │   └── ComboListView.swift # List all combos
 │   │   │   └── ViewModels/
 │   │   │       └── ArsenalViewModel.swift # Arsenal business logic
-│   │   ├── Combo/                      # Combo creation and management
+│   │   ├── Combo/                      # Combo creation and management (3 files)
 │   │   │   ├── Views/
 │   │   │   │   ├── CreateComboView.swift # Create new combo
 │   │   │   │   └── ComboTimelineView.swift # Combo timeline
 │   │   │   └── ViewModels/
 │   │   │       └── ComboViewModel.swift # Combo business logic
-│   │   ├── Review/                     # Learning system
+│   │   ├── Review/                     # Learning system (2 files)
 │   │   │   ├── Views/
 │   │   │   │   └── ReviewView.swift    # Review interface
 │   │   │   └── ViewModels/
 │   │   │       └── ReviewViewModel.swift # Review business logic
-│   │   └── Shared/                     # Shared components across features
-│   │       ├── UI/
+│   │   └── Shared/                     # Shared components across features (35 files)
+│   │       ├── UI/ (6 files)
 │   │       │   ├── Components/
 │   │       │   │   ├── SharedButton.swift # Enhanced reusable button component
 │   │       │   │   ├── LoadingView.swift # Loading states
@@ -93,13 +95,14 @@ BreakingFlashcards/
 │   │       │   └── Styles/
 │   │       │       ├── DesignSystem.swift # Complete design system with colors, fonts, spacing
 │   │       │       └── Typography.swift # Typography system
-│   │       ├── Video/
-│   │       │   ├── VideoPlayer.swift   # Core video player
+│   │       ├── Video/ (5 files + Test Design/)
+│   │       │   ├── VideoPlayer.swift   # Core video player (59.9KB)
 │   │       │   ├── AVPlayerViewRepresentable.swift # AVFoundation SwiftUI wrapper
-│   │       │   ├── MinimalTrimmerView.swift # Streamlined video trimming interface
-│   │       │   ├── VideoLoadingState.swift # Video loading state management
-│   │       │   └── SimpleLoading.swift # Simple loading component
-│   │       ├── Utils/
+│   │       │   ├── MinimalTrimmerView.swift # Streamlined video trimming interface (57.1KB)
+│   │       │   ├── SimpleLoading.swift # Simple loading component (13.5KB)
+│   │       │   └── Test Design/        # Video testing components
+│   │       │       └── Test2.swift     # Video design test component
+│   │       ├── Utils/ (8 files)
 │   │       │   ├── AVAsset+Extensions.swift # AVAsset extensions
 │   │       │   ├── Combine+Extensions.swift # Combine utilities
 │   │       │   ├── Font+Extensions.swift # Font utilities
@@ -108,36 +111,56 @@ BreakingFlashcards/
 │   │       │   ├── PerformanceOptimizer.swift # Performance optimization tools
 │   │       │   ├── MemoryHelper.swift # Memory management utilities
 │   │       │   └── HapticFeedback.swift # Haptic feedback utilities
-│   │       ├── Models/
-│   │       │   ├── PhotosPickerItem.swift # Photos picker model
-│   │       │   ├── ProgressTypes.swift # Progress tracking types
-│   │       │   ├── LoggerTypes.swift # Logging system types
-│   │       │   ├── TabState.swift # Tab state management
-│   │       │   ├── UnifiedState.swift # Unified state management
-│   │       │   └── TrimModification.swift # Video trim modification model
-│   │       ├── Services/
-│   │       │   ├── AppContainer.swift # Dependency injection container
+│   │       ├── Models/ (6 files)
+│   │       │   ├── LoadingState.swift   # Enhanced loading state management (14.9KB)
+│   │       │   ├── ProgressTypes.swift # Progress tracking types (17.4KB)
+│   │       │   ├── LoggerTypes.swift   # Logging system types (8.3KB)
+│   │       │   ├── TrimModification.swift # Video trim modification model (8.8KB)
+│   │       │   ├── TabState.swift      # Tab state management (3.6KB)
+│   │       │   └── PhotosPickerItem.swift # Photos picker model (4.1KB)
+│   │       ├── Services/ (9 files)
+│   │       │   ├── AppContainer.swift  # Dependency injection container
 │   │       │   ├── PersistenceBridge.swift # Persistence integration bridge
 │   │       │   ├── PhotoKitService.swift # PhotoKit integration
 │   │       │   ├── PhotosAssetLoader.swift # Asset loading
-│   │       │   ├── TimecodeCalculationService.swift # Timecode calculations
-│   │       │   ├── VideoInitializationCoordinator.swift # Video initialization coordination
-│   │       │   ├── VideoLoadingOperationManager.swift # Video loading operation management
-│   │       │   ├── VideoLoadingService.swift # Video loading service
-│   │       │   ├── VideoProgressMonitoringService.swift # Progress monitoring
-│   │       │   └── VideoSaver.swift # Enhanced video saving
-│   │       ├── ViewModels/
-│   │       │   └── SaveProgressViewModel.swift # Save progress UI
-│   │       └── FeatureFlag.swift        # Feature flag management
+│   │       │   ├── RobustVideoLoader.swift # Enhanced video loading with error recovery
+│   │       │   ├── ProgressDebouncer.swift # Progress debouncing for smooth UI updates
+│   │       │   ├── TimecodeCalculationService.swift # Precise timecode calculations
+│   │       │   └── VideoSaver.swift   # Enhanced video saving with resilience
+│   │       ├── ViewModels/ (1 file)
+│   │       │   └── SaveProgressViewModel.swift # Save progress UI management
+│   │       └── FeatureFlag.swift       # Feature flag management (root level)
 │   └── Resources/
 │       └── Assets.xcassets/           # App assets and resources
 ├── breakdex.xcodeproj                # Xcode project file
-├── breakdexTests/                    # Unit tests
-├── breakdexUITests/                  # UI test targets
+├── breakdexTests/                    # Comprehensive unit tests (16 files)
+│   ├── AVAssetRotationTests.swift    # Video rotation testing (23.1KB)
+│   ├── AlbumManagerTests.swift       # Photo album management testing (15.9KB)
+│   ├── AssetInheritanceCoordinatorTests.swift # Asset inheritance testing (6.9KB)
+│   ├── ContinuationManagerTests.swift # Async continuation testing (8.5KB)
+│   ├── FrameSynchronizerTests.swift  # Video frame synchronization testing (7.3KB)
+│   ├── PerformanceOptimizerTests.swift # Performance optimization testing (13.2KB)
+│   ├── PlayerStateMonitorTests.swift # Video player state monitoring testing (9.8KB)
+│   ├── ReactiveTimeCodeComponentTests.swift # Timecode component testing (14.2KB)
+│   ├── TransitionLockManagerTest.swift # Transition lock management testing (5.4KB)
+│   ├── VideoLoadingErrorRecoveryTests.swift # Video loading error recovery testing (25.8KB)
+│   ├── VideoLoadingIntegrationTests.swift # Video loading integration testing (23.5KB)
+│   ├── VideoLoadingServiceTests.swift # Video loading service testing (20.3KB)
+│   ├── VideoLoadingTimeoutRetryTests.swift # Video loading timeout & retry testing (23.6KB)
+│   ├── VideoPipelineIntegrationTests.swift # Video pipeline integration testing (17.5KB)
+│   ├── VideoReplacementCoordinatorTests.swift # Video replacement coordination testing (11.5KB)
+│   └── docs/                         # Test documentation
+├── breakdexUITests/                  # UI tests (6 files)
+│   ├── AddMoveFlowTests.swift        # Add move workflow UI testing (5.7KB)
+│   ├── AddMoveFlowUITests.swift      # Add move UI component testing (4.3KB)
+│   ├── BreakingFlashcardsUITests.swift # Main UI testing (17.7KB)
+│   ├── BreakingFlashcardsUITestsLaunchTests.swift # App launch testing (0.9KB)
+│   ├── DeterministicProgressTest.swift # Progress UI testing (7.7KB)
+│   └── TrimmerViewModelTests.swift   # Video trimmer UI testing (2.1KB)
 └── DOCUMENTATION.md                  # This documentation file
 ```
 
-**Architecture Achievement:** From 100+ scattered files → 63 optimized files with streamlined video trimming and enhanced service coordination
+**Architecture Achievement:** From 100+ scattered files → 62 optimized files with streamlined video trimming and enhanced service coordination
 
 ---
 
@@ -155,10 +178,11 @@ BreakingFlashcards/
 
 ### Feature Architecture
 
-#### AddMove Feature (Streamlined Implementation ✅)
+#### AddMove Feature (Enhanced Implementation ✅)
 - **Views**: AddMoveView, SelectClip (enhanced video selection), NameMoveView
+- **ViewModels**: AddMoveViewModel (dedicated business logic for add move workflow)
 - **Services**: MovePersistenceService, VideoProcessor, MoveSaver
-- **Key Achievement**: Optimized video selection workflow with enhanced loading states and error handling
+- **Key Achievement**: Optimized video selection workflow with enhanced loading states, error handling, and dedicated ViewModel separation
 
 #### Arsenal Feature
 - **Views**: BreakingArsenalView, MoveListView, MoveDetailView, ComboListView
@@ -172,11 +196,13 @@ BreakingFlashcards/
 - **Views**: ReviewView for learning interface
 - **ViewModels**: ReviewViewModel for spaced repetition logic
 
-#### Shared Components (Streamlined ✅)
-- **Video Components**: VideoPlayer, AVPlayerViewRepresentable, MinimalTrimmerView, VideoLoadingState, SimpleLoading
-- **UI Components**: SharedButton, LoadingView, StatePillView, TimelineNodeView, DesignSystem (integrated colors/fonts)
-- **Services**: PhotoKitService, VideoLoadingService, VideoInitializationCoordinator, AppContainer
-- **Utils**: Performance-optimized extensions and utilities
+#### Shared Components (Enhanced Architecture ✅)
+- **Video Components**: VideoPlayer (59.9KB), AVPlayerViewRepresentable, MinimalTrimmerView (57.1KB), SimpleLoading (13.5KB), Test Design components
+- **UI Components**: SharedButton, LoadingView, StatePillView, TimelineNodeView, DesignSystem (integrated colors/fonts), Typography
+- **Services**: PhotoKitService, RobustVideoLoader (enhanced loading with error recovery), ProgressDebouncer (smooth UI updates), TimecodeCalculationService, AppContainer, PersistenceBridge
+- **Utils**: Performance-optimized extensions including AVAsset, Combine, ButtonStyles, PerformanceOptimizer, MemoryHelper, HapticFeedback, TimecodeFormatter
+- **Models**: LoadingState (14.9KB), ProgressTypes (17.4KB), LoggerTypes (8.3KB), TrimModification (8.8KB), TabState, PhotosPickerItem
+- **ViewModels**: SaveProgressViewModel for unified progress tracking
 
 ### Key Workflows
 
@@ -207,17 +233,18 @@ BreakingFlashcards/
 - **PersistenceBridge**: Integration between persistence layers
 - **PhotoKitService**: PhotoKit integration and asset management
 
-### Video Services (Streamlined)
-- **VideoLoadingService**: Background video loading with progress monitoring
-- **VideoInitializationCoordinator**: Enhanced video initialization and coordination
-- **VideoLoadingOperationManager**: Advanced video loading operation management
-- **VideoProgressMonitoringService**: Progress tracking for all video operations
-- **VideoSaver**: Enhanced video saving with resilience
+### Video Services (Enhanced Architecture)
+- **RobustVideoLoader**: Enhanced video loading with comprehensive error recovery and retry mechanisms
+- **ProgressDebouncer**: Smooth UI progress updates through intelligent debouncing
+- **TimecodeCalculationService**: Precise timecode calculations for video trimming and playback
+- **VideoSaver**: Enhanced video saving with resilience and error handling
+- **PhotoKitService**: PhotoKit framework integration for asset management
+- **PhotosAssetLoader**: Specialized asset loading from Photos library with iCloud support
 
 ### Support Services
-- **PhotosAssetLoader**: Asset loading from Photos library
-- **TimecodeCalculationService**: Precise timecode calculations
 - **MovePersistenceService**: Move CRUD operations with Core Data
+- **AppContainer**: Dependency injection container for service management
+- **PersistenceBridge**: Integration between persistence layers
 
 ### UI Components & Design System
 - **DesignSystem**: Complete design system with integrated colors, fonts, spacing, and styling
@@ -282,11 +309,19 @@ swiftc -parse [filename].swift
 xcodebuild clean -project breakdex.xcodeproj
 ```
 
-### Testing Strategy
-- **Unit Tests**: All ViewModels, Services, and Utilities
-- **UI Tests**: Critical user flows (video playback, trimming, add move)
-- **Integration Tests**: Feature-to-feature communication
-- **Memory Testing**: Retain cycle prevention verification
+### Testing Strategy (Comprehensive Infrastructure ✅)
+- **Unit Tests**: 16 comprehensive test files covering all critical components:
+  - Video Processing: AVAssetRotationTests, FrameSynchronizerTests, VideoPipelineIntegrationTests
+  - Loading & Error Recovery: VideoLoadingServiceTests, VideoLoadingErrorRecoveryTests, VideoLoadingTimeoutRetryTests
+  - Performance: PerformanceOptimizerTests, PlayerStateMonitorTests
+  - Asset Management: AlbumManagerTests, AssetInheritanceCoordinatorTests, VideoReplacementCoordinatorTests
+  - Async Operations: ContinuationManagerTests, ReactiveTimeCodeComponentTests, TransitionLockManagerTest
+- **UI Tests**: 6 specialized UI test files:
+  - AddMoveFlowTests & AddMoveFlowUITests: Complete add move workflow testing
+  - BreakingFlashcardsUITests & BreakingFlashcardsUITestsLaunchTests: Main app functionality testing
+  - DeterministicProgressTest & TrimmerViewModelTests: Progress UI and video trimmer testing
+- **Integration Tests**: VideoLoadingIntegrationTests for comprehensive video pipeline testing
+- **Memory Testing**: Performance optimization and retain cycle prevention verification
 
 ### Architecture Benefits Achieved
 - **Maintainability**: Easy to locate and modify code by feature
@@ -393,14 +428,15 @@ fi
 
 ---
 
-## 📊 Project Statistics (Streamlined Architecture)
+## 📊 Project Statistics (Enhanced Architecture)
 
-- **Total Swift Files**: 63 (optimized, down from 100+ scattered)
-- **Main Architecture Components**: Features-based (AddMove, Arsenal, Combo, Review, Shared)
+- **Total Swift Files**: 62 (optimized, organized with clean architecture)
+- **Main Architecture Components**: Features-based (AddMove [7 files], Arsenal [5 files], Combo [3 files], Review [2 files], Shared [35 files])
 - **Core Data Entities**: 4 (Move, Combo, ComboMove, Review)
-- **Shared Components**: Streamlined (Video, UI, Utils, Services, Models)
-- **Key Improvements**: Streamlined video trimming workflow, enhanced loading states, integrated design system
-- **Architecture Achievement**: Optimized from scattered to streamlined with enhanced service coordination
+- **Shared Components**: Comprehensive (Video [5 files], UI [6 files], Utils [8 files], Services [9 files], Models [6 files], ViewModels [1 file])
+- **Test Infrastructure**: 22 test files (16 unit tests, 6 UI tests) with comprehensive coverage
+- **Key Improvements**: Enhanced video processing pipeline, robust error recovery, comprehensive test coverage, integrated design system
+- **Architecture Achievement**: Mature clean architecture with enhanced service coordination and comprehensive testing
 - **Supported iOS Version**: iOS 18.0+
 - **Primary Frameworks**: SwiftUI, Core Data, Photos, AVFoundation
 
@@ -408,14 +444,15 @@ fi
 
 ## 🔄 Version History
 
-### October 2025 - Streamlined Architecture Complete ✅
+### October 2025 - Enhanced Architecture Complete ✅
 - **Week 1**: Video Selection Enhancement - Replaced complex picker with streamlined SelectClip interface
-- **Week 2**: Trimming Optimization - Implemented MinimalTrimmerView replacing complex trimming UI
-- **Week 3**: Service Coordination - Enhanced VideoInitializationCoordinator and VideoLoadingOperationManager
+- **Week 2**: Trimming Optimization - Implemented MinimalTrimmerView (57.1KB) replacing complex trimming UI
+- **Week 3**: Service Architecture Enhancement - Added RobustVideoLoader, ProgressDebouncer, TimecodeCalculationService
 - **Week 4**: Design System Integration - Consolidated colors, fonts, and styling into unified DesignSystem
-- **Final State**: 63 optimized Swift files with streamlined architecture
-- **Key Result**: Enhanced user experience with simplified video workflow and robust error handling
-- **Latest Milestone**: Production-ready architecture with optimized video processing and enhanced service coordination
+- **Week 5**: Comprehensive Testing Infrastructure - Implemented 22 test files with complete coverage
+- **Final State**: 62 optimized Swift files with mature clean architecture
+- **Key Result**: Enhanced user experience with robust video processing, comprehensive error recovery, and extensive testing
+- **Latest Milestone**: Production-ready architecture with enhanced service coordination, comprehensive test coverage, and mature clean architecture patterns
 
 ### September 2025
 - Critical video playback fixes (flicker, deadlock resolution)
@@ -430,6 +467,6 @@ fi
 
 ---
 
-**Architecture Status: ✅ STREAMLINED ARCHITECTURE COMPLETE**
+**Architecture Status: ✅ ENHANCED ARCHITECTURE COMPLETE**
 
-*This documentation now accurately reflects the current streamlined architecture state of the codebase with 63 optimized Swift files, enhanced video processing workflow, and integrated design system. It serves as a comprehensive reference for ongoing development and maintenance.*
+*This documentation now accurately reflects the current enhanced architecture state of the codebase with 62 optimized Swift files, comprehensive testing infrastructure (22 test files), robust video processing workflow, and mature clean architecture patterns. It serves as a comprehensive reference for ongoing development and maintenance.*

@@ -4,12 +4,13 @@ import OSLog
 
 // MARK: - NameMoveView
 /// Clean move naming interface for finalizing the video move
+/// Uses AddMoveViewModel directly following MVVM pattern
 struct NameMoveView: View {
-    @ObservedObject var unifiedState: AddMoveUnifiedState
-    @State private var moveName: String = ""
+    @ObservedObject var viewModel: AddMoveViewModel
     @State private var isSaving = false
     @State private var estimatedFileSize: String = "Calculating..."
     @State private var videoDuration: String = "0:00"
+    @State private var moveName: String = ""
     @StateObject private var moveSaver: MoveSaver
 
     private let logger = Logger(
@@ -17,8 +18,8 @@ struct NameMoveView: View {
         category: "NameMoveView"
     )
 
-    init(unifiedState: AddMoveUnifiedState) {
-        self.unifiedState = unifiedState
+    init(viewModel: AddMoveViewModel) {
+        self.viewModel = viewModel
         let movePersistenceService = MovePersistenceService(
             persistentContainer: PersistenceController.shared.container
         )
@@ -52,7 +53,7 @@ struct NameMoveView: View {
             setupInitialState()
         }
         .onChange(of: moveName) { _, newValue in
-            unifiedState.moveName = newValue
+            viewModel.moveName = newValue
         }
     }
 
@@ -81,7 +82,7 @@ struct NameMoveView: View {
                 .frame(height: 180)
                 .overlay(
                     Group {
-                        if unifiedState.isVideoReady {
+                        if viewModel.isVideoReady {
                             videoPlayerContent
                         } else {
                             videoPreviewPlaceholder
@@ -109,7 +110,7 @@ struct NameMoveView: View {
     // MARK: - Video Player Content
     private var videoPlayerContent: some View {
         Group {
-            if let asset = unifiedState.currentVideoAsset {
+            if let asset = viewModel.selectedVideo {
                 AVPlayerViewRepresentable(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)))
                     .onAppear {
                         calculateEstimatedFileSize()
@@ -269,19 +270,19 @@ struct NameMoveView: View {
     private var canSave: Bool {
         return !moveName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                moveName.count >= 3 &&
-               unifiedState.isVideoReady &&
+               viewModel.isVideoReady &&
                !isSaving
     }
 
     // MARK: - Private Methods
 
     private func setupInitialState() {
-        moveName = unifiedState.moveName
+        moveName = viewModel.moveName
         logger.info("📝 NameMoveView setup - initial name: '\(moveName)'")
     }
 
     private func calculateEstimatedFileSize() {
-        guard let asset = unifiedState.currentVideoAsset else {
+        guard let asset = viewModel.selectedVideo else {
             estimatedFileSize = "Unknown"
             videoDuration = "0:00"
             return
@@ -345,7 +346,7 @@ struct NameMoveView: View {
             }
 
             do {
-                guard let asset = unifiedState.currentVideoAsset else {
+                guard let asset = viewModel.selectedVideo else {
                     throw NSError(domain: "NameMoveView", code: -1, userInfo: [
                         NSLocalizedDescriptionKey: "No video asset available"
                     ])
@@ -356,13 +357,16 @@ struct NameMoveView: View {
                 logger.info("✅ Move saved successfully: \(savedMove.name ?? "unnamed")")
 
                 await MainActor.run {
-                    unifiedState.flowState = .success("Move saved successfully!")
+                    // Clear error state and indicate success
+                    viewModel.clearError()
+                    // Note: In MVVM pattern, navigation would be handled by parent view observing view model state
+                    logger.info("✅ Move saved - parent view will handle navigation")
                 }
 
             } catch {
                 logger.error("❌ Save failed: \(error.localizedDescription)")
                 await MainActor.run {
-                    unifiedState.flowState = .error("Failed to save move", error.localizedDescription)
+                    viewModel.setError("Failed to save move: \(error.localizedDescription)")
                 }
             }
         }
@@ -372,7 +376,9 @@ struct NameMoveView: View {
         logger.info("⬅️ Going back to trimming")
         Task {
             await MainActor.run {
-                unifiedState.flowState = .trimming
+                // In MVVM pattern, navigation would be handled by parent view observing view model state
+                // For now, just log the navigation request
+                logger.info("⬅️ Navigation request - parent view will handle navigation")
             }
         }
     }
@@ -388,16 +394,15 @@ struct NameMoveView: View {
 // MARK: - Preview
 #Preview {
     struct PreviewWrapper: View {
-        private var unifiedState: AddMoveUnifiedState {
-            let state = AddMoveUnifiedState()
-
-            // Simulate a loaded video for preview
-            state.flowState = .naming
-            return state
+        private var viewModel: AddMoveViewModel {
+            let vm = AddMoveViewModel()
+            // Simulate a loaded video for preview by setting some state
+            vm.moveName = "Sample Move"
+            return vm
         }
 
         var body: some View {
-            NameMoveView(unifiedState: unifiedState)
+            NameMoveView(viewModel: viewModel)
                 .environment(\.managedObjectContext, PersistenceController(inMemory: true).container.viewContext)
                 .preferredColorScheme(.dark)
         }

@@ -9,8 +9,8 @@ import AVFoundation
 /// Supports progress indication, network status, and error handling
 struct SimpleLoadingView: View {
     // MARK: - Properties
-    let state: VideoLoadingState
-    let progress: VideoLoadingProgress?
+    let state: LoadingState
+    let progress: LoadingProgress?
     let retryAction: (() -> Void)?
 
     @State private var rotationAngle: Double = 0
@@ -33,17 +33,17 @@ struct SimpleLoadingView: View {
             }
 
             // Error state (when applicable)
-            if case .error(let error, _) = state {
-                errorView(error)
+            if case .failed(let errorMessage) = state {
+                errorView(errorMessage)
             }
 
             // Network information (when downloading)
-            if case .downloadingFromCloud = state, let progress = progress {
+            if case .loading(_, let stage, _) = state, stage == .downloadingFromCloud, let progress = progress {
                 networkInfo(progress)
             }
 
-            // Retry button (when applicable)
-            if state.canRetry, let retryAction = retryAction {
+            // Retry button (always shown for failed states)
+            if case .failed = state, let retryAction = retryAction {
                 retryButton(action: retryAction)
             }
         }
@@ -109,11 +109,11 @@ struct SimpleLoadingView: View {
     // MARK: - Status Message
     private var statusMessage: some View {
         VStack(spacing: 8) {
-            Text(state.statusMessage)
+            Text(state.message)
                 .font(.ibmPlexMono(size: 16, weight: .medium))
                 .foregroundColor(.textPrimary)
                 .multilineTextAlignment(.center)
-                .animation(.easeInOut(duration: 0.3), value: state.statusMessage)
+                .animation(.easeInOut(duration: 0.3), value: state.message)
 
             // Progress percentage
             if state.isLoading && state.progress > 0 {
@@ -137,25 +137,25 @@ struct SimpleLoadingView: View {
             // Additional progress information
             if let progress = progress {
                 VStack(spacing: 4) {
-                    if let downloadPercentage = progress.downloadPercentage {
-                        HStack {
-                            Text("Download:")
-                                .font(.ibmPlexMono(size: 12, weight: .medium))
-                                .foregroundColor(.textSecondary)
-                            Spacer()
-                            Text("\(Int(downloadPercentage * 100))%")
-                                .font(.ibmPlexMono(size: 12, weight: .regular))
-                                .foregroundColor(.textPrimary)
-                        }
+                    // Download percentage
+                    HStack {
+                        Text("Download:")
+                            .font(.ibmPlexMono(size: 12, weight: .medium))
+                            .foregroundColor(.textSecondary)
+                        Spacer()
+                        Text("\(Int(progress.value * 100))%")
+                            .font(.ibmPlexMono(size: 12, weight: .regular))
+                            .foregroundColor(.textPrimary)
                     }
 
-                    if let downloadSpeed = progress.formattedDownloadSpeed {
+                    // Download speed (available for iCloud downloads)
+                    if let downloadSpeed = progress.downloadSpeed {
                         HStack {
                             Text("Speed:")
                                 .font(.ibmPlexMono(size: 12, weight: .medium))
                                 .foregroundColor(.textSecondary)
                             Spacer()
-                            Text(downloadSpeed)
+                            Text(ByteCountFormatter.string(fromByteCount: Int64(downloadSpeed), countStyle: .file) + "/s")
                                 .font(.ibmPlexMono(size: 12, weight: .regular))
                                 .foregroundColor(.textPrimary)
                         }
@@ -168,7 +168,7 @@ struct SimpleLoadingView: View {
     }
 
     // MARK: - Error View
-    private func errorView(_ error: VideoLoadingError) -> some View {
+    private func errorView(_ errorMessage: String) -> some View {
         VStack(spacing: 16) {
             // Error icon
             Image(systemName: "exclamationmark.triangle.fill")
@@ -181,32 +181,12 @@ struct SimpleLoadingView: View {
                     .font(.ibmPlexMono(size: 18, weight: .semibold))
                     .foregroundColor(.textPrimary)
 
-                if let recoverySuggestion = error.recoverySuggestion {
-                    Text(recoverySuggestion)
-                        .font(.ibmPlexMono(size: 14, weight: .regular))
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-            }
-
-            // Debug information (in debug builds)
-            #if DEBUG
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Debug Info:")
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                Text(errorMessage)
+                    .font(.ibmPlexMono(size: 14, weight: .regular))
                     .foregroundColor(.textSecondary)
-
-                Text(error.localizedDescription)
-                    .font(.caption)
-                    .foregroundColor(.textTertiary)
-                    .textSelection(.enabled)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
             }
-            .padding()
-            .background(Color.backgroundSecondary)
-            .cornerRadius(8)
-            #endif
         }
         .padding()
         .background(Color.backgroundSecondary.opacity(0.5))
@@ -215,11 +195,11 @@ struct SimpleLoadingView: View {
     }
 
     // MARK: - Network Information
-    private func networkInfo(_ progress: VideoLoadingProgress) -> some View {
+    private func networkInfo(_ progress: LoadingProgress) -> some View {
         VStack(spacing: 12) {
             HStack {
                 Image(systemName: "icloud.fill")
-                    .foregroundColor(.primary)
+                    .foregroundColor(.blue)
                     .font(.title3)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -227,16 +207,35 @@ struct SimpleLoadingView: View {
                         .font(.ibmPlexMono(size: 14, weight: .medium))
                         .foregroundColor(.textPrimary)
 
-                    Text("Large files may take longer")
-                        .font(.ibmPlexMono(size: 12, weight: .regular))
-                        .foregroundColor(.textSecondary)
+                    if let downloadSpeed = progress.downloadSpeed {
+                        Text("\(ByteCountFormatter.string(fromByteCount: Int64(downloadSpeed), countStyle: .file))/s")
+                            .font(.ibmPlexMono(size: 12, weight: .regular))
+                            .foregroundColor(.blue)
+                    } else {
+                        Text("Large files may take longer")
+                            .font(.ibmPlexMono(size: 12, weight: .regular))
+                            .foregroundColor(.textSecondary)
+                    }
                 }
 
                 Spacer()
+
+                // Animated iCloud indicator
+                VStack {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.title3)
+                        .scaleEffect(1.2)
+                        .opacity(0.8)
+                }
             }
             .padding()
             .background(Color.backgroundTertiary)
             .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
         }
         .padding(.horizontal)
     }
@@ -264,38 +263,43 @@ struct SimpleLoadingView: View {
         switch state {
         case .idle:
             return "video.slash"
-        case .initializing:
-            return "gear.badge"
-        case .requestingDownload:
-            return "icloud.and.arrow.down"
-        case .downloadingFromCloud:
-            return "icloud.and.arrow.down"
-        case .transferringFile:
-            return "arrow.left.arrow.right"
-        case .validatingFile:
-            return "checkmark.shield"
-        case .creatingAsset:
-            return "video.badge.plus"
-        case .generatingThumbnail:
-            return "photo"
-        case .loadingTrimmerComponents:
-            return "slider.horizontal.3"
-        case .ready:
+        case .loading(_, let stage, _):
+            switch stage {
+            case .initializing:
+                return "gear.badge"
+            case .downloadingFromCloud:
+                return "icloud.and.arrow.down"
+            case .transferringFile:
+                return "arrow.left.arrow.right"
+            case .validatingFile:
+                return "checkmark.shield"
+            case .creatingAsset:
+                return "video.badge.plus"
+            case .initializingPlayer:
+                return "play.rectangle"
+            case .preparingPlayback:
+                return "play.circle"
+            case .finalizing:
+                return "checkmark.circle"
+            }
+        case .assetReady:
+            return "video.badge.checkmark"
+        case .playerReady:
+            return "play.rectangle.fill"
+        case .fullyReady:
             return "checkmark.circle.fill"
-        case .error:
+        case .failed:
             return "exclamationmark.triangle.fill"
         }
     }
 
     private var stateColor: Color {
         switch state {
-        case .idle, .ready:
+        case .idle, .assetReady, .playerReady, .fullyReady:
             return .success
-        case .initializing, .requestingDownload, .downloadingFromCloud,
-             .transferringFile, .validatingFile, .creatingAsset,
-             .generatingThumbnail, .loadingTrimmerComponents:
+        case .loading:
             return .primary
-        case .error:
+        case .failed:
             return .error
         }
     }
@@ -304,25 +308,32 @@ struct SimpleLoadingView: View {
         switch state {
         case .idle:
             return "Video loading idle"
-        case .initializing:
-            return "Initializing video load"
-        case .requestingDownload:
-            return "Requesting video download"
-        case .downloadingFromCloud:
-            return "Downloading video from iCloud"
-        case .transferringFile:
-            return "Transferring video file"
-        case .validatingFile:
-            return "Validating video file"
-        case .creatingAsset:
-            return "Creating video asset"
-        case .generatingThumbnail:
-            return "Generating video thumbnail"
-        case .loadingTrimmerComponents:
-            return "Loading trimming interface"
-        case .ready:
-            return "Video loaded successfully"
-        case .error:
+        case .loading(_, let stage, _):
+            switch stage {
+            case .initializing:
+                return "Initializing video load"
+            case .downloadingFromCloud:
+                return "Downloading video from iCloud"
+            case .transferringFile:
+                return "Transferring video file"
+            case .validatingFile:
+                return "Validating video file"
+            case .creatingAsset:
+                return "Creating video asset"
+            case .initializingPlayer:
+                return "Initializing video player"
+            case .preparingPlayback:
+                return "Preparing video playback"
+            case .finalizing:
+                return "Finalizing video preparation"
+            }
+        case .assetReady:
+            return "Video asset ready"
+        case .playerReady:
+            return "Video player ready"
+        case .fullyReady:
+            return "Video fully ready"
+        case .failed:
             return "Video loading failed"
         }
     }
@@ -346,11 +357,8 @@ struct SimpleLoadingView: View {
 // MARK: - Preview
 #Preview("Loading State") {
     SimpleLoadingView(
-        state: .downloadingFromCloud(progress: 0.6),
-        progress: VideoLoadingProgress(
-            phase: .downloadingFromCloud(0.6),
-            correlationId: "preview-loading"
-        ),
+        state: .loading(progress: 0.6, stage: .downloadingFromCloud, message: "Downloading from iCloud..."),
+        progress: .iCloudDownload(progress: 0.6, speed: 1024*1024),
         retryAction: nil
     )
     .preferredColorScheme(.dark)
@@ -358,7 +366,7 @@ struct SimpleLoadingView: View {
 
 #Preview("Error State") {
     SimpleLoadingView(
-        state: .error(error: .dataUnavailable, retryAvailable: true),
+        state: .failed("Video file could not be loaded"),
         progress: nil,
         retryAction: { }
     )
@@ -367,7 +375,7 @@ struct SimpleLoadingView: View {
 
 #Preview("Ready State") {
     SimpleLoadingView(
-        state: .ready(asset: AVURLAsset(url: URL(fileURLWithPath: "/dev/null")), url: URL(fileURLWithPath: "/dev/null")),
+        state: .fullyReady(AVURLAsset(url: URL(fileURLWithPath: "/dev/null"))),
         progress: nil,
         retryAction: nil
     )
