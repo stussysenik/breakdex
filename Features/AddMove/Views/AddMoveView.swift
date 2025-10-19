@@ -61,9 +61,11 @@ struct AddMoveView: View {
                     .id("trimmer-\(viewTransitionID)") // Force view identity
                     .onAppear {
                         Logger.addMove.info("✅ OPENSPEC FIX: AddMoveView: .trimming case appeared - MinimalTrimmerView loaded successfully", emoji: "✅")
+                        handleTrimmerAppear()
                     }
                     .onDisappear {
                         Logger.addMove.info("❌ OPENSPEC FIX: AddMoveView: MinimalTrimmerView disappeared", emoji: "❌")
+                        handleTrimmerDisappear()
                     }
 
             case .naming:
@@ -109,15 +111,72 @@ struct AddMoveView: View {
         .onChange(of: viewTransitionID) { oldID, newID in
             Logger.addMove.info("🔄 AddMoveView: viewTransitionID changed from \(oldID) to \(newID)", emoji: "🔄")
         }
+        .onChange(of: viewModel.loadingState) { oldState, newState in
+            Logger.addMove.info("🔄 OPENSPEC FIX: AddMoveView: loadingState changed from \(oldState) to \(newState)", emoji: "🔄")
+            Logger.addMove.debug("📊 OPENSPEC FIX: Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "📊")
+
+            // Handle cancel button workflow: when loadingState returns to idle during trimming, transition to ready
+            if newState == .idle && currentStep == .trimming {
+                Logger.addMove.info("🎯 OPENSPEC FIX: Detected cancel operation - transitioning from trimming to ready", emoji: "🎯")
+
+                // Update state on main thread
+                currentStep = .ready
+                viewTransitionID = UUID().uuidString
+
+                Logger.addMove.info("✅ OPENSPEC FIX: State transition complete - currentStep: \(currentStep), viewTransitionID: \(viewTransitionID)", emoji: "✅")
+            }
+        }
     }
 
     // MARK: - Private Methods
 
     private func setupInitialState() {
-        Logger.addMove.info("🌱 AddMoveView: Setting up initial state", emoji: "🌱")
-        Logger.addMove.info("📊 AddMoveView: Initial viewTransitionID: \(viewTransitionID)", emoji: "📊")
-        currentStep = .ready
-        Logger.addMove.info("🎬 AddMoveView: Initialized with simplified architecture - currentStep: \(currentStep)", emoji: "🎬")
+        Logger.addMove.info("🌱 OPENSPEC PRELOAD: AddMoveView: Setting up initial state", emoji: "🌱")
+        Logger.addMove.info("📊 OPENSPEC PRELOAD: AddMoveView: Initial viewTransitionID: \(viewTransitionID)", emoji: "📊")
+
+        // Check if we can restore a suspended workflow (TabView navigation case)
+        if viewModel.canRestoreWorkflow {
+            Logger.addMove.info("🔄 OPENSPEC PRELOAD: AddMoveView: Suspended workflow detected - starting preloading and synchronizing view state", emoji: "🔄")
+
+            // OPENSPEC ENHANCEMENT: Start video preloading immediately before view composition
+            Task { @MainActor in
+                Logger.addMove.info("⚡ OPENSPEC PRELOAD: Triggering video preloading for quick return", emoji: "⚡")
+
+                let preloadingStartTime = Date()
+                await viewModel.preloadVideoForQuickReturn()
+                let preloadingDuration = Date().timeIntervalSince(preloadingStartTime)
+
+                Logger.addMove.info("✅ OPENSPEC PRELOAD: Video preloading completed in \(String(format: "%.3f", preloadingDuration))s", emoji: "✅")
+
+                // Enhanced coordination: Log player readiness state for view transition
+                if viewModel.videoPlayer.isReady {
+                    Logger.addMove.info("🎯 OPENSPEC PRELOAD: Player is ready - instantaneous video display expected", emoji: "🎯")
+                } else {
+                    Logger.addMove.warning("⚠️ OPENSPEC PRELOAD: Player not ready after preloading - potential display delay", emoji: "⚠️")
+                }
+
+                // Log detailed player state diagnostics
+                let playerDiagnostics = viewModel.videoPlayer.playerStateDiagnostics
+                Logger.addMove.info("📊 OPENSPEC PRELOAD: \(playerDiagnostics)", emoji: "📊")
+            }
+
+            // Restore the trimming state since we have a suspended workflow
+            currentStep = .trimming
+            Logger.addMove.info("✅ OPENSPEC PRELOAD: AddMoveView: Restored currentStep to \(currentStep) for suspended workflow", emoji: "✅")
+
+            // Generate new transition ID for proper view recreation
+            viewTransitionID = UUID().uuidString
+            Logger.addMove.info("🔄 OPENSPEC PRELOAD: AddMoveView: Generated new viewTransitionID for restored workflow: \(viewTransitionID)", emoji: "🔄")
+
+            // Log restoration details
+            Logger.addMove.debug("📊 OPENSPEC PRELOAD: AddMoveView: Workflow state synchronization - ViewModel: \(viewModel.workflowStateDescription), View: \(currentStep)", emoji: "📊")
+            Logger.addMove.info("🎯 OPENSPEC PRELOAD: Video preloading triggered - should prevent flashing when MinimalTrimmerView appears", emoji: "🎯")
+        } else {
+            // Fresh start - no suspended workflow available
+            currentStep = .ready
+            Logger.addMove.info("🎬 OPENSPEC PRELOAD: AddMoveView: Fresh start - no suspended workflow - currentStep: \(currentStep)", emoji: "🎬")
+            Logger.addMove.debug("📊 OPENSPEC PRELOAD: AddMoveView: Workflow state - ViewModel: \(viewModel.workflowStateDescription), View: \(currentStep)", emoji: "📊")
+        }
     }
 
     private func handleStepChange(_ newStep: AddMoveStep) {
@@ -148,6 +207,30 @@ struct AddMoveView: View {
     }
 
   
+    private func handleTrimmerAppear() {
+        Task { @MainActor in
+            Logger.addMove.info("🔄 Trimmer appeared - checking workflow restoration")
+
+            // Check if we can restore a suspended workflow
+            if viewModel.canRestoreWorkflow {
+                if viewModel.isQuickReturn {
+                    Logger.addMove.info("⚡ Quick return detected (< 5s) - restoring workflow")
+                    await viewModel.restoreWorkflow()
+                } else {
+                    Logger.addMove.info("📊 Return after delay (> 5s) - workflow available but not auto-restoring")
+                    // Could add user prompt here asking if they want to restore
+                }
+            } else {
+                Logger.addMove.info("ℹ️ No suspended workflow available")
+            }
+        }
+    }
+
+    private func handleTrimmerDisappear() {
+        Logger.addMove.info("🔄 Trimmer disappeared - suspending workflow")
+        viewModel.suspendWorkflow()
+    }
+
     private func handleError(_ message: String) {
         Logger.addMove.error("AddMove error: \(message)", emoji: "❌")
         // If there's an error during trimming, go back to selection

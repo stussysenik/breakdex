@@ -76,16 +76,24 @@ public final class RobustVideoLoader: ObservableObject {
         logger.info("🎬 Loading video from PhotosPicker")
 
         let previousState = state
-        await updateState(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."))
-        await updateProgress(.initial)
+        await updateStateAndProgress(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."), newProgress: .initial)
 
         do {
             let asset = try await loadFromPhotosPicker(item)
+
+            // FIXED: Check if current progress ≥ 60% to avoid regressive transition
+            let currentProgress = previousState.progress
+            if currentProgress >= 0.6 {
+                // Skip assetReady transition when already at high progress - direct to player initialization
+                Logger.loadingState.info("⚡ Skipping assetReady transition at \(Int(currentProgress * 100))% - direct player initialization path")
+                // Return asset directly without state transition, letting caller handle player initialization
+                return asset
+            }
+
             // MODERNIZED: Only set assetReady state - player initialization handled by ViewModel
             let newState = LoadingState.assetReady(asset)
             if newState.validateMonotonicTransition(from: previousState) {
-                await updateState(newState)
-                await updateProgress(.creatingAsset)
+                await updateStateAndProgress(newState, newProgress: .creatingAsset)
                 Logger.loadingState.info("✅ Asset loading completed - assetReady state set")
             } else {
                 Logger.loadingState.error("❌ Invalid state transition detected, using monotonic validation")
@@ -93,7 +101,7 @@ public final class RobustVideoLoader: ObservableObject {
             }
             return asset
         } catch {
-            await updateState(.failed(error.localizedDescription))
+            updateState(.failed(error.localizedDescription))
             throw LoadingError.from(error)
         }
     }
@@ -103,16 +111,24 @@ public final class RobustVideoLoader: ObservableObject {
         logger.info("🎬 Loading video from URL: \(url.lastPathComponent)")
 
         let previousState = state
-        await updateState(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."))
-        await updateProgress(.initial)
+        await updateStateAndProgress(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."), newProgress: .initial)
 
         do {
             let asset = try await loadFromURL(url)
+
+            // FIXED: Check if current progress ≥ 60% to avoid regressive transition
+            let currentProgress = previousState.progress
+            if currentProgress >= 0.6 {
+                // Skip assetReady transition when already at high progress - direct to player initialization
+                Logger.loadingState.info("⚡ Skipping assetReady transition at \(Int(currentProgress * 100))% - direct player initialization path")
+                // Return asset directly without state transition, letting caller handle player initialization
+                return asset
+            }
+
             // MODERNIZED: Only set assetReady state - player initialization handled by ViewModel
             let newState = LoadingState.assetReady(asset)
             if newState.validateMonotonicTransition(from: previousState) {
-                await updateState(newState)
-                await updateProgress(.creatingAsset)
+                await updateStateAndProgress(newState, newProgress: .creatingAsset)
                 Logger.loadingState.info("✅ Asset loading completed - assetReady state set")
             } else {
                 Logger.loadingState.error("❌ Invalid state transition detected, using monotonic validation")
@@ -120,7 +136,7 @@ public final class RobustVideoLoader: ObservableObject {
             }
             return asset
         } catch {
-            await updateState(.failed(error.localizedDescription))
+            updateState(.failed(error.localizedDescription))
             throw LoadingError.from(error)
         }
     }
@@ -130,16 +146,24 @@ public final class RobustVideoLoader: ObservableObject {
         logger.info("🎬 Loading video from PHAsset: \(phAsset.localIdentifier)")
 
         let previousState = state
-        await updateState(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."))
-        await updateProgress(.initial)
+        await updateStateAndProgress(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."), newProgress: .initial)
 
         do {
             let asset = try await loadFromPHAsset(phAsset)
+
+            // FIXED: Check if current progress ≥ 60% to avoid regressive transition
+            let currentProgress = previousState.progress
+            if currentProgress >= 0.6 {
+                // Skip assetReady transition when already at high progress - direct to player initialization
+                Logger.loadingState.info("⚡ Skipping assetReady transition at \(Int(currentProgress * 100))% - direct player initialization path")
+                // Return asset directly without state transition, letting caller handle player initialization
+                return asset
+            }
+
             // MODERNIZED: Only set assetReady state - player initialization handled by ViewModel
             let newState = LoadingState.assetReady(asset)
             if newState.validateMonotonicTransition(from: previousState) {
-                await updateState(newState)
-                await updateProgress(.creatingAsset)
+                await updateStateAndProgress(newState, newProgress: .creatingAsset)
                 Logger.loadingState.info("✅ Asset loading completed - assetReady state set")
             } else {
                 Logger.loadingState.error("❌ Invalid state transition detected, using monotonic validation")
@@ -147,12 +171,13 @@ public final class RobustVideoLoader: ObservableObject {
             }
             return asset
         } catch {
-            await updateState(.failed(error.localizedDescription))
+            updateState(.failed(error.localizedDescription))
             throw LoadingError.from(error)
         }
     }
 
     /// Cancel current loading operation
+    @MainActor
     public func cancelLoading() {
         logger.info("🚫 Canceling loading operation")
         currentLoadingTask?.cancel()
@@ -187,7 +212,7 @@ public final class RobustVideoLoader: ObservableObject {
 
         // Try streaming first, then fallback to Photos library
         if let url = try await item.loadTransferable(type: URL.self) {
-            await updateProgress(.downloading)
+            await updateStateAndProgress(.loading(progress: 0.1, stage: .transferringFile, message: "Transferring file..."), newProgress: .downloading)
             return try await loadFromURL(url)
         }
 
@@ -206,7 +231,7 @@ public final class RobustVideoLoader: ObservableObject {
         }
 
         Logger.loadingState.info("🎬 Starting PHAsset loading with modern async APIs")
-        await updateProgress(.downloading)
+        await updateStateAndProgress(.loading(progress: 0.1, stage: .downloadingFromCloud, message: "Downloading from iCloud..."), newProgress: .downloading)
 
         // MODERNIZED: Use iOS 18's async AVAsset loading with proper structured concurrency
         let options = PHVideoRequestOptions()
@@ -218,10 +243,11 @@ public final class RobustVideoLoader: ObservableObject {
             Task { @MainActor in
                 let progressValue = Double(progress)
                 let iCloudProgress = LoadingProgress.iCloudDownload(progress: progressValue, speed: 0)
-                self.updateProgress(iCloudProgress)
                 let loadingState = LoadingState.loading(progress: progressValue, stage: .downloadingFromCloud, message: "Downloading from iCloud...")
                 Logger.loadingState.debug("📥 iCloud download progress: \(Int(progressValue * 100))%")
-                self.updateState(loadingState)
+
+                // ATOMIC UPDATE: Update state and progress simultaneously to eliminate race condition
+                self.updateStateAndProgress(loadingState, newProgress: iCloudProgress)
             }
         }
 
@@ -257,7 +283,7 @@ public final class RobustVideoLoader: ObservableObject {
     }
 
     private func loadFromURL(_ url: URL) async throws -> AVAsset {
-        await updateProgress(.downloading)
+        await updateStateAndProgress(.loading(progress: 0.1, stage: .transferringFile, message: "Transferring file..."), newProgress: .downloading)
 
         let tempURL = createTemporaryURL(filename: url.lastPathComponent)
 
@@ -265,7 +291,7 @@ public final class RobustVideoLoader: ObservableObject {
         try await streamCopy(from: url, to: tempURL)
         temporaryFiles.insert(tempURL)
 
-        await updateProgress(.validating)
+        await updateStateAndProgress(.loading(progress: 0.7, stage: .validatingFile, message: "Validating video file..."), newProgress: .validating)
 
         let asset = AVURLAsset(url: tempURL)
 
@@ -282,7 +308,7 @@ public final class RobustVideoLoader: ObservableObject {
     // MARK: - Asset Validation
 
     private func validateAsset(_ asset: AVAsset) async throws {
-        updateProgress(LoadingProgress(value: 0.8, message: "Validating video..."))
+        await updateStateAndProgress(.loading(progress: 0.8, stage: .creatingAsset, message: "Creating video asset..."), newProgress: LoadingProgress(value: 0.8, message: "Validating video..."))
 
         let duration = try await asset.load(.duration)
         guard duration.seconds > 0 else {
@@ -323,11 +349,11 @@ public final class RobustVideoLoader: ObservableObject {
         }
 
         // Perform copy with progress feedback
-        updateProgress(LoadingProgress(value: 0.2, message: "Transferring file..."))
+        await updateStateAndProgress(.loading(progress: 0.2, stage: .transferringFile, message: "Transferring file..."), newProgress: LoadingProgress(value: 0.2, message: "Transferring file..."))
 
         try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
 
-        updateProgress(LoadingProgress(value: 0.6, message: "File transferred"))
+        await updateStateAndProgress(.loading(progress: 0.6, stage: .transferringFile, message: "File transferred"), newProgress: LoadingProgress(value: 0.6, message: "File transferred"))
     }
 
     // MARK: - Network Resilience
@@ -357,19 +383,61 @@ public final class RobustVideoLoader: ObservableObject {
 
     // MARK: - State Management
 
-    private func updateState(_ newState: LoadingState) {
+    /// Atomic state transition that updates both state and progress simultaneously
+    /// This eliminates race conditions between state and progress updates
+    @MainActor
+    private func updateStateAndProgress(_ newState: LoadingState, newProgress: LoadingProgress? = nil) {
         // Prevent @Published updates during initialization to avoid spurious state transitions
         guard !isInitializing else {
-            logger.debug("🚫 Suppressing state update during initialization: \(newState)")
+            logger.debug("🚫 Suppressing atomic state update during initialization: \(newState)")
             return
         }
 
+        let transitionStartTime = CFAbsoluteTimeGetCurrent()
+        let previousState = state
+
+        // Validate monotonic transition before updating
+        guard newState.validateMonotonicTransition(from: previousState) else {
+            logger.error("🚫 ATOMIC TRANSITION FAILED: Invalid monotonic transition from \(previousState.progress * 100)% to \(newState.progress * 100)%")
+            return
+        }
+
+        // Perform atomic updates - both state and progress change together
         state = newState
+
+        // Update progress if provided, otherwise derive from state
+        if let progress = newProgress {
+            self.progress = progress
+        } else {
+            // Derive progress from state for consistency - ensure stage information is preserved
+            if let stage = newState.stage {
+                self.progress = LoadingProgress(value: newState.progress, message: newState.message, stage: stage)
+            } else {
+                // Fallback for states without stage (like fullyReady)
+                self.progress = LoadingProgress(value: newState.progress, message: newState.message, stage: nil)
+            }
+        }
+
+        let transitionDuration = CFAbsoluteTimeGetCurrent() - transitionStartTime
+        logger.debug("⚛️ ATOMIC STATE TRANSITION: \(previousState.progress * 100)% → \(newState.progress * 100)% (\(String(format: "%.3f", transitionDuration * 1000))ms)")
+
+        // **NEW**: Diagnostic logging for stage synchronization
+        if let previousStage = previousState.stage, let currentStage = newState.stage {
+            logger.debug("🎭 STAGE TRANSITION: \(previousStage) → \(currentStage)")
+        } else if newState.stage == nil && previousState.stage != nil {
+            logger.debug("🏁 STAGE COMPLETION: Transitioned to final state (\(newState))")
+        }
+
         logger.debug("State updated: \(state)")
     }
 
+    private func updateState(_ newState: LoadingState) {
+        // Legacy method - redirect to atomic version
+        updateStateAndProgress(newState)
+    }
+
     private func updateProgress(_ newProgress: LoadingProgress) {
-        // Prevent @Published updates during initialization to avoid spurious progress notifications
+        // Legacy method - only update progress, maintain current state
         guard !isInitializing else {
             logger.debug("🚫 Suppressing progress update during initialization: \(Int(newProgress.value * 100))%")
             return

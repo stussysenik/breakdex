@@ -14,6 +14,9 @@ struct SelectClip: View {
     @State private var tempSelection: PhotosUI.PhotosPickerItem?
     @State private var lastStateObservationTime: CFAbsoluteTime?
 
+    // MARK: - Logging
+    private let logger = Logger(subsystem: "com.breakingflashcards", category: "SelectClip")
+
     var body: some View {
         ZStack {
             // Main content
@@ -138,10 +141,12 @@ struct SelectClip: View {
         Logger.addMove.info("SelectClip: State transition: \(viewModel.loadingState) → \(newState)", emoji: "🔄")
         Logger.addMove.debug("SelectClip: Player ready: \(viewModel.videoPlayer.isReady), Loading progress: \(viewModel.progressPercentage)%", emoji: "📊")
         Logger.addMove.debug("🎯 UI Observation: SelectClip observed state at \(observationTimestamp)s")
+        logger.debug("🔍 PROOF: SELECTCLIP observing state change at \(observationTimestamp)")
 
         switch newState {
         case .idle:
             // Ready state - no active loading
+            logger.debug("🔍 PROOF: SELECTCLIP observed idle state")
             break
 
         case .loading(let progress, let stage, _):
@@ -149,6 +154,13 @@ struct SelectClip: View {
             let calculatedProgress = newState.progress
             let rawProgressPercent = Int(progress * 100)
             let calculatedProgressPercent = Int(calculatedProgress * 100)
+
+            logger.debug("🔍 PROOF: SELECTCLIP observing loading state:")
+            logger.debug("🔍 PROOF: Raw progress parameter: \(progress) (\(rawProgressPercent)%)")
+            logger.debug("🔍 PROOF: Calculated progress property: \(calculatedProgress) (\(calculatedProgressPercent)%)")
+            logger.debug("🔍 PROOF: Loading stage: \(stage)")
+            logger.debug("🔍 PROOF: State observation timing: \(observationTimestamp)")
+
             Logger.addMove.debug("SelectClip: Loading progress observed - raw: \(rawProgressPercent)%, calculated: \(calculatedProgressPercent)% (\(stage))", emoji: "📊")
             Logger.addMove.debug("🎯 UI Observation: \(stage) state observed at \(observationTimestamp)s")
 

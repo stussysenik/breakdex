@@ -358,6 +358,66 @@ public class SharedVideoPlayer: ObservableObject {
         }
     }
 
+    /// Enhanced session cleanup with proper observer removal and session isolation
+    /// This method provides comprehensive cleanup for session boundaries to prevent cross-session state corruption
+    @MainActor
+    public func cleanupForSessionBoundary() {
+        let sessionStartTime = CFAbsoluteTimeGetCurrent()
+        logger.info("🧹 SESSION BOUNDARY: Starting comprehensive SharedVideoPlayer cleanup for session isolation")
+
+        // Ensure MainActor isolation
+        guard Thread.isMainThread else {
+            logger.error("❌ SESSION BOUNDARY: cleanupForSessionBoundary called off main thread - forcing MainActor")
+            Task { @MainActor in
+                self.cleanupForSessionBoundary()
+            }
+            return
+        }
+
+        // Stop playback immediately
+        player?.pause()
+        logger.debug("⏸️ SESSION BOUNDARY: Playback stopped")
+
+        // Remove time observer with proper tracking
+        if let timeObserver = timeObserver {
+            player?.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+            logger.debug("🗑️ SESSION BOUNDARY: Time observer removed")
+        }
+
+        // Remove all cancellables
+        let cancellableCount = cancellables.count
+        cancellables.removeAll()
+        logger.debug("🗑️ SESSION BOUNDARY: \(cancellableCount) cancellables removed")
+
+        // Safely remove all KVO and notification observers with MainActor isolation
+        removeAllObserversOnMainActor()
+        logger.debug("🗑️ SESSION BOUNDARY: All KVO and notification observers removed on MainActor")
+
+        // Replace current item with nil to release resources
+        player?.replaceCurrentItem(with: nil)
+        logger.debug("🗑️ SESSION BOUNDARY: Player item replaced with nil")
+
+        // Clear all player references
+        player = nil
+        playerItem = nil
+        logger.debug("🗑️ SESSION BOUNDARY: Player references cleared")
+
+        // Reset all published properties to clean state
+        state = .idle
+        isReady = false
+        isPlaying = false
+        currentTime = 0.0
+        progress = 0.0
+        duration = 0.0
+        errorMessage = nil
+        logger.debug("🔄 SESSION BOUNDARY: All published properties reset to clean state")
+
+        let sessionDuration = CFAbsoluteTimeGetCurrent() - sessionStartTime
+        logger.info("✅ SESSION BOUNDARY: SharedVideoPlayer cleanup completed in \(String(format: "%.3f", sessionDuration))s")
+        logger.info("🎯 SESSION BOUNDARY: Player state verified clean - ready for new loading session")
+    }
+
     // MARK: - Enhanced State Management
 
     /// Force state validation and recovery - for debugging and manual recovery
@@ -376,6 +436,110 @@ public class SharedVideoPlayer: ObservableObject {
             isReady = true
             logger.info("✅ MANUAL RECOVERY COMPLETED: state=\(state), isReady=\(isReady)")
         }
+    }
+
+    // MARK: - Player State Maintenance for Quick Return
+
+    /// Maintain player instance across tab navigation for quick return scenarios
+    /// This method preserves the current player state instead of cleaning it up
+    public func maintainPlayerStateForQuickReturn() {
+        let maintenanceStartTime = Date()
+        logger.info("🔄 PLAYER STATE MAINTENANCE: Starting state preservation for quick return")
+
+        // Only maintain state if player is ready and has content
+        guard state == .ready || state == .playing || state == .paused || state == .ended else {
+            logger.info("ℹ️ PLAYER STATE MAINTENANCE: Player not in ready state - no maintenance needed")
+            return
+        }
+
+        guard let currentPlayer = player, let currentPlayerItem = playerItem else {
+            logger.warning("⚠️ PLAYER STATE MAINTENANCE: No active player instance to maintain")
+            return
+        }
+
+        // Log current player state before maintenance
+        let currentPlaybackTime = currentPlayer.currentTime().seconds
+        let currentRate = currentPlayer.rate
+        let currentTime = CFAbsoluteTimeGetCurrent()
+        logger.info("📊 PLAYER STATE MAINTENANCE: Current state - playbackTime: \(String(format: "%.2f", currentPlaybackTime))s, rate: \(currentRate)")
+
+        // Preserve current playback position for quick return
+        if currentRate > 0 {
+            logger.info("⏸️ PLAYER STATE MAINTENANCE: Pausing playback for state preservation")
+            currentPlayer.pause()
+        }
+
+        // Keep player instance alive but pause playback
+        // Don't call cleanup() or replaceCurrentItem(with: nil)
+        // This preserves the loaded video asset and buffers
+
+        let maintenanceDuration = Date().timeIntervalSince(maintenanceStartTime)
+        logger.info("✅ PLAYER STATE MAINTENANCE: State preservation completed in \(String(format: "%.3f", maintenanceDuration))s")
+        logger.info("🎯 PLAYER STATE MAINTENANCE: Player instance maintained for quick return - no black screen expected")
+    }
+
+    /// Check if player can be quickly restored without reloading
+    public var canQuickRestore: Bool {
+        let hasPlayer = player != nil
+        let hasPlayerItem = playerItem != nil
+        let playerItemReady = playerItem?.status == .readyToPlay
+        let stateReady = state == .ready || state == .playing || state == .paused || state == .ended
+
+        logger.debug("🔍 QUICK RESTORE CHECK: hasPlayer=\(hasPlayer), hasPlayerItem=\(hasPlayerItem), playerItemReady=\(playerItemReady), stateReady=\(stateReady)")
+
+        return hasPlayer && hasPlayerItem && playerItemReady && stateReady
+    }
+
+    /// Prepare player for quick return by ensuring it's in optimal state
+    public func prepareForQuickReturn() async -> Bool {
+        let preparationStartTime = Date()
+        logger.info("🚀 PLAYER QUICK RETURN PREPARATION: Starting preparation")
+
+        guard canQuickRestore else {
+            logger.warning("⚠️ PLAYER QUICK RETURN PREPARATION: Player cannot be quickly restored")
+            return false
+        }
+
+        // Ensure player is in ready state for immediate display
+        if state != .ready {
+            logger.info("🔄 PLAYER QUICK RETURN PREPARATION: Transitioning to ready state")
+            state = .ready
+        }
+
+        // Ensure isReady flag is synchronized
+        if !isReady {
+            logger.info("🔄 PLAYER QUICK RETURN PREPARATION: Synchronizing isReady flag")
+            isReady = true
+        }
+
+        let preparationDuration = Date().timeIntervalSince(preparationStartTime)
+        logger.info("✅ PLAYER QUICK RETURN PREPARATION: Completed in \(String(format: "%.3f", preparationDuration))s")
+        logger.info("🎯 PLAYER QUICK RETURN PREPARATION: Player ready for instantaneous video display")
+
+        return true
+    }
+
+    /// Get diagnostic timing information for player state
+    public var playerStateDiagnostics: String {
+        let timestamp = CFAbsoluteTimeGetCurrent()
+        let diagnostics = """
+        🔍 PLAYER STATE DIAGNOSTICS [\(String(format: "%.3f", timestamp))]:
+        • State: \(state)
+        • isReady: \(isReady)
+        • hasPlayer: \(player != nil)
+        • playerItemStatus: \(playerItem?.status.rawValue ?? -1)
+        • currentTime: \(String(format: "%.2f", player?.currentTime().seconds ?? 0))s
+        • duration: \(String(format: "%.2f", duration))s
+        • canQuickRestore: \(canQuickRestore)
+        • registeredObservers: \(registeredObservers.count)
+        • notificationObservers: \(registeredNotificationObservers.count)
+        """
+        return diagnostics
+    }
+
+    /// Check if player has active observers (for leak detection)
+    public var hasObservers: Bool {
+        return !registeredObservers.isEmpty || !registeredNotificationObservers.isEmpty
     }
 
     /// Enhanced loadVideo method with automatic recovery mechanisms
@@ -468,6 +632,48 @@ public class SharedVideoPlayer: ObservableObject {
 
             self.logger.info("✅ All observers safely removed")
         }
+    }
+
+    /// Remove all observers on MainActor for session boundary cleanup
+    /// This method ensures thread safety for session isolation operations
+    @MainActor
+    private func removeAllObserversOnMainActor() {
+        guard Thread.isMainThread else {
+            logger.error("❌ SESSION BOUNDARY: removeAllObserversOnMainActor called on background thread")
+            return
+        }
+
+        logger.info("🧹 SESSION BOUNDARY: Removing all registered KVO observers on MainActor (\(registeredObservers.count))")
+
+        for (key, observer) in registeredObservers {
+            logger.debug("🗑️ SESSION BOUNDARY: Removing observer: \(key)")
+            observer.invalidate()
+        }
+
+        registeredObservers.removeAll()
+
+        // Also remove notification observers on MainActor
+        removeAllNotificationObserversOnMainActor()
+
+        logger.info("✅ SESSION BOUNDARY: All observers safely removed on MainActor")
+    }
+
+    /// Remove all notification observers on MainActor
+    @MainActor
+    private func removeAllNotificationObserversOnMainActor() {
+        guard Thread.isMainThread else {
+            logger.error("❌ SESSION BOUNDARY: removeAllNotificationObserversOnMainActor called on background thread")
+            return
+        }
+
+        logger.info("🧹 SESSION BOUNDARY: Removing all registered notification observers (\(registeredNotificationObservers.count))")
+
+        for observer in registeredNotificationObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        registeredNotificationObservers.removeAll()
+        logger.info("✅ SESSION BOUNDARY: All notification observers safely removed on MainActor")
     }
 
     /// Safely register a notification observer

@@ -135,9 +135,9 @@ public enum LoadingState: Equatable {
         }
     }
 
-    /// MONOTONIC STATE VALIDATION: Ensure state transitions can only move forward
+    /// SESSION-AWARE STATE VALIDATION: Ensure state transitions can only move forward within sessions
     /// - Parameter previousState: The previous loading state to validate against
-    /// - Returns: true if transition is valid (monotonic), false if retrogression would occur
+    /// - Returns: true if transition is valid (session-aware monotonic), false if harmful regression would occur
     public func validateMonotonicTransition(from previousState: LoadingState) -> Bool {
         let previousProgress = previousState.progress
         let currentProgress = self.progress
@@ -158,7 +158,15 @@ public enum LoadingState: Equatable {
             return false
         }
 
-        // Ensure progress is monotonic (always increases or stays the same)
+        // SESSION BOUNDARY FIX: Allow fullyReady → loading transitions for new loading sessions
+        // This fixes the issue where cancel-trim-select-new-clip workflows were blocked
+        if case .fullyReady = previousState, case .loading = self {
+            Logger.loadingState.info("🆕 SESSION BOUNDARY: New loading session detected - allowing fullyReady → loading transition")
+            Logger.loadingState.info("📊 Session transition: \(Int(previousProgress * 100))% → \(Int(currentProgress * 100))% (new session)")
+            return true
+        }
+
+        // Ensure progress is monotonic within a session (always increases or stays the same)
         let isMonotonic = currentProgress >= previousProgress
 
         if !isMonotonic {
@@ -507,6 +515,14 @@ public struct LoadingProgress {
         self.downloadSpeed = downloadSpeed
     }
 
+    // **BREAKING CHANGE**: Stage-aware constructor - requires stage parameter for progress synchronization
+    public init(value: Double, message: String, stage: LoadingStage, downloadSpeed: Double? = nil) {
+        self.value = max(0.0, min(1.0, value))
+        self.message = message
+        self.stage = stage
+        self.downloadSpeed = downloadSpeed
+    }
+
     // Convenience initializers for common stages
     public static let initial = LoadingProgress(value: 0.0, message: "Initializing...", stage: .initializing)
     public static let downloading = LoadingProgress(value: 0.1, message: "Downloading from iCloud...", stage: .downloadingFromCloud)
@@ -517,6 +533,11 @@ public struct LoadingProgress {
     public static let preparingPlayback = LoadingProgress(value: 0.95, message: "Preparing playback...", stage: .preparingPlayback)
     public static let finalizing = LoadingProgress(value: 0.99, message: "Finalizing...", stage: .finalizing)
     public static let complete = LoadingProgress(value: 1.0, message: "Complete", stage: nil)
+
+    // **NEW**: Stage-aware factory method for fullyReady state - ensures 100% completion
+    public static func fullyReady(asset: AVAsset) -> LoadingProgress {
+        return LoadingProgress(value: 1.0, message: "Ready", stage: nil)
+    }
 
     // iCloud download with speed info
     public static func iCloudDownload(progress: Double, speed: Double) -> LoadingProgress {

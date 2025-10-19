@@ -4,6 +4,9 @@ import AVKit
 import OSLog
 import PhotosUI
 
+// MARK: - Logger
+private let logger = Logger(subsystem: "com.breakingflashcards", category: "MinimalTrimmerView")
+
 
 // MARK: - iOS 18 AVMetrics Integration
 /// ENHANCEMENT: iOS 18 performance monitoring and optimization
@@ -169,8 +172,8 @@ struct MinimalTrimmerView: View {
         }
         .background(Color.backgroundPrimary)
         .onAppear {
-            // OPENSPEC FIX: Simplified onAppear with diagnostic logging
-            logger.info("🚀 OPENSPEC FIX: MinimalTrimmerView.onAppear started - video should be ready")
+            // OPENSPEC ENHANCEMENT: Enhanced onAppear with video readiness checking
+            logger.info("🚀 OPENSPEC PRELOAD: MinimalTrimmerView.onAppear started - checking video readiness")
 
             // ENHANCEMENT: Initialize iOS 18 performance manager
             if #available(iOS 18.0, *) {
@@ -178,14 +181,26 @@ struct MinimalTrimmerView: View {
                 logger.info("🚀 ENHANCEMENT: iOS 18 Performance Manager initialized")
             }
 
-            // OPENSPEC FIX: Direct synchronous setup - no complex guards or async tasks
-            logger.info("🔧 OPENSPEC FIX: Starting direct trimmer setup")
-            setupTrimmerDirect()
-            logger.info("✅ OPENSPEC FIX: MinimalTrimmerView.onAppear completed successfully")
+            // OPENSPEC ENHANCEMENT: Check video readiness before setup
+            if viewModel.videoPlayer.isReady {
+                logger.info("✅ OPENSPEC PRELOAD: Video player is ready - proceeding with trimmer setup")
+                setupTrimmerDirect()
+                logger.info("✅ OPENSPEC PRELOAD: MinimalTrimmerView.onAppear completed successfully - no flashing expected")
+            } else {
+                logger.warning("⚠️ OPENSPEC PRELOAD: Video player not ready - this indicates preloading has not completed yet")
+                logger.info("🔄 OPENSPEC PRELOAD: Setup will be handled by onChange(of: viewModel.videoPlayer.isReady)")
+
+                // Still attempt basic setup for non-critical components
+                logger.info("🔧 OPENSPEC PRELOAD: Performing basic setup while video preloads")
+                setupBasicTrimmerState()
+            }
         }
         .onChange(of: viewModel.videoPlayer.isReady) { _, isReady in
             if isReady {
+                logger.info("🎯 OPENSPEC PRELOAD: Video player became ready - completing trimmer setup")
+                setupTrimmerDirect()
                 loadVideoMetadata()
+                logger.info("✅ OPENSPEC PRELOAD: Trimmer setup completed after video player became ready")
             }
         }
         .onChange(of: startTime) { _, newStartTime in
@@ -613,6 +628,24 @@ struct MinimalTrimmerView: View {
         // Video should be ready when view appears due to fixed transition timing in SelectClip
 
     // MARK: - Setup Methods
+
+    /// Setup basic trimmer state that doesn't depend on video player readiness
+    /// This allows the UI to prepare while video is preloading
+    private func setupBasicTrimmerState() {
+        logger.info("🔧 OPENSPEC PRELOAD: Setting up basic trimmer state without video dependency")
+
+        // Sync rotation from view model (doesn't require video player)
+        rotation = viewModel.videoRotation
+
+        // Load existing trim values if available (doesn't require video player)
+        if viewModel.trimStartTime > 0 && viewModel.trimEndTime > 0 {
+            startTime = viewModel.trimStartTime
+            endTime = viewModel.trimEndTime
+        }
+
+        logger.info("✅ OPENSPEC PRELOAD: Basic trimmer state set - rotation: \(rotation.description), trim: \(startTime)s-\(endTime)s")
+    }
+
     private func setupTrimmerDirect() {
         logger.info("🔧 OPENSPEC FIX: Setting up trimmer with direct synchronous initialization")
 
@@ -1061,11 +1094,23 @@ struct MinimalTrimmerView: View {
 
     // MARK: - Cleanup
     private func cancelTrimming() {
+        logger.info("🚫 ENHANCEMENT: Cancelling trimming with complete workflow reset")
+
         // Cancel any pending seek operations
         seekTask?.cancel()
 
-        // Reset state and notify parent view through view model
-        logger.info("Trimming cancelled with cleanup")
+        // Provide haptic feedback for cancel action
+        provideNotificationFeedback(.warning)
+
+        // Perform complete workflow reset through view model
+        Task { @MainActor in
+            logger.info("🔄 ENHANCEMENT: Initiating complete workflow reset via ViewModel")
+
+            // Reset the entire view model to initial state
+            viewModel.reset()
+
+            logger.info("✅ ENHANCEMENT: Workflow reset complete - user returned to initial 'select a clip' state")
+        }
     }
 }
 
@@ -1109,6 +1154,12 @@ class RotatableVideoPlayerUIView: UIView {
 
     var rotation: VideoRotation = .degrees0 {
         didSet {
+            // Prevent infinite recursion by only updating if rotation actually changed
+            guard rotation != oldValue else {
+                logger.debug("🔄 Rotation unchanged, skipping update", emoji: "🔄")
+                return
+            }
+            logger.debug("🔄 Rotation changed from \(oldValue) to \(rotation)", emoji: "🔄")
             updateRotation(rotation, animated: false)
         }
     }
@@ -1192,13 +1243,19 @@ class RotatableVideoPlayerUIView: UIView {
 
     /// Update rotation with smooth animation
     func updateRotation(_ newRotation: VideoRotation, animated: Bool) {
-        let previousRotation = rotation
-        rotation = newRotation
+        logger.debug("🔄 updateRotation called with newRotation: \(newRotation), animated: \(animated)", emoji: "🔄")
+
+        // Note: rotation property is already set by the caller, so don't set it here
+        // to avoid infinite recursion. The didSet observer already called this method.
 
         if let playerLayer = playerLayer {
+            logger.debug("🔄 Applying rotation transform to playerLayer", emoji: "🔄")
             applyRotationTransform(to: playerLayer, rotation: newRotation, animated: animated)
         } else if let controllerView = playerController?.view {
+            logger.debug("🔄 Applying rotation transform to controllerView", emoji: "🔄")
             applyRotationTransform(to: controllerView, rotation: newRotation, animated: animated)
+        } else {
+            logger.warning("🔄 No player layer or controller view available for rotation", emoji: "⚠️")
         }
     }
 

@@ -62,6 +62,12 @@ struct Logger {
         let emojiMessage = "\(emoji) \(message)"
         os_log(.error, log: osLog, "%{public}@", emojiMessage)
     }
+
+    /// Log warning with emoji
+    func warning(_ message: String, emoji: String) {
+        let emojiMessage = "\(emoji) \(message)"
+        os_log(.default, log: osLog, "%{public}@", emojiMessage)
+    }
 }
 
 // MARK: - Predefined Loggers
