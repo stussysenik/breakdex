@@ -463,7 +463,10 @@ public final class AddMoveViewModel: ObservableObject {
     /// BREAKING CHANGE: Simplified to eliminate race conditions - SharedVideoPlayer initialization
     /// is now coordinated through RobustVideoLoader's unified state management paradigm
     private func handleVideoLoaded(_ asset: AVAsset) async {
-        logger.info("🎯 UNIFIED STATE MANAGEMENT: handleVideoLoaded called - delegating to loader coordination")
+        let handleStartTime = CFAbsoluteTimeGetCurrent()
+        logger.info("🎯 ADDMOVE VIEWMODEL: handleVideoLoaded called [TIME: \(handleStartTime)]")
+        logger.info("🎯 ADDMOVE VIEWMODEL: Current loadingState = \(loadingState)")
+        logger.info("🎯 ADDMOVE VIEWMODEL: Current loadingState.progress = \(loadingState.progress * 100)%")
 
         // RACE CONDITION PREVENTION: Verify coordination guard is active
         guard isLoadingVideo else {
@@ -471,10 +474,14 @@ public final class AddMoveViewModel: ObservableObject {
             return
         }
 
+        logger.info("🎯 ADDMOVE VIEWMODEL: Coordination guard active - proceeding with asset handling")
+        logger.info("🎯 ADDMOVE VIEWMODEL: VideoLoader state = \(videoLoader.state)")
+        logger.info("🎯 ADDMOVE VIEWMODEL: VideoLoader state.progress = \(videoLoader.state.progress * 100)%")
+
         // UNIFIED STATE MANAGEMENT: Only update non-loadingState properties
         // SharedVideoPlayer initialization is now handled by RobustVideoLoader coordination
         selectedVideo = asset
-        logger.info("📦 Selected video set - delegating player coordination to RobustVideoLoader")
+        logger.info("📦 ADDMOVE VIEWMODEL: selectedVideo set to asset")
 
         // Initialize trim bounds without interfering with loading state
         do {
@@ -483,20 +490,41 @@ public final class AddMoveViewModel: ObservableObject {
             trimEndTime = duration.seconds
             trimStartTime = max(0, duration.seconds - 10) // Default to last 10 seconds
 
-            logger.info("✅ Video asset loaded: duration \(videoDuration)s")
-            logger.info("🎯 UNIFIED STATE MANAGEMENT: Trim bounds initialized - SharedVideoPlayer coordinated by loader")
+            logger.info("✅ ADDMOVE VIEWMODEL: Video asset loaded: duration \(videoDuration)s")
+            logger.info("🎯 ADDMOVE VIEWMODEL: Trim bounds initialized")
 
             // Update workflow state to reflect video is loaded
             workflowState = .videoLoaded
-            logger.info("🔄 Workflow state updated to: \(workflowState.description)")
+            logger.info("🔄 ADDMOVE VIEWMODEL: Workflow state updated to: \(workflowState.description)")
 
             // BREAKING CHANGE: All SharedVideoPlayer initialization removed from handleVideoLoaded
             // The loader now coordinates player initialization through the reactive state chain
-            logger.info("🚫 SHARED PLAYER COORDINATION: Removed from handleVideoLoaded - now handled by RobustVideoLoader")
-            logger.info("🎯 RACE CONDITION ELIMINATED: No manual player initialization or state setting")
+            logger.info("🚫 ADDMOVE VIEWMODEL: No SharedVideoPlayer initialization in handleVideoLoaded")
+            logger.info("🎯 ADDMOVE VIEWMODEL: Expecting RobustVideoLoader to handle player coordination")
+
+            // PROOF: Track coordination gap hypothesis - what does ViewModel actually do?
+            logger.info("🔍 PROOF: AddMoveViewModel handleVideoLoaded - player initialization status:")
+            logger.info("🔍 PROOF: videoPlayer.isReady = \(videoPlayer.isReady)")
+            logger.info("🔍 PROOF: videoPlayer.state = \(videoPlayer.state)")
+            logger.info("🔍 PROOF: current loadingState = \(loadingState) (\(Int(loadingState.progress * 100))%)")
+            logger.info("🔍 PROOF: AddMoveViewModel will NOT advance state beyond \(Int(loadingState.progress * 100))%")
+            logger.info("🔍 PROOF: Coordination gap: RobustVideoLoader expects ViewModel to complete, ViewModel expects RobustVideoLoader to complete")
+
+            let handleEndTime = CFAbsoluteTimeGetCurrent()
+            logger.info("🎯 ADDMOVE VIEWMODEL: handleVideoLoaded completed [DURATION: \((handleEndTime - handleStartTime) * 1000)ms]")
+
+            // PROOF: Monitor if any state changes happen after this point
+            logger.info("🔍 PROOF: Starting 5-second monitoring window to detect any state changes after handleVideoLoaded")
+            Task {
+                for i in 1...5 {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    logger.info("🔍 PROOF: \(i)s after handleVideoLoaded - loadingState: \(loadingState) (\(Int(loadingState.progress * 100))%)")
+                }
+                logger.info("🔍 PROOF: Monitoring window complete - if state didn't change, coordination gap is confirmed")
+            }
 
         } catch {
-            logger.error("Failed to load video duration: \(error.localizedDescription)")
+            logger.error("💥 ADDMOVE VIEWMODEL: Failed to load video duration: \(error.localizedDescription)")
             setError("Failed to load video information")
         }
     }
@@ -1098,11 +1126,18 @@ public final class AddMoveViewModel: ObservableObject {
             loadingState = .loading(progress: progress.value, stage: stage, message: progress.message)
             logger.debug("🔍 PROOF: Updated existing loading state to progress=\(progress.value), stage=\(stage)")
         } else {
-            // If we're not in a loading state but receive progress,
-            // create a loading state with the appropriate stage
-            let stage = progress.stage ?? .initializing
-            loadingState = .loading(progress: progress.value, stage: stage, message: progress.message)
-            logger.debug("🔍 PROOF: Created new loading state with progress=\(progress.value), stage=\(stage)")
+            // UI BUG FIX: Check if this is a fullyReady state transition
+            if progress.stage == nil && progress.value >= 1.0 {
+                // This is a fullyReady state (100% completion with no stage)
+                loadingState = .fullyReady(selectedVideo!)
+                logger.info("🔧 UI BUG FIX: Preserved fullyReady state instead of creating loading state")
+            } else {
+                // If we're not in a loading state but receive progress,
+                // create a loading state with the appropriate stage
+                let stage = progress.stage ?? .initializing
+                loadingState = .loading(progress: progress.value, stage: stage, message: progress.message)
+                logger.debug("🔍 PROOF: Created new loading state with progress=\(progress.value), stage=\(stage)")
+            }
         }
 
         // Log significant progress milestones

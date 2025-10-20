@@ -73,34 +73,64 @@ public final class RobustVideoLoader: ObservableObject {
 
     /// Load video from PhotosPicker item
     public func loadVideo(from item: PhotosUI.PhotosPickerItem) async throws -> AVAsset {
-        logger.info("🎬 Loading video from PhotosPicker")
+        let loadingStartTime = CFAbsoluteTimeGetCurrent()
+        logger.info("🎬 Loading video from PhotosPicker [START TIME: \(loadingStartTime)]")
 
         let previousState = state
+        logger.info("📊 STATE CAPTURE: previousState.progress = \(previousState.progress * 100)%")
+
         await updateStateAndProgress(.loading(progress: 0.0, stage: .initializing, message: "Initializing video load..."), newProgress: .initial)
 
         do {
+            logger.info("🚀 STARTING ASYNC LOAD: loadFromPhotosPicker(item) [TIME: \(CFAbsoluteTimeGetCurrent())]")
             let asset = try await loadFromPhotosPicker(item)
+            let loadCompleteTime = CFAbsoluteTimeGetCurrent()
+            logger.info("✅ ASYNC LOAD COMPLETED: asset loaded [DURATION: \((loadCompleteTime - loadingStartTime) * 1000)ms]")
+            logger.info("📊 POST-LOAD STATE: self.state = \(state)")
+            logger.info("📊 POST-LOAD STATE: self.state.progress = \(state.progress * 100)%")
 
-            // FIXED: Check if current progress ≥ 60% to avoid regressive transition
-            let currentProgress = previousState.progress
+            // FIXED: Use live state.progress instead of stale previousState.progress
+            let currentProgress = state.progress
+            logger.info("✅ FIXED: Using live state.progress = \(Int(currentProgress * 100))% (was stale previousState.progress)")
+
             if currentProgress >= 0.6 {
                 // Skip assetReady transition when already at high progress - direct to player initialization
                 Logger.loadingState.info("⚡ Skipping assetReady transition at \(Int(currentProgress * 100))% - direct player initialization path")
+                Logger.loadingState.info("✅ FIXED: Decision based on live progress value prevents stale state regression")
+
+                // PROOF: Track what happens after skip - coordination gap hypothesis
+                Logger.loadingState.info("🔍 PROOF: RobustVideoLoader skipping assetReady transition - returning asset directly")
+                Logger.loadingState.info("🔍 PROOF: RobustVideoLoader expects caller to handle player initialization")
+                Logger.loadingState.info("🔍 PROOF: Current state remains: \(state) (\(Int(state.progress * 100))%)")
+                Logger.loadingState.info("🔍 PROOF: No further state transitions will be made by RobustVideoLoader")
+
                 // Return asset directly without state transition, letting caller handle player initialization
+
+                // HYPOTHESIS TEST: Add missing morphism to complete loading state category
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s delay
+                    Logger.loadingState.info("🧪 TESTING MORPHISM: Adding missing transition 88% → 100%")
+                    await updateStateAndProgress(.fullyReady(asset), newProgress: .complete)
+                    Logger.loadingState.info("🧪 MORPHISM TEST: State updated to fullyReady (100%)")
+                }
+
                 return asset
             }
 
             // MODERNIZED: Only set assetReady state - player initialization handled by ViewModel
             let newState = LoadingState.assetReady(asset)
+            logger.info("🏗️ ASSETREADY: Transition \(previousState.progress * 100)% → \(newState.progress * 100)%")
+
             if newState.validateMonotonicTransition(from: previousState) {
                 await updateStateAndProgress(newState, newProgress: .creatingAsset)
                 Logger.loadingState.info("✅ Asset loading completed - assetReady state set")
             } else {
-                Logger.loadingState.error("❌ Invalid state transition detected, using monotonic validation")
+                logger.error("❌ VALIDATION FAILED: Transition \(previousState.progress * 100)% → \(newState.progress * 100)% was rejected")
                 throw LoadingError.unknown("State transition validation failed")
             }
             return asset
         } catch {
+            logger.error("💥 EXCEPTION IN PHOTOSPICKER LOADING: \(error.localizedDescription)")
             updateState(.failed(error.localizedDescription))
             throw LoadingError.from(error)
         }
@@ -398,7 +428,7 @@ public final class RobustVideoLoader: ObservableObject {
 
         // Validate monotonic transition before updating
         guard newState.validateMonotonicTransition(from: previousState) else {
-            logger.error("🚫 ATOMIC TRANSITION FAILED: Invalid monotonic transition from \(previousState.progress * 100)% to \(newState.progress * 100)%")
+            logger.error("🚫 ATOMIC TRANSITION FAILED: Invalid transition \(previousState.progress * 100)% → \(newState.progress * 100)%")
             return
         }
 

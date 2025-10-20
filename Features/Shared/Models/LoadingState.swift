@@ -169,8 +169,16 @@ public enum LoadingState: Equatable {
         // Ensure progress is monotonic within a session (always increases or stays the same)
         let isMonotonic = currentProgress >= previousProgress
 
+        Logger.loadingState.info("🔍 VALIDATING MONOTONIC: previousProgress = \(previousProgress * 100)%")
+        Logger.loadingState.info("🔍 VALIDATING MONOTONIC: currentProgress = \(currentProgress * 100)%")
+        Logger.loadingState.info("🔍 VALIDATING MONOTONIC: isMonotonic = \(isMonotonic)")
+        Logger.loadingState.info("🔍 VALIDATING MONOTONIC: previousState = \(previousState)")
+        Logger.loadingState.info("🔍 VALIDATING MONOTONIC: currentState = \(self)")
+
         if !isMonotonic {
             Logger.loadingState.error("🚫 STATE REGRESSION DETECTED: \(previousProgress * 100)% → \(currentProgress * 100)%")
+            Logger.loadingState.error("🚫 REGRESSION ANALYSIS: Progress went backward by \((previousProgress - currentProgress) * 100)% points")
+            Logger.loadingState.error("🚫 REGRESSION ANALYSIS: This is the CORE issue causing the 88% hang")
             return false
         }
 

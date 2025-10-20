@@ -137,6 +137,13 @@ struct SelectClip: View {
     }
 
     private func handleLoadingStateChange(_ newState: LoadingState) {
+        Task { @MainActor in
+            await handleLoadingStateChangeAsync(newState)
+        }
+    }
+
+    @MainActor
+    private func handleLoadingStateChangeAsync(_ newState: LoadingState) async {
         let observationTimestamp = CFAbsoluteTimeGetCurrent()
         Logger.addMove.info("SelectClip: State transition: \(viewModel.loadingState) → \(newState)", emoji: "🔄")
         Logger.addMove.debug("SelectClip: Player ready: \(viewModel.videoPlayer.isReady), Loading progress: \(viewModel.progressPercentage)%", emoji: "📊")
@@ -174,12 +181,57 @@ struct SelectClip: View {
             lastStateObservationTime = observationTimestamp
 
         case .fullyReady:
-            // Only transition when video player is fully ready for trimming
-            Logger.addMove.info("SelectClip: Video player fully ready - transitioning to trimming", emoji: "✅")
-            Logger.addMove.info("SelectClip: Transitioning to trimming - PlayerReady: \(viewModel.videoPlayer.isReady), Asset: \(viewModel.selectedVideo != nil)", emoji: "✅")
-            Logger.addMove.info("🎯 SelectClip: About to call onStepChange(.trimming) - Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "🎯")
-            onStepChange(.trimming)
-            Logger.addMove.info("✅ SelectClip: onStepChange(.trimming) completed", emoji: "✅")
+            // DIAGNOSTIC: Track complete state when coordinating video loading
+            Logger.addMove.info("SelectClip: Video asset fullyReady - coordinating player initialization", emoji: "🎬")
+            Logger.addMove.info("SelectClip: Coordinating player loading - PlayerReady: \(viewModel.videoPlayer.isReady), Asset: \(viewModel.selectedVideo != nil)", emoji: "🎬")
+
+            // ENHANCED DIAGNOSTICS: Complete state snapshot before coordination
+            Logger.addMove.info("🔍 DIAGNOSTIC: SelectClip.fullyReady case - PRE-COORDINATION SNAPSHOT:")
+            Logger.addMove.info("🔍 DIAGNOSTIC: LoadingState = \(viewModel.loadingState)")
+            Logger.addMove.info("🔍 DIAGNOSTIC: videoPlayer.state = \(viewModel.videoPlayer.state)")
+            Logger.addMove.info("🔍 DIAGNOSTIC: videoPlayer.isReady = \(viewModel.videoPlayer.isReady)")
+            Logger.addMove.info("🔍 DIAGNOSTIC: videoPlayer.duration = \(viewModel.videoPlayer.duration)s")
+            Logger.addMove.info("🔍 DIAGNOSTIC: selectedVideo = \(viewModel.selectedVideo != nil ? "exists" : "nil")")
+            Logger.addMove.info("🔍 DIAGNOSTIC: Has SharedVideoPlayer been initialized with asset? \(viewModel.videoPlayer.state != .idle)")
+
+            // STATE VALIDATION: Prevent duplicate initialization
+            guard let selectedVideo = viewModel.selectedVideo else {
+                Logger.addMove.error("❌ SelectClip: Cannot coordinate player loading - selectedVideo is nil", emoji: "❌")
+                return
+            }
+
+            // Prevent duplicate loadVideo calls if player is already ready with this asset
+            if viewModel.videoPlayer.isReady && viewModel.videoPlayer.state != .idle {
+                Logger.addMove.info("⚠️ SelectClip: Player already ready - skipping duplicate coordination", emoji: "⚠️")
+                Logger.addMove.info("🎯 SelectClip: About to call onStepChange(.trimming) - Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "🎯")
+                onStepChange(.trimming)
+                Logger.addMove.info("✅ SelectClip: onStepChange(.trimming) completed", emoji: "✅")
+                return
+            }
+
+            // COORDINATION: Load video into SharedVideoPlayer before transitioning
+            Logger.addMove.info("🎬 SelectClip: Starting SharedVideoPlayer coordination", emoji: "🎬")
+            Logger.addMove.info("🎬 COORDINATION: Calling SharedVideoPlayer.loadVideo() with loaded asset", emoji: "🎬")
+
+            let loadSuccess = await viewModel.videoPlayer.loadVideo(selectedVideo)
+
+            // POST-COORDINATION DIAGNOSTICS: Verify player state
+            Logger.addMove.info("🔍 DIAGNOSTIC: SelectClip.fullyReady case - POST-COORDINATION SNAPSHOT:")
+            Logger.addMove.info("🔍 DIAGNOSTIC: SharedVideoPlayer.loadVideo() result: \(loadSuccess)")
+            Logger.addMove.info("🔍 DIAGNOSTIC: videoPlayer.state = \(viewModel.videoPlayer.state)")
+            Logger.addMove.info("🔍 DIAGNOSTIC: videoPlayer.isReady = \(viewModel.videoPlayer.isReady)")
+            Logger.addMove.info("🔍 DIAGNOSTIC: videoPlayer.duration = \(viewModel.videoPlayer.duration)s")
+
+            if loadSuccess && viewModel.videoPlayer.isReady {
+                Logger.addMove.info("✅ SelectClip: Player coordination successful - transitioning to trimming", emoji: "✅")
+                Logger.addMove.info("🎯 SelectClip: About to call onStepChange(.trimming) - Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "🎯")
+                onStepChange(.trimming)
+                Logger.addMove.info("✅ SelectClip: onStepChange(.trimming) completed", emoji: "✅")
+            } else {
+                Logger.addMove.error("❌ SelectClip: Player coordination failed - cannot transition to trimming", emoji: "❌")
+                // Handle coordination failure - stay in selecting state and let parent handle error
+                Logger.addMove.warning("⚠️ SelectClip: Coordination failure - remaining in selecting state", emoji: "⚠️")
+            }
 
         case .assetReady, .playerReady:
             // Continue loading - don't transition yet

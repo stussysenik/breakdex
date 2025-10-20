@@ -1,0 +1,173 @@
+# Compilation Errors Log - October 15, 2025
+
+This file contains the complete list of compilation errors that need to be resolved as part of the `fix-trimmer-state-compilation-errors-10-15-25` change.
+
+## Error Summary
+- **Total Errors**: 135+ compilation errors
+- **Primary File**: Monoids.swift (most errors)
+- **Secondary File**: TrimmerState.swift (1 error)
+- **Error Categories**:
+  - Generic parameter inference issues
+  - HapticFeedback type ambiguity
+  - Protocol conformance issues
+  - Array mutability problems
+  - Switch exhaustiveness
+  - Unnecessary 'any' keyword usage
+
+## Detailed Error List
+
+```
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:56:27 Cannot assign through subscript: 'combinedParams' is a 'let' constant
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:57:27 Cannot assign through subscript: 'combinedParams' is a 'let' constant
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:59:84 Referencing instance method 'max()' on 'Sequence' requires that 'OperationPriority' conform to 'Comparable'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:80:26 Generic parameter 'M' could not be inferred
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:373:19 Type 'MonoidalStructures.FeedbackMonoid' does not conform to protocol 'MonoidalStructures.Monoid'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:374:36 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:376:37 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:378:44 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:378:69 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:378:88 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:382:25 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:413:14 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:416:25 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:441:14 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:444:25 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:445:13 Switch must be exhaustive
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:463:58 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:463:78 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:467:44 Cannot infer contextual base in reference to member 'none'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:480:14 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:483:25 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:507:59 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:520:60 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:534:26 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:535:26 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:536:26 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:634:29 Generic parameter 'M' is not used in function signature
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:643:37 Generic parameter 'M' is not used in function signature
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:649:20 Generic parameter 'M' could not be inferred
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:654:41 Generic parameter 'M' could not be inferred
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:657:16 Generic parameter 'M' could not be inferred
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:661:38 Generic parameter 'M' is not used in function signature
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:665:38 'any' has no effect on concrete type 'MonoidalStructures.OperationMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:666:25 'any' has no effect on concrete type 'MonoidalStructures.OperationMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:667:19 'any' has no effect on concrete type 'MonoidalStructures.ConstraintMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:668:25 'any' has no effect on concrete type 'MonoidalStructures.ConstraintMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:669:19 'any' has no effect on concrete type 'MonoidalStructures.FeedbackMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:670:25 'any' has no effect on concrete type 'MonoidalStructures.FeedbackMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:670:100 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:671:19 'any' has no effect on concrete type 'MonoidalStructures.TimeIntervalMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:672:25 'any' has no effect on concrete type 'MonoidalStructures.TimeIntervalMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:675:39 'any' has no effect on concrete type 'MonoidalStructures.OperationMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:676:25 'any' has no effect on concrete type 'MonoidalStructures.OperationMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:677:19 'any' has no effect on concrete type 'MonoidalStructures.ConstraintMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:678:25 'any' has no effect on concrete type 'MonoidalStructures.ConstraintMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:679:19 'any' has no effect on concrete type 'MonoidalStructures.FeedbackMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:680:25 'any' has no effect on concrete type 'MonoidalStructures.FeedbackMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:680:101 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:681:19 'any' has no effect on concrete type 'MonoidalStructures.TimeIntervalMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:682:25 'any' has no effect on concrete type 'MonoidalStructures.TimeIntervalMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:693:43 'any' has no effect on concrete type 'MonoidalStructures.OperationMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:694:29 'any' has no effect on concrete type 'MonoidalStructures.OperationMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:695:23 'any' has no effect on concrete type 'MonoidalStructures.ConstraintMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:696:29 'any' has no effect on concrete type 'MonoidalStructures.ConstraintMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:697:23 'any' has no effect on concrete type 'MonoidalStructures.FeedbackMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:698:29 'any' has no effect on concrete type 'MonoidalStructures.FeedbackMonoid.Type'
+
+/Users/s3nik/Desktop dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:698:106 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:698:135 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:698:164 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:699:23 'any' has no effect on concrete type 'MonoidalStructures.TimeIntervalMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:700:29 'any' has no effect on concrete type 'MonoidalStructures.TimeIntervalMonoid.Type'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:713:15 Type 'VideoOperation' does not conform to protocol 'Equatable'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:713:15 Type 'VideoOperation' does not conform to protocol 'Hashable'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:746:59 Referencing instance method 'max()' on 'Sequence' requires that 'OperationPriority' conform to 'Comparable'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:942:33 'HapticFeedback' is ambiguous for type lookup in this context
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:992:43 Generic parameter 'M' is not used in function signature
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift:1081:54 Referencing instance method 'max()' on 'Sequence' requires that 'OperationPriority' conform to 'Comparable'
+
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/TrimmerState.swift
+/Users/s3nik/Desktop/dev playground/BreakingFlashcards/breakdex/Features/Shared/Models/TrimmerState.swift:280:9 Type 'MonoidalStructures.FeedbackMonoid' does not conform to protocol 'MonoidalStructures.Monoid'
+```
+
+## Implementation Notes
+
+This error log should be used as a reference during implementation. Each line number corresponds to specific issues that need to be addressed in the corresponding files.
+
+**Key Files Affected:**
+- `/breakdex/Features/Shared/Models/CategoryTheory/Monoids.swift` - Primary focus
+- `/breakdex/Features/Shared/Models/TrimmerState.swift` - Secondary focus
+
+**Resolution Strategy:**
+1. Fix generic parameter inference issues first
+2. Resolve HapticFeedback type ambiguity with fully qualified names
+3. Fix protocol conformance issues
+4. Address array mutability problems
+5. Remove unnecessary 'any' keywords
+6. Fix switch exhaustiveness
+7. Validate with full project build

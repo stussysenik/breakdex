@@ -303,40 +303,95 @@ struct MinimalTrimmerView: View {
         }
     }
 
-    // MARK: - Timeline Section
+    // MARK: - Timeline Section (Test2 Clean Design)
     private func timelineSection(geometry: GeometryProxy) -> some View {
-        VStack(spacing: Spacing.xs) { // 4pt spacing for tighter grouping
-            // Timeline with edge-anchored trim controls and inline annotations - Test2 design
-            ZStack(alignment: .leading) {
-                // Base Track - Timeline Background with responsive safe area constraints
-                Rectangle()
-                    .fill(Color.blue.opacity(0.2))
-                    .frame(height: responsiveTimelineHeight(for: geometry))
-                    .cornerRadius(8)
-                    .padding(.horizontal, responsiveHorizontalPadding(for: geometry))
-
-                // Selected Range Highlight with visual harmony
-                HStack(spacing: 0) {
-                    Spacer()
-                        .frame(width: calculateHandlePosition(startTime, totalWidth: calculateUsableTimelineWidth(geometry)))
-
+        VStack(spacing: 8) {
+            // Timeline Bar with Trim Handles - Direct Test2 implementation
+            GeometryReader { timelineGeometry in
+                ZStack(alignment: .leading) {
+                    // Background timeline - Fixed 40pt height like Test2
                     Rectangle()
-                        .fill(Color.blue.opacity(0.4))
-                        .frame(width: calculateTrimWidth(totalWidth: calculateUsableTimelineWidth(geometry)))
-                        .cornerRadius(6)
+                        .fill(Color.blue.opacity(0.2))
+                        .frame(height: 40)
+                        .cornerRadius(8)
 
-                    Spacer()
+                    // Selected range highlight
+                    HStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(width: timelineGeometry.size.width * (startTime / videoDuration))
+
+                        Rectangle()
+                            .fill(Color.blue.opacity(0.4))
+                            .frame(width: timelineGeometry.size.width * ((endTime - startTime) / videoDuration))
+                            .cornerRadius(6)
+
+                        Rectangle()
+                            .fill(Color.clear)
+                    }
+                    .frame(height: 40)
+
+                    // Left trim handle - Simple 20pt circle like Test2
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 20, height: 20)
+                        .offset(x: timelineGeometry.size.width * (startTime / videoDuration) - 10)
+                        .scaleEffect(isDraggingLeftHandle ? 1.1 : 1.0)
+                        .gesture(
+                            DragGesture(minimumDistance: 3)
+                                .onChanged { value in
+                                    if !isDraggingLeftHandle {
+                                        provideSelectionFeedback()
+                                    }
+                                    isDraggingLeftHandle = true
+                                    handleLeftHandleDrag(value.location.x, totalWidth: timelineGeometry.size.width)
+                                }
+                                .onEnded { _ in
+                                    isDraggingLeftHandle = false
+                                    provideNotificationFeedback(.success)
+                                    snapToNearestSecond(&startTime)
+                                    validateTrimRange()
+                                }
+                        )
+
+                    // Right trim handle - Simple 20pt circle like Test2
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 20, height: 20)
+                        .offset(x: timelineGeometry.size.width * (endTime / videoDuration) - 10)
+                        .scaleEffect(isDraggingRightHandle ? 1.1 : 1.0)
+                        .gesture(
+                            DragGesture(minimumDistance: 3)
+                                .onChanged { value in
+                                    if !isDraggingRightHandle {
+                                        provideSelectionFeedback()
+                                    }
+                                    isDraggingRightHandle = true
+                                    handleRightHandleDrag(value.location.x, totalWidth: timelineGeometry.size.width)
+                                }
+                                .onEnded { _ in
+                                    isDraggingRightHandle = false
+                                    provideNotificationFeedback(.success)
+                                    snapToNearestSecond(&endTime)
+                                    validateTrimRange()
+                                }
+                        )
                 }
-                .frame(height: responsiveTimelineHeight(for: geometry))
-                .padding(.horizontal, responsiveHorizontalPadding(for: geometry))
-
-                // Edge-Anchored Trim Controls
-                edgeAnchoredTrimControls(totalWidth: calculateUsableTimelineWidth(geometry))
-
-                // Inline Timecode Annotations - ENHANCEMENT: Position within timeline bounds
-                inlineTimecodeAnnotations(geometry: geometry)
             }
-            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .padding(.horizontal, 16)
+
+            // Timeline Annotations - Test2 single line design
+            HStack(spacing: 24) {
+                ForEach([0, 1, 2, 3, 4], id: \.self) { index in
+                    Text(timeLabel(for: index))
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+            .padding(.horizontal, 16)
         }
     }
 
@@ -464,166 +519,7 @@ struct MinimalTrimmerView: View {
         }
     }
 
-    // MARK: - Edge-Anchored Trim Controls
-    private func edgeAnchoredTrimControls(totalWidth: CGFloat) -> some View {
-        return HStack(spacing: 0) {
-            // Left Edge-Anchored Trim Control
-            edgeAnchoredLeftHandle(totalWidth: totalWidth)
-
-            Spacer()
-
-            // Right Edge-Anchored Trim Control
-            edgeAnchoredRightHandle(totalWidth: totalWidth)
-        }
-        .padding(.horizontal, 16) // Match safe area margins
-    }
-
-    private func edgeAnchoredLeftHandle(totalWidth: CGFloat) -> some View {
-        let handlePosition = calculateHandlePosition(startTime, totalWidth: totalWidth)
-
-        // Create the visual grip area separately
-        let gripArea = VStack(spacing: 2) {
-            ForEach(0..<5, id: \.self) { _ in
-                Rectangle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 6, height: 2)
-                    .cornerRadius(1)
-            }
-        }
-
-        // Create the drag gesture separately
-        let dragGesture = DragGesture(minimumDistance: 5)
-            .onChanged { value in
-                if !isDraggingLeftHandle {
-                    provideSelectionFeedback()
-                }
-                isDraggingLeftHandle = true
-                handleLeftHandleDragEdge(value.location.x, totalWidth: totalWidth)
-            }
-            .onEnded { _ in
-                isDraggingLeftHandle = false
-                provideNotificationFeedback(.success)
-                snapToNearestSecond(&startTime)
-                validateTrimRange()
-            }
-
-        // Create the base rectangle
-        let baseRectangle = RoundedRectangle(cornerRadius: 4)
-            .fill(isDraggingLeftHandle ? Color.blue.opacity(0.8) : Color.blue)
-            .frame(width: 44, height: 44)
-            .overlay(gripArea)
-            .gesture(dragGesture)
-            .scaleEffect(isDraggingLeftHandle ? 1.05 : 1.0)
-
-        // Apply accessibility properties
-        let accessibleRectangle = baseRectangle
-            .accessibilityLabel("Start trim handle")
-            .accessibilityHint("Drag to adjust trim start time")
-            .accessibilityValue("Start time: \(formatTimecode(startTime))")
-
-        // Apply animation
-        let animatedRectangle = accessibleRectangle
-            .transaction { transaction in
-                transaction.animation = isDraggingLeftHandle ? Animation.easeInOut(duration: 0.1) : nil
-            }
-
-        return VStack(spacing: 0) {
-            animatedRectangle
-        }
-        .frame(width: 44, height: 44)
-        .position(x: handlePosition + 16, y: 20)
-    }
-
-    private func edgeAnchoredRightHandle(totalWidth: CGFloat) -> some View {
-        let handlePosition = calculateHandlePosition(endTime, totalWidth: totalWidth)
-
-        // Create the visual grip area separately
-        let gripArea = VStack(spacing: 2) {
-            ForEach(0..<5, id: \.self) { _ in
-                Rectangle()
-                    .fill(Color.white.opacity(0.3))
-                    .frame(width: 6, height: 2)
-                    .cornerRadius(1)
-            }
-        }
-
-        // Create the drag gesture separately
-        let dragGesture = DragGesture(minimumDistance: 5)
-            .onChanged { value in
-                if !isDraggingRightHandle {
-                    provideSelectionFeedback()
-                }
-                isDraggingRightHandle = true
-                handleRightHandleDragEdge(value.location.x, totalWidth: totalWidth)
-            }
-            .onEnded { _ in
-                isDraggingRightHandle = false
-                provideNotificationFeedback(.success)
-                snapToNearestSecond(&endTime)
-                validateTrimRange()
-            }
-
-        // Create the base rectangle
-        let baseRectangle = RoundedRectangle(cornerRadius: 4)
-            .fill(isDraggingRightHandle ? Color.blue.opacity(0.8) : Color.blue)
-            .frame(width: 44, height: 44)
-            .overlay(gripArea)
-            .gesture(dragGesture)
-            .scaleEffect(isDraggingRightHandle ? 1.05 : 1.0)
-
-        // Apply accessibility properties
-        let accessibleRectangle = baseRectangle
-            .accessibilityLabel("End trim handle")
-            .accessibilityHint("Drag to adjust trim end time")
-            .accessibilityValue("End time: \(formatTimecode(endTime))")
-
-        // Apply animation
-        let animatedRectangle = accessibleRectangle
-            .transaction { transaction in
-                transaction.animation = isDraggingRightHandle ? Animation.easeInOut(duration: 0.1) : nil
-            }
-
-        return VStack(spacing: 0) {
-            animatedRectangle
-        }
-        .frame(width: 44, height: 44)
-        .position(x: handlePosition + 16, y: 20)
-    }
-
-    // MARK: - Helper Methods (keeping existing implementations)
-    private func inlineTimecodeAnnotations(geometry: GeometryProxy) -> some View {
-        let usableWidth = calculateUsableTimelineWidth(geometry)
-        let horizontalPadding = responsiveHorizontalPadding(for: geometry)
-
-        return HStack(spacing: 0) {
-            ForEach([0, 1, 2, 3, 4], id: \.self) { index in
-                Spacer()
-
-                VStack(spacing: 2) {
-                    // Timecode annotation positioned inline
-                    Text(timeLabel(for: index))
-                        .font(.system(size: responsiveInlineAnnotationFontSize(for: geometry), weight: .medium, design: .monospaced))
-                        .foregroundColor(.blue)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .opacity(0.9)
-
-                    // Small tick mark for visual reference
-                    Rectangle()
-                        .fill(Color.blue.opacity(0.6))
-                        .frame(width: 1, height: 6)
-                }
-                .offset(y: -responsiveTimelineHeight(for: geometry) / 2 - 8)
-
-                Spacer()
-            }
-        }
-        .padding(.horizontal, horizontalPadding)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Timeline markers")
-        .accessibilityHint("Shows time positions throughout the video")
-    }
-
+  
     // OPENSPEC FIX: synchronizedLoadingOverlay removed
         // Video should be ready when view appears due to fixed transition timing in SelectClip
 
@@ -714,86 +610,31 @@ struct MinimalTrimmerView: View {
         }
     }
 
-    // MARK: - Responsive Layout Helpers (keeping existing implementations)
-    private func calculateUsableTimelineWidth(_ geometry: GeometryProxy) -> CGFloat {
-        return geometry.size.width - (2 * responsiveHorizontalPadding(for: geometry))
-    }
-
-    private func responsiveHorizontalPadding(for geometry: GeometryProxy) -> CGFloat {
-        let screenWidth = geometry.size.width
-        if screenWidth < 375 { // iPhone SE
-            return 12
-        } else if screenWidth < 414 { // iPhone standard
-            return 16
-        } else { // iPhone Plus/Pro Max and iPads
-            return 20
-        }
-    }
-
-    private func responsiveTimelineHeight(for geometry: GeometryProxy) -> CGFloat {
-        let screenWidth = geometry.size.width
-        if screenWidth < 375 { // iPhone SE
-            return 32
-        } else if screenWidth < 414 { // iPhone standard
-            return 40
-        } else { // iPhone Plus/Pro Max and iPads
-            return 48
-        }
-    }
-
-    private func responsiveInlineAnnotationFontSize(for geometry: GeometryProxy) -> CGFloat {
-        let screenWidth = geometry.size.width
-        if screenWidth < 375 { // iPhone SE
-            return 9
-        } else if screenWidth < 414 { // iPhone standard
-            return 10
-        } else { // iPhone Plus/Pro Max and iPads
-            return 11
-        }
-    }
-
-    // MARK: - Timeline Calculations
-    private func calculateHandlePosition(_ time: TimeInterval, totalWidth: CGFloat) -> CGFloat {
-        guard videoDuration > 0 else { return 0 }
-        let progress = min(max(0, time / videoDuration), 1)
-        return progress * totalWidth
-    }
-
-    private func calculateTrimWidth(totalWidth: CGFloat) -> CGFloat {
-        let startPosition = calculateHandlePosition(startTime, totalWidth: totalWidth)
-        let endPosition = calculateHandlePosition(endTime, totalWidth: totalWidth)
-        return max(0, endPosition - startPosition)
-    }
-
-    private func handleLeftHandleDragEdge(_ dragX: CGFloat, totalWidth: CGFloat) {
+  
+    // MARK: - Simplified Drag Handlers (Test2 Direct Approach)
+    private func handleLeftHandleDrag(_ dragX: CGFloat, totalWidth: CGFloat) {
         guard videoDuration > 0 else { return }
 
-        // Account for padding in positioning (subtract 16 for safe area)
-        let adjustedX = max(16, min(dragX, totalWidth + 16))
-        let constrainedX = adjustedX - 16 // Convert back to timeline coordinate
-        let newTime = (constrainedX / totalWidth) * videoDuration
+        // Direct Test2 approach: percentage-based calculation with clamping
+        let newOffset = max(0, min(dragX - 10, totalWidth - 20))
+        let clampedOffset = min(newOffset, totalWidth * (endTime / videoDuration) - 20)
+        let newTime = (clampedOffset / totalWidth) * videoDuration
 
-        // Ensure minimum duration and boundary constraints
-        let maxStartTime = endTime - minimumTrimDuration
-        startTime = min(max(0, newTime), maxStartTime)
-
-        // Use optimized seeking during drag for better performance
+        // Apply constraints and live scrub
+        startTime = max(0, newTime)
         optimizedSeek(to: startTime)
     }
 
-    private func handleRightHandleDragEdge(_ dragX: CGFloat, totalWidth: CGFloat) {
+    private func handleRightHandleDrag(_ dragX: CGFloat, totalWidth: CGFloat) {
         guard videoDuration > 0 else { return }
 
-        // Account for padding in positioning (subtract 16 for safe area)
-        let adjustedX = max(16, min(dragX, totalWidth + 16))
-        let constrainedX = adjustedX - 16 // Convert back to timeline coordinate
-        let newTime = (constrainedX / totalWidth) * videoDuration
+        // Direct Test2 approach: percentage-based calculation with clamping
+        let newOffset = max(0, min(dragX - 10, totalWidth - 20))
+        let clampedOffset = max(newOffset, totalWidth * (startTime / videoDuration))
+        let newTime = (clampedOffset / totalWidth) * videoDuration
 
-        // Ensure minimum duration and boundary constraints
-        let minEndTime = startTime + minimumTrimDuration
-        endTime = max(min(videoDuration, newTime), minEndTime)
-
-        // Use optimized seeking during drag for better performance
+        // Apply constraints and live scrub
+        endTime = min(videoDuration, newTime)
         optimizedSeek(to: endTime)
     }
 

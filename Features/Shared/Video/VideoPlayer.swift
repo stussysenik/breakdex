@@ -124,6 +124,13 @@ public class SharedVideoPlayer: ObservableObject {
         logger.info("🎬 Starting modern async video asset loading")
         Logger.loadingState.info("🎬 SharedVideoPlayer: Loading asset - tracks: \(asset.tracks.count), duration: \(asset.duration.seconds)s")
 
+        // DIAGNOSTIC: Track complete loading pipeline
+        logger.info("🔍 DIAGNOSTIC: SharedVideoPlayer.loadVideo called")
+        logger.info("🔍 DIAGNOSTIC: Initial state = \(state), isReady = \(isReady)")
+        logger.info("🔍 DIAGNOSTIC: Asset details - tracks: \(asset.tracks.count), duration: \(asset.duration.seconds)s")
+        logger.info("🔍 DIAGNOSTIC: Current player instance: \(player != nil ? "exists" : "nil")")
+        logger.info("🔍 DIAGNOSTIC: Current playerItem instance: \(playerItem != nil ? "exists" : "nil")")
+
         // MODERNIZED: Remove callback logic - use pure async/await pattern
         // Cleanup any existing player state first
         state = .idle
@@ -207,11 +214,27 @@ public class SharedVideoPlayer: ObservableObject {
             // Validate state consistency after completion
             validateStateConsistency()
 
+            // DIAGNOSTIC: Track final state after successful loading
+            logger.info("🔍 DIAGNOSTIC: SharedVideoPlayer loading completed successfully")
+            logger.info("🔍 DIAGNOSTIC: Final state = \(state), isReady = \(isReady)")
+            logger.info("🔍 DIAGNOSTIC: Final player instance: \(player != nil ? "exists" : "nil")")
+            logger.info("🔍 DIAGNOSTIC: Final playerItem instance: \(playerItem != nil ? "exists" : "nil")")
+            logger.info("🔍 DIAGNOSTIC: Final duration = \(duration)s")
+            logger.info("🔍 DIAGNOSTIC: Player ready status = \(isReady)")
+
             // MODERNIZED: Return true to indicate successful loading
             return true
 
         } catch {
             Logger.loadingState.error("❌ SharedVideoPlayer: Video loading failed: \(error.localizedDescription)")
+
+            // DIAGNOSTIC: Track failure details
+            logger.error("🔍 DIAGNOSTIC: SharedVideoPlayer loading FAILED")
+            logger.error("🔍 DIAGNOSTIC: Error = \(error.localizedDescription)")
+            logger.error("🔍 DIAGNOSTIC: Final state = \(state), isReady = \(isReady)")
+            logger.error("🔍 DIAGNOSTIC: Final player instance: \(player != nil ? "exists" : "nil")")
+            logger.error("🔍 DIAGNOSTIC: Final playerItem instance: \(playerItem != nil ? "exists" : "nil")")
+
             state = .error(message: "Failed to load video: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
 
