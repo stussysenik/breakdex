@@ -488,10 +488,30 @@ public final class AddMoveViewModel: ObservableObject {
             let duration = try await asset.load(.duration)
             videoDuration = duration.seconds
             trimEndTime = duration.seconds
-            trimStartTime = max(0, duration.seconds - 10) // Default to last 10 seconds
+
+            // ENHANCED DIAGNOSTIC: Track trim initialization logic
+            let lastTenSecondsStart = max(0, duration.seconds - 10)
+            trimStartTime = 0.0 // Default to start of video (fix: was defaulting to last 10 seconds)
 
             logger.info("✅ ADDMOVE VIEWMODEL: Video asset loaded: duration \(videoDuration)s")
             logger.info("🎯 ADDMOVE VIEWMODEL: Trim bounds initialized")
+
+            // ENHANCED DIAGNOSTIC: Detailed trim initialization logging
+            logger.info("🔍 DIAGNOSTIC: Trim Initialization Analysis")
+            logger.info("🔍 DIAGNOSTIC: Video duration = \(duration.seconds)s")
+            logger.info("🔍 DIAGNOSTIC: Old last 10s start (for reference) = \(lastTenSecondsStart)s")
+            logger.info("🔍 DIAGNOSTIC: trimStartTime set to = \(trimStartTime)s (FIXED: now defaults to 0.0)")
+            logger.info("🔍 DIAGNOSTIC: trimEndTime set to = \(trimEndTime)s")
+            logger.info("🔍 DIAGNOSTIC: Trim range = \(trimStartTime)s - \(trimEndTime)s")
+            logger.info("🔍 DIAGNOSTIC: Expected handle positions: Left = \((trimStartTime / duration.seconds) * 100.0)%, Right = \((trimEndTime / duration.seconds) * 100.0)%")
+
+            // PROOF VERIFICATION: Log the mathematical relationship
+            let timelineWidth: CGFloat = 361.0 // Expected timeline width from logs
+            let expectedLeftOffset = timelineWidth * CGFloat(trimStartTime / duration.seconds)
+            let expectedRightOffset = timelineWidth * CGFloat(trimEndTime / duration.seconds)
+            logger.info("🔍 PROOF VERIFICATION: With timeline width \(timelineWidth)px:")
+            logger.info("🔍 PROOF VERIFICATION: Expected left handle offset = \(expectedLeftOffset)px")
+            logger.info("🔍 PROOF VERIFICATION: Expected right handle offset = \(expectedRightOffset)px")
 
             // Update workflow state to reflect video is loaded
             workflowState = .videoLoaded

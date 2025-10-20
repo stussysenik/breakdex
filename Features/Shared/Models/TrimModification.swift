@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import SwiftUI
 
 // MARK: - Video Rotation Enum
 /// Video rotation angles with 90-degree increments
@@ -12,6 +13,11 @@ public enum VideoRotation: Int, CaseIterable, Codable {
     /// Get the rotation in radians
     public var radians: Double {
         return Double(self.rawValue) * .pi / 180.0
+    }
+
+    /// Get the rotation angle for SwiftUI rotationEffect
+    public var angle: Angle {
+        return Angle(degrees: Double(self.rawValue))
     }
 
     /// Get the clockwise rotation value for AVFoundation

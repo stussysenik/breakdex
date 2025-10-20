@@ -26,7 +26,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 # **Pay special attention to state synchronization**
 
 ### Project Structure (Clean Architecture ✅)
-- **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/` -> make sure to always be using the
+- **Root Path:** `~/Desktop/dev playground/BreakingFlashcards/breakdex` -> make sure to always be using the
 - **Main App:** `breakdex/` (40+ organized Swift files under clean Features/ structure)
 - **Architecture Status:** ✅ **Clean Architecture Complete (October 2025)**
 - **Tests:** BreakingFlashcardsTests & BreakingFlashcardsUITests

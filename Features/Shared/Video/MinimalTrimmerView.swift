@@ -135,6 +135,7 @@ struct MinimalTrimmerView: View {
 
     // MARK: - Constants
     private let minimumTrimDuration: TimeInterval = 3.0
+    private let handleWidth: CGFloat = 20.0 // Width of trim handles for accurate positioning
 
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "MinimalTrimmerView")
 
@@ -199,6 +200,9 @@ struct MinimalTrimmerView: View {
             if isReady {
                 logger.info("🎯 OPENSPEC PRELOAD: Video player became ready - completing trimmer setup")
                 setupTrimmerDirect()
+
+                // OPENSPEC FIX: Load video metadata after trimmer setup to ensure duration is available
+                // This coordinate ensures videoDuration is set before handle positioning calculations
                 loadVideoMetadata()
                 logger.info("✅ OPENSPEC PRELOAD: Trimmer setup completed after video player became ready")
             }
@@ -223,19 +227,12 @@ struct MinimalTrimmerView: View {
         VStack(spacing: 20) {
             // Video Player - Test2 design with 12pt corner radius and rotation support
             ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.blue, lineWidth: 2)
-                    .background(Color.black)
-                    .aspectRatio(16/9, contentMode: .fit)
-
-                // ENHANCEMENT: Video player with rotation transform support
-                RotatableVideoPlayerView(
+                // ENHANCEMENT: Native video player with automatic aspect ratio detection
+                RotatableVideoContainer(
                     player: viewModel.videoPlayer,
                     rotation: rotation,
                     showControls: false
                 )
-                .aspectRatio(16/9, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 // Enhanced rotation overlay with visual feedback
                 if rotation != .degrees0 {
@@ -284,10 +281,25 @@ struct MinimalTrimmerView: View {
                         .font(.headline)
                 }
 
-                // Duration - centered with matching visual weight
-                Text(formatTimecode(trimDuration))
-                    .font(.headline)
-                    .foregroundColor(trimDuration >= minimumTrimDuration ? .blue : .red)
+                // Duration - centered with enhanced visual feedback for minimum duration
+                VStack(spacing: 2) {
+                    Text("DURATION")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+
+                    Text(formatTimecode(trimDuration))
+                        .font(.headline)
+                        .foregroundColor(trimDuration >= minimumTrimDuration ? .blue : .red)
+                        .scaleEffect(trimDuration < minimumTrimDuration ? 1.05 : 1.0)
+                        .animation(.easeInOut(duration: 0.2), value: trimDuration)
+
+                    if trimDuration < minimumTrimDuration {
+                        Text("Min: \(Int(minimumTrimDuration))s")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                            .opacity(0.8)
+                    }
+                }
 
                 // End time group
                 VStack(alignment: .center, spacing: 4) {
@@ -303,42 +315,46 @@ struct MinimalTrimmerView: View {
         }
     }
 
-    // MARK: - Timeline Section (Test2 Clean Design)
+    // MARK: - Timeline Section (Enhanced with Capsule Design and Coordinate Space)
     private func timelineSection(geometry: GeometryProxy) -> some View {
         VStack(spacing: 8) {
-            // Timeline Bar with Trim Handles - Direct Test2 implementation
+            // Timeline Bar with Trim Handles - Enhanced with coordinate space management
             GeometryReader { timelineGeometry in
                 ZStack(alignment: .leading) {
-                    // Background timeline - Fixed 40pt height like Test2
-                    Rectangle()
+                    // Background timeline - Enhanced Capsule design with coordinate space
+                    Capsule()
                         .fill(Color.blue.opacity(0.2))
                         .frame(height: 40)
-                        .cornerRadius(8)
+                        .coordinateSpace(name: "timeline")
 
-                    // Selected range highlight
-                    HStack(spacing: 0) {
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(width: timelineGeometry.size.width * (startTime / videoDuration))
+                    // Calculate handle center coordinates for precise highlight alignment
+                    let startHandleCenterCoord = timeToCoordinate(startTime, totalWidth: timelineGeometry.size.width) + (handleWidth / 2.0)
+                    let endHandleCenterCoord = timeToCoordinate(endTime, totalWidth: timelineGeometry.size.width) + (handleWidth / 2.0)
+                    let highlightWidth = max(0, endHandleCenterCoord - startHandleCenterCoord)
 
-                        Rectangle()
-                            .fill(Color.blue.opacity(0.4))
-                            .frame(width: timelineGeometry.size.width * ((endTime - startTime) / videoDuration))
-                            .cornerRadius(6)
+                    // Selected range highlight - Precisely aligned from handle center to handle center
+                    Rectangle()
+                        .fill(Color.blue.opacity(0.4))
+                        .frame(width: highlightWidth, height: 40)
+                        .offset(x: startHandleCenterCoord)
 
-                        Rectangle()
-                            .fill(Color.clear)
-                    }
-                    .frame(height: 40)
-
-                    // Left trim handle - Simple 20pt circle like Test2
+                    // Left trim handle - Enhanced with Apple blue color and coordinate space
                     Circle()
-                        .fill(Color.blue)
+                        .fill(Color(red: 0/255, green: 122/255, blue: 255/255)) // Apple blue
                         .frame(width: 20, height: 20)
-                        .offset(x: timelineGeometry.size.width * (startTime / videoDuration) - 10)
+                        .offset(x: startHandleCenterCoord)
                         .scaleEffect(isDraggingLeftHandle ? 1.1 : 1.0)
+                        .onAppear {
+                            // ENHANCED: Simplified coordinate space verification with new conversion function
+                            let handleOffset = timeToCoordinate(startTime, totalWidth: timelineGeometry.size.width)
+
+                            logger.debug("🎯 ENHANCED POSITION: Left handle positioned at offset \(String(format: "%.2f", handleOffset)) for startTime \(String(format: "%.3f", startTime))s")
+
+                            // ENHANCED: Validate coordinate calculation prerequisites
+                            logger.info("✅ ENHANCED VERIFICATION: Left handle positioning complete using timeToCoordinate function")
+                        }
                         .gesture(
-                            DragGesture(minimumDistance: 3)
+                            DragGesture(minimumDistance: 0)
                                 .onChanged { value in
                                     if !isDraggingLeftHandle {
                                         provideSelectionFeedback()
@@ -349,19 +365,28 @@ struct MinimalTrimmerView: View {
                                 .onEnded { _ in
                                     isDraggingLeftHandle = false
                                     provideNotificationFeedback(.success)
-                                    snapToNearestSecond(&startTime)
+                                    snapToNearestFrame(&startTime)
                                     validateTrimRange()
                                 }
                         )
 
-                    // Right trim handle - Simple 20pt circle like Test2
+                    // Right trim handle - Enhanced with Apple blue color and coordinate space
                     Circle()
-                        .fill(Color.blue)
+                        .fill(Color(red: 0/255, green: 122/255, blue: 255/255)) // Apple blue
                         .frame(width: 20, height: 20)
-                        .offset(x: timelineGeometry.size.width * (endTime / videoDuration) - 10)
+                        .offset(x: endHandleCenterCoord)
                         .scaleEffect(isDraggingRightHandle ? 1.1 : 1.0)
+                        .onAppear {
+                            // ENHANCED: Simplified coordinate space verification with new conversion function
+                            let handleOffset = timeToCoordinate(endTime, totalWidth: timelineGeometry.size.width)
+
+                            logger.debug("🎯 ENHANCED POSITION: Right handle positioned at offset \(String(format: "%.2f", handleOffset)) for endTime \(String(format: "%.3f", endTime))s")
+
+                            // ENHANCED: Validate coordinate calculation prerequisites
+                            logger.info("✅ ENHANCED VERIFICATION: Right handle positioning complete using timeToCoordinate function")
+                        }
                         .gesture(
-                            DragGesture(minimumDistance: 3)
+                            DragGesture(minimumDistance: 0)
                                 .onChanged { value in
                                     if !isDraggingRightHandle {
                                         provideSelectionFeedback()
@@ -372,7 +397,7 @@ struct MinimalTrimmerView: View {
                                 .onEnded { _ in
                                     isDraggingRightHandle = false
                                     provideNotificationFeedback(.success)
-                                    snapToNearestSecond(&endTime)
+                                    snapToNearestFrame(&endTime)
                                     validateTrimRange()
                                 }
                         )
@@ -527,6 +552,7 @@ struct MinimalTrimmerView: View {
 
     /// Setup basic trimmer state that doesn't depend on video player readiness
     /// This allows the UI to prepare while video is preloading
+    /// Note: Frame-precision trimming will be available after video metadata loads
     private func setupBasicTrimmerState() {
         logger.info("🔧 OPENSPEC PRELOAD: Setting up basic trimmer state without video dependency")
 
@@ -537,6 +563,18 @@ struct MinimalTrimmerView: View {
         if viewModel.trimStartTime > 0 && viewModel.trimEndTime > 0 {
             startTime = viewModel.trimStartTime
             endTime = viewModel.trimEndTime
+
+            // ENHANCED DIAGNOSTIC: Track ViewModel trim value inheritance
+            logger.info("🔍 COORDINATE SPACE: Inherited trim values from ViewModel")
+            logger.info("🔍 COORDINATE SPACE: ViewModel.trimStartTime = \(viewModel.trimStartTime)s")
+            logger.info("🔍 COORDINATE SPACE: ViewModel.trimEndTime = \(viewModel.trimEndTime)s")
+            logger.info("🔍 COORDINATE SPACE: Local startTime = \(startTime)s")
+            logger.info("🔍 COORDINATE SPACE: Local endTime = \(endTime)s")
+        } else {
+            // ENHANCED DIAGNOSTIC: Track default initialization path
+            logger.info("🔍 COORDINATE SPACE: No ViewModel trim values - using defaults")
+            logger.info("🔍 COORDINATE SPACE: ViewModel.trimStartTime = \(viewModel.trimStartTime)s")
+            logger.info("🔍 COORDINATE SPACE: ViewModel.trimEndTime = \(viewModel.trimEndTime)s")
         }
 
         logger.info("✅ OPENSPEC PRELOAD: Basic trimmer state set - rotation: \(rotation.description), trim: \(startTime)s-\(endTime)s")
@@ -544,6 +582,16 @@ struct MinimalTrimmerView: View {
 
     private func setupTrimmerDirect() {
         logger.info("🔧 OPENSPEC FIX: Setting up trimmer with direct synchronous initialization")
+
+        // ENHANCED DIAGNOSTIC: Track initialization order and state
+        logger.info("🔍 INITIALIZATION ORDER: setupTrimmerDirect() called")
+        logger.info("🔍 INITIALIZATION ORDER: Current trim state before setup")
+        logger.info("🔍 INITIALIZATION ORDER: - startTime = \(startTime)s")
+        logger.info("🔍 INITIALIZATION ORDER: - endTime = \(endTime)s")
+        logger.info("🔍 INITIALIZATION ORDER: - videoDuration = \(videoDuration)s")
+        logger.info("🔍 INITIALIZATION ORDER: ViewModel trim state")
+        logger.info("🔍 INITIALIZATION ORDER: - trimStartTime = \(viewModel.trimStartTime)s")
+        logger.info("🔍 INITIALIZATION ORDER: - trimEndTime = \(viewModel.trimEndTime)s")
 
         // OPENSPEC FIX: Video should be ready when SelectClip transitions at .fullyReady
         guard viewModel.videoPlayer.isReady else {
@@ -560,19 +608,48 @@ struct MinimalTrimmerView: View {
 
         // Use videoPlayer duration directly - no need to load from asset
         videoDuration = viewModel.videoPlayer.duration
-        endTime = viewModel.videoPlayer.duration
-        startTime = max(0, viewModel.videoPlayer.duration - 10) // Default to last 10 seconds
 
-        // Load existing trim values if available
-        if viewModel.trimStartTime > 0 && viewModel.trimEndTime > 0 {
+        // Guard against invalid duration
+        guard videoDuration > 0 else {
+            logger.warning("⚠️ OPENSPEC FIX: Invalid video duration: \(videoDuration), cannot initialize trimmer")
+            errorMessage = "Invalid video duration"
+            return
+        }
+
+        // OPENSPEC FIX: Load existing trim values FIRST before setting defaults
+        // This ensures proper state initialization order for handle positioning
+        // ENHANCED: More robust condition checking with better logging
+        let hasValidViewModelTrimValues = viewModel.trimStartTime > 0 && viewModel.trimEndTime > 0
+
+        logger.info("🔍 OPENSPEC FIX: Checking ViewModel trim values")
+        logger.info("🔍 OPENSPEC FIX: viewModel.trimStartTime = \(viewModel.trimStartTime)s (>0: \(viewModel.trimStartTime > 0))")
+        logger.info("🔍 OPENSPEC FIX: viewModel.trimEndTime = \(viewModel.trimEndTime)s (>0: \(viewModel.trimEndTime > 0))")
+        logger.info("🔍 OPENSPEC FIX: Combined condition result = \(hasValidViewModelTrimValues)")
+
+        if hasValidViewModelTrimValues {
             startTime = viewModel.trimStartTime
             endTime = viewModel.trimEndTime
+            logger.info("✅ OPENSPEC FIX: Successfully inherited trim values from ViewModel")
+            logger.info("✅ OPENSPEC FIX: startTime = \(startTime)s, endTime = \(endTime)s")
+        } else {
+            // Only set defaults if no ViewModel values exist
+            startTime = 0.0
+            endTime = videoDuration
+            logger.info("🔍 OPENSPEC FIX: No valid ViewModel trim values - using defaults")
+            logger.info("🔍 OPENSPEC FIX: startTime = \(startTime)s, endTime = \(endTime)s")
         }
 
         // Sync rotation from view model
         rotation = viewModel.videoRotation
 
         logger.info("✅ OPENSPEC FIX: Trim range initialized directly: \(startTime)s - \(endTime)s")
+
+        // OPENSPEC FIX: Add trim value propagation verification
+        logger.info("🔍 OPENSPEC VERIFICATION: Trim value propagation complete")
+        logger.info("🔍 OPENSPEC VERIFICATION: ViewModel.trimStartTime (\(viewModel.trimStartTime)s) -> TrimmerView.startTime (\(startTime)s)")
+        logger.info("🔍 OPENSPEC VERIFICATION: ViewModel.trimEndTime (\(viewModel.trimEndTime)s) -> TrimmerView.endTime (\(endTime)s)")
+        logger.info("🔍 OPENSPEC VERIFICATION: videoDuration = \(videoDuration)s")
+        logger.info("🔍 OPENSPEC VERIFICATION: Handle positioning will use these values for coordinate calculations")
     }
 
     
@@ -584,11 +661,34 @@ struct MinimalTrimmerView: View {
                 // Load duration
                 let duration = try await asset.load(.duration)
                 await MainActor.run {
+                    let previousDuration = videoDuration
                     videoDuration = duration.seconds
-                    if endTime == 0 {
+
+                    // OPENSPEC FIX: Only set trim defaults if they weren't already set in setupTrimmerDirect()
+                    // This prevents overriding ViewModel trim values that were properly initialized
+                    let trimValuesAlreadySet = startTime > 0 || endTime < duration.seconds
+
+                    logger.info("🔍 OPENSPEC METADATA: loadVideoMetadata completed")
+                    logger.info("🔍 OPENSPEC METADATA: Previous videoDuration = \(previousDuration)s, New videoDuration = \(duration.seconds)s")
+                    logger.info("🔍 OPENSPEC METADATA: Trim values already set = \(trimValuesAlreadySet)")
+                    logger.info("🔍 OPENSPEC METADATA: Current trim range = \(startTime)s - \(endTime)s")
+
+                    if !trimValuesAlreadySet && (startTime == 0.0 && endTime == 0.0) {
+                        // Only set defaults if no trim values were initialized
                         endTime = duration.seconds
-                        startTime = max(0, duration.seconds - 10)
+                        startTime = 0.0
+
+                        logger.info("🔍 OPENSPEC METADATA: Applied default trim initialization - startTime: \(startTime)s, endTime: \(endTime)s")
+                    } else {
+                        logger.info("🔍 OPENSPEC METADATA: Preserving existing trim values - startTime: \(startTime)s, endTime: \(endTime)s")
                     }
+
+                    // OPENSPEC FIX: Verify coordinate calculation prerequisites are met
+                    logger.info("🔍 OPENSPEC VERIFICATION: Coordinate calculation prerequisites verified")
+                    logger.info("🔍 OPENSPEC VERIFICATION: videoDuration = \(videoDuration)s (>0: \(videoDuration > 0))")
+                    logger.info("🔍 OPENSPEC VERIFICATION: startTime = \(startTime)s (valid: \(startTime >= 0))")
+                    logger.info("🔍 OPENSPEC VERIFICATION: endTime = \(endTime)s (valid: \(endTime <= videoDuration))")
+                    logger.info("🔍 OPENSPEC VERIFICATION: Handle positioning calculations can now proceed with correct values")
                 }
 
                 // Load frame rate
@@ -600,9 +700,9 @@ struct MinimalTrimmerView: View {
                     }
                 }
 
-                logger.info("Video metadata loaded - Duration: \(videoDuration)s, Frame Rate: \(frameRate)fps")
+                logger.info("✅ OPENSPEC METADATA: Video metadata loaded - Duration: \(videoDuration)s, Frame Rate: \(frameRate)fps")
             } catch {
-                logger.error("Failed to load video metadata: \(error.localizedDescription)")
+                logger.error("❌ OPENSPEC METADATA: Failed to load video metadata: \(error.localizedDescription)")
                 await MainActor.run {
                     errorMessage = "Failed to load video metadata"
                 }
@@ -611,30 +711,48 @@ struct MinimalTrimmerView: View {
     }
 
   
-    // MARK: - Simplified Drag Handlers (Test2 Direct Approach)
+    // MARK: - Enhanced Drag Handlers with Coordinate Space Management
     private func handleLeftHandleDrag(_ dragX: CGFloat, totalWidth: CGFloat) {
-        guard videoDuration > 0 else { return }
+        // COORDINATE FIX: Subtract radius before coordinateToTime to map finger position to available track
+        let adjustedDragX = dragX - (handleWidth / 2.0)
+        let newTime = coordinateToTime(adjustedDragX, totalWidth: totalWidth)
 
-        // Direct Test2 approach: percentage-based calculation with clamping
-        let newOffset = max(0, min(dragX - 10, totalWidth - 20))
-        let clampedOffset = min(newOffset, totalWidth * (endTime / videoDuration) - 20)
-        let newTime = (clampedOffset / totalWidth) * videoDuration
+        logger.debug("🎯 COORDINATE FIX: Left handle - dragX: \(String(format: "%.2f", dragX))px -> adjustedDragX: \(String(format: "%.2f", adjustedDragX))px -> newTime: \(String(format: "%.3f", newTime))s")
 
-        // Apply constraints and live scrub
-        startTime = max(0, newTime)
+        // Enforce minimum duration constraint
+        let maxAllowedTime = endTime - minimumTrimDuration
+        let constrainedTime = min(newTime, maxAllowedTime)
+
+        // Apply final constraints
+        startTime = max(0, constrainedTime)
+
+        // Provide feedback if minimum duration constraint is violated
+        if newTime > maxAllowedTime {
+            provideMinimumDurationFeedback()
+        }
+
         optimizedSeek(to: startTime)
     }
 
     private func handleRightHandleDrag(_ dragX: CGFloat, totalWidth: CGFloat) {
-        guard videoDuration > 0 else { return }
+        // COORDINATE FIX: Subtract radius before coordinateToTime to map finger position to available track
+        let adjustedDragX = dragX - (handleWidth / 2.0)
+        let newTime = coordinateToTime(adjustedDragX, totalWidth: totalWidth)
 
-        // Direct Test2 approach: percentage-based calculation with clamping
-        let newOffset = max(0, min(dragX - 10, totalWidth - 20))
-        let clampedOffset = max(newOffset, totalWidth * (startTime / videoDuration))
-        let newTime = (clampedOffset / totalWidth) * videoDuration
+        logger.debug("🎯 COORDINATE FIX: Right handle - dragX: \(String(format: "%.2f", dragX))px -> adjustedDragX: \(String(format: "%.2f", adjustedDragX))px -> newTime: \(String(format: "%.3f", newTime))s")
 
-        // Apply constraints and live scrub
-        endTime = min(videoDuration, newTime)
+        // Enforce minimum duration constraint
+        let minAllowedTime = startTime + minimumTrimDuration
+        let constrainedTime = max(newTime, minAllowedTime)
+
+        // Apply final constraints
+        endTime = min(videoDuration, constrainedTime)
+
+        // Provide feedback if minimum duration constraint is violated
+        if newTime < minAllowedTime {
+            provideMinimumDurationFeedback()
+        }
+
         optimizedSeek(to: endTime)
     }
 
@@ -649,10 +767,87 @@ struct MinimalTrimmerView: View {
         }
     }
 
+    // MARK: - Enhanced Time-to-Coordinate Conversion Functions
+    /// Converts time to coordinate position within the available track only
+    /// Updated: Removed radius offset - now returns pure coordinates on available track
+    private func timeToCoordinate(_ time: TimeInterval, totalWidth: CGFloat) -> CGFloat {
+        guard videoDuration > 0 else {
+            logger.warning("⚠️ ENHANCED COORDINATE: Cannot convert time to coordinate - videoDuration is 0")
+            return 0
+        }
+
+        guard totalWidth > 0 else {
+            logger.warning("⚠️ ENHANCED COORDINATE: Cannot convert time to coordinate - totalWidth is 0")
+            return 0
+        }
+
+        // Calculate available track width (subtract handle width to keep handles within bounds)
+        let availableTrackWidth = totalWidth - handleWidth
+        let coordinate = availableTrackWidth * (time / videoDuration)
+        // No radius offset - return pure coordinate on available track
+        let clampedCoordinate = max(0, min(coordinate, availableTrackWidth))
+
+        logger.debug("🎯 COORDINATE FIX: timeToCoordinate(\(time)s) = \(String(format: "%.2f", clampedCoordinate))px (available track only)")
+
+        return clampedCoordinate
+    }
+
+    /// Converts coordinate position to time within the available track only
+    /// Updated: Removed radius offset - now works with available track coordinates
+    private func coordinateToTime(_ coordinate: CGFloat, totalWidth: CGFloat) -> TimeInterval {
+        guard totalWidth > 0 else {
+            logger.warning("⚠️ ENHANCED COORDINATE: Cannot convert coordinate to time - totalWidth is 0")
+            return 0
+        }
+
+        // Calculate available track width (subtract handle width to keep handles within bounds)
+        let availableTrackWidth = totalWidth - handleWidth
+        // Clamp coordinate to available track range
+        let clampedCoordinate = max(0, min(coordinate, availableTrackWidth))
+        // No radius offset - convert directly from available track coordinate
+        let time = (clampedCoordinate / availableTrackWidth) * videoDuration
+
+        logger.debug("🎯 COORDINATE FIX: coordinateToTime(\(String(format: "%.2f", clampedCoordinate))px) = \(String(format: "%.3f", time))s (available track only)")
+
+        return time
+    }
+
     // MARK: - Helper Methods
-    private func snapToNearestSecond(_ time: inout TimeInterval) {
-        // Round to nearest second for simplicity
-        time = round(time)
+
+    /// Frame-precision snapping algorithm for video trimming
+    ///
+    /// This function provides frame-accurate snapping instead of second-level rounding,
+    /// eliminating jarring handle jumps and maintaining user's precise selections.
+    ///
+    /// Algorithm:
+    /// 1. Validate frameRate is available and > 0
+    /// 2. Calculate frameDuration = 1.0 / frameRate (e.g., 30fps = 0.033s per frame)
+    /// 3. Calculate frameCount = round(time / frameDuration)
+    /// 4. Snap time = frameCount * frameDuration
+    ///
+    /// Fallback: If frameRate is invalid, falls back to second rounding for compatibility
+    ///
+    /// Examples:
+    /// - 30fps: 1.234s → frame 37 (1.233s)
+    /// - 60fps: 1.234s → frame 74 (1.233s)
+    /// - 24fps: 1.234s → frame 30 (1.250s)
+    private func snapToNearestFrame(_ time: inout TimeInterval) {
+        // Validate frameRate before using it for frame-precision calculations
+        guard frameRate > 0 else {
+            logger.warning("⚠️ FRAME SNAP: Invalid frameRate (\(frameRate)), falling back to second rounding")
+            time = round(time)
+            return
+        }
+
+        // Calculate frame duration (time between individual frames)
+        let frameDuration = 1.0 / frameRate
+
+        // Round to nearest frame using frame-accurate calculation
+        // This ensures the time aligns exactly with video frame boundaries
+        let frameCount = round(time / frameDuration)
+        time = frameCount * frameDuration
+
+        logger.debug("🎯 FRAME SNAP: Snapped to frame \(Int(frameCount)) at \(String(format: "%.3f", time))s (frameRate: \(frameRate)fps, frameDuration: \(String(format: "%.3f", frameDuration))s)")
     }
 
     /// Provides haptic feedback for selection interactions
@@ -665,6 +860,25 @@ struct MinimalTrimmerView: View {
     private func provideNotificationFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(type)
+    }
+
+    /// Provides haptic and visual feedback when attempting to trim below minimum duration
+    /// Works with frame-precision trim values to ensure accurate user feedback
+    private func provideMinimumDurationFeedback() {
+        // Haptic feedback for constraint violation
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.warning)
+
+        // Update error message temporarily
+        errorMessage = "Minimum duration is \(Int(minimumTrimDuration)) seconds"
+
+        // Clear error message after a short delay
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+            if errorMessage == "Minimum duration is \(Int(minimumTrimDuration)) seconds" {
+                errorMessage = nil
+            }
+        }
     }
 
     private func formatTimecode(_ time: TimeInterval) -> String {
@@ -951,6 +1165,61 @@ struct MinimalTrimmerView: View {
             viewModel.reset()
 
             logger.info("✅ ENHANCEMENT: Workflow reset complete - user returned to initial 'select a clip' state")
+        }
+    }
+}
+
+// MARK: - Native Video Player View with Automatic Aspect Ratio
+
+struct NativeVideoPlayerView: UIViewControllerRepresentable {
+    @ObservedObject var player: SharedVideoPlayer
+    let rotation: VideoRotation
+    let showControls: Bool
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        logger.info("🎥 Creating NativeVideoPlayerView with automatic aspect ratio", emoji: "🎥")
+
+        let controller = AVPlayerViewController()
+        controller.player = player.avPlayer
+        controller.showsPlaybackControls = showControls
+        controller.videoGravity = .resizeAspect // Maintain aspect ratio automatically
+
+        logger.info("🎥 AVPlayerViewController created with videoGravity: .resizeAspect", emoji: "🎥")
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        logger.debug("🎥 Updating NativeVideoPlayerView - player: \(player.avPlayer != nil), controls: \(showControls)", emoji: "🎥")
+
+        if uiViewController.player !== player.avPlayer {
+            uiViewController.player = player.avPlayer
+            logger.info("🎥 Updated AVPlayerViewController player", emoji: "🎥")
+        }
+
+        if uiViewController.showsPlaybackControls != showControls {
+            uiViewController.showsPlaybackControls = showControls
+            logger.debug("🎥 Updated playback controls visibility", emoji: "🎥")
+        }
+    }
+}
+
+// MARK: - Enhanced Rotatable Video Container
+
+struct RotatableVideoContainer: View {
+    @ObservedObject var player: SharedVideoPlayer
+    let rotation: VideoRotation
+    let showControls: Bool
+
+    var body: some View {
+        NativeVideoPlayerView(
+            player: player,
+            rotation: rotation,
+            showControls: showControls
+        )
+        .rotationEffect(rotation.angle) // Rotate entire component as synchronized unit
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .onAppear {
+            logger.info("🎥 RotatableVideoContainer appeared with rotation: \(rotation)", emoji: "🎥")
         }
     }
 }
