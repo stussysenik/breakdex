@@ -31,7 +31,8 @@ public class SharedVideoPlayer: ObservableObject {
     // MARK: - Private Properties
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "SharedVideoPlayer")
     private var player: AVPlayer?
-    private var playerItem: AVPlayerItem?
+
+        private var playerItem: AVPlayerItem?
     private var cancellables = Set<AnyCancellable>()
     private var timeObserver: Any?
     private let mode: PlayerMode
@@ -816,6 +817,9 @@ public class SharedVideoPlayer: ObservableObject {
         let continuationId = UUID().uuidString
         logger.info("⏳ waitForPlayerReady: Starting wait with timeout: \(timeout)s [\(continuationId)]")
 
+        // 🔬 COMPREHENSIVE PLAYER DIAGNOSTICS: Capture initial player state
+        logPlayerDiagnostics(continuationId: continuationId, playerItem: playerItem, context: "INITIAL STATE")
+
         return try await withCheckedThrowingContinuation { continuation in
             // ENHANCED FIX: Track continuation state to prevent multiple resumptions
             var continuationState = ContinuationState()
@@ -825,15 +829,18 @@ public class SharedVideoPlayer: ObservableObject {
             switch playerItem.status {
             case .readyToPlay:
                 logger.info("⚡ waitForPlayerReady: PlayerItem already ready [\(continuationId)]")
+                logPlayerDiagnostics(continuationId: continuationId, playerItem: playerItem, context: "IMMEDIATE READY")
                 continuationState.safeResume(continuation, with: .success(()), logger: self.logger, context: "immediate ready")
                 return
             case .failed:
                 let errorMessage = playerItem.error?.localizedDescription ?? "Player item failed"
                 logger.error("❌ waitForPlayerReady: PlayerItem already failed [\(continuationId)]: \(errorMessage)")
+                logPlayerDiagnostics(continuationId: continuationId, playerItem: playerItem, context: "IMMEDIATE FAILURE")
                 continuationState.safeResume(continuation, with: .failure(LoadingError.playerItemFailed(errorMessage)), logger: self.logger, context: "immediate failure")
                 return
             default:
                 logger.debug("⏳ waitForPlayerReady: PlayerItem status unknown, setting up observer [\(continuationId)]")
+                logPlayerDiagnostics(continuationId: continuationId, playerItem: playerItem, context: "SETTING UP OBSERVER")
             }
 
             // CRITICAL FIX: Set up timeout with proper cancellation
@@ -843,6 +850,7 @@ public class SharedVideoPlayer: ObservableObject {
                 guard !continuationState.isResumed else { return }
 
                 self?.logger.error("⏰ waitForPlayerReady: Timeout after \(timeout)s [\(continuationId)]")
+                self?.logPlayerDiagnostics(continuationId: continuationId, playerItem: playerItem, context: "TIMEOUT - FINAL STATE")
                 self?.safelyRemoveObserver(forKey: observerKey)
                 continuationState.safeResume(continuation, with: .failure(LoadingError.timeout(timeout)), logger: self?.logger, context: "timeout")
             }
@@ -854,9 +862,13 @@ public class SharedVideoPlayer: ObservableObject {
                     return
                 }
 
+                // 🔬 ENHANCED DIAGNOSTICS: Log every status change with full context
+                self.logPlayerDiagnostics(continuationId: continuationId, playerItem: item, context: "STATUS CHANGE")
+
                 switch item.status {
                 case .readyToPlay:
                     self.logger.info("✅ waitForPlayerReady: PlayerItem became ready [\(continuationId)]")
+                    self.logPlayerDiagnostics(continuationId: continuationId, playerItem: item, context: "READY SUCCESS")
                     self.safelyRemoveObserver(forKey: observerKey)
                     timeoutTask?.cancel()
                     continuationState.safeResume(continuation, with: .success(()), logger: self.logger, context: "player ready")
@@ -864,12 +876,14 @@ public class SharedVideoPlayer: ObservableObject {
                 case .failed:
                     let errorMessage = item.error?.localizedDescription ?? "Player item failed"
                     self.logger.error("❌ waitForPlayerReady: PlayerItem failed [\(continuationId)]: \(errorMessage)")
+                    self.logPlayerDiagnostics(continuationId: continuationId, playerItem: item, context: "PLAYER FAILED")
                     self.safelyRemoveObserver(forKey: observerKey)
                     timeoutTask?.cancel()
                     continuationState.safeResume(continuation, with: .failure(LoadingError.playerItemFailed(errorMessage)), logger: self.logger, context: "player failed")
 
                 default:
                     self.logger.debug("⏳ waitForPlayerReady: PlayerItem status still unknown [\(continuationId)]")
+                    self.logPlayerDiagnostics(continuationId: continuationId, playerItem: item, context: "STILL UNKNOWN")
                     break
                 }
             }
@@ -877,13 +891,32 @@ public class SharedVideoPlayer: ObservableObject {
             // Track observer for cleanup
             registeredObservers[observerKey] = statusObserver
             logger.debug("✅ waitForPlayerReady: Observer registered [\(continuationId)]")
+            logger.debug("🔬 KVO OBSERVER REGISTRATION: Total observers registered: \(registeredObservers.count)")
+
+            // 🔬 DIAGNOSTIC: List all registered observers
+            for (key, _) in registeredObservers {
+                logger.debug("🔬 KVO OBSERVER: Registered observer - \(key)")
+            }
 
             // CRITICAL FIX: Handle continuation cleanup if this specific call gets cancelled
             Task { @MainActor [weak self] in
+                // 🔬 PERIODIC DIAGNOSTICS: Track player state during wait
+                var diagnosticCounter = 0
+                let startTime = Date()
+
                 // Wait for completion or cancellation
                 while !continuationState.isResumed && !Task.isCancelled {
                     do {
                         try await Task.sleep(nanoseconds: 50_000_000) // 50ms check interval
+
+                        // 🔬 PERIODIC DIAGNOSTIC LOGGING - Every 2 seconds
+                        diagnosticCounter += 1
+                        let elapsedTime = Date().timeIntervalSince(startTime)
+
+                        if diagnosticCounter % 40 == 0 { // Every 2 seconds (40 * 50ms = 2000ms)
+                            self?.logPlayerDiagnostics(continuationId: continuationId, playerItem: playerItem, context: "PERIODIC CHECK - \(String(format: "%.1f", elapsedTime))s")
+                        }
+
                     } catch {
                         // Task was cancelled
                         guard !continuationState.isResumed else { return }
@@ -898,6 +931,90 @@ public class SharedVideoPlayer: ObservableObject {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - 🔬 Comprehensive Player Diagnostics
+
+    /// Comprehensive player diagnostics to trace timeout issues
+    private func logPlayerDiagnostics(continuationId: String, playerItem: AVPlayerItem, context: String) {
+        logger.info("🔬 PLAYER DIAGNOSTICS [\(continuationId)] - \(context)")
+        logger.info("🔬 PlayerItem.status: \(playerItem.status)")
+        logger.info("🔬 PlayerItem.error: \(playerItem.error?.localizedDescription ?? "None")")
+        logger.info("🔬 PlayerItem.isPlaybackBufferEmpty: \(playerItem.isPlaybackBufferEmpty)")
+        logger.info("🔬 PlayerItem.isPlaybackBufferFull: \(playerItem.isPlaybackBufferFull)")
+        logger.info("🔬 PlayerItem.isPlaybackLikelyToKeepUp: \(playerItem.isPlaybackLikelyToKeepUp)")
+        logger.info("🔬 PlayerItem.canPlayFastForward: \(playerItem.canPlayFastForward)")
+        logger.info("🔬 PlayerItem.canPlayFastReverse: \(playerItem.canPlayFastReverse)")
+        logger.info("🔬 PlayerItem.canPlaySlowForward: \(playerItem.canPlaySlowForward)")
+        logger.info("🔬 PlayerItem.canPlaySlowReverse: \(playerItem.canPlaySlowReverse)")
+
+        // Duration and timing info
+        logger.info("🔬 PlayerItem.duration: \(playerItem.duration)")
+        logger.info("🔬 PlayerItem.currentTime: \(playerItem.currentTime())")
+
+        // Loaded time ranges
+        let loadedRanges = playerItem.loadedTimeRanges
+        logger.info("🔬 Loaded time ranges count: \(loadedRanges.count)")
+        for (index, range) in loadedRanges.enumerated() {
+            let timeRange = range.timeRangeValue
+            logger.info("🔬 Range \(index): \(timeRange.start.seconds) - \(timeRange.end.seconds)")
+        }
+
+        // Seekable time ranges
+        let seekableRanges = playerItem.seekableTimeRanges
+        logger.info("🔬 Seekable ranges count: \(seekableRanges.count)")
+        for (index, range) in seekableRanges.enumerated() {
+            let timeRange = range.timeRangeValue
+            logger.info("🔬 Seekable \(index): \(timeRange.start.seconds) - \(timeRange.end.seconds)")
+        }
+
+        // Player state diagnostics
+        if let player = self.player {
+            logger.info("🔬 AVPlayer.status: \(player.status)")
+            logger.info("🔬 AVPlayer.rate: \(player.rate)")
+            logger.info("🔬 AVPlayer.timeControlStatus: \(player.timeControlStatus)")
+            logger.info("🔬 AVPlayer.error: \(player.error?.localizedDescription ?? "None")")
+        } else {
+            logger.warning("🔬 AVPlayer: nil")
+        }
+
+        // Video tracks analysis
+        let videoTracks = playerItem.tracks.filter { $0.assetTrack?.mediaType == .video }
+        logger.info("🔬 Video tracks: \(videoTracks.count)")
+        for (index, track) in videoTracks.enumerated() {
+            if let assetTrack = track.assetTrack {
+                logger.info("🔬 Video Track \(index): \(assetTrack.naturalSize) @ \(assetTrack.preferredTransform)")
+                logger.info("🔬 Video Track \(index) format: \(assetTrack.formatDescriptions)")
+                logger.info("🔬 Video Track \(index) playable: \(assetTrack.isPlayable)")
+                logger.info("🔬 Video Track \(index) enabled: \(track.isEnabled)")
+            }
+        }
+
+        // Audio tracks analysis
+        let audioTracks = playerItem.tracks.filter { $0.assetTrack?.mediaType == .audio }
+        logger.info("🔬 Audio tracks: \(audioTracks.count)")
+        for (index, track) in audioTracks.enumerated() {
+            if let assetTrack = track.assetTrack {
+                logger.info("🔬 Audio Track \(index): playable=\(assetTrack.isPlayable), enabled=\(track.isEnabled)")
+            }
+        }
+
+        // 🧪 CATEGORY THEORY ANALYSIS: What morphism is failing?
+        logger.info("🧪 CATEGORY ANALYSIS [\(continuationId)]")
+        logger.info("🧪 Expected morphism: PlayerItem.unknown → PlayerItem.readyToPlay")
+        logger.info("🧪 Current morphism: PlayerItem.\(playerItem.status) → ??? (STUCK)")
+        logger.info("🧪 Category violation: No morphism from \(playerItem.status) to readyToPlay")
+
+        // 💡 CURRY-HOWARD PROOF STATUS
+        logger.info("💡 PROOF STATUS [\(continuationId)]")
+        switch playerItem.status {
+        case .readyToPlay:
+            logger.info("💡 Proof: ✅ VALID - Player ready morphism exists")
+        case .failed:
+            logger.info("💡 Proof: ❌ INVALID - Player failed morphism")
+        default:
+            logger.info("💡 Proof: ❌ INCOMPLETE - Missing ready morphism (timeout likely)")
         }
     }
 

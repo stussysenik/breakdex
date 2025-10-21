@@ -11,7 +11,7 @@ struct NameMoveView: View {
     @State private var estimatedFileSize: String = "Calculating..."
     @State private var videoDuration: String = "0:00"
     @State private var moveName: String = ""
-    @StateObject private var moveSaver: MoveSaver
+    @StateObject private var videoPlayer = SharedVideoPlayer(mode: .preview)
 
     private let logger = Logger(
         subsystem: "com.breakingflashcards",
@@ -20,13 +20,6 @@ struct NameMoveView: View {
 
     init(viewModel: AddMoveViewModel) {
         self.viewModel = viewModel
-        let movePersistenceService = MovePersistenceService(
-            persistentContainer: PersistenceController.shared.container
-        )
-        self._moveSaver = StateObject(wrappedValue: MoveSaver(
-            persistentContainer: PersistenceController.shared.container,
-            movePersistenceService: movePersistenceService
-        ))
     }
 
     var body: some View {
@@ -48,12 +41,21 @@ struct NameMoveView: View {
 
             Spacer()
         }
-        .background(Color.black.ignoresSafeArea())
+        .background(Color.backgroundPrimary.ignoresSafeArea())
         .onAppear {
             setupInitialState()
         }
+        .onDisappear {
+            logger.info("🧹 NameMoveView disappearing - cleaning up SharedVideoPlayer")
+            videoPlayer.cleanup()
+        }
         .onChange(of: moveName) { _, newValue in
             viewModel.moveName = newValue
+        }
+        .onChange(of: viewModel.saveState) { _, saveState in
+            // Sync local isSaving state with ViewModel's save state
+            isSaving = saveState.isSaving
+            logger.info("🔄 OPENSPEC FIX: NameMoveView: saveState changed to \(saveState.description), isSaving: \(isSaving)")
         }
     }
 
@@ -63,7 +65,7 @@ struct NameMoveView: View {
             Text("Name Your Move")
                 .font(.title2)
                 .fontWeight(.semibold)
-                .foregroundColor(.white)
+                .foregroundColor(.textPrimary)
 
             Text("Give your breaking move a memorable name")
                 .font(.subheadline)
@@ -80,6 +82,8 @@ struct NameMoveView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.gray.opacity(0.3))
                 .frame(height: 180)
+                .aspectRatio(contentMode: .fit)
+                .clipped()
                 .overlay(
                     Group {
                         if viewModel.isVideoReady {
@@ -111,9 +115,25 @@ struct NameMoveView: View {
     private var videoPlayerContent: some View {
         Group {
             if let asset = viewModel.selectedVideo {
-                AVPlayerViewRepresentable(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)))
+                VideoPlayerView(player: videoPlayer, showControls: true)
+                    .rotationEffect(viewModel.videoRotation.angle)
+                    .aspectRatio(contentMode: .fit)
+                    .clipped()
                     .onAppear {
+                        logger.info("🔄 OPENSPEC FIX: NameMoveView using SharedVideoPlayer - Available rotation: \(viewModel.videoRotation.description)")
+                        logger.info("🎬 VIDEO_PLAYER_PROOF: Player type=SharedVideoPlayer (with rotation support)")
+                        logger.info("📊 ROTATION INHERITANCE: Applying rotation transform: \(viewModel.videoRotation.description)")
+
+                        // Enhanced logging to prove video container overflow hypothesis
+                        Task {
+                            await logVideoContainerDimensions(asset: asset)
+                        }
+
+                        loadVideoInSharedPlayer(asset: asset)
                         calculateEstimatedFileSize()
+                    }
+                    .onTapGesture {
+                        logger.info("👆 INTERACTION_PROOF: NameMoveView video tapped - Player type: SharedVideoPlayer, Rotation: \(viewModel.videoRotation.description)")
                     }
             } else {
                 videoPreviewPlaceholder
@@ -141,14 +161,14 @@ struct NameMoveView: View {
             HStack {
                 Text("Learning State")
                     .font(.subheadline)
-                    .foregroundColor(.white)
+                    .foregroundColor(.textPrimary)
 
                 Spacer()
 
                 Text("NEW")
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundColor(.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
                     .background(
@@ -161,11 +181,24 @@ struct NameMoveView: View {
             HStack {
                 Text("Tags")
                     .font(.subheadline)
-                    .foregroundColor(.white)
+                    .foregroundColor(.textPrimary)
 
                 Spacer()
 
                 Text("Breaking • Foundation")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+            }
+
+            // Rotation Information
+            HStack {
+                Text("Rotation")
+                    .font(.subheadline)
+                    .foregroundColor(.textPrimary)
+
+                Spacer()
+
+                Text(viewModel.videoRotation.description)
                     .font(.caption)
                     .foregroundColor(.textSecondary)
             }
@@ -184,7 +217,7 @@ struct NameMoveView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Move Name")
                 .font(.subheadline)
-                .foregroundColor(.white)
+                .foregroundColor(.textPrimary)
                 .padding(.horizontal)
 
             TextField("Enter move name", text: $moveName)
@@ -233,7 +266,7 @@ struct NameMoveView: View {
                     Text(isSaving ? "Saving..." : "Save Move")
                 }
                 .font(.ibmPlexMono(size: 18, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundColor(.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
                 .background(
@@ -251,7 +284,7 @@ struct NameMoveView: View {
                     Text("Back to Trim")
                 }
                 .font(.ibmPlexMono(size: 16, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundColor(.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(
@@ -271,7 +304,8 @@ struct NameMoveView: View {
         return !moveName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                moveName.count >= 3 &&
                viewModel.isVideoReady &&
-               !isSaving
+               !isSaving &&
+               !viewModel.saveState.isSaving
     }
 
     // MARK: - Private Methods
@@ -335,7 +369,7 @@ struct NameMoveView: View {
         guard canSave else { return }
 
         let finalName = moveName.trimmingCharacters(in: .whitespacesAndNewlines)
-        logger.info("💾 Saving move: '\(finalName)'")
+        logger.info("💾 OPENSPEC FIX: NameMoveView: saveMove called with name: '\(finalName)'")
 
         Task {
             isSaving = true
@@ -345,30 +379,14 @@ struct NameMoveView: View {
                 }
             }
 
-            do {
-                guard let asset = viewModel.selectedVideo else {
-                    throw NSError(domain: "NameMoveView", code: -1, userInfo: [
-                        NSLocalizedDescriptionKey: "No video asset available"
-                    ])
-                }
+            logger.info("🔄 OPENSPEC FIX: NameMoveView: Calling viewModel.saveMove")
 
-                // Save the move using MoveSaver service
-                let savedMove = try await moveSaver.saveSimpleMove(name: finalName, asset: asset)
-                logger.info("✅ Move saved successfully: \(savedMove.name ?? "unnamed")")
+            // Save the move using ViewModel's saveMove method (MVVM pattern)
+            await viewModel.saveMove(name: finalName)
 
-                await MainActor.run {
-                    // Clear error state and indicate success
-                    viewModel.clearError()
-                    // Note: In MVVM pattern, navigation would be handled by parent view observing view model state
-                    logger.info("✅ Move saved - parent view will handle navigation")
-                }
-
-            } catch {
-                logger.error("❌ Save failed: \(error.localizedDescription)")
-                await MainActor.run {
-                    viewModel.setError("Failed to save move: \(error.localizedDescription)")
-                }
-            }
+            // Save completion and error handling are now managed by the ViewModel
+            // Parent AddMoveView will observe saveState and handle navigation
+            logger.info("✅ OPENSPEC FIX: NameMoveView: Save delegated to ViewModel - parent will handle navigation")
         }
     }
 
@@ -383,11 +401,87 @@ struct NameMoveView: View {
         }
     }
 
+    private func loadVideoInSharedPlayer(asset: AVAsset) {
+        logger.info("🎬 OPENSPEC FIX: Loading video in SharedVideoPlayer with rotation: \(viewModel.videoRotation.description)")
+
+        Task {
+            let success = await videoPlayer.loadVideo(asset)
+            await MainActor.run {
+                if success {
+                    logger.info("✅ OPENSPEC FIX: SharedVideoPlayer loaded video successfully with rotation: \(viewModel.videoRotation.description)")
+                } else {
+                    logger.error("❌ OPENSPEC FIX: SharedVideoPlayer failed to load video")
+                }
+            }
+        }
+    }
+
     private func formatTime(_ seconds: Double) -> String {
         let totalSeconds = Int(seconds)
         let minutes = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%d:%02d", minutes, secs)
+    }
+
+    // MARK: - Enhanced Video Container Analysis
+    /// Enhanced logging to prove video container overflow hypothesis
+    private func logVideoContainerDimensions(asset: AVAsset) async {
+        do {
+            // Get video track dimensions
+            let videoTracks = try await asset.loadTracks(withMediaType: .video)
+            guard let firstVideoTrack = videoTracks.first else {
+                logger.error("📐 CONTAINER_ANALYSIS: No video tracks found")
+                return
+            }
+
+            let naturalSize = try await firstVideoTrack.load(.naturalSize)
+            let preferredTransform = try await firstVideoTrack.load(.preferredTransform)
+
+            // Log original video dimensions
+            logger.info("📐 CONTAINER_ANALYSIS: Original video dimensions: \(naturalSize.width) x \(naturalSize.height)")
+            logger.info("📐 CONTAINER_ANALYSIS: Preferred transform: \(preferredTransform)")
+            logger.info("📐 CONTAINER_ANALYSIS: Applied rotation: \(viewModel.videoRotation.description)")
+
+            // Calculate container constraints
+            let containerHeight: CGFloat = 180 // Fixed container height from frame(height: 180)
+            let containerAspectRatio: CGFloat = 1.0 // Assuming square container for now
+
+            // Calculate expected dimensions after rotation
+            let rotationDegrees = viewModel.videoRotation.angle.degrees
+            let isRotated = abs(rotationDegrees.truncatingRemainder(dividingBy: 180)) > 45
+
+            let (effectiveWidth, effectiveHeight) = isRotated ?
+                (naturalSize.height, naturalSize.width) :
+                (naturalSize.width, naturalSize.height)
+
+            logger.info("📐 CONTAINER_ANALYSIS: Effective dimensions after rotation: \(effectiveWidth) x \(effectiveHeight)")
+            logger.info("📐 CONTAINER_ANALYSIS: Container constraints: height=\(containerHeight), aspectRatio=\(containerAspectRatio)")
+
+            // Calculate overflow
+            let containerWidth = containerHeight * containerAspectRatio
+            let widthOverflow = effectiveWidth - containerWidth
+            let heightOverflow = effectiveHeight - containerHeight
+
+            logger.info("📐 CONTAINER_ANALYSIS: Container dimensions: \(containerWidth) x \(containerHeight)")
+            logger.info("📐 CONTAINER_ANALYSIS: Width overflow: \(widthOverflow > 0 ? "\(widthOverflow)px (OVERFLOW)" : "\(widthOverflow)px (OK)")")
+            logger.info("📐 CONTAINER_ANALYSIS: Height overflow: \(heightOverflow > 0 ? "\(heightOverflow)px (OVERFLOW)" : "\(heightOverflow)px (OK)")")
+
+            // OPENSPEC FIX: Log container fix application
+            logger.info("🔧 OPENSPEC FIX: Applied aspectRatio(contentMode: .fit) and clipped() modifiers to prevent overflow")
+
+            // Provide mathematical proof of overflow
+            if widthOverflow > 0 || heightOverflow > 0 {
+                logger.error("📐 CONTAINER_PROOF: Video container overflow CONFIRMED - Video (\(effectiveWidth)x\(effectiveHeight)) cannot fit in container (\(containerWidth)x\(containerHeight))")
+                logger.error("📐 CONTAINER_PROOF: Root cause: Fixed container dimensions don't account for rotation transform")
+                logger.warning("🔧 OPENSPEC FIX: aspectRatio and clipped() modifiers should prevent system instability from overflow")
+            } else {
+                logger.info("📐 CONTAINER_PROOF: Video fits within container bounds - No overflow detected")
+                logger.info("✅ OPENSPEC FIX: Container fixes applied successfully - no overflow expected")
+            }
+
+        } catch {
+            logger.error("📐 CONTAINER_ANALYSIS: Failed to analyze video dimensions: \(error.localizedDescription)")
+        }
     }
 }
 

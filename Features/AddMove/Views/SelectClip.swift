@@ -7,7 +7,7 @@ import PhotosUI
 /// Enhanced view for selecting a clip with loading feedback
 /// Updated to work with simplified AddMoveViewModel
 struct SelectClip: View {
-    @Binding var selectedTab: TabSelection
+    @Binding var selectedTab: Int
     @ObservedObject var viewModel: AddMoveViewModel
     let onStepChange: (AddMoveStep) -> Void
     @State private var showPhotosPicker = false
@@ -248,7 +248,7 @@ struct SelectClip: View {
 // MARK: - Preview
 #Preview {
     struct PreviewWrapper: View {
-        @State private var selectedTab: TabSelection = .add
+        @State private var selectedTab: Int = 1 // Add Move tab
 
         var body: some View {
             SelectClip(

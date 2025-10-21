@@ -21,6 +21,9 @@ public final class AddMoveViewModel: ObservableObject {
     @Published public var moveCategory: String = ""
     @Published public var tags: [String] = []
 
+    // MARK: - Save State Management
+    @Published public private(set) var saveState: SaveState = .idle
+
     // MARK: - Video Properties
     @Published public var trimStartTime: TimeInterval = 0.0
     @Published public var trimEndTime: TimeInterval = 0.0
@@ -99,6 +102,51 @@ public final class AddMoveViewModel: ObservableObject {
             case .idle: return "Idle"
             case .videoLoaded: return "Video Loaded"
             case .suspended: return "Suspended"
+            }
+        }
+    }
+
+    /// Save operation state for tracking save progress and completion
+    public enum SaveState: Equatable {
+        case idle              // No save operation in progress
+        case saving            // Save operation in progress
+        case saved             // Save operation completed successfully
+        case failed(String)    // Save operation failed with error message
+
+        var isSaving: Bool {
+            switch self {
+            case .saving: return true
+            default: return false
+            }
+        }
+
+        var isSaved: Bool {
+            switch self {
+            case .saved: return true
+            default: return false
+            }
+        }
+
+        var isFailed: Bool {
+            switch self {
+            case .failed: return true
+            default: return false
+            }
+        }
+
+        var errorMessage: String? {
+            switch self {
+            case .failed(let message): return message
+            default: return nil
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .idle: return "Idle"
+            case .saving: return "Saving"
+            case .saved: return "Saved"
+            case .failed(let message): return "Failed: \(message)"
             }
         }
     }
@@ -579,6 +627,77 @@ public final class AddMoveViewModel: ObservableObject {
         logger.debug("Video rotation updated: \(rotation.description)")
     }
 
+    /// Save the move with the specified name using the current trim modification and video asset
+    public func saveMove(name: String) async {
+        logger.info("💾 AddMoveViewModel: saveMove called with name: '\(name)'")
+
+        // Validate preconditions
+        guard let asset = selectedVideo else {
+            logger.error("❌ AddMoveViewModel: Cannot save - no video asset available")
+            saveState = .failed("No video available to save")
+            return
+        }
+
+        guard let trimModification = currentTrimModification else {
+            logger.error("❌ AddMoveViewModel: Cannot save - no trim modification available")
+            saveState = .failed("Please trim the video before saving")
+            return
+        }
+
+        let finalName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalName.isEmpty else {
+            logger.error("❌ AddMoveViewModel: Cannot save - empty move name")
+            saveState = .failed("Move name cannot be empty")
+            return
+        }
+
+        // Set saving state
+        saveState = .saving
+        logger.info("🔄 AddMoveViewModel: Save operation started")
+
+        do {
+            // Create move persistence service
+            let movePersistenceService = MovePersistenceService(
+                persistentContainer: PersistenceController.shared.container
+            )
+
+            // Create move saver
+            let moveSaver = MoveSaver(
+                persistentContainer: PersistenceController.shared.container,
+                movePersistenceService: movePersistenceService
+            )
+
+            // Convert VideoRotation to quarter turns
+            let rotationQuarterTurns: Int
+            switch trimModification.rotation {
+            case .degrees0: rotationQuarterTurns = 0
+            case .degrees90: rotationQuarterTurns = 1
+            case .degrees180: rotationQuarterTurns = 2
+            case .degrees270: rotationQuarterTurns = 3
+            }
+
+            // Save the move using the MoveSaver service
+            let savedMove = try await moveSaver.saveMove(
+                name: finalName,
+                asset: asset,
+                trimStartTime: trimModification.startTimeSeconds,
+                trimEndTime: trimModification.endTimeSeconds,
+                rotationQuarterTurns: rotationQuarterTurns
+            )
+
+            // Update state to saved
+            saveState = .saved
+            logger.info("✅ AddMoveViewModel: Move saved successfully: \(savedMove.name ?? "unnamed")")
+            logger.info("📊 AddMoveViewModel: Save state updated to: \(saveState.description)")
+
+        } catch {
+            // Update state to failed
+            saveState = .failed("Failed to save move: \(error.localizedDescription)")
+            logger.error("❌ AddMoveViewModel: Save failed - \(error.localizedDescription)")
+            logger.error("📊 AddMoveViewModel: Save state updated to: \(saveState.description)")
+        }
+    }
+
     
     /// Update trim modification with complete data
     public func updateTrimModification(_ modification: TrimModification) async {
@@ -639,6 +758,37 @@ public final class AddMoveViewModel: ObservableObject {
 
     // MARK: - State Management
 
+    /// Reset view model for next move creation after successful save
+    /// Maintains video player state while clearing form data for new input
+    @MainActor
+    public func resetForNextMove() {
+        logger.info("🔄 Resetting AddMoveViewModel for next move creation")
+
+        // Clear form data but maintain video player state
+        moveName = ""
+        moveDescription = ""
+        moveCategory = ""
+        tags = []
+
+        // Reset trim data
+        trimStartTime = 0.0
+        trimEndTime = 0.0
+        videoDuration = 0.0
+        currentTrimModification = nil
+
+        // Reset save state
+        saveState = .idle
+
+        // Clear selected video but maintain player state
+        selectedVideo = nil
+        errorMessage = nil
+
+        // Reset workflow state to idle
+        workflowState = .idle
+
+        logger.info("✅ AddMoveViewModel reset for next move - video player state maintained")
+    }
+
     /// Reset view model to initial state with session boundary generation
     @MainActor
     public func reset() {
@@ -672,6 +822,7 @@ public final class AddMoveViewModel: ObservableObject {
         trimStartTime = 0.0
         trimEndTime = 0.0
         videoDuration = 0.0
+        saveState = .idle
         workflowState = .idle
         suspendedVideoAsset = nil
         suspendedTrimRange = nil

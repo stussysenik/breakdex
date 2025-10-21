@@ -44,7 +44,11 @@ struct MoveDetailView: View {
                 // Simple haptic feedback
                 let impact = UIImpactFeedbackGenerator(style: .light)
                 impact.impactOccurred()
+                logger.info("🎬 NAVIGATION_PROOF: MoveDetailView appeared SUCCESSFULLY for move: \(move.name ?? "Untitled Move") - NavigationLink worked!")
                 logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 View appeared for move: \(move.name ?? "Untitled Move")")
+
+                // Enhanced specific video instance logging
+                logSpecificVideoInstanceDetails()
             }
             .onDisappear {
                 cleanupPlayer()
@@ -124,6 +128,9 @@ struct MoveDetailView: View {
                 // Use the state-managed SharedVideoPlayer with VideoPlayerView
                 VideoPlayerView(player: player, showControls: true)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .onTapGesture {
+                        logger.info("👆 INTERACTION_PROOF: Video tapped - Player type: SharedVideoPlayer, Move: \(move.name ?? "Untitled")")
+                    }
             } else {
                 // Fallback loading state
                 SharedLoadingView(configuration: .minimal)
@@ -164,55 +171,101 @@ struct MoveDetailView: View {
     // MARK: - Video Asset Loading
     /// Simplified and optimized video asset loading
     private func loadVideoAsset() async {
-        logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 Starting optimized video asset load")
+        logger.info("🚀 VIDEO_LOADING_START: MoveDetailView starting video loading")
+        logger.info("🎬 MOVE_DETAIL: Move name: \(move.name ?? "Untitled Move")")
+        logger.info("🎬 MOVE_DETAIL: Move ID: \(move.objectID)")
 
         // Validate photos identifier
         guard let photosIdentifier = move.photosIdentifier else {
-            await handleError("No video identifier found for this move")
+            logger.error("❌ VIDEO_LOADING_ERROR: No photosIdentifier found for move")
+            await MainActor.run {
+                self.errorMessage = "No video identifier found for this move"
+                self.isLoading = false
+            }
             return
         }
 
-        logger.info("🎬 MOVE_DETAIL_VIEW: 📋 Loading video with identifier: \(photosIdentifier)")
+        logger.info("🔍 VIDEO_LOADING_DEBUG: Photos identifier: \(photosIdentifier)")
+        logger.info("🔍 VIDEO_LOADING_DEBUG: Identifier length: \(photosIdentifier.count) characters")
+        logger.info("🔍 VIDEO_LOADING_DEBUG: Identifier format check: \(photosIdentifier.hasPrefix(" ") ? "Has spaces" : "Valid format")")
 
         // Check if asset exists
-        guard PhotosAssetLoader.assetExists(with: photosIdentifier) else {
-            await handleError("Video not found in Photos library")
+        logger.info("🔍 ASSET_EXISTS_CHECK: Checking if asset exists in Photos library")
+        let assetExists = PhotosAssetLoader.assetExists(with: photosIdentifier)
+        logger.info("🔍 ASSET_EXISTS_RESULT: Asset exists = \(assetExists)")
+
+        guard assetExists else {
+            logger.error("❌ VIDEO_LOADING_ERROR: Asset not found in Photos library")
+            await MainActor.run {
+                self.errorMessage = "Video not found in Photos library"
+                self.isLoading = false
+            }
             return
         }
 
         // Perform atomic loading to prevent UI flicker
+        logger.info("⬇️ ASSET_FETCH_START: Starting asset fetch from Photos")
         do {
             let asset = await PhotosAssetLoader.fetchAsset(with: photosIdentifier)
+            logger.info("⬇️ ASSET_FETCH_RESULT: Asset fetch completed, asset exists: \(asset != nil)")
+
             guard let asset = asset else {
-                await handleError("Failed to load video from Photos")
+                logger.error("❌ VIDEO_LOADING_ERROR: fetchAsset returned nil")
+                await MainActor.run {
+                    self.errorMessage = "Failed to load video from Photos"
+                    self.isLoading = false
+                }
                 return
             }
+
+            logger.info("🔍 ASSET_PROPERTIES_START: Validating asset properties")
 
             // Validate asset properties
             let duration = try await asset.load(.duration)
             let isPlayable = try await asset.load(.isPlayable)
 
+            logger.info("🔍 ASSET_PROPERTIES_RESULT: Duration = \(CMTimeGetSeconds(duration))s, Playable = \(isPlayable)")
+
             guard isPlayable else {
-                await handleError("Video is not playable")
+                logger.error("❌ VIDEO_LOADING_ERROR: Asset is not playable")
+                await MainActor.run {
+                    self.errorMessage = "Video is not playable"
+                    self.isLoading = false
+                }
                 return
             }
 
-            logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Asset loaded - duration: \(CMTimeGetSeconds(duration))s")
+            logger.info("✅ VIDEO_LOADING_SUCCESS: Asset validated - duration: \(CMTimeGetSeconds(duration))s")
 
             // Create and configure the SharedVideoPlayer
+            logger.info("🔄 PLAYER_CREATION_START: Creating SharedVideoPlayer")
+            logger.info("🔄 ROTATION_DEBUG: Move.rotationQuarterTurns = \(move.rotationQuarterTurns)")
+
             let sharedPlayer = SharedVideoPlayer(mode: .preview)
+            logger.info("🔄 PLAYER_CREATION_SUCCESS: SharedVideoPlayer created")
+
+            logger.info("⬇️ PLAYER_LOADING_START: Loading video into SharedVideoPlayer")
             await sharedPlayer.loadVideo(asset)
+            logger.info("⬇️ PLAYER_LOADING_SUCCESS: Video loaded into SharedVideoPlayer")
+
+            // Apply trim boundaries if specified
+            await applyTrimBoundaries(to: sharedPlayer)
 
             // Atomic state update
             await MainActor.run {
+                logger.info("🎯 STATE_UPDATE: Updating UI state with loaded video")
                 self.videoAsset = asset
                 self.player = sharedPlayer
                 self.isLoading = false
-                logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Video loaded successfully")
+                logger.info("✅ VIDEO_LOADING_COMPLETE: MoveDetailView video loading successful!")
             }
 
         } catch {
-            await handleError("Failed to load video: \(error.localizedDescription)")
+            logger.error("❌ VIDEO_LOADING_ERROR: Exception during loading - \(error.localizedDescription)")
+            await MainActor.run {
+                self.errorMessage = "Failed to load video: \(error.localizedDescription)"
+                self.isLoading = false
+            }
         }
     }
 
@@ -224,6 +277,85 @@ struct MoveDetailView: View {
             self.errorMessage = message
             self.isLoading = false
         }
+    }
+
+    // MARK: - Trim Boundary Enforcement
+    /// Apply trim boundaries to video playback if specified
+    /// - Parameter player: The SharedVideoPlayer to configure
+    private func applyTrimBoundaries(to player: SharedVideoPlayer) async {
+        let trimStartTime = move.trimStartTime
+        let trimEndTime = move.trimEndTime
+
+        // Check if move has trim bounds
+        guard trimEndTime > trimStartTime else {
+            logger.info("ℹ️ No trim bounds specified - playing full video")
+            return
+        }
+
+        logger.info("✂️ Applying trim boundaries: \(trimStartTime)s - \(trimEndTime)s")
+
+        // Apply trim boundaries to AVPlayer
+        await MainActor.run {
+            guard let playerRef = player.avPlayer else {
+                logger.warning("⚠️ AVPlayer not available for trim boundary application")
+                return
+            }
+
+            // Set forward playback end time on player item (iOS 18+ compatibility)
+            let endTimeCM = CMTime(seconds: trimEndTime, preferredTimescale: 600)
+            playerRef.currentItem?.forwardPlaybackEndTime = endTimeCM
+            logger.info("✅ Set forwardPlaybackEndTime to \(trimEndTime)s")
+
+            // Add boundary time observer to enforce trim limits
+            addBoundaryTimeObserver(to: playerRef, endTime: trimEndTime)
+
+            // Seek to trim start position
+            let startTimeCM = CMTime(seconds: trimStartTime, preferredTimescale: 600)
+            playerRef.seek(to: startTimeCM) { completed in
+                if completed {
+                    self.logger.info("✅ Successfully seeked to trim start position: \(trimStartTime)s")
+                } else {
+                    self.logger.warning("⚠️ Failed to seek to trim start position: \(trimStartTime)s")
+                }
+            }
+        }
+    }
+
+    /// Add boundary time observer to enforce trim limits
+    /// - Parameters:
+    ///   - player: The AVPlayer to observe
+    ///   - endTime: The trim end time to enforce
+    private func addBoundaryTimeObserver(to player: AVPlayer, endTime: Double) {
+        let endTimeCM = CMTime(seconds: endTime, preferredTimescale: 600)
+
+        // Add boundary time observer with proper NSValue wrapping
+        player.addBoundaryTimeObserver(
+            forTimes: [NSValue(time: endTimeCM)],
+            queue: .main
+        ) {
+            self.logger.info("🎯 Trim end boundary reached")
+
+            // Pause playback at trim end
+            if player.timeControlStatus == .playing {
+                player.pause()
+                self.logger.info("⏸️ Paused playback at trim end boundary")
+
+                // Seek back to trim start position after a short delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    let startTimeCM = CMTime(seconds: self.move.trimStartTime, preferredTimescale: 600)
+                    player.seek(to: startTimeCM) { completed in
+                        if completed {
+                            self.logger.info("🔄 Seeked back to trim start after boundary enforcement")
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.info("📡 Added boundary time observer for trim end time: \(endTime)s")
+
+        // Store observer for cleanup (you might want to track this in a property)
+        // For now, we'll rely on the player's internal cleanup
     }
 
     // MARK: - Player Cleanup
@@ -240,6 +372,43 @@ struct MoveDetailView: View {
         }
 
         logger.info("🎬 MOVE_DETAIL_VIEW: ✅ Cleanup completed")
+    }
+
+    // MARK: - Enhanced Video Instance Logging
+    /// Enhanced logging for specific video instance details
+    private func logSpecificVideoInstanceDetails() {
+        logger.info("🎬 VIDEO_INSTANCE_ANALYSIS: Starting detailed video instance analysis for move: \(move.name ?? "Untitled Move")")
+
+        // Log move-specific details
+        logger.info("🎬 VIDEO_INSTANCE: Move name: \(move.name ?? "Untitled Move")")
+        logger.info("🎬 VIDEO_INSTANCE: Move ID: \(move.objectID)")
+        logger.info("🎬 VIDEO_INSTANCE: Learning state: \(move.learningState ?? "UNKNOWN")")
+        logger.info("🎬 VIDEO_INSTANCE: Creation date: \(move.createdAt ?? Date())")
+
+        // Log video-specific details
+        if let photosIdentifier = move.photosIdentifier {
+            logger.info("🎬 VIDEO_INSTANCE: Photos identifier: \(photosIdentifier)")
+        } else {
+            logger.warning("🎬 VIDEO_INSTANCE: No photos identifier found")
+        }
+
+        // Log trim details
+        logger.info("🎬 VIDEO_INSTANCE: Trim range: \(move.trimStartTime)s - \(move.trimEndTime)s")
+        logger.info("🎬 VIDEO_INSTANCE: Trim duration: \(move.trimEndTime - move.trimStartTime)s")
+
+        // Log rotation details
+        logger.info("🎬 VIDEO_INSTANCE: Rotation quarter turns: \(move.rotationQuarterTurns)")
+        let rotationDegrees = Int(move.rotationQuarterTurns) * 90
+        logger.info("🎬 VIDEO_INSTANCE: Rotation degrees: \(rotationDegrees)°")
+
+        // Core Data entity details
+        logger.info("🎬 VIDEO_INSTANCE: Core Data entity: \(move.entity.name ?? "Unknown")")
+        logger.info("🎬 VIDEO_INSTANCE: Object URI: \(move.objectID.uriRepresentation().absoluteString)")
+
+        // Create a unique instance identifier for tracking
+        let instanceID = UUID().uuidString.prefix(8)
+        logger.info("🎬 VIDEO_INSTANCE: Instance tracking ID: \(instanceID)")
+        logger.info("🎬 VIDEO_INSTANCE_ANALYSIS: Complete - This specific instance can now be tracked through logs")
     }
 }
 

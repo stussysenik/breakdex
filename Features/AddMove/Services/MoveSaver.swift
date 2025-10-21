@@ -70,10 +70,12 @@ class MoveSaver: ObservableObject {
         await updateProgress(0.2, status: "Saving video to Photos...")
 
         do {
-            // Step 1: Save video to Photos library
+            // Step 1: Save video to Photos library (with trim parameters if provided)
             let photosIdentifier = try await movePersistenceService.saveVideoToPhotos(
                 asset: asset,
-                moveName: cleanName
+                moveName: cleanName,
+                trimStartTime: trimStartTime,
+                trimEndTime: trimEndTime
             )
 
             await updateProgress(0.6, status: "Creating move entry...")

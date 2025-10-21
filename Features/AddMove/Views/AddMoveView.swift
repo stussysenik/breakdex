@@ -20,13 +20,14 @@ enum AddMoveStep {
 /// Main coordinator view for the Add Move feature
 /// Uses simplified AddMoveViewModel instead of complex UnifiedState
 struct AddMoveView: View {
-    @Binding var selectedTab: TabSelection
+    @Binding var selectedTab: Int
     @StateObject private var viewModel = AddMoveViewModel()
     @State private var currentStep: AddMoveStep = .ready
     @State private var viewTransitionID = UUID().uuidString
 
     var body: some View {
-        let _ = Logger.addMove.debug("🔄 AddMoveView: Body recomputed - currentStep: \(currentStep)", emoji: "🔄")
+        // Simplified logging to avoid compiler timeout
+        let _ = Logger.addMove.debug("AddMoveView: step=\(currentStep)")
 
         Group {
             switch currentStep {
@@ -112,8 +113,7 @@ struct AddMoveView: View {
             Logger.addMove.info("🔄 AddMoveView: viewTransitionID changed from \(oldID) to \(newID)", emoji: "🔄")
         }
         .onChange(of: viewModel.loadingState) { oldState, newState in
-            Logger.addMove.info("🔄 OPENSPEC FIX: AddMoveView: loadingState changed from \(oldState) to \(newState)", emoji: "🔄")
-            Logger.addMove.debug("📊 OPENSPEC FIX: Thread: \(Thread.isMainThread ? "MAIN" : "BACKGROUND")", emoji: "📊")
+            Logger.addMove.info("🔄 AddMoveView: loadingState \(oldState) → \(newState)")
 
             // Handle cancel button workflow: when loadingState returns to idle during trimming, transition to ready
             if newState == .idle && currentStep == .trimming {
@@ -126,7 +126,59 @@ struct AddMoveView: View {
                 Logger.addMove.info("✅ OPENSPEC FIX: State transition complete - currentStep: \(currentStep), viewTransitionID: \(viewTransitionID)", emoji: "✅")
             }
         }
+        .onChange(of: viewModel.currentTrimModification) { _, trimModification in
+            Logger.addMove.info("✂️ AddMoveView: trimModification updated")
+
+            // Handle trim completion - transition from trimming to naming when trim is set
+            if let trimModification = trimModification, currentStep == .trimming {
+                Logger.addMove.info("🎯 OPENSPEC FIX: Trim completion detected - transitioning from trimming to naming", emoji: "🎯")
+                Logger.addMove.info("📊 OPENSPEC FIX: Trim details - duration: \(trimModification.durationSeconds)s, rotation: \(trimModification.rotation.description)", emoji: "📊")
+
+                // Update state on main thread
+                currentStep = .naming
+                viewTransitionID = UUID().uuidString
+
+                Logger.addMove.info("✅ OPENSPEC FIX: State transition complete - currentStep: \(currentStep), viewTransitionID: \(viewTransitionID)", emoji: "✅")
+            }
+        }
+        .onChange(of: viewModel.saveState) { _, saveState in
+            Logger.addMove.info("💾 SAVE_STATE_CHANGE: saveState=\(saveState), currentStep=\(currentStep)")
+            Logger.addMove.info("🔍 SAVE_DEBUG: Thread = \(Thread.isMainThread ? "MAIN" : "BACKGROUND")")
+            Logger.addMove.info("🔍 SAVE_DEBUG: saveState.description = \(saveState.description)")
+            Logger.addMove.info("🔍 SAVE_DEBUG: saveState.isSaved = \(saveState.isSaved)")
+
+            // Handle save completion - transition from naming to ready when save succeeds
+            if saveState.isSaved && currentStep == .naming {
+                Logger.addMove.info("🎯 SAVE_COMPLETION: Save complete - transitioning to ready state")
+                Logger.addMove.info("🔍 SAVE_DEBUG: About to change currentStep from \(currentStep) to .ready")
+
+                // Reset ViewModel for next move creation
+                viewModel.resetForNextMove()
+
+                // Update state on main thread to ready state (not complete)
+                currentStep = .ready
+                viewTransitionID = UUID().uuidString
+                Logger.addMove.info("✅ SAVE_COMPLETION: currentStep changed to \(currentStep)")
+                Logger.addMove.info("🔍 SAVE_DEBUG: New viewTransitionID = \(viewTransitionID)")
+
+                // Enhanced logging for new behavior
+                Logger.addMove.info("🎯 EXPECTED_BEHAVIOR: User remains on Add Move tab in ready state")
+                Logger.addMove.info("🔍 SAVE_DEBUG: SelectClip button should be visible for creating next move")
+                Logger.addMove.info("🎉 SAVE_WORKFLOW: Save workflow completed successfully - ready for next move")
+            }
+
+            // Handle save failure - log error but remain in naming state
+            if saveState.isFailed {
+                Logger.addMove.error("❌ COMPOSITION TRACE: Save failed - \(saveState.errorMessage ?? "Unknown error")", emoji: "❌")
+                // Error state is handled by viewModel.errorMessage which is already observed
+            }
+        }
+        .onChange(of: selectedTab) { oldValue, newValue in
+            Logger.addMove.info("🔄 AddMoveView: Tab changed \(oldValue) → \(newValue)")
+        }
     }
+
+    // MARK: - Navigation Helper Methods
 
     // MARK: - Private Methods
 
@@ -285,7 +337,7 @@ private struct SavingView: View {
 // MARK: - Preview
 #Preview {
     struct PreviewWrapper: View {
-        @State private var selectedTab: TabSelection = .ready
+        @State private var selectedTab: Int = 1 // Add Move tab
 
         var body: some View {
             AddMoveView(selectedTab: $selectedTab)

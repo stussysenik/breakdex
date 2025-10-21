@@ -18,7 +18,7 @@ struct MainView: View {
                 .tag(0)
 
             // Add Move Tab
-            AddMoveView(selectedTab: .constant(.add))
+            AddMoveView(selectedTab: $selectedTab)
             .tabItem {
                 Image(systemName: "plus.app")
                 Text("Add Move")
@@ -42,6 +42,9 @@ struct MainView: View {
                 .tag(3)
         }
         .accentColor(.accent)
+        .onChange(of: selectedTab) { oldValue, newValue in
+            Logger.main.info("📍 NAVIGATION: Tab changed from \(oldValue) to \(newValue)")
+        }
     }
 }
 
@@ -61,7 +64,7 @@ struct MainView: View {
                     .tag(0)
 
                 // Add Move Tab - using AddMoveView
-                AddMoveView(selectedTab: .constant(.add))
+                AddMoveView(selectedTab: $selectedTab)
                 .tabItem {
                     Image(systemName: "plus.app")
                     Text("Add Move")
