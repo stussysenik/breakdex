@@ -73,6 +73,9 @@ struct CreateComboView: View {
     private var navigationContentView: some View {
         NavigationView {
             VStack(spacing: 24) {
+                Spacer()
+                    .frame(height: 1)
+
                 // MARK: - Header Section
                 headerSection
 
@@ -87,8 +90,8 @@ struct CreateComboView: View {
 
                 Spacer(minLength: 20)
             }
-            .navigationTitle("Create Combo")
-            .navigationBarTitleDisplayMode(.inline)
+            // .navigationTitle("Create Combo")
+            // .navigationBarTitleDisplayMode(.inline)
             .background(Color(.systemBackground))
         }
     }
@@ -224,7 +227,7 @@ struct CreateComboView: View {
             }
         }
     }
-
+    // MARK: implement the ComboTimelineView.swift
     private var timelineSection: some View {
         VStack(spacing: 16) {
             if !viewModel.comboMoves.isEmpty {

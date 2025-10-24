@@ -77,7 +77,7 @@ struct MoveListView: View {
         VStack(spacing: 20) {
             Image(systemName: "figure.martial.arts")
                 .font(.system(size: 64))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(.primary.opacity(0.5))
 
             Text("No moves added yet")
                 .font(.ibmPlexMono(size: 24, weight: .bold))
@@ -85,7 +85,7 @@ struct MoveListView: View {
 
             Text("Tap below to start building your breaking arsenal!")
                 .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
 
             Button("Add Move") {

@@ -27,7 +27,7 @@ struct BreakingArsenalView: View {
                 // Fixed Bottom Section with Combo
                 VStack(spacing: 20) {
                     Divider()
-                        .background(Color.textSecondary.opacity(0.3))
+                        .background(Color.textPrimary.opacity(0.3))
 
                     HStack(spacing: 40) {
                         Spacer()
@@ -38,7 +38,7 @@ struct BreakingArsenalView: View {
                         } label: {
                             Text("COMBOS")
                                 .font(.ibmPlexMono(size: 24, weight: .semibold))
-                                .foregroundColor(.textSecondary)
+                                .foregroundColor(.textPrimary)
                         }
                         .buttonStyle(.plain)
 

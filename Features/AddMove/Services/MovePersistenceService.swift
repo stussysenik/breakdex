@@ -1,6 +1,5 @@
 import CoreData
 import AVFoundation
-import Photos
 import OSLog
 
 // MARK: - Move Persistence Errors
@@ -60,6 +59,7 @@ enum MovePersistenceError: LocalizedError {
 // MARK: - Move Persistence Service
 /// Essentialist implementation for move persistence operations
 /// Provides core functionality for move saving and management
+@MainActor
 class MovePersistenceService {
     private let persistentContainer: NSPersistentContainer
     private let logger = Logger.addMove
@@ -96,15 +96,7 @@ class MovePersistenceService {
         trimEndTime: Double? = nil
     ) async throws -> String {
         logger.info("🎬 Starting real video export to Photos library for move: '\(moveName)'")
-
-        // Check Photos library permissions first
-        let authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-        guard authorizationStatus == .authorized || authorizationStatus == .limited else {
-            logger.error("❌ Photos library access denied - status: \(authorizationStatus.rawValue)")
-            throw MovePersistenceError.photosAccessDenied
-        }
-
-        logger.info("✅ Photos library access authorized")
+        logger.info("🔬 PHOTOS_CONTEXT: Permission checking delegated to PhotoKitService")
 
         // Get video duration for validation
         let assetDuration: TimeInterval
@@ -279,44 +271,28 @@ class MovePersistenceService {
         }
     }
 
-    /// Save exported temporary file to Photos library
+    /// Save exported temporary file to BreakDex album using PhotoKitService
     /// - Parameters:
     ///   - tempURL: URL of the temporary exported video file
     ///   - moveName: Name for the saved video
     /// - Returns: Photos library identifier for the saved video
     /// - Throws: MovePersistenceError if save fails
     private func saveTempFileToPhotosLibrary(tempURL: URL, moveName: String) async throws -> String {
-        logger.info("💾 Saving exported video to Photos library...")
+        logger.info("💾 Saving exported video to BreakDex album...")
+        logger.info("🔬 PHOTOS_CONTEXT: Entering saveTempFileToPhotosLibrary - Main thread: \(Thread.isMainThread)")
+        logger.info("🔬 PHOTOS_CONTEXT: tempURL exists: \(FileManager.default.fileExists(atPath: tempURL.path))")
 
-        return try await withCheckedThrowingContinuation { continuation in
-            var creationRequest: PHAssetChangeRequest?
-
-            PHPhotoLibrary.shared().performChanges({
-                // Create change request to save video
-                creationRequest = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
-
-                // Store the placeholder for later retrieval
-                if let placeholder = creationRequest?.placeholderForCreatedAsset {
-                    self.logger.debug("📝 Created placeholder for video import")
-                }
-
-            }) { success, error in
-                if success {
-                    // Get the identifier of the newly created asset using the placeholder
-                    if let placeholder = creationRequest?.placeholderForCreatedAsset {
-                        let identifier = placeholder.localIdentifier
-                        self.logger.info("✅ Successfully saved video to Photos library with identifier: \(identifier)")
-                        continuation.resume(returning: identifier)
-                    } else {
-                        self.logger.error("❌ Could not retrieve saved video placeholder from Photos library")
-                        continuation.resume(throwing: MovePersistenceError.photosLibrarySaveFailed("Could not retrieve saved video"))
-                    }
-                } else {
-                    let errorMessage = error?.localizedDescription ?? "Unknown Photos library error"
-                    self.logger.error("❌ Failed to save video to Photos library: \(errorMessage)")
-                    continuation.resume(throwing: MovePersistenceError.photosLibrarySaveFailed(errorMessage))
-                }
-            }
+        do {
+            let identifier = try await PhotoKitService.shared.saveVideoToBreakDexAlbum(tempURL)
+            logger.info("✅ Successfully saved video to BreakDex album with identifier: \(identifier)")
+            logger.info("🔬 PHOTOS_CONTEXT: PhotoKitService atomic save completed")
+            return identifier
+        } catch let photoKitError as PhotoKitError {
+            logger.error("❌ PhotoKitService failed to save video: \(photoKitError.localizedDescription)")
+            throw MovePersistenceError.photosLibrarySaveFailed(photoKitError.localizedDescription)
+        } catch {
+            logger.error("❌ Unknown error saving video to BreakDex album: \(error.localizedDescription)")
+            throw MovePersistenceError.photosLibrarySaveFailed(error.localizedDescription)
         }
     }
 

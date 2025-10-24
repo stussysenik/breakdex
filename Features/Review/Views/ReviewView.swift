@@ -75,7 +75,7 @@ struct ReviewView: View {
 
             Image(systemName: "book.closed")
                 .font(.system(size: 64))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(.primary.opacity(0.5))
 
             VStack(spacing: 12) {
                 Text("Nothing to review yet")
@@ -84,7 +84,7 @@ struct ReviewView: View {
 
                 Text("Add some moves and create combos to start reviewing your breaking skills!")
                     .font(.ibmPlexMono(size: 16))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.primary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             }

@@ -24,14 +24,14 @@ struct NameMoveView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            // Header
-            headerView
-
+            // // Header
+            // headerView
+            Spacer()
             // Video Preview
             videoPreviewView
 
-            // Move Details
-            moveDetailsView
+            // // Move Details
+            // moveDetailsView
 
             // Name Input
             nameInputView
@@ -78,22 +78,30 @@ struct NameMoveView: View {
     // MARK: - Video Preview View
     private var videoPreviewView: some View {
         VStack(spacing: 12) {
-            // Video Player Container
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.gray.opacity(0.3))
-                .frame(height: 180)
-                .aspectRatio(contentMode: .fit)
-                .clipped()
-                .overlay(
-                    Group {
+
+            Group {
                         if viewModel.isVideoReady {
                             videoPlayerContent
                         } else {
                             videoPreviewPlaceholder
                         }
                     }
-                )
-                .padding(.horizontal)
+            // // Video Player Container
+            // RoundedRectangle(cornerRadius: 12)
+            //     .fill(Color.gray.opacity(0.3))
+            //     .frame(height: 180)
+            //     .aspectRatio(contentMode: .fit)
+            //     .clipped()
+            //     .overlay(
+            //         Group {
+            //             if viewModel.isVideoReady {
+            //                 videoPlayerContent
+            //             } else {
+            //                 videoPreviewPlaceholder
+            //             }
+            //         }
+            //     )
+            //     .padding(.horizontal)
 
             // Video Info
             HStack {
@@ -117,6 +125,7 @@ struct NameMoveView: View {
             if let asset = viewModel.selectedVideo {
                 VideoPlayerView(player: videoPlayer, showControls: true)
                     .rotationEffect(viewModel.videoRotation.angle)
+                    .frame(width: 512, height: 252, alignment: .center)
                     .aspectRatio(contentMode: .fit)
                     .clipped()
                     .onAppear {
@@ -215,38 +224,38 @@ struct NameMoveView: View {
     // MARK: - Name Input View
     private var nameInputView: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Move Name")
-                .font(.subheadline)
-                .foregroundColor(.textPrimary)
-                .padding(.horizontal)
+            // Text("Move Name")
+            //     .font(.subheadline)
+            //     .foregroundColor(.textPrimary)
+            //     .padding(.horizontal)
 
-            TextField("Enter move name", text: $moveName)
+            TextField("Enter your move name", text: $moveName)
                 .font(.ibmPlexMono(size: 18))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.2))
-                )
+                // .background(
+                //     RoundedRectangle(cornerRadius: 8)
+                //         .fill(Color.gray.opacity(0.2))
+                // )
                 .padding(.horizontal)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(moveName.isEmpty ? Color.gray : Color.blue, lineWidth: 1)
-                )
+                // .overlay(
+                //     RoundedRectangle(cornerRadius: 8)
+                //         .stroke(moveName.isEmpty ? Color.gray : Color.blue, lineWidth: 1)
+                // )
                 .padding(.horizontal)
 
             // Name validation hint
-            if moveName.isEmpty {
-                Text("Enter a descriptive name for your move")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                    .padding(.horizontal)
-            } else if moveName.count < 3 {
-                Text("Use at least 3 characters")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-                    .padding(.horizontal)
-            }
+            // if moveName.isEmpty {
+            //     Text("Enter a descriptive name for your move")
+            //         .font(.caption)
+            //         .foregroundColor(.textSecondary)
+            //         .padding(.horizontal)
+            // } else if moveName.count < 3 {
+            //     Text("Use at least 3 characters")
+            //         .font(.caption)
+            //         .foregroundColor(.orange)
+            //         .padding(.horizontal)
+            // }
         }
     }
 
@@ -287,10 +296,10 @@ struct NameMoveView: View {
                 .foregroundColor(.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.6))
-                )
+                // .background(
+                //     RoundedRectangle(cornerRadius: 8)
+                //         .fill(Color.gray.opacity(0.6))
+                // )
             }
             .buttonStyle(PlainButtonStyle())
             .disabled(isSaving)
