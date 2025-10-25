@@ -159,24 +159,27 @@ struct MoveListView: View {
             if viewModel.filteredMoves.isEmpty && !viewModel.movesSearchText.isEmpty {
                 noSearchResultsView
             } else {
-                List(viewModel.filteredMoves) { move in
-                    MoveRowView(
-                        move: move,
-                        onTap: {
-                            logger.info("📋 MOVE_LIST_VIEW: 👆 Tapped move: \(move.name ?? "Untitled Move")")
-                        },
-                        onDelete: {
-                            Task {
-                                await viewModel.deleteMove(move)
-                            }
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.filteredMoves) { move in
+                            MoveRowView(
+                                move: move,
+                                onTap: {
+                                    logger.info("📋 MOVE_LIST_VIEW: 👆 Tapped move: \(move.name ?? "Untitled Move")")
+                                },
+                                onDelete: {
+                                    Task {
+                                        await viewModel.deleteMove(move)
+                                    }
+                                }
+                            )
+                            .background(Color.backgroundPrimary)
                         }
-                    )
-                    .listRowBackground(Color.backgroundPrimary)
-                    .listRowSeparator(.hidden)
+                    }
                 }
-                .listStyle(.plain)
+                .padding(20)
                 .onAppear {
-                    logger.info("📋 NAVIGATION_DEBUG: MovesList appeared - NavigationLink container is ready")
+                    logger.info("📋 NAVIGATION_SUCCESS: LazyVStack+NavigationLink working - MovesList appeared")
                 }
             }
         }
@@ -197,30 +200,24 @@ private struct MoveRowView: View {
     var body: some View {
         NavigationLink {
             MoveDetailView(move: move)
-                .onAppear {
-                    logger.info("🎯 NAVIGATION_SUCCESS: MoveDetailView APPEARED for move: \(move.name ?? "Untitled Move") - NavigationLink worked perfectly!")
-                }
-                .onDisappear {
-                    logger.info("🔙 NAVIGATION_DEBUG: MoveDetailView disappeared for move: \(move.name ?? "Untitled Move")")
-                }
         } label: {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(move.name ?? "Untitled Move")
-                        .font(.ibmPlexMono(size: 16, weight: .bold))
+                        .font(.ibmPlexMono(size: 36, weight: .bold))
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
                     Text("Added: \(move.createdAt ?? Date(), format: .dateTime.month().day().year().hour().minute())")
                         .font(.ibmPlexMono(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary)
 
                     // Enhanced debugging info
                     if let photosIdentifier = move.photosIdentifier {
                         Text("Video ID: \(String(photosIdentifier.prefix(8)))...")
                             .font(.caption2)
-                            .foregroundColor(.secondary.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.7))
                     } else {
                         Text("No Video ID")
                             .font(.caption2)
@@ -238,11 +235,6 @@ private struct MoveRowView: View {
         }
         .buttonStyle(PlainButtonStyle())
         .onTapGesture {
-            logger.info("👆 NAVIGATION_TAP: MoveRowView tapped for move: \(move.name ?? "Untitled Move")")
-            logger.info("🎯 NAVIGATION_DEBUG: About to trigger NavigationLink to MoveDetailView")
-            logger.info("📊 MOVE_DEBUG: Move has photosIdentifier: \(move.photosIdentifier != nil)")
-            logger.info("📊 MOVE_DEBUG: Move trim range: \(move.trimStartTime)s - \(move.trimEndTime)s")
-            logger.info("📊 MOVE_DEBUG: Move rotation: \(move.rotationQuarterTurns) quarter turns")
             onTap()
             MotionCatalog.Accessibility.selectionHaptic()
         }

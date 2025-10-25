@@ -44,10 +44,9 @@ struct MoveDetailView: View {
                 // Simple haptic feedback
                 let impact = UIImpactFeedbackGenerator(style: .light)
                 impact.impactOccurred()
-                logger.info("🎬 NAVIGATION_PROOF: MoveDetailView appeared SUCCESSFULLY for move: \(move.name ?? "Untitled Move") - NavigationLink worked!")
                 logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 View appeared for move: \(move.name ?? "Untitled Move")")
 
-                // Enhanced specific video instance logging
+                // Video instance logging
                 logSpecificVideoInstanceDetails()
             }
             .onDisappear {
