@@ -34,12 +34,12 @@ struct MainView: View {
                 .tag(2)
 
             // Review Tab
-            ReviewView()
-                .tabItem {
-                    Image(systemName: "skateboard")
-                    Text("Review")
-                }
-                .tag(3)
+            // ReviewView()
+            //     .tabItem {
+            //         Image(systemName: "skateboard")
+            //         Text("Review")
+            //     }
+            //     .tag(3)
         }
         .accentColor(.accent)
         .onChange(of: selectedTab) { oldValue, newValue in

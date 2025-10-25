@@ -159,27 +159,24 @@ struct MoveListView: View {
             if viewModel.filteredMoves.isEmpty && !viewModel.movesSearchText.isEmpty {
                 noSearchResultsView
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.filteredMoves, id: \.objectID) { move in
-                            MoveRowView(
-                                move: move,
-                                onTap: {
-                                    logger.info("📋 MOVE_LIST_VIEW: 👆 Tapped move: \(move.name ?? "Untitled Move")")
-                                },
-                                onDelete: {
-                                    Task {
-                                        await viewModel.deleteMove(move)
-                                    }
-                                }
-                            )
-                            .background(Color.backgroundPrimary)
+                List(viewModel.filteredMoves, id: \.objectID) { move in
+                    MoveRowView(
+                        move: move,
+                        onTap: {
+                            logger.info("📋 MOVE_LIST_VIEW: 👆 Tapped move: \(move.name ?? "Untitled Move")")
+                        },
+                        onDelete: {
+                            Task {
+                                await viewModel.deleteMove(move)
+                            }
                         }
-                    }
+                    )
+                    .listRowBackground(Color.backgroundPrimary)
+                    .listRowSeparator(.hidden)
                 }
-                .padding(20)
+                .listStyle(.plain)
                 .onAppear {
-                    logger.info("📋 NAVIGATION_SUCCESS: LazyVStack+NavigationLink working - MovesList appeared")
+                    logger.info("📋 NAVIGATION_SUCCESS: List+NavigationLink working - MovesList appeared")
                 }
             }
         }
@@ -202,7 +199,7 @@ private struct MoveRowView: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(move.name ?? "Untitled Move")
-                        .font(.ibmPlexMono(size: 36, weight: .bold))
+                        .font(.ibmPlexMono(size: 18, weight: .bold))
                         .foregroundColor(.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -231,7 +228,7 @@ private struct MoveRowView: View {
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(SpringButtonStyle())
         .onTapGesture {
             onTap()
             MotionCatalog.Accessibility.selectionHaptic()
@@ -244,6 +241,17 @@ private struct MoveRowView: View {
             }
             .tint(.red)
         }
+    }
+}
+
+// MARK: - Spring Button Style
+/// Consistent button style for move interactions
+private struct SpringButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
