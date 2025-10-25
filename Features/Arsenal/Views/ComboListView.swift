@@ -17,7 +17,6 @@ import UIKit
 struct ComboListView: View {
 
     // MARK: - Properties
-    @Environment(\.managedObjectContext) private var viewContext
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "📋 COMBO_LIST_VIEW")
 
     // MARK: - ViewModel
@@ -30,38 +29,41 @@ struct ComboListView: View {
 
     // MARK: - Body
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.backgroundPrimary.ignoresSafeArea()
+        ZStack {
+            Color.backgroundPrimary.ignoresSafeArea()
 
-                // MARK: - Content
-                VStack {
-                    if viewModel.isLoadingCombos {
-                        loadingView
-                    } else if viewModel.filteredCombos.isEmpty {
-                        emptyStateView
-                    } else {
-                        combosList
-                    }
+            // MARK: - Content
+            VStack {
+                if viewModel.isLoadingCombos {
+                    loadingView
+                } else if viewModel.filteredCombos.isEmpty {
+                    emptyStateView
+                } else {
+                    combosList
                 }
             }
-            .navigationTitle("Combos")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
-            .searchable(text: $viewModel.combosSearchText, prompt: "Search Combos...")
-            .onAppear {
-                logger.info("📋 COMBO_LIST_VIEW: 🚀 View appeared with clean architecture")
-                viewModel.refreshCombos()
+        }
+        .navigationTitle("Combos")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(Color(.systemBackground), for: .navigationBar)
+        .searchable(text: $viewModel.combosSearchText, prompt: "Search Combos...")
+        .onAppear {
+            logger.info("📋 COMBO_LIST_VIEW: 🚀 View appeared with clean architecture")
+            logger.info("📋 APPEAR_CONTEXT: ComboListView created via navigation destination")
+            logger.info("📋 COMBOS_AVAILABLE: \(viewModel.combos.count) combos loaded")
+            logger.info("📋 FILTERED_COMBOS: \(viewModel.filteredCombos.count) combos to display")
+            logger.info("📋 IS_LOADING: \(viewModel.isLoadingCombos)")
+            logger.info("📋 VIEW_CONTEXT: View lifecycle state - appearing on screen")
+            viewModel.refreshCombos()
+        }
+        .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
+            Button("OK") {
+                viewModel.clearError()
             }
-            .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {
-                Button("OK") {
-                    viewModel.clearError()
-                }
-            } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                }
+        } message: {
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
             }
         }
     }
@@ -81,7 +83,7 @@ struct ComboListView: View {
         VStack(spacing: 20) {
             Image(systemName: "square.stack.3d.up")
                 .font(.system(size: 64))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(.primary.opacity(0.5))
 
             Text("No combos created yet")
                 .font(.ibmPlexMono(size: 24, weight: .bold))
@@ -89,7 +91,7 @@ struct ComboListView: View {
 
             Text("Tap the 'Create' tab to start building your combo arsenal!")
                 .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -102,7 +104,7 @@ struct ComboListView: View {
         VStack(spacing: 20) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(.primary.opacity(0.5))
 
             Text("No combos found")
                 .font(.ibmPlexMono(size: 20, weight: .bold))
@@ -110,7 +112,7 @@ struct ComboListView: View {
 
             Text("Try a different search term")
                 .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
 
             Button("Clear Search") {
                 viewModel.clearCombosSearch()
@@ -134,7 +136,7 @@ struct ComboListView: View {
             if viewModel.filteredCombos.isEmpty && !viewModel.combosSearchText.isEmpty {
                 noSearchResultsView
             } else {
-                List(viewModel.filteredCombos) { combo in
+                List(viewModel.filteredCombos, id: \.objectID) { combo in
                     ComboRowView(
                         combo: combo,
                         moveCount: viewModel.getMoveCount(for: combo),
@@ -171,20 +173,7 @@ private struct ComboRowView: View {
 
     // MARK: - Body
     var body: some View {
-        NavigationLink {
-            // Placeholder for combo detail view
-            VStack {
-                Text("Combo Details")
-                    .font(.title)
-                Text(combo.name ?? "Untitled Combo")
-                    .font(.headline)
-                Text("Move count: \(moveCount)")
-                    .font(.subheadline)
-                Text("State: \(learningState)")
-                    .font(.subheadline)
-            }
-            .padding()
-        } label: {
+        NavigationLink(value: combo) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(combo.name ?? "Untitled Combo")
@@ -194,7 +183,7 @@ private struct ComboRowView: View {
 
                     Text(moveCount)
                         .font(.ibmPlexMono(size: 12))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.primary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -205,7 +194,18 @@ private struct ComboRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(SpringButtonStyle())
+        .onAppear {
+            // Log when combo row appears
+            logger.info("📋 COMBO_ROW_VIEW: Displaying combo: \(combo.name ?? "Untitled Combo")")
+        }
         .onTapGesture {
+            logger.info("🔗 COMBO_NAVLINK: User tapped combo row for navigation")
+            logger.info("🔗 TARGET_COMBO: \(combo.name ?? "Untitled Combo")")
+            logger.info("🔗 TARGET_ID: \(combo.objectID)")
+            logger.info("🔗 TARGET_TYPE: \(type(of: combo))")
+            logger.info("🔗 EXPECTED_DESTINATION: ComboDetailView")
+
+            // Handle the onTap callback for logging and haptics
             onTap()
             MotionCatalog.Accessibility.selectionHaptic()
         }
@@ -249,6 +249,7 @@ private func createTestCombos(in context: NSManagedObjectContext) {
     for (index, name) in testCombos.enumerated() {
         let combo = Combo(context: context)
         combo.name = name
+        combo.id = UUID()  // Ensure test data has proper UUID assignment
 
         // Create some combo moves for demonstration
         let moveNames = ["Top Rock", "Six Step", "Freeze"]
@@ -257,11 +258,13 @@ private func createTestCombos(in context: NSManagedObjectContext) {
             move.name = moveName
             move.learningState = ["NEW", "LEARNING", "MASTERY"][moveIndex]
             move.photosIdentifier = "test-\(UUID().uuidString)"
+            move.id = UUID()  // Ensure test data has proper UUID assignment
 
             let comboMove = ComboMove(context: context)
             comboMove.combo = combo
             comboMove.move = move
             comboMove.sequenceIndex = Int64(moveIndex)
+            comboMove.id = UUID()  // Ensure test data has proper UUID assignment
         }
     }
     _ = try? context.save()

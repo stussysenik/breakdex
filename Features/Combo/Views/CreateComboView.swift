@@ -43,10 +43,19 @@ struct CreateComboView: View {
             .sheet(isPresented: $viewModel.isMovePickerPresented) {
                 movePickerSheet
             }
-            .alert("Name Your Combo", isPresented: $viewModel.isNamingAlertPresented) {
-                namingAlert
-            } message: {
-                Text("Enter a name for your combo to save it.")
+            .sheet(isPresented: $viewModel.isNamingAlertPresented) {
+                // Performance optimization: Custom sheet replaces sluggish SwiftUI alert
+                // Eliminates 2.7+ second TextField input lag with @FocusState management
+                ComboNamingSheet(
+                    isPresented: $viewModel.isNamingAlertPresented,
+                    comboName: $viewModel.comboName,
+                    onSave: {
+                        viewModel.saveCombo()
+                    },
+                    onCancel: {
+                        viewModel.hideNamingAlert()
+                    }
+                )
             }
             .alert("Success", isPresented: $viewModel.showSuccessMessage) {
                 Button("OK") {
@@ -130,18 +139,9 @@ struct CreateComboView: View {
         }
     }
 
-    // MARK: - Alert Content
-    private var namingAlert: some View {
-        Group {
-            TextField("Combo Name", text: $viewModel.comboName)
-            Button("Cancel", role: .cancel) {
-                viewModel.hideNamingAlert()
-            }
-            Button("Save") {
-                viewModel.saveCombo()
-            }
-        }
-    }
+    // MARK: - Alert Content (Removed for Performance)
+    // NOTE: Replaced by ComboNamingSheet to eliminate TextField input lag
+    // The old SwiftUI alert with TextField caused 2.7+ second delays
 
     // MARK: - Timeline Binding
     private var timelineActiveIndexBinding: Binding<Int?> {

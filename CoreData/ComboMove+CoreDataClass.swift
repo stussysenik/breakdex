@@ -10,16 +10,6 @@ public class ComboMove: NSManagedObject {
 
 }
 
-// MARK: - Hashable Conformance
-extension ComboMove {
-    public override var hash: Int {
-        return objectID.hashValue
-    }
-
-    public static func == (
-        lhs: ComboMove,
-        rhs: ComboMove
-    ) -> Bool {
-        lhs.objectID == rhs.objectID
-    }
-}
+// MARK: - Core Data Identity Management
+// Note: Core Data manages object identity internally via objectID
+// NSManagedObject explicitly forbids overriding hash and isEqual methods

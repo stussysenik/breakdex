@@ -127,7 +127,7 @@ struct MoveListView: View {
         VStack(spacing: 20) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary.opacity(0.5))
+                .foregroundColor(.primary.opacity(0.5))
 
             Text("No moves found")
                 .font(.ibmPlexMono(size: 20, weight: .bold))
@@ -135,7 +135,7 @@ struct MoveListView: View {
 
             Text("Try a different search term")
                 .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.secondary)
+                .foregroundColor(.primary)
 
             Button("Clear Search") {
                 viewModel.clearMovesSearch()
@@ -161,7 +161,7 @@ struct MoveListView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(viewModel.filteredMoves) { move in
+                        ForEach(viewModel.filteredMoves, id: \.objectID) { move in
                             MoveRowView(
                                 move: move,
                                 onTap: {
@@ -198,9 +198,7 @@ private struct MoveRowView: View {
 
     // MARK: - Body
     var body: some View {
-        NavigationLink {
-            MoveDetailView(move: move)
-        } label: {
+        NavigationLink(value: move) {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(move.name ?? "Untitled Move")
@@ -270,6 +268,7 @@ private func createTestMoves(in context: NSManagedObjectContext) {
         move.createdAt = Date().addingTimeInterval(Double(-index * 3600))
         move.learningState = ["NEW", "LEARNING", "MASTERY"][index]
         move.photosIdentifier = "test-\(UUID().uuidString)"
+        move.id = UUID()  // Ensure test data has proper UUID assignment
     }
     _ = try? context.save()
 }

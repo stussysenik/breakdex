@@ -74,6 +74,12 @@ struct ComboTimelineView: View {
                 .onTapGesture {
                     handleNodeTap(at: index, move: move)
                 }
+                .background(
+                    NavigationLink(value: move.objectID) {
+                        EmptyView() // Navigation handled by parent view
+                    }
+                    .opacity(0) // Invisible but tappable
+                )
 
                 // Move name
                 Text(move.name ?? "Move")
@@ -97,7 +103,15 @@ struct ComboTimelineView: View {
     // MARK: - Actions
     private func handleNodeTap(at index: Int, move: Move) {
         logger.info("🎯 COMBO_TIMELINE_VIEW: Timeline node tapped for move '\(move.name ?? "Unknown")' at index \(index)")
+
+        // Provide haptic feedback
+        MotionCatalog.Accessibility.selectionHaptic()
+
+        // Update active index for visual feedback
         activeIndex = index
+
+        // Navigation is handled by the NavigationLink in the background
+        logger.info("🎯 COMBO_TIMELINE_VIEW: Navigation triggered for move objectID: \(move.objectID)")
     }
 
     private func handleActiveIndexChange(_ newIndex: Int?, proxy: ScrollViewProxy) {

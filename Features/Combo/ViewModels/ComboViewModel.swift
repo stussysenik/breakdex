@@ -190,14 +190,28 @@ class ComboViewModel: ObservableObject {
         // Create the combo entity
         let newCombo = Combo(context: viewContext)
         newCombo.name = name
+        newCombo.id = UUID()  // Critical: Ensure non-nil identifier for SwiftUI ForEach
+        logger.info("🚀 COMBO_VIEWMODEL: Created combo entity with UUID: \(newCombo.id?.uuidString ?? "nil")")
 
         // Add combo moves with sequence indices
         for (index, move) in comboMoves.enumerated() {
             let comboMove = ComboMove(context: viewContext)
+            comboMove.id = UUID()  // Critical: Ensure non-nil identifier for SwiftUI ForEach
             comboMove.sequenceIndex = Int64(index)
             comboMove.move = move
             comboMove.combo = newCombo
-            logger.info("🚀 COMBO_VIEWMODEL: Added move '\(move.name ?? "Unknown")' at sequence index \(index)")
+            logger.info("🚀 COMBO_VIEWMODEL: Added move '\(move.name ?? "Unknown")' at sequence index \(index) with UUID: \(comboMove.id?.uuidString ?? "nil")")
+        }
+
+        // Preserve timeline node state if there's an active move selected
+        if let activeIndex = activeNodeIndex,
+           activeIndex >= 0,
+           activeIndex < comboMoves.count,
+           let activeMove = comboMoves[activeIndex] as Move? {
+            newCombo.setActiveMove(activeMove)
+            logger.info("🚀 COMBO_VIEWMODEL: 📍 Preserved timeline node state - active move: '\(activeMove.name ?? "Unknown")' at index \(activeIndex)")
+        } else {
+            logger.info("🚀 COMBO_VIEWMODEL: 📍 No active timeline node to preserve")
         }
 
         // Save to Core Data
