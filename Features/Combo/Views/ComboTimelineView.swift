@@ -4,21 +4,36 @@ import UIKit
 import CoreData
 
 /// Clean combo timeline view using shared components
-/// Displays a horizontal timeline of moves with selection and deletion capabilities
+/// Displays a horizontal timeline of moves with selection, deletion, and export capabilities
 struct ComboTimelineView: View {
     // MARK: - Properties
     let moves: [Move]
     @Binding var activeIndex: Int?
     let onDelete: ((Int) -> Void)?
+    let onExportMove: ((Move) -> Void)?
+    let onExportSegment: ((Range<Int>) -> Void)?
 
     // MARK: - Logging
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "🎯 COMBO_TIMELINE_VIEW")
 
+    // MARK: - State
+    @State private var showExportAlert = false
+    @State private var selectedMoveForExport: Move?
+    @State private var selectedIndexForExport: Int = 0
+
     // MARK: - Initialization
-    init(moves: [Move], activeIndex: Binding<Int?>, onDelete: @escaping (Int) -> Void) {
+    init(
+        moves: [Move],
+        activeIndex: Binding<Int?>,
+        onDelete: ((Int) -> Void)? = nil,
+        onExportMove: ((Move) -> Void)? = nil,
+        onExportSegment: ((Range<Int>) -> Void)? = nil
+    ) {
         self.moves = moves
         self._activeIndex = activeIndex
         self.onDelete = onDelete
+        self.onExportMove = onExportMove
+        self.onExportSegment = onExportSegment
     }
 
     // MARK: - Body
@@ -42,6 +57,26 @@ struct ComboTimelineView: View {
         }
         .onAppear {
             handleViewAppear()
+        }
+        .alert("Export Options", isPresented: $showExportAlert) {
+            Button("Export This Move") {
+                if let move = selectedMoveForExport {
+                    onExportMove?(move)
+                }
+            }
+            Button("Export from Here") {
+                let startIndex = selectedIndexForExport
+                let endIndex = moves.count
+                onExportSegment?(startIndex..<endIndex)
+            }
+            Button("Cancel", role: .cancel) {
+                selectedMoveForExport = nil
+                selectedIndexForExport = 0
+            }
+        } message: {
+            if let move = selectedMoveForExport {
+                Text("Choose what to export for '\(move.name ?? "This move")':")
+            }
         }
     }
 
@@ -73,6 +108,9 @@ struct ComboTimelineView: View {
                 }
                 .onTapGesture {
                     handleNodeTap(at: index, move: move)
+                }
+                .onLongPressGesture {
+                    handleNodeLongPress(at: index, move: move)
                 }
                 .background(
                     NavigationLink(value: move.objectID) {
@@ -107,14 +145,34 @@ struct ComboTimelineView: View {
         // Provide haptic feedback
         MotionCatalog.Accessibility.selectionHaptic()
 
+        // Log previous selection state
+        logger.info("🎯 COMBO_TIMELINE_VIEW: Previous selection state: \(String(describing: activeIndex))")
+
         // Update active index for visual feedback
         activeIndex = index
+
+        // Log new selection state
+        logger.info("🎯 COMBO_TIMELINE_VIEW: Updated selection to index: \(index)")
 
         // Navigation is handled by the NavigationLink in the background
         logger.info("🎯 COMBO_TIMELINE_VIEW: Navigation triggered for move objectID: \(move.objectID)")
     }
 
+    private func handleNodeLongPress(at index: Int, move: Move) {
+        logger.info("🎯 COMBO_TIMELINE_VIEW: Timeline node long-pressed for move '\(move.name ?? "Unknown")' at index \(index)")
+
+        // Provide haptic feedback
+        MotionCatalog.Accessibility.selectionHaptic()
+
+        // Show export options
+        selectedMoveForExport = move
+        selectedIndexForExport = index
+        showExportAlert = true
+    }
+
     private func handleActiveIndexChange(_ newIndex: Int?, proxy: ScrollViewProxy) {
+        logger.info("🎯 COMBO_TIMELINE_VIEW: Active index binding changed from \(String(describing: activeIndex)) to \(String(describing: newIndex))")
+
         guard let newIndex, moves.indices.contains(newIndex) else {
             logger.warning("🎯 COMBO_TIMELINE_VIEW: Invalid activeIndex change to \(String(describing: newIndex))")
             return
@@ -130,10 +188,29 @@ struct ComboTimelineView: View {
     private func handleViewAppear() {
         logger.info("🎯 COMBO_TIMELINE_VIEW: Timeline view appeared with \(moves.count) moves")
 
-        // Auto-select first move if none is active and moves exist
-        if activeIndex == nil, !moves.isEmpty {
+        // Log current selection state in detail
+        if let currentIndex = activeIndex {
+            logger.info("🎯 COMBO_TIMELINE_VIEW: Existing selection found at index \(currentIndex)")
+            if moves.indices.contains(currentIndex) {
+                logger.info("🎯 COMBO_TIMELINE_VIEW: Preserving valid selection at index \(currentIndex)")
+                if currentIndex < moves.count {
+                    let moveName = moves[currentIndex].name ?? "Unknown"
+                    logger.info("🎯 COMBO_TIMELINE_VIEW: Currently selected move: '\(moveName)'")
+                }
+                return // Exit early - preserve existing selection
+            } else {
+                logger.warning("🎯 COMBO_TIMELINE_VIEW: Invalid selection index \(currentIndex), resetting to 0")
+            }
+        } else {
+            logger.info("🎯 COMBO_TIMELINE_VIEW: No current selection - activeIndex is nil")
+        }
+
+        // Auto-select first move only if no valid selection exists
+        if !moves.isEmpty {
             logger.info("🎯 COMBO_TIMELINE_VIEW: Auto-selecting first move")
             activeIndex = 0
+        } else {
+            logger.info("🎯 COMBO_TIMELINE_VIEW: No moves available - keeping selection nil")
         }
     }
 }

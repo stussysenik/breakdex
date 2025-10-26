@@ -8,6 +8,7 @@
 import SwiftUI
 import Foundation
 import CoreData
+import OSLog
 
 // MARK: - Tab Selection Enum
 
@@ -107,6 +108,7 @@ struct BreakingArsenalView: View {
                             logger.info("🎯 MOVE_TYPE: \(type(of: move))")
                             logger.info("🏠 ARSENAL_NAVIGATION: Navigating to MoveDetailView for move: \(move.name ?? "Untitled Move")")
                             logger.info("🎯 MOVE_DETAIL_VIEW: MoveDetailView successfully appeared for move \"\(move.name ?? "Untitled")\"")
+                            MotionCatalog.Accessibility.selectionHaptic()
                         }
                 }
             }

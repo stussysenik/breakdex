@@ -162,9 +162,6 @@ struct MoveListView: View {
                 List(viewModel.filteredMoves, id: \.objectID) { move in
                     MoveRowView(
                         move: move,
-                        onTap: {
-                            logger.info("📋 MOVE_LIST_VIEW: 👆 Tapped move: \(move.name ?? "Untitled Move")")
-                        },
                         onDelete: {
                             Task {
                                 await viewModel.deleteMove(move)
@@ -189,7 +186,6 @@ private struct MoveRowView: View {
 
     // MARK: - Properties
     let move: Move
-    let onTap: () -> Void
     let onDelete: () -> Void
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "📋 MOVE_ROW_VIEW")
 
@@ -229,10 +225,6 @@ private struct MoveRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(SpringButtonStyle())
-        .onTapGesture {
-            onTap()
-            MotionCatalog.Accessibility.selectionHaptic()
-        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Delete", role: .destructive) {
                 onDelete()

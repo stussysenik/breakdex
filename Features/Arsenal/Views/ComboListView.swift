@@ -141,9 +141,6 @@ struct ComboListView: View {
                         combo: combo,
                         moveCount: viewModel.getMoveCount(for: combo),
                         learningState: viewModel.getComboLearningState(for: combo),
-                        onTap: {
-                            logger.info("📋 COMBO_LIST_VIEW: 👆 Tapped combo: \(combo.name ?? "Untitled Combo")")
-                        },
                         onDelete: {
                             Task {
                                 await viewModel.deleteCombo(combo)
@@ -167,7 +164,6 @@ private struct ComboRowView: View {
     let combo: Combo
     let moveCount: String
     let learningState: String
-    let onTap: () -> Void
     let onDelete: () -> Void
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "📋 COMBO_ROW_VIEW")
 
@@ -198,17 +194,6 @@ private struct ComboRowView: View {
             // Log when combo row appears
             logger.info("📋 COMBO_ROW_VIEW: Displaying combo: \(combo.name ?? "Untitled Combo")")
         }
-        .onTapGesture {
-            logger.info("🔗 COMBO_NAVLINK: User tapped combo row for navigation")
-            logger.info("🔗 TARGET_COMBO: \(combo.name ?? "Untitled Combo")")
-            logger.info("🔗 TARGET_ID: \(combo.objectID)")
-            logger.info("🔗 TARGET_TYPE: \(type(of: combo))")
-            logger.info("🔗 EXPECTED_DESTINATION: ComboDetailView")
-
-            // Handle the onTap callback for logging and haptics
-            onTap()
-            MotionCatalog.Accessibility.selectionHaptic()
-        }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button("Delete", role: .destructive) {
                 onDelete()
@@ -221,13 +206,19 @@ private struct ComboRowView: View {
 }
 
 // MARK: - Spring Button Style
-/// Consistent button style for combo interactions
+/// Consistent button style for combo interactions with haptic feedback
 private struct SpringButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .opacity(configuration.isPressed ? 0.8 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if !isPressed {
+                    // Button was released, trigger selection haptic
+                    MotionCatalog.Accessibility.selectionHaptic()
+                }
+            }
     }
 }
 

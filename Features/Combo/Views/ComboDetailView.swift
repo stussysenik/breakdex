@@ -10,6 +10,7 @@ import SwiftUI
 import CoreData
 import OSLog
 import UIKit
+import AVKit
 
 // MARK: - Combo Detail View
 /// Detail view for displaying combo information with interactive timeline
@@ -27,6 +28,14 @@ struct ComboDetailView: View {
     @State private var comboMoves: [ComboMove] = []
     @State private var isLoading = true
 
+    // MARK: - Video Player State
+    @State private var videoPlayer: AVPlayer?
+    @State private var videoAsset: AVAsset?
+    @State private var isLoadingVideo = false
+    @State private var videoLoadError: String?
+    @State private var selectedMoveForVideo: Move?
+
+    
     // MARK: - Computed Properties
     private var moves: [Move] {
         comboMoves.sorted { $0.sequenceIndex < $1.sequenceIndex }.compactMap { $0.move }
@@ -53,7 +62,10 @@ struct ComboDetailView: View {
 
             VStack(spacing: 0) {
                 // Combo Header
-                comboHeader
+                // comboHeader
+
+                // Video Player Section
+                videoPlayerSection
 
                 // Timeline Section
                 if isLoading {
@@ -87,6 +99,21 @@ struct ComboDetailView: View {
         .onAppear {
             logger.info("🎯 COMBO_DETAIL_VIEW: 🚀 View appeared for combo: \(combo.name ?? "Untitled Combo")")
             loadComboMoves()
+
+            // Resume video playback if player exists
+            if let player = videoPlayer {
+                player.play()
+                logger.info("🎯 COMBO_DETAIL_VIEW: Resumed video playback on view appear")
+            }
+        }
+        .onDisappear {
+            logger.info("🎯 COMBO_DETAIL_VIEW: View disappeared")
+
+            // Pause video playback to save resources
+            if let player = videoPlayer {
+                player.pause()
+                logger.info("🎯 COMBO_DETAIL_VIEW: Paused video playback on view disappear")
+            }
         }
         .onChange(of: selectedMoveIndex) { _, newIndex in
             handleTimelineSelection(newIndex)
@@ -129,6 +156,107 @@ struct ComboDetailView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
+    }
+
+    // MARK: - Video Player Section
+    private var videoPlayerSection: some View {
+        VStack(spacing: 16) {
+            Text("Video Preview")
+                .font(.ibmPlexMono(size: 20, weight: .bold))
+                .foregroundColor(.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+
+            // Video player container
+            videoPlayerContainer
+                .frame(height: 240)
+                .background(Color.gray.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 20)
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - Video Player Container
+    private var videoPlayerContainer: some View {
+        Group {
+            if isLoadingVideo {
+                videoLoadingView
+            } else if let error = videoLoadError {
+                videoErrorView(error)
+            } else if let player = videoPlayer {
+                videoPlayerView(player)
+            } else {
+                videoEmptyView
+            }
+        }
+    }
+
+    // MARK: - Video Loading View
+    private var videoLoadingView: some View {
+        VStack(spacing: 16) {
+            SharedLoadingView.videoLoading(message: "Loading video...")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Video Error View
+    private func videoErrorView(_ error: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 48))
+                .foregroundColor(.orange)
+
+            Text("Video Load Failed")
+                .font(.ibmPlexMono(size: 18, weight: .bold))
+                .foregroundColor(.textPrimary)
+
+            Text(error)
+                .font(.ibmPlexMono(size: 14))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+
+            Button("Retry") {
+                if let move = selectedMoveForVideo {
+                    loadVideoForMove(move)
+                }
+            }
+            .font(.ibmPlexMono(size: 14, weight: .medium))
+            .foregroundColor(.blue)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.blue.opacity(0.1))
+            .clipShape(Capsule())
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Video Player View
+    private func videoPlayerView(_ player: AVPlayer) -> some View {
+        AVPlayerViewRepresentable(player: player, rotation: .degrees0)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Video Empty View
+    private var videoEmptyView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "video.slash")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+
+            Text("No Video Selected")
+                .font(.ibmPlexMono(size: 18, weight: .bold))
+                .foregroundColor(.textPrimary)
+
+            Text("Tap a timeline node to preview the move's video")
+                .font(.ibmPlexMono(size: 14))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Timeline Section
@@ -259,23 +387,38 @@ struct ComboDetailView: View {
 
     private func restoreTimelineNodeState() {
         logger.info("🎯 COMBO_DETAIL_VIEW: 🔄 Restoring timeline node state")
+        logger.info("🎯 COMBO_DETAIL_VIEW: Total moves available for restoration: \(moves.count)")
+
+        // Log current selection state before restoration
+        logger.info("🎯 COMBO_DETAIL_VIEW: Current selection before restoration: \(String(describing: selectedMoveIndex))")
 
         // Try to get the active move from preserved state
         if let activeMove = combo.getActiveMove(in: viewContext) {
+            logger.info("🎯 COMBO_DETAIL_VIEW: Found preserved active move: '\(activeMove.name ?? "Unknown")'")
+
             // Find the index of this move in the current combo moves
             let moveIDs = moves.compactMap { ($0 as Move?)?.objectID }
+            logger.info("🎯 COMBO_DETAIL_VIEW: Available move IDs for matching: \(moveIDs.count)")
 
             if let activeIndex = moveIDs.firstIndex(of: activeMove.objectID) {
                 selectedMoveIndex = activeIndex
                 logger.info("🎯 COMBO_DETAIL_VIEW: ✅ Restored timeline node to index \(activeIndex) - move: '\(activeMove.name ?? "Unknown")'")
+                logger.info("🎯 COMBO_DETAIL_VIEW: Timeline node state restoration completed successfully")
             } else {
-                logger.warning("🎯 COMBO_DETAIL_VIEW: ⚠️ Active move found but not in current combo moves - defaulting to index 0")
+                logger.warning("🎯 COMBO_DETAIL_VIEW: ⚠️ Active move '\(activeMove.name ?? "Unknown")' found but not in current combo moves")
+                logger.warning("🎯 COMBO_DETAIL_VIEW: Active move ID: \(activeMove.objectID)")
+                logger.warning("🎯 COMBO_DETAIL_VIEW: Available move IDs: \(moveIDs)")
+                logger.warning("🎯 COMBO_DETAIL_VIEW: Defaulting to index 0")
                 selectedMoveIndex = moves.isEmpty ? nil : 0
             }
         } else {
             logger.info("🎯 COMBO_DETAIL_VIEW: ℹ️ No preserved timeline node state found - defaulting to index 0")
+            logger.info("🎯 COMBO_DETAIL_VIEW: This is expected for initial view loads")
             selectedMoveIndex = moves.isEmpty ? nil : 0
         }
+
+        // Log final selection state after restoration
+        logger.info("🎯 COMBO_DETAIL_VIEW: Final selection after restoration: \(String(describing: selectedMoveIndex))")
     }
 
     private func handleTimelineSelection(_ index: Int?) {
@@ -287,8 +430,88 @@ struct ComboDetailView: View {
         let move = moves[index]
         logger.info("🎯 COMBO_DETAIL_VIEW: Timeline selection changed to move '\(move.name ?? "Unknown")' at index \(index)")
 
-        // Here you could trigger video playback or other actions
-        // For now, just log the selection
+        // Load video for selected move
+        loadVideoForMove(move)
+    }
+
+    // MARK: - Video Loading
+    private func loadVideoForMove(_ move: Move) {
+        logger.info("🎯 COMBO_DETAIL_VIEW: 🎬 Loading video for move '\(move.name ?? "Unknown")'")
+
+        guard let photosIdentifier = move.photosIdentifier, !photosIdentifier.isEmpty else {
+            logger.warning("🎯 COMBO_DETAIL_VIEW: No photos identifier for move '\(move.name ?? "Unknown")'")
+            videoLoadError = "No video available for this move"
+            selectedMoveForVideo = move
+            return
+        }
+
+        // Cleanup existing player if switching videos
+        if selectedMoveForVideo?.objectID != move.objectID {
+            cleanupVideoPlayer()
+        }
+
+        // Set loading state
+        isLoadingVideo = true
+        videoLoadError = nil
+        selectedMoveForVideo = move
+
+        // Cancel any existing video loading task
+        // Task will be automatically cancelled when we start a new one
+
+        Task { @MainActor in
+            do {
+                logger.info("🎯 COMBO_DETAIL_VIEW: Fetching video asset with identifier: \(photosIdentifier)")
+
+                // Load video asset using PhotosAssetLoader
+                guard let asset = await PhotosAssetLoader.fetchAsset(with: photosIdentifier) else {
+                    throw NSError(
+                        domain: "ComboDetailView",
+                        code: 1002,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to load video asset from Photos library"]
+                    )
+                }
+
+                logger.info("🎯 COMBO_DETAIL_VIEW: ✅ Video asset loaded successfully")
+
+                // Create AVPlayer from asset
+                let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
+
+                // Update UI state
+                videoAsset = asset
+                videoPlayer = player
+                isLoadingVideo = false
+                videoLoadError = nil
+
+                // Auto-play video when loaded
+                player.play()
+
+                logger.info("🎯 COMBO_DETAIL_VIEW: ✅ Video player created and started playback")
+
+            } catch {
+                logger.error("🎯 COMBO_DETAIL_VIEW: ❌ Failed to load video: \(error.localizedDescription)")
+
+                await MainActor.run {
+                    isLoadingVideo = false
+                    videoLoadError = error.localizedDescription
+                    videoPlayer = nil
+                    videoAsset = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Video Player Cleanup
+    private func cleanupVideoPlayer() {
+        logger.info("🎯 COMBO_DETAIL_VIEW: 🧹 Cleaning up video player")
+
+        // Pause and replace current player
+        videoPlayer?.pause()
+        videoPlayer = nil
+
+        // Clear asset and loading state
+        videoAsset = nil
+        isLoadingVideo = false
+        videoLoadError = nil
     }
 
     private func deleteMove(at index: Int) {
