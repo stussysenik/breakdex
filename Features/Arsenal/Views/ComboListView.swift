@@ -17,6 +17,7 @@ import UIKit
 struct ComboListView: View {
 
     // MARK: - Properties
+    @Environment(\.dismiss) private var dismiss
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "📋 COMBO_LIST_VIEW")
 
     // MARK: - ViewModel
@@ -29,32 +30,46 @@ struct ComboListView: View {
 
     // MARK: - Body
     var body: some View {
-        ZStack {
-            Color.backgroundPrimary.ignoresSafeArea()
-
+        VStack(spacing: 0) {
+            // MARK: - Breadcrumb Header
+            HStack {
+                BreadcrumbView(
+                    path: ["BREAKDEX", "ARSENAL", "COMBOS"],
+                    onBack: { dismiss() }
+                )
+                
+                Spacer()
+                
+                ThemeToggleButton()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Color.backgroundPrimary)
+            
+            Divider()
+                .background(Color.textPrimary.opacity(0.2))
+            
             // MARK: - Content
-            VStack {
-                if viewModel.isLoadingCombos {
-                    loadingView
-                } else if viewModel.filteredCombos.isEmpty {
-                    emptyStateView
-                } else {
-                    combosList
+            ZStack {
+                Color.backgroundPrimary.ignoresSafeArea()
+                
+                VStack {
+                    if viewModel.isLoadingCombos {
+                        loadingView
+                    } else if viewModel.filteredCombos.isEmpty {
+                        emptyStateView
+                    } else {
+                        combosList
+                    }
                 }
             }
         }
-        .navigationTitle("Combos")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color(.systemBackground), for: .navigationBar)
+        .background(Color.backgroundPrimary)
+        .navigationBarHidden(true)
         .searchable(text: $viewModel.combosSearchText, prompt: "Search Combos...")
         .onAppear {
-            logger.info("📋 COMBO_LIST_VIEW: 🚀 View appeared with clean architecture")
-            logger.info("📋 APPEAR_CONTEXT: ComboListView created via navigation destination")
+            logger.info("📋 COMBO_LIST_VIEW: 🚀 View appeared with breadcrumb navigation")
             logger.info("📋 COMBOS_AVAILABLE: \(viewModel.combos.count) combos loaded")
-            logger.info("📋 FILTERED_COMBOS: \(viewModel.filteredCombos.count) combos to display")
-            logger.info("📋 IS_LOADING: \(viewModel.isLoadingCombos)")
-            logger.info("📋 VIEW_CONTEXT: View lifecycle state - appearing on screen")
             viewModel.refreshCombos()
         }
         .alert("Error", isPresented: .constant(viewModel.errorMessage != nil)) {

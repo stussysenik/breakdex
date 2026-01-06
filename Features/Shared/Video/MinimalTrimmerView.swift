@@ -7,6 +7,27 @@ import PhotosUI
 // MARK: - Logger
 private let logger = Logger(subsystem: "com.breakingflashcards", category: "MinimalTrimmerView")
 
+// MARK: - Aspect Ratio Mode
+enum AspectRatioMode: String, CaseIterable, Identifiable {
+    case original = "Original"
+    case square = "1:1"
+    case portrait = "9:16"
+    case landscape = "16:9"
+    case classic = "4:3"
+    
+    var id: String { rawValue }
+    
+    var aspectRatio: CGFloat? {
+        switch self {
+        case .original: return nil
+        case .square: return 1.0
+        case .portrait: return 9.0 / 16.0
+        case .landscape: return 16.0 / 9.0
+        case .classic: return 4.0 / 3.0
+        }
+    }
+}
+
 
 // MARK: - iOS 18 AVMetrics Integration
 /// ENHANCEMENT: iOS 18 performance monitoring and optimization
@@ -117,6 +138,10 @@ struct MinimalTrimmerView: View {
     @State private var videoDuration: TimeInterval = 0.0
     @State private var frameRate: Double = 30.0
     @State private var errorMessage: String?
+    
+    // MARK: - Speed and Aspect Ratio State
+    @State private var playbackSpeed: Double = 1.0
+    @State private var aspectRatioMode: AspectRatioMode = .original
 
     // MARK: - Performance Optimization State
     @State private var seekTask: Task<Void, Never>?
@@ -234,34 +259,8 @@ struct MinimalTrimmerView: View {
                     showControls: false
                 )
 
-                // Enhanced rotation overlay with visual feedback
-                if rotation != .degrees0 {
-                    VStack(spacing: 4) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "rotate.right.fill")
-                                .font(.system(size: 12))
-                                .foregroundColor(.blue)
-
-                            Text("Rotated \(rotation.description)")
-                                .font(.ibmPlexMono(size: 12, weight: .medium))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, Spacing.xs)
-                        .background(Color.black.opacity(0.8))
-                        .cornerRadius(Layout.smallRadius)
-
-                        // Rotation reset hint
-                        Text("Tap rotate to cycle")
-                            .font(.ibmPlexMono(size: 10, weight: .regular))
-                            .foregroundColor(.white.opacity(0.8))
-                            .padding(.horizontal, Spacing.xs)
-                            .padding(.vertical, 2)
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(4)
-                    }
-                    .position(x: Spacing.sm + 40, y: Spacing.sm + 20)
-                }
+                // CW&T: Removed rotation badge — rotation is self-evident from video preview
+                // "Thoughtful subtraction" — remove anything that doesn't serve the athlete
 
                 // OPENSPEC FIX: Loading overlay removed - video should be ready when view appears
                 // The transition from SelectClip now only occurs at .fullyReady state
@@ -315,44 +314,37 @@ struct MinimalTrimmerView: View {
         }
     }
 
-    // MARK: - Timeline Section (Enhanced with Capsule Design and Coordinate Space)
+    // MARK: - Timeline Section (Technical End-Cap Design)
     private func timelineSection(geometry: GeometryProxy) -> some View {
         VStack(spacing: 8) {
-            // Timeline Bar with Trim Handles - Enhanced with coordinate space management
+            // Timeline Bar with Trim Handles - Technical end-cap design
             GeometryReader { timelineGeometry in
+                let trackHeight: CGFloat = 40
+                let handleWidth: CGFloat = 8  // Narrow vertical bar
+                let handlePadding: CGFloat = 16  // Match horizontal padding
+                let usableWidth = timelineGeometry.size.width - (handlePadding * 2)
+                
+                // Calculate handle positions based on time
+                let startPosition = handlePadding + (usableWidth * CGFloat(startTime / max(videoDuration, 0.001)))
+                let endPosition = handlePadding + (usableWidth * CGFloat(endTime / max(videoDuration, 0.001)))
+                
                 ZStack(alignment: .leading) {
-                    // Background timeline - Enhanced Capsule design with coordinate space
-                    Capsule()
-                        .fill(Color.blue.opacity(0.2))
-                        .frame(height: 40)
-                        .coordinateSpace(name: "timeline")
+                    // Background track - flat, minimal design
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: trackHeight)
+                        .padding(.horizontal, handlePadding)
 
-                    // Calculate handle center coordinates for precise highlight alignment
-                    let startHandleCenterCoord = timeToCoordinate(startTime, totalWidth: timelineGeometry.size.width) + (handleWidth / 2.0)
-                    let endHandleCenterCoord = timeToCoordinate(endTime, totalWidth: timelineGeometry.size.width) + (handleWidth / 2.0)
-                    let highlightWidth = max(0, endHandleCenterCoord - startHandleCenterCoord)
+                    // Selected range highlight - fills between handles
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.accent.opacity(0.3))
+                        .frame(width: max(0, endPosition - startPosition), height: trackHeight)
+                        .offset(x: startPosition)
 
-                    // Selected range highlight - Precisely aligned from handle center to handle center
-                    Rectangle()
-                        .fill(Color.blue.opacity(0.4))
-                        .frame(width: highlightWidth, height: 40)
-                        .offset(x: startHandleCenterCoord)
-
-                    // Left trim handle - Enhanced with Apple blue color and coordinate space
-                    Circle()
-                        .fill(Color(red: 0/255, green: 122/255, blue: 255/255)) // Apple blue
-                        .frame(width: 20, height: 20)
-                        .offset(x: startHandleCenterCoord)
-                        .scaleEffect(isDraggingLeftHandle ? 1.1 : 1.0)
-                        .onAppear {
-                            // ENHANCED: Simplified coordinate space verification with new conversion function
-                            let handleOffset = timeToCoordinate(startTime, totalWidth: timelineGeometry.size.width)
-
-                            logger.debug("🎯 ENHANCED POSITION: Left handle positioned at offset \(String(format: "%.2f", handleOffset)) for startTime \(String(format: "%.3f", startTime))s")
-
-                            // ENHANCED: Validate coordinate calculation prerequisites
-                            logger.info("✅ ENHANCED VERIFICATION: Left handle positioning complete using timeToCoordinate function")
-                        }
+                    // Left trim handle - vertical bar (technical end-cap)
+                    TrimHandle(isDragging: isDraggingLeftHandle)
+                        .frame(width: handleWidth, height: trackHeight + 8) // Slightly taller than track
+                        .offset(x: startPosition - (handleWidth / 2))
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
@@ -360,7 +352,10 @@ struct MinimalTrimmerView: View {
                                         provideSelectionFeedback()
                                     }
                                     isDraggingLeftHandle = true
-                                    handleLeftHandleDrag(value.location.x, totalWidth: timelineGeometry.size.width)
+                                    // Convert position to time
+                                    let relativeX = value.location.x - handlePadding
+                                    let newTime = Double(relativeX / usableWidth) * videoDuration
+                                    startTime = max(0, min(newTime, endTime - 0.5))
                                 }
                                 .onEnded { _ in
                                     isDraggingLeftHandle = false
@@ -370,21 +365,10 @@ struct MinimalTrimmerView: View {
                                 }
                         )
 
-                    // Right trim handle - Enhanced with Apple blue color and coordinate space
-                    Circle()
-                        .fill(Color(red: 0/255, green: 122/255, blue: 255/255)) // Apple blue
-                        .frame(width: 20, height: 20)
-                        .offset(x: endHandleCenterCoord)
-                        .scaleEffect(isDraggingRightHandle ? 1.1 : 1.0)
-                        .onAppear {
-                            // ENHANCED: Simplified coordinate space verification with new conversion function
-                            let handleOffset = timeToCoordinate(endTime, totalWidth: timelineGeometry.size.width)
-
-                            logger.debug("🎯 ENHANCED POSITION: Right handle positioned at offset \(String(format: "%.2f", handleOffset)) for endTime \(String(format: "%.3f", endTime))s")
-
-                            // ENHANCED: Validate coordinate calculation prerequisites
-                            logger.info("✅ ENHANCED VERIFICATION: Right handle positioning complete using timeToCoordinate function")
-                        }
+                    // Right trim handle - vertical bar (technical end-cap)
+                    TrimHandle(isDragging: isDraggingRightHandle)
+                        .frame(width: handleWidth, height: trackHeight + 8)
+                        .offset(x: endPosition - (handleWidth / 2))
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
@@ -392,7 +376,10 @@ struct MinimalTrimmerView: View {
                                         provideSelectionFeedback()
                                     }
                                     isDraggingRightHandle = true
-                                    handleRightHandleDrag(value.location.x, totalWidth: timelineGeometry.size.width)
+                                    // Convert position to time
+                                    let relativeX = value.location.x - handlePadding
+                                    let newTime = Double(relativeX / usableWidth) * videoDuration
+                                    endTime = max(startTime + 0.5, min(newTime, videoDuration))
                                 }
                                 .onEnded { _ in
                                     isDraggingRightHandle = false
@@ -401,16 +388,22 @@ struct MinimalTrimmerView: View {
                                     validateTrimRange()
                                 }
                         )
+
+                    // Playhead indicator (current time position)
+                    let playheadPosition = handlePadding + (usableWidth * CGFloat(viewModel.videoPlayer.progress))
+                    Circle()
+                        .fill(Color.accent)
+                        .frame(width: 12, height: 12)
+                        .offset(x: playheadPosition - 6, y: 0)
                 }
             }
-            .frame(height: 40)
-            .padding(.horizontal, 16)
+            .frame(height: 48) // Slightly taller to accommodate handles
 
             // Timeline Annotations - Test2 single line design
             HStack(spacing: 24) {
                 ForEach([0, 1, 2, 3, 4], id: \.self) { index in
                     Text(timeLabel(for: index))
-                        .font(.caption)
+                        .font(.ibmPlexMono(size: 11))
                         .foregroundColor(.gray)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -454,6 +447,50 @@ struct MinimalTrimmerView: View {
             .accessibilityHint("Rotate video 90 degrees clockwise. Current rotation: \(rotation.description)")
             .accessibilityValue("Current rotation: \(rotation.description)")
             .accessibilityAddTraits(.isButton)
+
+            // MARK: - Speed Control
+            Menu {
+                ForEach([1.0, 1.25, 1.5, 2.0], id: \.self) { speed in
+                    Button(action: { setPlaybackSpeed(speed) }) {
+                        HStack {
+                            Text("\(speed, specifier: "%.2g")x")
+                            if playbackSpeed == speed {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Text("\(playbackSpeed, specifier: "%.2g")x")
+                    .font(.ibmPlexMono(size: 14, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.15))
+                    .cornerRadius(6)
+            }
+            .accessibilityLabel("Playback speed: \(playbackSpeed, specifier: "%.2g")x")
+            
+            // MARK: - Aspect Ratio Control
+            Menu {
+                ForEach(AspectRatioMode.allCases) { mode in
+                    Button(action: { aspectRatioMode = mode }) {
+                        HStack {
+                            Text(mode.rawValue)
+                            if aspectRatioMode == mode {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Text(aspectRatioMode.rawValue)
+                    .font(.ibmPlexMono(size: 14, weight: .medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.15))
+                    .cornerRadius(6)
+            }
+            .accessibilityLabel("Aspect ratio: \(aspectRatioMode.rawValue)")
 
             Spacer()
 
@@ -1054,6 +1091,13 @@ struct MinimalTrimmerView: View {
             await viewModel.updateVideoRotation(nextRotation)
         }
     }
+    
+    // MARK: - Speed Control
+    private func setPlaybackSpeed(_ speed: Double) {
+        playbackSpeed = speed
+        viewModel.videoPlayer.avPlayer?.rate = Float(speed)
+        logger.info("Playback speed set to \(speed)x")
+    }
 
     // MARK: - Enhanced Reset Functionality
     private func resetAllModifications() {
@@ -1210,13 +1254,31 @@ struct RotatableVideoContainer: View {
     let rotation: VideoRotation
     let showControls: Bool
 
+    /// Whether rotation is 90° or 270° (requires dimension swap)
+    private var isRotated90or270: Bool {
+        rotation == .degrees90 || rotation == .degrees270
+    }
+
     var body: some View {
-        NativeVideoPlayerView(
-            player: player,
-            rotation: rotation,
-            showControls: showControls
-        )
-        .rotationEffect(rotation.angle) // Rotate entire component as synchronized unit
+        GeometryReader { geometry in
+            let containerWidth = geometry.size.width
+            let containerHeight = geometry.size.height
+            
+            // Calculate scale factor to fill container after rotation
+            // When rotated 90°/270°, the video dimensions swap, so we need to scale up
+            let scaleFactor = isRotated90or270 ? max(containerWidth / containerHeight, containerHeight / containerWidth) : 1.0
+            
+            NativeVideoPlayerView(
+                player: player,
+                rotation: rotation,
+                showControls: showControls
+            )
+            .frame(width: containerWidth, height: containerHeight)
+            .rotationEffect(rotation.angle)
+            .scaleEffect(scaleFactor) // Scale to fill viewport after rotation
+            .frame(width: containerWidth, height: containerHeight) // Constrain to original frame
+            .clipped() // Clip overflow
+        }
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear {
             logger.info("🎥 RotatableVideoContainer appeared with rotation: \(rotation)", emoji: "🎥")
@@ -1408,6 +1470,29 @@ class RotatableVideoPlayerUIView: UIView {
         // Update frames for subviews
         playerLayer?.frame = bounds
         playerController?.view?.frame = bounds
+    }
+}
+
+// MARK: - Trim Handle Component
+/// Technical vertical bar handle for timeline trimming
+struct TrimHandle: View {
+    let isDragging: Bool
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(Color.accent)
+            .overlay(
+                // Add grip lines for visual feedback
+                VStack(spacing: 3) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 0.5)
+                            .fill(Color.white.opacity(0.6))
+                            .frame(width: 4, height: 1)
+                    }
+                }
+            )
+            .scaleEffect(isDragging ? 1.1 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: isDragging)
     }
 }
 

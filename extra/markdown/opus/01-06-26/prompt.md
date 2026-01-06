@@ -1,0 +1,17 @@
+# This is an iOS Swift application.
+
+P.S. brain dump, last code changes have been 3 months ago but I want to make it clear this time:
+
+- So the main page, arsenal tab should have a MOVES and COMBOS just a column and it serves as the place where it's gonna be shown after adding and creating the move/combo. The main use case is to be able view them, find them quickly and then also  sort them by learning state.
+- It would be great if you could quickly change or edit the name of the move and also quickly change its duration, assuming that the  data is present
+- My creation function is that the asset is copied into a new album and yeah we're just dealing with assets in that album: or what are the best practices?
+- The COMBOS they're made out of MOVES and that's what the create combo is for, where I've made  solid line which whole represents the individual combo and in the COMBOS page it should just show the video preview; I have a video component and  below it it's the line.
+- I guess the reason why i'm giving you so much content is because a lot of the functionalities/features are inter-dependent, or crucial for it to work with each other.
+- Thus, let's just focus on the user's DX in the Arsenal tab first. I need you to research/verify, essentially act as a principal iOS dev knowing all the production best practices.
+- Let's make it absolutely seamless for the user to be retrieving, finding, looking for what they want with moves first and also be able to edit (let's say upon reviewing the added video they want to trim it differently so we're just gonna work with that state and allow them to make that edit).
+- Right now I've  hidden the Review tab for later, but by default there's a learning state assigned. That  state is only able to be changed via the Review tab which I have uncommented out as a dirty of pushing back the complexity for later; because we need to figure out the visual organization (just super minimal, centered focusing on iPhone 15 Pro + consistent good spacings so we're focused on clarity and readability, just ease of use)
+- But the general project outcome is an learning's application for saving videos, specifically breakdancing videos but the core is video-asset retrieval, basic editing: it would be great to be able to set the speed of the video + aspect ratio to change that.
+- I would advise you to make your own understanding of the codebase first, there  has been many attempts + it's a learnings project so there are traces of amateurism. However, don't delete anything just offload, not show it  or organize it in archive for devs in terms of project structure.
+- However, when dealing  with videos it's  ultra-important to have feedback, visual response, when loading just like user flow must be always clear. Videos can be on iCloud too that takes the longest time, but I'm really thinking that it should be fast/optimization comes later but normal expectations of waiting + processing times of the video.
+- Think step by step, and think systematically from 1st  principles how to engineer this. Use really easy patterns, don't over complicate it but most importantly give the application a form. I think a clear sign is when a design  has good spacings, no negative spaces or just like extra, anyhow I wrote a lot.
+- Definitely use the  internet to research this.

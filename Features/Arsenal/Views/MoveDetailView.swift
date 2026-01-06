@@ -18,6 +18,7 @@ struct MoveDetailView: View {
 
     // MARK: - Properties
     let move: Move
+    @Environment(\.dismiss) private var dismiss
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "🎬 MOVE_DETAIL_VIEW")
 
     // MARK: - State
@@ -25,47 +26,78 @@ struct MoveDetailView: View {
     @State private var isLoading = true
     @State private var player: SharedVideoPlayer?
     @State private var errorMessage: String?
+    @State private var showingEditSheet = false
 
     // MARK: - Body
     var body: some View {
-        ZStack {
-            Color.backgroundPrimary.ignoresSafeArea()
-
-            VStack(spacing: 24) {
-                // MARK: - Video Player Section
-                videoPlayerSection
-
-                // MARK: - Details Section
-                detailsSection
+        VStack(spacing: 0) {
+            // MARK: - Breadcrumb Header
+            HStack {
+                BreadcrumbView(
+                    path: ["BREAKDEX", "ARSENAL", "MOVES", move.name ?? "Move"],
+                    onTapSegment: { index in
+                        // Navigate back based on segment clicked
+                        if index < 3 { // BREAKDEX, ARSENAL, or MOVES
+                            dismiss()
+                        }
+                    },
+                    onBack: { dismiss() }
+                )
+                
+                Spacer()
+                
+                // Edit Button
+                Button(action: { showingEditSheet = true }) {
+                    Text("Edit")
+                        .font(.ibmPlexMono(size: 14, weight: .medium))
+                        .foregroundColor(.accent)
+                }
+                
+                ThemeToggleButton()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.horizontal, 20)
-            .onAppear {
-                // Simple haptic feedback
-                let impact = UIImpactFeedbackGenerator(style: .light)
-                impact.impactOccurred()
-                logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 View appeared for move: \(move.name ?? "Untitled Move")")
-
-                // Video instance logging
-                logSpecificVideoInstanceDetails()
-            }
-            .onDisappear {
-                cleanupPlayer()
-            }
-            .task {
-                await loadVideoAsset()
-            }
-            .alert("Video Error", isPresented: .constant(errorMessage != nil), actions: {
-                SharedButton(title: "OK", style: .secondary) {
-                    errorMessage = nil
+            .padding(.vertical, 12)
+            .background(Color.backgroundPrimary)
+            
+            Divider()
+                .background(Color.textPrimary.opacity(0.2))
+            
+            // MARK: - Content
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Video Player Section
+                    videoPlayerSection
+                    
+                    // Details Section
+                    detailsSection
                 }
-            }, message: {
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                }
-            })
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .background(Color.backgroundPrimary)
+        .navigationBarHidden(true)
+        .onAppear {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+            logger.info("🎬 MOVE_DETAIL_VIEW: 🚀 View appeared for move: \(move.name ?? "Untitled Move")")
+            logSpecificVideoInstanceDetails()
+        }
+        .onDisappear {
+            cleanupPlayer()
+        }
+        .task {
+            await loadVideoAsset()
+        }
+        .alert("Video Error", isPresented: .constant(errorMessage != nil), actions: {
+            SharedButton(title: "OK", style: .secondary) {
+                errorMessage = nil
+            }
+        }, message: {
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
+            }
+        })
     }
 
     // MARK: - Video Player Section

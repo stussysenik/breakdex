@@ -42,6 +42,7 @@ struct MainView: View {
             //     .tag(3)
         }
         .accentColor(.accent)
+        .withToastOverlay() // CW&T: Legibility — every action gets visible confirmation
         .onChange(of: selectedTab) { oldValue, newValue in
             Logger.main.info("📍 NAVIGATION: Tab changed from \(oldValue) to \(newValue)")
         }

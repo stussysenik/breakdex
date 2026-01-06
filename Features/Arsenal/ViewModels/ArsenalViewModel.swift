@@ -134,24 +134,81 @@ class ArsenalViewModel: ObservableObject {
     }
 
     // MARK: - Move Operations
-    /// Deletes a move from Core Data with error handling
+    
+    /// Recently deleted move for undo support
+    private var recentlyDeletedMove: (move: Move, wasDeleted: Bool)?
+    private var undoTask: Task<Void, Never>?
+    
+    /// Deletes a move with undo support via toast
     func deleteMove(_ move: Move) async {
-        logger.info("🏟️ ARSENAL_VIEWMODEL: 🗑️ Deleting move: \(move.name ?? "Untitled Move")")
+        let moveName = move.name ?? "Untitled Move"
+        logger.info("🏟️ ARSENAL_VIEWMODEL: 🗑️ Deleting move: \(moveName)")
 
+        do {
+            // Store for potential undo
+            recentlyDeletedMove = (move, false)
+            
+            // Remove from UI immediately
+            await MainActor.run {
+                moves.removeAll { $0.objectID == move.objectID }
+            }
+            
+            // Show toast with undo action
+            ToastManager.shared.show(
+                "\(moveName) deleted",
+                style: .success,
+                duration: 4.0,
+                action: { [weak self] in
+                    Task {
+                        await self?.undoDeleteMove()
+                    }
+                },
+                actionLabel: "Undo"
+            )
+            
+            // Schedule permanent deletion after toast duration
+            undoTask?.cancel()
+            undoTask = Task {
+                try? await Task.sleep(nanoseconds: 4_500_000_000) // 4.5 seconds
+                if !Task.isCancelled {
+                    await self.permanentlyDeleteMove(move)
+                }
+            }
+
+            logger.info("🏟️ ARSENAL_VIEWMODEL: ✅ Move marked for deletion with undo window")
+        }
+    }
+    
+    /// Permanently delete the move from Core Data
+    private func permanentlyDeleteMove(_ move: Move) async {
+        guard recentlyDeletedMove?.move.objectID == move.objectID else { return }
+        
         do {
             viewContext.delete(move)
             try viewContext.save()
-
-            // Refresh moves list
-            await loadMoves()
-
-            logger.info("🏟️ ARSENAL_VIEWMODEL: ✅ Successfully deleted move")
+            recentlyDeletedMove = nil
+            logger.info("🏟️ ARSENAL_VIEWMODEL: ✅ Move permanently deleted")
         } catch {
-            await MainActor.run {
-                self.errorMessage = "Failed to delete move: \(error.localizedDescription)"
-            }
+            // If permanent delete fails, restore to UI
+            await loadMoves()
+            ToastManager.shared.showError("Failed to delete: \(error.localizedDescription)")
             logger.error("🏟️ ARSENAL_VIEWMODEL: ❌ Error deleting move: \(error.localizedDescription)")
         }
+    }
+    
+    /// Undo the most recent move deletion
+    func undoDeleteMove() async {
+        guard let deleted = recentlyDeletedMove else { return }
+        
+        undoTask?.cancel()
+        undoTask = nil
+        
+        // Restore to UI
+        await loadMoves()
+        recentlyDeletedMove = nil
+        
+        ToastManager.shared.showInfo("\(deleted.move.name ?? "Move") restored")
+        logger.info("🏟️ ARSENAL_VIEWMODEL: ↩️ Undo delete move")
     }
 
     /// Adds test moves for development/demo purposes

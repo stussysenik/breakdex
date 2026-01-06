@@ -281,35 +281,32 @@ public final class RobustVideoLoader: ObservableObject {
             }
         }
 
-        // MODERNIZED: Use structured concurrency with callback-based API
-        return try await withCheckedThrowingContinuation { continuation in
-            imageManager.requestAVAsset(forVideo: phAsset, options: options) { asset, _, info in
-                if let error = info?[PHImageErrorKey] as? Error {
-                    Logger.loadingState.error("❌ PHAsset loading failed: \(error.localizedDescription)")
-                    continuation.resume(throwing: LoadingError.from(error))
-                    return
-                }
-
-                guard let asset = asset else {
-                    Logger.loadingState.error("❌ PHAsset loading failed: asset not found")
-                    continuation.resume(throwing: LoadingError.assetNotFound)
-                    return
-                }
-
-                Logger.loadingState.info("✅ PHAsset loading completed successfully")
-
-                // Validate the asset asynchronously
-                Task { @MainActor in
-                    do {
-                        try await self.validateAsset(asset)
-                        continuation.resume(returning: asset)
-                    } catch {
-                        Logger.loadingState.error("❌ Asset validation failed: \(error.localizedDescription)")
+        // CRASH PREVENTION: Wrap entire operation in 30-second timeout guard
+        let asset = try await withTimeout(seconds: 30.0) { [imageManager] in
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<AVAsset, Error>) in
+                imageManager.requestAVAsset(forVideo: phAsset, options: options) { asset, _, info in
+                    if let error = info?[PHImageErrorKey] as? Error {
+                        Logger.loadingState.error("❌ PHAsset loading failed: \(error.localizedDescription)")
                         continuation.resume(throwing: LoadingError.from(error))
+                        return
                     }
+
+                    guard let asset = asset else {
+                        Logger.loadingState.error("❌ PHAsset loading failed: asset not found")
+                        continuation.resume(throwing: LoadingError.assetNotFound)
+                        return
+                    }
+
+                    Logger.loadingState.info("✅ PHAsset loading completed successfully")
+                    // CRASH FIX: Resume immediately, validate afterward (no nested Task)
+                    continuation.resume(returning: asset)
                 }
             }
         }
+        
+        // Validate asset AFTER continuation completes (outside callback)
+        try await validateAsset(asset)
+        return asset
     }
 
     private func loadFromURL(_ url: URL) async throws -> AVAsset {

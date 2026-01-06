@@ -18,6 +18,7 @@ struct MoveListView: View {
 
     // MARK: - Properties
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
     private let onNavigateToAdd: () -> Void
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "📋 MOVE_LIST_VIEW")
 
@@ -32,10 +33,35 @@ struct MoveListView: View {
 
     // MARK: - Body
     var body: some View {
-        ZStack {
+        VStack(spacing: 0) {
+            // MARK: - Breadcrumb Header
+            HStack {
+                BreadcrumbView(
+                    path: ["BREAKDEX", "ARSENAL", "MOVES"],
+                    onTapSegment: { index in
+                        // Navigate back based on segment clicked
+                        if index < 2 { // BREAKDEX or ARSENAL
+                            dismiss()
+                        }
+                    },
+                    onBack: { dismiss() }
+                )
+                
+                Spacer()
+                
+                ThemeToggleButton()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(Color.backgroundPrimary)
+            
+            Divider()
+                .background(Color.textPrimary.opacity(0.2))
+            
+            // MARK: - Content
+            ZStack {
                 Color.backgroundPrimary.ignoresSafeArea()
-
-                // MARK: - Content
+                
                 VStack {
                     if viewModel.isLoadingMoves {
                         loadingView
@@ -46,6 +72,9 @@ struct MoveListView: View {
                     }
                 }
             }
+        }
+        .background(Color.backgroundPrimary)
+        .navigationBarHidden(true)
             .searchable(text: $viewModel.movesSearchText, prompt: "Search Moves...")
             .onAppear {
                 logger.info("📋 MoveListView: View appeared")

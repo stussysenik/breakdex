@@ -684,17 +684,22 @@ public final class AddMoveViewModel: ObservableObject {
                 trimEndTime: trimModification.endTimeSeconds,
                 rotationQuarterTurns: rotationQuarterTurns
             )
-
             // Update state to saved
             saveState = .saved
             logger.info("✅ AddMoveViewModel: Move saved successfully: \(savedMove.name ?? "unnamed")")
             logger.info("📊 AddMoveViewModel: Save state updated to: \(saveState.description)")
+            
+            // CW&T: Legibility — user always knows what happened
+            ToastManager.shared.showSuccess("\(finalName) saved")
 
         } catch {
             // Update state to failed
             saveState = .failed("Failed to save move: \(error.localizedDescription)")
             logger.error("❌ AddMoveViewModel: Save failed - \(error.localizedDescription)")
             logger.error("📊 AddMoveViewModel: Save state updated to: \(saveState.description)")
+            
+            // CW&T: Transparency — show specific error with retry option
+            ToastManager.shared.showError("Failed to save: \(error.localizedDescription)")
         }
     }
 

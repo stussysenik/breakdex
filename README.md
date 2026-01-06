@@ -1,207 +1,161 @@
+# breakdex
 
-# BreakingFlashcards
+> **Video knowledge management for breakdancing athletes.**
+> *Make it good. Make it last.* — CW&T
 
-A comprehensive video flashcard application for learning and reviewing complex physical movements, built with SwiftUI and iOS 18.0. BreakingFlashcards combines video processing, spaced repetition, and intuitive UI to create an effective learning platform for dancers, martial artists, and movement enthusiasts.
+---
 
-## 🎯 Project Overview
+## 🎯 What Is This?
 
-BreakingFlashcards is a native iOS application that allows users to:
-- **Create video flashcards** from their personal video library
-- **Trim and rotate videos** to focus on specific movements
-- **Organize moves** into categories and combos
-- **Review with spaced repetition** for optimal learning retention
-- **Sync with Photos app** for seamless asset management
+**breakdex** is an iOS 18 app for breaking (breakdancing) athletes who want to:
 
-## 🚀 Current Status
+1. **Capture** moves from practice videos
+2. **Trim** to the good part with frame-accurate controls
+3. **Organize** by learning state: NEW → LEARNING → MASTERY
+4. **Review** before sessions using spaced repetition
+5. **Combine** moves into combos (sequences)
 
-**✅ STAGE 1 - COMPLETED**
-- Working UI with video import and management
-- Video trimming and rotation capabilities
-- Basic review mechanism with categorization
-- Offline support with Core Data persistence
-- Photos app integration with dedicated "BreakDex" album
+Think of it as a **video flashcard app for physical movements**.
 
-**🔄 STAGE 2 - IN PROGRESS**
-- Enhanced spaced repetition algorithm
-- Statistics and progress tracking
-- Import/export functionality for TestFlight release
-- Advanced video processing features
-- **Recently completed major architecture refactoring (September 2025)**
-- **Progress flow fixes and video loading improvements (October 2025)**
+---
 
-**🔮 STAGE 3 - FUTURE FEATURES**
-- Computer vision integration for movement analysis
-- AI-powered move suggestions and feedback
-- Social features for sharing combos
+## 🚀 Current Status (January 2026)
 
-## 🏗️ Technical Architecture
+| Feature | Status |
+|---------|--------|
+| Video import from Photos | ✅ Complete |
+| Frame-accurate trimming | ✅ Complete |
+| Video rotation (fills viewport) | ✅ Complete |
+| Speed control (1x–2x) | ✅ Complete |
+| Aspect ratio picker | ✅ Complete |
+| CRUD feedback (toasts) | ✅ Complete |
+| Delete with undo | ✅ Complete |
+| Crash prevention (timeout guards) | ✅ Complete |
+| Spaced repetition review | 🔄 In Progress |
+| Import/export for backup | 🔮 Planned |
 
-### Core Technologies
-- **iOS 18.0** - Latest iOS APIs and features
-- **SwiftUI** - Modern declarative UI framework
-- **MVVM Architecture** - Clean separation of concerns
-- **Core Data** - Local persistence with CloudKit sync
-- **AVFoundation** - Professional video processing
-- **Photos Framework** - Seamless library integration
+---
 
-### Key Components
-- **Video Import Loading System** - Robust video asset preparation with progress tracking
-- **Video Processing Pipeline** - Frame-accurate trimming and rotation
-- **Unified State Management** - Single source of truth for app state
-- **Custom Video Player** - Optimized for learning scenarios
-- **Memory Management** - Proactive monitoring for large video files
-- **Error Handling** - Comprehensive recovery mechanisms
-- **Modular AddMove Architecture** - Unified state management with comprehensive video loading system
+## 📂 Codebase Navigation
 
-### Video Import Loading Architecture
-The app features a sophisticated video import loading state system that handles video asset preparation with comprehensive error handling and progress tracking:
+```
+breakdex/
+├── App/                    # Entry point
+│   ├── breakdex.swift      # @main, Core Data setup
+│   └── MainView.swift      # 4-tab navigation
+│
+├── CoreData/               # Persistence
+│   ├── Move+*.swift        # Move entity (video, trim, speed, aspect)
+│   ├── Combo+*.swift       # Combo entity (sequence)
+│   ├── ComboMove+*.swift   # Join table
+│   └── Persistence.swift   # Core Data stack
+│
+├── Features/
+│   ├── AddMove/            # Video import flow
+│   │   ├── Views/
+│   │   │   ├── SelectClip.swift     # PhotosPicker + loading progress
+│   │   │   └── NameMoveView.swift   # Name + save
+│   │   └── ViewModels/
+│   │       └── AddMoveViewModel.swift
+│   │
+│   ├── Arsenal/            # Move/combo library
+│   │   ├── Views/
+│   │   │   ├── MoveListView.swift
+│   │   │   ├── MoveDetailView.swift  # Edit button → trimmer
+│   │   │   └── ComboListView.swift
+│   │   └── ViewModels/
+│   │       └── ArsenalViewModel.swift  # Delete with undo
+│   │
+│   ├── Combo/              # Combo creation
+│   │   └── Views/
+│   │       ├── CreateComboView.swift
+│   │       └── ComboTimelineView.swift
+│   │
+│   └── Shared/             # Reusable components
+│       ├── Video/
+│       │   ├── MinimalTrimmerView.swift  # Trimmer + speed + aspect
+│       │   └── VideoPlayer.swift
+│       ├── UI/Components/
+│       │   ├── FeedbackToast.swift      # Toast notifications
+│       │   └── BreadcrumbView.swift     # Navigation path
+│       ├── Services/
+│       │   ├── RobustVideoLoader.swift  # 30s timeout guards
+│       │   └── PhotoKitService.swift
+│       ├── Utils/
+│       │   └── AsyncTimeout.swift       # Timeout wrapper
+│       └── Models/
+│           └── LoadingState.swift       # State machine
+```
 
-**Core Services:**
-- **VideoLoadingService** - Main service for async video loading with iCloud download support
-- **VideoAssetPreparer** - High-level coordinator for video asset preparation
-- **VideoStateManager** - State machine for video processing transitions
-- **ImportManager** - Resilient import manager with retry logic and exponential backoff
+---
 
-**State Management:**
-- Comprehensive state machine (.idle, .loading, .loaded, .processing, .ready, .error)
-- Progress tracking with detailed percentage reporting (0-70% download, 70-100% metadata)
-- Memory-aware operations with thresholds and cleanup
-- Health monitoring and race condition prevention
+## 🎨 Design Philosophy
 
-**Key Features:**
-- Async/await based operations with timeout protection
-- Streaming file copy to prevent memory overload
-- iCloud download handling with progress reporting
-- Comprehensive diagnostic logging throughout pipeline
-- Frame-accurate video processing with millisecond precision
+Following **CW&T** principles:
 
-## 📊 Project Statistics
+| Principle | Implementation |
+|-----------|----------------|
+| **Legibility** | User always knows what's happening |
+| **Transparency** | Show progress %, what failed, why |
+| **Longevity** | Guard every async boundary |
+| **Thoughtful Subtraction** | Remove anything that doesn't serve the athlete |
 
-- **120 Swift files** with modern iOS 18.0 patterns
-- **45,154 lines of code** with comprehensive functionality
-- **Modular architecture** with clear separation of concerns
-- **Production-ready** video processing pipeline
-- **Robust error handling** and logging system
-- **Recent bug fixes** - Progress flow fixes and video loading improvements (October 2025)
+### Visual Language
+- **Colors**: Pure B&W + Apple Blue (#007AFF) accent only
+- **Typography**: IBM Plex Mono — monospace = precision
+- **Spacing**: 8pt grid, no decorative negative space
+- **Feedback**: Every action has visible confirmation (toast)
 
-## 🎮 Core Features
+---
 
-### 1. Add Move Flow
-- **Video Selection**: Import from Photos library with permission handling and robust loading states
-- **Video Loading**: Comprehensive video asset preparation with progress tracking (0-70% download, 70-100% metadata)
-- **Video Trimming**: Frame-accurate timeline editor with visual feedback
-- **Video Rotation**: Quarter-turn rotation controls with live preview
-- **Move Naming**: Organize with custom names and tags
-- **Asset Management**: Automatic saving to BreakDex album
-- **Resilient Video Loading**: Enhanced progress flow with iCloud download handling and deterministic progress tracking
+## 🛠️ Development
 
-### 2. Arsenal Management
-- **Move Library**: Browse and search all saved moves
-- **Combo Creation**: Combine moves into sequences
-- **Timeline View**: Visual representation of combo timing
-- **Metadata Management**: Tags, categories, and learning states
+### Build
+```bash
+xcodebuild -project breakdex.xcodeproj -scheme breakdex \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
 
-### 3. Review System
-- **Spaced Repetition**: Algorithm-based review scheduling
-- **Video Gallery**: Intuitive flashcard-style review interface
-- **Progress Tracking**: Monitor learning advancement
-- **Review History**: Track performance over time
-
-## 🛠️ Development Setup
-
-### Prerequisites
-- Xcode 16.0 or later
+### Requirements
+- Xcode 16.0+
 - iOS 18.0 SDK
-- macOS 14.0 or later
+- macOS 14.0+
 
-### Building the Project
-```bash
-# Clone the repository
-cd BreakingFlashcards
+---
 
-# Open in Xcode
-open breakdex.xcodeproj
+## 📖 More Documentation
 
-# Build from command line
-xcodebuild -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' build
-```
+- [DOCUMENTATION.md](./DOCUMENTATION.md) — Detailed architecture, services, state management
+- [extra/markdown/CLAUDE.md](../extra/markdown/CLAUDE.md) — AI development guidelines
 
-### Running Tests
-```bash
-# Run unit tests
-xcodebuild test -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16'
+---
 
-# Run UI tests
-xcodebuild test -project breakdex.xcodeproj -scheme breakdex -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:breakdexUITests
-```
+## 📋 Recent Changes (January 2026)
 
-## 📱 Device Requirements
+### Crash Prevention
+- 30-second timeout guards on video loading
+- Simplified async callbacks in Photos requests
 
-- **iOS 18.0 or later**
-- **iPhone XS or newer** (for video processing performance)
-- **Minimum 1GB free storage** for video operations
-- **Camera access** for future video capture features
+### CRUD Feedback
+- `FeedbackToast` component for success/error/info
+- Delete with undo (4.5s grace period)
+- Toast on move save
 
-## 🔧 Feature Requests
+### Video Editor
+- Rotation fills viewport (no black bars)
+- Speed control: 1.0x, 1.25x, 1.5x, 2.0x
+- Aspect ratio: Original, 1:1, 9:16, 16:9, 4:3
+- Technical timeline handles (vertical bars)
 
-### High Priority
-1. **Import/Export** - Complete implementation for data portability
-2. **Enhanced Statistics** - Detailed learning analytics
-3. **Backup/Restore** - CloudKit integration for data safety
+### Core Data
+- Added `playbackSpeed` and `aspectRatioMode` to Move entity
 
-### Medium Priority
-1. **Random Name Generator** - "Marrson" feature for move naming
-2. **Roll the Dice** - Random move/combo selection for practice
-3. **Custom Categories** - User-defined organization system
+---
 
-### Future Features
-1. **Computer Vision** - Automatic movement analysis
-2. **Social Sharing** - Share combos with other users
-3. **Apple Watch Support** - Remote control during practice
+## 🤝 Who Made This?
 
-## 📋 Development Guidelines
+A solo project for personal breakdance training. Built to never forget moves and progressions.
 
-### Code Quality
-- **Maximum 500 lines per file** - Enforces Single Responsibility Principle
-- **Comprehensive logging** - OSLog integration with emoji prefixes
-- **Memory management** - Proactive monitoring and cleanup
-- **Error handling** - Graceful degradation and recovery
+---
 
-### Architecture Principles
-- **MVVM Pattern** - Clear separation of UI and business logic
-- **Dependency Injection** - Singleton AppContainer for services
-- **State Management** - Unified state system with reactive updates
-- **Protocol-Based Design** - Abstraction for testability and flexibility
-- **Video Loading Architecture** - Comprehensive video import state management with progress tracking
-
-### Testing Strategy
-- **Unit Tests** - Cover all managers, view models, and utilities
-- **UI Tests** - Automate critical user flows
-- **Integration Tests** - Verify component interactions
-- **Performance Tests** - Monitor video processing efficiency
-
-## 📄 Documentation
-
-- **[Technical Architecture](./DOCUMENTATION.md)** - Comprehensive technical documentation (89KB)
-- **[Development Guidelines](./CLAUDE.md)** - Claude AI integration guidelines (15KB)
-- **[PRD Archives](./PRD/)** - Product requirement documents and development logs
-- **[Progress Flow Fix Summary](../PROGRESS_FLOW_FIX_SUMMARY.md)** - Complete implementation details for October 2025 progress fixes
-- **Recent Updates**: Documentation reflects September 2025 major refactoring, October 2025 progress flow fixes, and 120-file codebase
-
-## 🤝 Contributing
-
-1. Follow the development guidelines in [CLAUDE.md](./CLAUDE.md)
-2. Ensure all tests pass before submitting changes
-3. Update documentation for new features
-4. Use semantic versioning for releases
-5. Follow Swift/SwiftUI best practices
-
-## 📄 License
-
-This project is for educational and personal use. Please contact the project maintainers for commercial use inquiries.
-
-## 🙏 Acknowledgments
-
-- Built with modern iOS 18.0 technologies
-- Incorporates best practices from the iOS development community
-- Inspired by the need for effective movement learning tools
+**Build Status**: ✅ BUILD SUCCEEDED

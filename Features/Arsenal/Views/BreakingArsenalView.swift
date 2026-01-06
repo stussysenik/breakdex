@@ -15,73 +15,76 @@ import OSLog
 struct BreakingArsenalView: View {
     @Binding var selectedTab: Int
     @State private var navigationPath = NavigationPath()
+    @State private var showMoves = false
+    @State private var showCombos = false
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "🏟️ ARSENAL_NAVIGATION")
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing: 0) {
-                // Move List Section (Primary content)
-                MoveListView(onNavigateToAdd: {
-                    logger.info("🏠 ARSENAL_NAVIGATION: Navigate to Add Move tab from MoveListView")
-                    logger.info("🔍 ARSENAL_DEBUG: selectedTab changing from \(selectedTab) to 1")
-                    selectedTab = 1 // Switch to Add Move tab
-                    logger.info("✅ ARSENAL_NAVIGATION: Successfully switched to Add Move tab")
-                })
-
-                // Fixed Bottom Section with Combo
-                VStack(spacing: 20) {
-                    Divider()
-                        .background(Color.textPrimary.opacity(0.3))
-
-                    HStack(spacing: 40) {
-                        Spacer()
-
-                        // Combo Section (reduced size)
-                        NavigationLink(value: "combos") {
-                            Text("COMBOS")
-                                .font(.ibmPlexMono(size: 24, weight: .semibold))
-                                .foregroundColor(.textPrimary)
-                        }
-                        .buttonStyle(.plain)
-                        .onAppear {
-                            logger.info("🔗 ARSENAL_NAVLINK: COMBOS NavigationLink appeared")
-                            logger.info("🔗 TARGET_VALUE: String(\"combos\")")
-                            logger.info("🔗 TARGET_TYPE: \(type(of: "combos"))")
-                        }
-                        .onTapGesture {
-                            logger.info("🔗 ARSENAL_NAVLINK: User tapped COMBOS button")
-                            logger.info("🔗 NAVIGATING_TO: ComboListView via String value \"combos\"")
-                        }
-
-                        Spacer()
-                    }
-                    .padding(.bottom, 20)
+                // MARK: - Breadcrumb Header
+                HStack {
+                    BreadcrumbView(path: ["BREAKDEX", "ARSENAL"])
+                    
+                    Spacer()
+                    
+                    ThemeToggleButton()
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
                 .background(Color.backgroundPrimary)
+                
+                Divider()
+                    .background(Color.textPrimary.opacity(0.2))
+                
+                // MARK: - Main Content Area
+                Spacer()
+                
+                VStack(spacing: 40) {
+                    // MOVES Navigation
+                    NavigationLink(value: "moves") {
+                        Text("MOVES")
+                            .font(.ibmPlexMono(size: 28, weight: .medium))
+                            .foregroundColor(.textPrimary)
+                    }
+                    .buttonStyle(.plain)
+                    .onTapGesture {
+                        logger.info("🏟️ ARSENAL: User tapped MOVES")
+                    }
+                    
+                    // COMBOS Navigation
+                    NavigationLink(value: "combos") {
+                        Text("COMBOS")
+                            .font(.ibmPlexMono(size: 28, weight: .medium))
+                            .foregroundColor(.textPrimary)
+                    }
+                    .buttonStyle(.plain)
+                    .onTapGesture {
+                        logger.info("🏟️ ARSENAL: User tapped COMBOS")
+                    }
+                }
+                
+                Spacer()
             }
-            .navigationTitle("Moves")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color(.systemBackground), for: .navigationBar)
+            .background(Color.backgroundPrimary)
+            .navigationBarHidden(true)
             .navigationDestination(for: String.self) { destination in
                 Group {
-                    if destination == "combos" {
+                    if destination == "moves" {
+                        MoveListView(onNavigateToAdd: {
+                            logger.info("🏠 ARSENAL_NAVIGATION: Navigate to Add Move tab from MoveListView")
+                            selectedTab = 1
+                        })
+                        .onAppear {
+                            logger.info("🎯 MOVES_DESTINATION: Navigating to MoveListView")
+                        }
+                    } else if destination == "combos" {
                         ComboListView()
                             .onAppear {
-                                logger.info("🎯 STRING_DESTINATION: NavigationStack processing String destination")
-                                logger.info("🎯 DESTINATION_VALUE: \"\(destination)\"")
-                                logger.info("🎯 DESTINATION_TYPE: \(type(of: destination))")
-                                logger.info("🎯 MATCH_SUCCESS: String \"combos\" matched → Creating ComboListView()")
-                                logger.info("📋 COMBO_LIST_CREATED: ComboListView appeared via String navigation")
+                                logger.info("🎯 COMBOS_DESTINATION: Navigating to ComboListView")
                             }
                     } else {
                         Text("No destination found")
-                            .onAppear {
-                                logger.info("🎯 STRING_DESTINATION: NavigationStack processing String destination")
-                                logger.info("🎯 DESTINATION_VALUE: \"\(destination)\"")
-                                logger.info("🎯 DESTINATION_TYPE: \(type(of: destination))")
-                                logger.warning("🎯 NO_MATCH: No navigation destination found for String value \"\(destination)\"")
-                            }
                     }
                 }
             }

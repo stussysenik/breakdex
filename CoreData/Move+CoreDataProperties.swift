@@ -21,6 +21,11 @@ extension Move: Identifiable {
     @NSManaged public var trimEndTime: Double
     @NSManaged public var trimStartTime: Double
     @NSManaged public var videoAssetCloudIdentifier: String?
+    
+    // Video editing properties
+    @NSManaged public var playbackSpeed: Double       // Default: 1.0
+    @NSManaged public var aspectRatioMode: String?    // "original", "1:1", "9:16", "16:9", "4:3"
+    
     @NSManaged public var combos: NSSet?
     @NSManaged public var reviews: NSSet?
 }

@@ -23,6 +23,8 @@
         <attribute name="trimEndTime" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="trimStartTime" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="videoAssetCloudIdentifier" optional="YES" attributeType="String"/>
+        <attribute name="playbackSpeed" optional="YES" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
+        <attribute name="aspectRatioMode" optional="YES" attributeType="String"/>
         <relationship name="combos" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ComboMove" inverseName="move" inverseEntity="ComboMove"/>
         <relationship name="reviews" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Review" inverseName="move" inverseEntity="Review"/>
     </entity>
