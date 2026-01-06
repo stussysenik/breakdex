@@ -56,6 +56,9 @@ public final class AddMoveViewModel: ObservableObject {
     // MARK: - State Coordination Guard
     /// Prevents manual state setting during active video loading to eliminate race conditions
     private var isLoadingVideo = false
+    
+    /// Filters spurious state transitions from RobustVideoLoader during initialization
+    private var isInitializing = true
 
     /// Workflow state for persistence across navigation and app lifecycle events
     enum WorkflowState {
@@ -599,10 +602,7 @@ public final class AddMoveViewModel: ObservableObject {
         logger.info("✅ AddMoveViewModel reset for next move - video player state maintained")
     }
 
-    /// Reset view model to initial state with session boundary generation
-    @MainActor
     /// Reset view model to initial state
-    @MainActor
     public func reset() {
         logger.info("🔄 Resetting AddMoveViewModel to initial state")
 
@@ -759,7 +759,9 @@ public final class AddMoveViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleAppBackgrounded()
+            Task { @MainActor [weak self] in
+                self?.handleAppBackgrounded()
+            }
         }
 
         // Observe app foregrounding
@@ -768,7 +770,9 @@ public final class AddMoveViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleAppForegrounded()
+            Task { @MainActor [weak self] in
+                self?.handleAppForegrounded()
+            }
         }
 
         logger.info("📱 Lifecycle observers configured for workflow persistence")
@@ -894,11 +898,13 @@ public final class AddMoveViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Initialization Boundary Management
-
     /// Complete initialization phase
     private func completeInitialization() {
         isInitializing = false
+        
+        // CRITICAL FIX: Ensure loadingState is explicitly idle after initialization
+        loadingState = .idle
+        
         logger.info("✅ Initialization completed")
     }
 

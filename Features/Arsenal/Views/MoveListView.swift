@@ -281,7 +281,7 @@ private struct SpringButtonStyle: ButtonStyle {
     let context = PersistenceController.preview.container.viewContext
     // Clear any existing moves for empty state preview
     let request = NSBatchDeleteRequest(fetchRequest: Move.fetchRequest() as! NSFetchRequest<NSFetchRequestResult>)
-    try? context.execute(request)
+    _ = try? context.execute(request)
 
     return MoveListView(onNavigateToAdd: {})
         .environment(\.managedObjectContext, context)

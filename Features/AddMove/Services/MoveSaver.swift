@@ -81,7 +81,7 @@ class MoveSaver: ObservableObject {
             await updateProgress(0.6, status: "Creating move entry...")
 
             // Step 2: Create Move entity in Core Data
-            let move = try await movePersistenceService.createMoveEntity(
+            _ = try await movePersistenceService.createMoveEntity(
                 name: cleanName,
                 originalPhotosIdentifier: photosIdentifier,
                 trimStartTime: trimStartTime,

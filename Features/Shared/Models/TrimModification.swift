@@ -276,7 +276,7 @@ extension TrimModification {
                 isApplied: false
             )
         } catch {
-            Logger.shared.error("Failed to create full duration trim: \(error.localizedDescription)", emoji: "❌")
+            Logger.video.error("Failed to create full duration trim: \(error.localizedDescription)", emoji: "❌")
             return nil
         }
     }

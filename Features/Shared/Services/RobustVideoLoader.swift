@@ -481,10 +481,15 @@ public final class RobustVideoLoader: ObservableObject {
         isInitializing = false
         initializationCompletedTime = Date()
 
+        // CRITICAL FIX: Explicitly emit idle state after initialization
+        // This ensures the UI shows "Select a Clip" button instead of "Initializing..."
+        state = .idle
+        progress = LoadingProgress(value: 0.0, message: "Ready to load", stage: nil)
+
         // Now set up network monitoring after initialization boundary
         setupNetworkMonitoring()
 
-        logger.info("✅ RobustVideoLoader initialization completed - network monitoring enabled")
+        logger.info("✅ Initialization completed")
     }
 
     // MARK: - Cleanup

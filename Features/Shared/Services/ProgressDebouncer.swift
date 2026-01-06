@@ -20,19 +20,19 @@ public class ProgressDebouncer: ObservableObject {
     @Published private(set) var updateStatistics = UpdateStatistics()
 
     // MARK: - Progress Update Structure
-    public struct ProgressUpdate {
+    public struct ProgressUpdate: Sendable {
         public let correlationId: String
         public let phase: VideoLoadingProgress.LoadingPhase
         public let progress: Double
         public let timestamp: Date
-        public let metadata: [String: Any]
+        // Note: metadata removed for Sendable conformance - use correlationId to look up metadata if needed
 
         public init(correlationId: String, phase: VideoLoadingProgress.LoadingPhase, progress: Double, metadata: [String: Any] = [:]) {
             self.correlationId = correlationId
             self.phase = phase
             self.progress = progress
             self.timestamp = Date()
-            self.metadata = metadata
+            // metadata intentionally not stored for Sendable compliance
         }
     }
 
@@ -85,7 +85,7 @@ public class ProgressDebouncer: ObservableObject {
             metadata: metadata
         )
 
-        updateQueue.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.handleProgressUpdate(update, completion: completion)
         }
     }
@@ -195,20 +195,19 @@ public class ProgressDebouncer: ObservableObject {
     ) {
         let batchCorrelationId = "BATCH-\(UUID().uuidString.prefix(8))"
 
-        updateQueue.async { [weak self] in
-            let progressUpdates = updates.map { update in
-                ProgressUpdate(
-                    correlationId: update.correlationId,
-                    phase: update.phase,
-                    progress: update.progress,
-                    metadata: update.metadata
-                )
-            }
+        // Create progress updates on MainActor context
+        let progressUpdates = updates.map { update in
+            ProgressUpdate(
+                correlationId: update.correlationId,
+                phase: update.phase,
+                progress: update.progress,
+                metadata: update.metadata
+            )
+        }
 
-            Task { @MainActor [weak self] in
-                completion(progressUpdates)
-                self?.handleBatchCompletion(updates: progressUpdates, batchId: batchCorrelationId)
-            }
+        Task { @MainActor [weak self] in
+            completion(progressUpdates)
+            self?.handleBatchCompletion(updates: progressUpdates, batchId: batchCorrelationId)
         }
 
         logger.info("📦 Batch update submitted [\(batchCorrelationId)]: \(updates.count) updates")
@@ -233,7 +232,7 @@ public class ProgressDebouncer: ObservableObject {
 
     /// Cancel all pending updates for a specific correlation ID
     public func cancelPendingUpdates(correlationId: String) {
-        updateQueue.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.pendingUpdates.removeValue(forKey: correlationId)
             self?.debounceTimers[correlationId]?.invalidate()
             self?.debounceTimers.removeValue(forKey: correlationId)
@@ -244,7 +243,7 @@ public class ProgressDebouncer: ObservableObject {
 
     /// Cancel all pending updates across all correlation IDs
     public func cancelAllPendingUpdates() {
-        updateQueue.async { [weak self] in
+        Task { @MainActor [weak self] in
             self?.pendingUpdates.removeAll()
             self?.debounceTimers.values.forEach { $0.invalidate() }
             self?.debounceTimers.removeAll()
@@ -325,10 +324,8 @@ extension ProgressDebouncer.ProgressUpdate {
 
     /// Get formatted metadata description
     public var metadataDescription: String {
-        if metadata.isEmpty {
-            return "No metadata"
-        }
-        return "\(metadata.count) metadata items"
+        // Note: metadata removed for Sendable conformance
+        return "Metadata not tracked"
     }
 }
 

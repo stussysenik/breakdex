@@ -24,7 +24,7 @@ public struct StatePillView: View {
         switch learningState.uppercased() {
         case "NEW", "NEW LEARN":
             return Color.blue.opacity(0.2)
-        case "LEARNING", "LEARNING":
+        case "LEARNING":
             return Color.orange.opacity(0.2)
         case "MASTERY", "MASTERED":
             return Color.green.opacity(0.2)
@@ -37,7 +37,7 @@ public struct StatePillView: View {
         switch learningState.uppercased() {
         case "NEW", "NEW LEARN":
             return Color.blue
-        case "LEARNING", "LEARNING":
+        case "LEARNING":
             return Color.orange
         case "MASTERY", "MASTERED":
             return Color.green

@@ -213,8 +213,8 @@ struct ComboNamingSheet: View {
 
 // MARK: - Preview
 #Preview("Combo Naming Sheet - Empty") {
-    @State var isPresented = true
-    @State var comboName = ""
+    @Previewable @State var isPresented = true
+    @Previewable @State var comboName = ""
 
     return ComboNamingSheet(
         isPresented: $isPresented,
@@ -229,8 +229,8 @@ struct ComboNamingSheet: View {
 }
 
 #Preview("Combo Naming Sheet - With Text") {
-    @State var isPresented = true
-    @State var comboName = "My Awesome Combo"
+    @Previewable @State var isPresented = true
+    @Previewable @State var comboName = "My Awesome Combo"
 
     return ComboNamingSheet(
         isPresented: $isPresented,
@@ -245,8 +245,8 @@ struct ComboNamingSheet: View {
 }
 
 #Preview("Combo Naming Sheet - Invalid (Too Long)") {
-    @State var isPresented = true
-    @State var comboName = String(repeating: "Very Long Combo Name ", count: 5)
+    @Previewable @State var isPresented = true
+    @Previewable @State var comboName = String(repeating: "Very Long Combo Name ", count: 5)
 
     return ComboNamingSheet(
         isPresented: $isPresented,

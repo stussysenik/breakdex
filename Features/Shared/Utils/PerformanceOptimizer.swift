@@ -869,3 +869,70 @@ extension PerformanceOptimizer {
         return PerformanceOptimizer(configuration: .aggressive)
     }
 }
+
+// MARK: - Helper Class - Diagnostic Logging
+/// Helper class for diagnostic logging throughout the application
+/// Provides support for timing operations and metadata-rich logging
+private class DiagnosticLoggingHelper {
+    private let logger: Logger
+    private var operationStartTimes: [String: TimeInterval] = [:]
+    private let lock = NSLock()
+
+    public init(category: String) {
+        self.logger = Logger(category: category)
+    }
+
+    /// Log info message with optional metadata
+    public func logInfo(_ message: String, metadata: [String: String] = [:]) {
+        let formattedMessage = formatMessage(message, metadata: metadata)
+        logger.info("\(formattedMessage)")
+    }
+
+    /// Log warning message with optional metadata
+    public func logWarning(_ message: String, metadata: [String: String] = [:]) {
+        let formattedMessage = formatMessage(message, metadata: metadata)
+        logger.warning("\(formattedMessage)")
+    }
+
+    /// Log debug message with optional metadata
+    public func logDebug(_ message: String, metadata: [String: String] = [:]) {
+        let formattedMessage = formatMessage(message, metadata: metadata)
+        logger.debug("\(formattedMessage)")
+    }
+
+    /// Log error message with optional metadata
+    public func logError(_ message: String, metadata: [String: String] = [:]) {
+        let formattedMessage = formatMessage(message, metadata: metadata)
+        logger.error("\(formattedMessage)")
+    }
+
+    /// Start timing an operation
+    public func startTiming(_ operation: String) {
+        lock.lock()
+        operationStartTimes[operation] = CFAbsoluteTimeGetCurrent()
+        lock.unlock()
+    }
+
+    /// Stop timing an operation and log the duration
+    public func stopTiming(_ operation: String) {
+        lock.lock()
+        let startTime = operationStartTimes.removeValue(forKey: operation)
+        lock.unlock()
+
+        if let start = startTime {
+            let duration = CFAbsoluteTimeGetCurrent() - start
+            logger.debug("⏱️ \(operation) took \(duration)s")
+        }
+    }
+
+    /// Format message with metadata
+    private func formatMessage(_ message: String, metadata: [String: String]) -> String {
+        if metadata.isEmpty {
+            return message
+        }
+        // Sort keys for consistent output
+        let sortedMetadata = metadata.sorted { $0.key < $1.key }
+        let metadataString = sortedMetadata.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
+        return "\(message) [\(metadataString)]"
+    }
+}

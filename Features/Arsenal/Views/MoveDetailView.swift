@@ -76,7 +76,10 @@ struct MoveDetailView: View {
             }
         }
         .background(Color.backgroundPrimary)
-        .navigationBarHidden(true)
+        // CRITICAL FIX: Use navigationBarBackButtonHidden to preserve swipe-back gesture
+        // .navigationBarHidden(true) disables the iOS swipe-back gesture
+        .navigationBarBackButtonHidden(true)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             let impact = UIImpactFeedbackGenerator(style: .light)
             impact.impactOccurred()

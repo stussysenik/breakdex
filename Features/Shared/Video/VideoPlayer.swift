@@ -1761,12 +1761,16 @@ struct VideoPlayerController: UIViewControllerRepresentable {
         controller.showsPlaybackControls = showControls
         controller.allowsPictureInPicturePlayback = false
         controller.allowsVideoFrameAnalysis = false
+        // CRITICAL FIX: Preserve video aspect ratio - prevent squishing
+        controller.videoGravity = .resizeAspect
         return controller
     }
 
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         uiViewController.player = player
         uiViewController.showsPlaybackControls = showControls
+        // Ensure aspect ratio is preserved on updates
+        uiViewController.videoGravity = .resizeAspect
     }
 }
 

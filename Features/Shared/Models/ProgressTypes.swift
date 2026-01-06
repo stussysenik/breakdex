@@ -296,7 +296,7 @@ public struct SimpleProgress: Equatable {
 // MARK: - Loading Phase Extension
 extension VideoLoadingProgress {
     /// Enhanced progress phase enumeration for tracking operation states
-    public enum LoadingPhase: Equatable {
+    public enum LoadingPhase: Equatable, Sendable {
         case idle
         case initializing
         case requestingDownload

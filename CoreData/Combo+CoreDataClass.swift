@@ -29,7 +29,7 @@ extension Combo {
         guard let data = self.activeMoveVideoReference else { return nil }
 
         do {
-            guard let uri = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSURL.self, from: data) as? NSURL else {
+            guard let uri = try NSKeyedUnarchiver.unarchivedObject(ofClass: NSURL.self, from: data) else {
                 return nil
             }
             // Use the managed object context from the entity to resolve the object ID
