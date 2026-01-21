@@ -17,6 +17,8 @@ struct BreakingArsenalView: View {
     @State private var navigationPath = NavigationPath()
     @State private var showMoves = false
     @State private var showCombos = false
+    @State private var showSettings = false
+    @StateObject private var viewModel = ArsenalViewModel(viewContext: PersistenceController.shared.container.viewContext)
     private let logger = Logger(subsystem: "com.breakingflashcards", category: "🏟️ ARSENAL_NAVIGATION")
 
     var body: some View {
@@ -25,9 +27,20 @@ struct BreakingArsenalView: View {
                 // MARK: - Breadcrumb Header
                 HStack {
                     BreadcrumbView(path: ["BREAKDEX", "ARSENAL"])
-                    
+
                     Spacer()
-                    
+
+                    // Settings Button
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 18))
+                            .foregroundColor(.textPrimary)
+                    }
+                    .accessibilityLabel("Settings")
+                    .padding(.trailing, 12)
+
                     ThemeToggleButton()
                 }
                 .padding(.horizontal, 20)
@@ -38,33 +51,80 @@ struct BreakingArsenalView: View {
                     .background(Color.textPrimary.opacity(0.2))
                 
                 // MARK: - Main Content Area
-                Spacer()
-                
-                VStack(spacing: 40) {
-                    // MOVES Navigation
-                    NavigationLink(value: "moves") {
-                        Text("MOVES")
-                            .font(.ibmPlexMono(size: 28, weight: .medium))
-                            .foregroundColor(.textPrimary)
-                    }
-                    .buttonStyle(.plain)
-                    .onTapGesture {
-                        logger.info("🏟️ ARSENAL: User tapped MOVES")
-                    }
-                    
-                    // COMBOS Navigation
-                    NavigationLink(value: "combos") {
-                        Text("COMBOS")
-                            .font(.ibmPlexMono(size: 28, weight: .medium))
-                            .foregroundColor(.textPrimary)
-                    }
-                    .buttonStyle(.plain)
-                    .onTapGesture {
-                        logger.info("🏟️ ARSENAL: User tapped COMBOS")
+                ScrollView {
+                    VStack(spacing: Spacing.lg) {
+                        // Arsenal intro
+                        VStack(spacing: Spacing.sm) {
+                            Image(systemName: "figure.dance")
+                                .font(.system(size: 48))
+                                .foregroundColor(.accent)
+
+                            Text("Your Breaking Arsenal")
+                                .font(.titleMedium)
+                                .foregroundColor(.textPrimary)
+
+                            Text("Manage your moves and combos")
+                                .font(.bodySmall)
+                                .foregroundColor(.textSecondary)
+                        }
+                        .padding(.top, Spacing.xxl)
+                        .padding(.bottom, Spacing.lg)
+
+                        // Navigation Cards
+                        VStack(spacing: Spacing.md) {
+                            // MOVES Card
+                            NavigationLink(value: "moves") {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                                        Text("MOVES")
+                                            .font(.titleSmall)
+                                            .foregroundColor(.textPrimary)
+
+                                        Text("\(viewModel.moves.count) moves in arsenal")
+                                            .font(.bodySmall)
+                                            .foregroundColor(.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.bodyMedium)
+                                        .foregroundColor(.textSecondary)
+                                }
+                                .cardContainer()
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Moves, \(viewModel.moves.count) items")
+
+                            // COMBOS Card
+                            NavigationLink(value: "combos") {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: Spacing.xs) {
+                                        Text("COMBOS")
+                                            .font(.titleSmall)
+                                            .foregroundColor(.textPrimary)
+
+                                        Text("\(viewModel.combos.count) combos created")
+                                            .font(.bodySmall)
+                                            .foregroundColor(.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.bodyMedium)
+                                        .foregroundColor(.textSecondary)
+                                }
+                                .cardContainer()
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Combos, \(viewModel.combos.count) items")
+                        }
+                        .padding(.horizontal, Spacing.md)
+
+                        Spacer(minLength: Spacing.xxl)
                     }
                 }
-                
-                Spacer()
             }
             .background(Color.backgroundPrimary)
             .navigationBarHidden(true)
@@ -120,6 +180,10 @@ struct BreakingArsenalView: View {
                 logger.info("🔍 ARSENAL_DEBUG: Current selectedTab = \(selectedTab)")
                 logger.info("🔍 PATH_INITIAL: NavigationStack initial path count = \(navigationPath.count)")
                 logger.info("🎯 ARSENAL_EXPECTED: Move list should refresh and show newly saved moves")
+                viewModel.loadData()
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
         }
     }

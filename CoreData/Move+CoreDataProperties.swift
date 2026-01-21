@@ -25,7 +25,16 @@ extension Move: Identifiable {
     // Video editing properties
     @NSManaged public var playbackSpeed: Double       // Default: 1.0
     @NSManaged public var aspectRatioMode: String?    // "original", "1:1", "9:16", "16:9", "4:3"
-    
+
+    // Spaced Repetition (SM-2) properties
+    @NSManaged public var easeFactor: Double          // Default: 2.5
+    @NSManaged public var repetitionCount: Int16      // Default: 0
+    @NSManaged public var intervalDays: Int16         // Default: 0
+    @NSManaged public var nextReviewDate: Date?
+    @NSManaged public var lastReviewDate: Date?
+    @NSManaged public var totalReviews: Int16         // Default: 0
+    @NSManaged public var lapses: Int16               // Default: 0
+
     @NSManaged public var combos: NSSet?
     @NSManaged public var reviews: NSSet?
 }

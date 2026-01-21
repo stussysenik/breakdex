@@ -70,32 +70,20 @@ struct ReviewView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Image(systemName: "book.closed")
-                .font(.system(size: 64))
-                .foregroundColor(.primary.opacity(0.5))
-
-            VStack(spacing: 12) {
-                Text("Nothing to review yet")
-                    .font(.ibmPlexMono(size: 24, weight: .bold))
-                    .foregroundColor(.textPrimary)
-
-                Text("Add some moves and create combos to start reviewing your breaking skills!")
-                    .font(.ibmPlexMono(size: 16))
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-
-            Spacer()
-        }
+        EmptyStateView(
+            icon: "book.closed",
+            title: "Nothing to Review Yet",
+            description: "Add some moves and create combos to start reviewing your breaking skills!"
+        )
     }
 
     private var mainContent: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: Spacing.lg) {
+                // MARK: - Progress Header
+                progressHeader
+                    .padding(.horizontal, Spacing.md)
+
                 // MARK: - Moves Section
                 if viewModel.hasMovesToReview {
                     movesSection
@@ -103,115 +91,207 @@ struct ReviewView: View {
 
                 // MARK: - Combos Section
                 if viewModel.hasCombosToReview {
-                    if viewModel.hasMovesToReview {
-                        Divider()
-                            .padding(.horizontal, 20)
-                    }
                     combosSection
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.vertical, Spacing.md)
         }
     }
 
-    private var movesSection: some View {
-        VStack(spacing: 16) {
-            Text("MOVES")
-                .font(.ibmPlexMono(size: 24, weight: .bold))
-                .foregroundColor(.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
+    private var progressHeader: some View {
+        VStack(spacing: Spacing.md) {
+            // Overall mastery progress
+            ProgressRingView(
+                progress: viewModel.overallMasteryProgress,
+                fillColor: .stateMastery,
+                lineWidth: 12,
+                fontSize: 18,
+                size: 100
+            )
 
-            VStack(spacing: 4) {
-                reviewNavigationRow(
+            Text("Overall Mastery")
+                .font(.bodyMedium)
+                .foregroundColor(.textSecondary)
+
+            // Quick stats row
+            HStack(spacing: Spacing.xl) {
+                VStack(spacing: Spacing.xs) {
+                    Text("\(viewModel.totalMovesCount)")
+                        .font(.titleSmall)
+                        .foregroundColor(.textPrimary)
+                    Text("Moves")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+
+                VStack(spacing: Spacing.xs) {
+                    Text("\(viewModel.totalCombosCount)")
+                        .font(.titleSmall)
+                        .foregroundColor(.textPrimary)
+                    Text("Combos")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+
+                VStack(spacing: Spacing.xs) {
+                    Text("\(viewModel.masteryMovesCount + viewModel.masteryCombosCount)")
+                        .font(.titleSmall)
+                        .foregroundColor(.stateMastery)
+                    Text("Mastered")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+            }
+        }
+        .padding(.vertical, Spacing.lg)
+        .frame(maxWidth: .infinity)
+        .cardContainer()
+    }
+
+    private var movesSection: some View {
+        VStack(spacing: Spacing.md) {
+            SectionHeaderView(
+                title: "MOVES",
+                count: viewModel.totalMovesCount
+            )
+            .padding(.horizontal, Spacing.md)
+
+            VStack(spacing: Spacing.sm) {
+                learningStateCard(
                     title: "NEW",
                     count: viewModel.newMovesCount,
+                    total: viewModel.totalMovesCount,
+                    color: .stateNew,
                     learningState: "NEW",
                     type: .moves
                 )
 
-                reviewNavigationRow(
+                learningStateCard(
                     title: "LEARNING",
                     count: viewModel.learningMovesCount,
+                    total: viewModel.totalMovesCount,
+                    color: .stateLearning,
                     learningState: "LEARNING",
                     type: .moves
                 )
 
-                reviewNavigationRow(
+                learningStateCard(
                     title: "MASTERY",
                     count: viewModel.masteryMovesCount,
+                    total: viewModel.totalMovesCount,
+                    color: .stateMastery,
                     learningState: "MASTERY",
                     type: .moves
                 )
             }
+            .padding(.horizontal, Spacing.md)
         }
     }
 
     private var combosSection: some View {
-        VStack(spacing: 16) {
-            Text("COMBOS")
-                .font(.ibmPlexMono(size: 24, weight: .bold))
-                .foregroundColor(.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
+        VStack(spacing: Spacing.md) {
+            SectionHeaderView(
+                title: "COMBOS",
+                count: viewModel.totalCombosCount
+            )
+            .padding(.horizontal, Spacing.md)
 
-            VStack(spacing: 4) {
-                reviewNavigationRow(
+            VStack(spacing: Spacing.sm) {
+                learningStateCard(
                     title: "NEW",
                     count: viewModel.newCombosCount,
+                    total: viewModel.totalCombosCount,
+                    color: .stateNew,
                     learningState: "NEW",
                     type: .combos
                 )
 
-                reviewNavigationRow(
+                learningStateCard(
                     title: "LEARNING",
                     count: viewModel.learningCombosCount,
+                    total: viewModel.totalCombosCount,
+                    color: .stateLearning,
                     learningState: "LEARNING",
                     type: .combos
                 )
 
-                reviewNavigationRow(
+                learningStateCard(
                     title: "MASTERY",
                     count: viewModel.masteryCombosCount,
+                    total: viewModel.totalCombosCount,
+                    color: .stateMastery,
                     learningState: "MASTERY",
                     type: .combos
                 )
             }
+            .padding(.horizontal, Spacing.md)
         }
     }
 
-    private func reviewNavigationRow(title: String, count: Int, learningState: String, type: ReviewType) -> some View {
-        NavigationLink {
+    private func learningStateCard(
+        title: String,
+        count: Int,
+        total: Int,
+        color: Color,
+        learningState: String,
+        type: ReviewType
+    ) -> some View {
+        let progress = total > 0 ? Double(count) / Double(total) : 0.0
+
+        return NavigationLink {
             // TODO: Implement FlashcardReviewView
             // FlashcardReviewView(learningState: learningState, reviewType: type)
             VStack {
                 Text("Review: \(title)")
                     .font(.largeTitle)
                 Text("Learning State: \(learningState)")
-                Text("Type: \(type)")
+                Text("Type: \(String(describing: type))")
                 Text("FlashcardReviewView - To be implemented")
             }
         } label: {
-            HStack {
-                Text(title)
-                    .font(.ibmPlexMono(size: 20, weight: .thin))
-                    .foregroundColor(.textPrimary)
+            HStack(spacing: Spacing.md) {
+                // Color indicator and title
+                HStack(spacing: Spacing.sm) {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 12, height: 12)
+
+                    Text(title)
+                        .font(.bodyMedium)
+                        .foregroundColor(.textPrimary)
+                }
 
                 Spacer()
 
-                Text("(\(count))")
-                    .font(.ibmPlexMono(size: 20))
-                    .foregroundColor(.secondary)
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.neutralGray200)
+                            .frame(height: 8)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(color)
+                            .frame(width: geometry.size.width * progress, height: 8)
+                    }
+                }
+                .frame(width: 80, height: 8)
+
+                // Count
+                Text("\(count)")
+                    .font(.titleSmall)
+                    .foregroundColor(color)
+                    .frame(minWidth: 30, alignment: .trailing)
+
+                // Chevron
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(.systemGray6).opacity(0.5))
-            )
+            .cardContainer(padding: Spacing.md)
         }
         .disabled(count == 0)
-        .opacity(count == 0 ? 0.6 : 1.0)
+        .opacity(count == 0 ? 0.5 : 1.0)
         .buttonStyle(PlainButtonStyle())
     }
 }

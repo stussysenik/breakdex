@@ -34,12 +34,20 @@ struct MainView: View {
                 .tag(2)
 
             // Review Tab
-            // ReviewView()
-            //     .tabItem {
-            //         Image(systemName: "skateboard")
-            //         Text("Review")
-            //     }
-            //     .tag(3)
+            ReviewView()
+                .tabItem {
+                    Image(systemName: "skateboard")
+                    Text("Review")
+                }
+                .tag(3)
+
+            // Camera Tab
+            CameraView(selectedTab: $selectedTab)
+                .tabItem {
+                    Image(systemName: "camera.fill")
+                    Text("Record")
+                }
+                .tag(4)
         }
         .accentColor(.accent)
         .withToastOverlay() // CW&T: Legibility — every action gets visible confirmation
@@ -107,6 +115,24 @@ struct MainView: View {
                     Text("Review")
                 }
                 .tag(3)
+
+                // Camera Tab - using dummy text
+                NavigationStack {
+                    VStack(spacing: 30) {
+                        Spacer()
+                        Text("Record")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                        Text("📹 Camera recording will be here")
+                            .font(.title2)
+                        Spacer()
+                    }
+                }
+                .tabItem {
+                    Image(systemName: "camera.fill")
+                    Text("Record")
+                }
+                .tag(4)
             }
             .accentColor(.accent)
         }

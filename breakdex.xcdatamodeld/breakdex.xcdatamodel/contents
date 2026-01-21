@@ -25,6 +25,13 @@
         <attribute name="videoAssetCloudIdentifier" optional="YES" attributeType="String"/>
         <attribute name="playbackSpeed" optional="YES" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
         <attribute name="aspectRatioMode" optional="YES" attributeType="String"/>
+        <attribute name="easeFactor" optional="YES" attributeType="Double" defaultValueString="2.5" usesScalarValueType="YES"/>
+        <attribute name="repetitionCount" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="intervalDays" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="nextReviewDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastReviewDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="totalReviews" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lapses" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="combos" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="ComboMove" inverseName="move" inverseEntity="ComboMove"/>
         <relationship name="reviews" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Review" inverseName="move" inverseEntity="Review"/>
     </entity>

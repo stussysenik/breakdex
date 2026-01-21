@@ -197,6 +197,28 @@ class ReviewViewModel: ObservableObject {
         return calculatedState
     }
 
+    // MARK: - Progress Calculations
+
+    /// Total number of moves
+    var totalMovesCount: Int {
+        moves.count
+    }
+
+    /// Total number of combos
+    var totalCombosCount: Int {
+        combos.count
+    }
+
+    /// Overall mastery progress (0.0 to 1.0)
+    /// Calculated as the proportion of mastered items to total items
+    var overallMasteryProgress: Double {
+        let totalItems = totalMovesCount + totalCombosCount
+        guard totalItems > 0 else { return 0.0 }
+
+        let masteredItems = masteryMovesCount + masteryCombosCount
+        return Double(masteredItems) / Double(totalItems)
+    }
+
     // MARK: - Review Statistics
     /// Get total items available for review
     var totalItemsToReview: Int {
@@ -239,6 +261,8 @@ class ReviewViewModel: ObservableObject {
             return moves.contains { $0.learningState == state }
         case .combos:
             return comboStates.values.contains(state)
+        case .all:
+            return moves.contains { $0.learningState == state } || comboStates.values.contains(state)
         }
     }
 
@@ -257,6 +281,13 @@ class ReviewViewModel: ObservableObject {
             case "NEW": return newCombosCount
             case "LEARNING": return learningCombosCount
             case "MASTERY": return masteryCombosCount
+            default: return 0
+            }
+        case .all:
+            switch state {
+            case "NEW": return newMovesCount + newCombosCount
+            case "LEARNING": return learningMovesCount + learningCombosCount
+            case "MASTERY": return masteryMovesCount + masteryCombosCount
             default: return 0
             }
         }
@@ -283,10 +314,7 @@ struct ReviewStatistics {
     }
 }
 
-enum ReviewType {
-    case moves
-    case combos
-}
+// ReviewType is defined in FlashcardReviewViewModel.swift
 
 // MARK: - Preview Support
 #if DEBUG

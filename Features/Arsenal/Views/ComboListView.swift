@@ -95,22 +95,11 @@ struct ComboListView: View {
     // MARK: - Empty State View
     @ViewBuilder
     private var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "square.stack.3d.up")
-                .font(.system(size: 64))
-                .foregroundColor(.primary.opacity(0.5))
-
-            Text("No combos created yet")
-                .font(.ibmPlexMono(size: 24, weight: .bold))
-                .foregroundColor(.textPrimary)
-
-            Text("Tap the 'Create' tab to start building your combo arsenal!")
-                .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.primary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 40)
+        EmptyStateView(
+            icon: "square.stack.3d.up",
+            title: "No Combos Yet",
+            description: "Create combos by combining moves from your arsenal. Tap the 'Create Combo' tab to get started."
+        )
     }
 
     // MARK: - No Search Results View

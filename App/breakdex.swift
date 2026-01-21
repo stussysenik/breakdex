@@ -12,9 +12,12 @@ import CoreData
 struct breakdex: App {
     // This line keeps the Core Data controller alive for the whole app.
     let persistenceController = PersistenceController.shared
-    
+
     // Theme manager for light/dark mode control
     @StateObject private var themeManager = ThemeManager.shared
+
+    // Accessibility manager for WCAG 2.2 AA compliance and 65+ support
+    @StateObject private var accessibilityManager = AccessibilityManager.shared
 
     init() {
         // Core Data is now eagerly initialized in PersistenceController.shared
@@ -29,6 +32,8 @@ struct breakdex: App {
             MainView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(themeManager)
+                .environmentObject(accessibilityManager)
+                .environment(\.accessibilityManager, accessibilityManager)
                 .preferredColorScheme(themeManager.colorScheme)
                 .task {
                     // MARK: - Basic App Initialization

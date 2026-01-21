@@ -19,19 +19,21 @@ struct SelectClip: View {
 
     var body: some View {
         ZStack {
+            Color.backgroundPrimary.ignoresSafeArea()
+
             // Main content
-            VStack {
+            VStack(spacing: 0) {
+                // Step indicator
+                WorkflowStepIndicator(currentStep: 1, totalSteps: 4)
+                    .padding(.top, Spacing.lg)
+
                 Spacer()
 
-                // Show loading state or selection button
+                // Show loading state or guidance with selection button
                 if viewModel.isLoading {
                     loadingView
                 } else {
-                    Button("Select a Clip") {
-                        // Show Photos picker for video selection
-                        showPhotosPicker = true
-                    }
-                    .buttonStyle(SelectClipButtonStyle())
+                    guidanceView
                 }
 
                 Spacer()
@@ -56,6 +58,46 @@ struct SelectClip: View {
                 errorOverlay
             }
         }
+    }
+
+    // MARK: - Guidance View
+    private var guidanceView: some View {
+        VStack(spacing: Spacing.lg) {
+            // Icon
+            Image(systemName: "video.badge.plus")
+                .font(.system(size: 64))
+                .foregroundColor(.accent)
+
+            // Title and description
+            VStack(spacing: Spacing.sm) {
+                Text("Add a New Move")
+                    .font(.titleSmall)
+                    .foregroundColor(.textPrimary)
+
+                Text("Select a video clip from your library to add to your breaking arsenal.")
+                    .font(.bodyMedium)
+                    .foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Spacing.xl)
+            }
+
+            // Workflow steps preview
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                WorkflowStepRow(number: 1, text: "Select video clip", isActive: true)
+                WorkflowStepRow(number: 2, text: "Trim & rotate", isActive: false)
+                WorkflowStepRow(number: 3, text: "Name your move", isActive: false)
+                WorkflowStepRow(number: 4, text: "Save to arsenal", isActive: false)
+            }
+            .padding(.vertical, Spacing.md)
+
+            // Select button
+            Button("Select a Clip") {
+                showPhotosPicker = true
+            }
+            .buttonStyle(SelectClipButtonStyle())
+            .accessibilityLabel("Select a video clip from your library")
+        }
+        .padding(.horizontal, Spacing.lg)
     }
 
     // MARK: - Loading View
@@ -179,6 +221,53 @@ struct SelectClip: View {
 
         case .failed(let message):
             logger.error("Video loading failed: \(message)")
+        }
+    }
+}
+
+// MARK: - Workflow Step Indicator
+/// Shows current position in the add move workflow
+struct WorkflowStepIndicator: View {
+    let currentStep: Int
+    let totalSteps: Int
+
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            ForEach(1...totalSteps, id: \.self) { step in
+                Circle()
+                    .fill(step <= currentStep ? Color.accent : Color.neutralGray200)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .accessibilityLabel("Step \(currentStep) of \(totalSteps)")
+    }
+}
+
+// MARK: - Workflow Step Row
+/// Shows a single step in the workflow preview
+struct WorkflowStepRow: View {
+    let number: Int
+    let text: String
+    let isActive: Bool
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            // Step number circle
+            ZStack {
+                Circle()
+                    .fill(isActive ? Color.accent : Color.neutralGray200)
+                    .frame(width: 24, height: 24)
+
+                Text("\(number)")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(isActive ? .white : .textSecondary)
+            }
+
+            // Step text
+            Text(text)
+                .font(.bodySmall)
+                .foregroundColor(isActive ? .textPrimary : .textSecondary)
         }
     }
 }

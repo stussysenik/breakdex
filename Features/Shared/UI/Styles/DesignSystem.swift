@@ -52,6 +52,58 @@ extension Color {
         blue: 72 / 255
     )  // MASTERY state - green (#24a148)
 
+    // MARK: - WCAG 2.2 AA High Contrast Colors (4.5:1 minimum contrast)
+    // These colors meet accessibility requirements for users with visual impairments
+
+    /// Accessible accent - 7:1 contrast ratio (#0043ce)
+    public static let accessibleAccent = Color(
+        red: 0 / 255,
+        green: 67 / 255,
+        blue: 206 / 255
+    )
+
+    /// Accessible text - Maximum contrast (#161616)
+    public static let accessibleText = Color(
+        red: 22 / 255,
+        green: 22 / 255,
+        blue: 22 / 255
+    )
+
+    /// High contrast NEW state - Magenta with 4.5:1 contrast (#d02670)
+    static let stateNewHighContrast = Color(
+        red: 208 / 255,
+        green: 38 / 255,
+        blue: 112 / 255
+    )
+
+    /// High contrast LEARNING state - Purple with 4.5:1 contrast (#6929c4)
+    static let stateLearningHighContrast = Color(
+        red: 105 / 255,
+        green: 41 / 255,
+        blue: 196 / 255
+    )
+
+    /// High contrast MASTERY state - Green with 4.5:1 contrast (#198038)
+    static let stateMasteryHighContrast = Color(
+        red: 25 / 255,
+        green: 128 / 255,
+        blue: 56 / 255
+    )
+
+    /// High contrast review button - Again (#a2191f)
+    static let buttonAgainHighContrast = Color(
+        red: 162 / 255,
+        green: 25 / 255,
+        blue: 31 / 255
+    )
+
+    /// High contrast review button - Good (#0e6027)
+    static let buttonGoodHighContrast = Color(
+        red: 14 / 255,
+        green: 96 / 255,
+        blue: 39 / 255
+    )
+
     // BUTTONS IN REVIEW PAGE
     static let buttonAgain = Color(
         red: 218 / 255,
@@ -162,7 +214,7 @@ struct Spacing {
 }
 
 // MARK: - LAYOUT CONSTANTS
-struct Layout {
+struct AppLayout {
     // Corner radius
     static let smallRadius: CGFloat = 8
     static let mediumRadius: CGFloat = 12
