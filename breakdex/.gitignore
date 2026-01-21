@@ -23,22 +23,3 @@ node_modules/
 
 # OS specific
 .DS_Store
-
-# Xcode build artifacts
-TestResults.xcresult/
-*.xcresult
-DerivedData/
-build/
-*.xcuserstate
-*.xcworkspace/xcuserdata/
-
-# Development scripts (keep in .scripts/ if needed)
-*.rb
-
-# Research/scratch files
-research-*.md
-
-# iOS specific
-*.ipa
-*.dSYM.zip
-*.dSYM

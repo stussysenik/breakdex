@@ -1,0 +1,11 @@
+#!/bin/bash
+# pre-commit hook - validates project structure before commit
+# To enable: git config core.hooksPath .githooks
+
+echo "Running pre-commit checks..."
+
+# Run structure validation
+.scripts/validate-structure.sh
+
+# Exit with the validation result
+exit $?
