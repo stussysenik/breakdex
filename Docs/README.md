@@ -1,161 +1,165 @@
-# breakdex
+# Breakdex
 
-> **Video knowledge management for breakdancing athletes.**
-> *Make it good. Make it last.* — CW&T
+**Your personal breaking move library and practice companion.**
 
----
+Breakdex is an iOS app for breakdancers to catalog their moves, practice with spaced repetition flashcards, and build combos. Built with SwiftUI and CoreData.
 
-## 🎯 What Is This?
+## Quick Start
 
-**breakdex** is an iOS 18 app for breaking (breakdancing) athletes who want to:
+1. Open `breakdex.xcodeproj` in Xcode 15+
+2. Select your target device (iOS 17+)
+3. Build and run
 
-1. **Capture** moves from practice videos
-2. **Trim** to the good part with frame-accurate controls
-3. **Organize** by learning state: NEW → LEARNING → MASTERY
-4. **Review** before sessions using spaced repetition
-5. **Combine** moves into combos (sequences)
+## Features at a Glance
 
-Think of it as a **video flashcard app for physical movements**.
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Move Arsenal** | Complete | Browse and manage your move library |
+| **Add Move** | Complete | Import videos from Photos, trim, and tag |
+| **Camera Capture** | Complete | Record moves directly in-app |
+| **Flashcard Review** | Complete | SM-2 spaced repetition for practice |
+| **Combo Builder** | Complete | Chain moves into combos |
+| **Settings** | Complete | Accessibility and data management |
 
----
-
-## 🚀 Current Status (January 2026)
-
-| Feature | Status |
-|---------|--------|
-| Video import from Photos | ✅ Complete |
-| Frame-accurate trimming | ✅ Complete |
-| Video rotation (fills viewport) | ✅ Complete |
-| Speed control (1x–2x) | ✅ Complete |
-| Aspect ratio picker | ✅ Complete |
-| CRUD feedback (toasts) | ✅ Complete |
-| Delete with undo | ✅ Complete |
-| Crash prevention (timeout guards) | ✅ Complete |
-| Spaced repetition review | 🔄 In Progress |
-| Import/export for backup | 🔮 Planned |
-
----
-
-## 📂 Codebase Navigation
+## Codebase Navigation
 
 ```
 breakdex/
-├── App/                    # Entry point
-│   ├── breakdex.swift      # @main, Core Data setup
-│   └── MainView.swift      # 4-tab navigation
-│
-├── CoreData/               # Persistence
-│   ├── Move+*.swift        # Move entity (video, trim, speed, aspect)
-│   ├── Combo+*.swift       # Combo entity (sequence)
-│   ├── ComboMove+*.swift   # Join table
-│   └── Persistence.swift   # Core Data stack
+├── App/
+│   ├── breakdex.swift          # App entry point
+│   └── MainView.swift          # Tab-based navigation
 │
 ├── Features/
-│   ├── AddMove/            # Video import flow
-│   │   ├── Views/
-│   │   │   ├── SelectClip.swift     # PhotosPicker + loading progress
-│   │   │   └── NameMoveView.swift   # Name + save
-│   │   └── ViewModels/
-│   │       └── AddMoveViewModel.swift
+│   ├── Arsenal/                # Move library browsing
+│   │   ├── ViewModels/
+│   │   │   └── ArsenalViewModel.swift
+│   │   └── Views/
+│   │       ├── MoveDetailView.swift
+│   │       └── Components/
+│   │           └── VideoThumbnailCard.swift
 │   │
-│   ├── Arsenal/            # Move/combo library
+│   ├── AddMove/                # Video import & move creation
+│   │   ├── ViewModels/
+│   │   │   ├── AddMoveViewModel.swift
+│   │   │   └── TagSuggestionsProvider.swift
 │   │   ├── Views/
-│   │   │   ├── MoveListView.swift
-│   │   │   ├── MoveDetailView.swift  # Edit button → trimmer
-│   │   │   └── ComboListView.swift
-│   │   └── ViewModels/
-│   │       └── ArsenalViewModel.swift  # Delete with undo
+│   │   │   ├── AddMoveView.swift
+│   │   │   └── NameMoveView.swift
+│   │   └── Services/
+│   │       ├── VideoProcessor.swift
+│   │       ├── MovePersistenceService.swift
+│   │       └── MoveSaver.swift
 │   │
-│   ├── Combo/              # Combo creation
+│   ├── Camera/                 # Direct video recording
+│   │   ├── ViewModels/
+│   │   │   └── CameraViewModel.swift
+│   │   └── Views/
+│   │       └── CameraView.swift
+│   │
+│   ├── Review/                 # Flashcard spaced repetition
+│   │   ├── Models/
+│   │   │   ├── SpacedRepetition.swift   # SM-2 algorithm
+│   │   │   └── LearningProgress.swift
+│   │   ├── ViewModels/
+│   │   │   └── FlashcardReviewViewModel.swift
+│   │   └── Views/
+│   │       ├── FlashcardReviewView.swift
+│   │       ├── FlashcardCardView.swift
+│   │       └── RatingButtonsView.swift
+│   │
+│   ├── Combo/                  # Combo creation & playback
+│   │   ├── ViewModels/
+│   │   │   └── ComboViewModel.swift
 │   │   └── Views/
 │   │       ├── CreateComboView.swift
-│   │       └── ComboTimelineView.swift
+│   │       ├── ComboTimelineView.swift
+│   │       ├── ComboDetailView.swift
+│   │       └── ComboNamingSheet.swift
 │   │
-│   └── Shared/             # Reusable components
+│   ├── Settings/               # App settings
+│   │   ├── ViewModels/
+│   │   │   └── SettingsViewModel.swift
+│   │   └── Views/
+│   │       └── SettingsView.swift
+│   │
+│   └── Shared/                 # Shared components
+│       ├── Accessibility/
+│       │   └── AccessibilityManager.swift
+│       ├── Motion/
+│       │   └── MotionSystem.swift
+│       ├── UI/
+│       │   ├── Styles/
+│       │   │   └── DesignSystem.swift
+│       │   └── Components/
+│       │       ├── CardContainer.swift
+│       │       ├── EmptyStateView.swift
+│       │       ├── ProgressRingView.swift
+│       │       ├── SectionHeaderView.swift
+│       │       ├── TagChipView.swift
+│       │       ├── TagFlowLayout.swift
+│       │       ├── TagInputField.swift
+│       │       └── ...
 │       ├── Video/
-│       │   ├── MinimalTrimmerView.swift  # Trimmer + speed + aspect
-│       │   └── VideoPlayer.swift
-│       ├── UI/Components/
-│       │   ├── FeedbackToast.swift      # Toast notifications
-│       │   └── BreadcrumbView.swift     # Navigation path
+│       │   ├── VideoPlayer.swift
+│       │   ├── LiquidScrubber.swift
+│       │   ├── ThumbnailGenerator.swift
+│       │   ├── MinimalTrimmerView.swift
+│       │   └── AVPlayerViewRepresentable.swift
 │       ├── Services/
-│       │   ├── RobustVideoLoader.swift  # 30s timeout guards
-│       │   └── PhotoKitService.swift
+│       │   ├── ThermalGuard.swift
+│       │   ├── ThemeManager.swift
+│       │   ├── PhotoKitService.swift
+│       │   ├── RobustVideoLoader.swift
+│       │   └── AppContainer.swift
 │       ├── Utils/
-│       │   └── AsyncTimeout.swift       # Timeout wrapper
+│       │   ├── HapticFeedback.swift
+│       │   ├── TimecodeFormatter.swift
+│       │   ├── PerformanceOptimizer.swift
+│       │   └── ...
 │       └── Models/
-│           └── LoadingState.swift       # State machine
+│           ├── LoadingState.swift
+│           ├── TabState.swift
+│           └── ...
+│
+├── CoreData/
+│   ├── Move+CoreDataClass.swift
+│   ├── Move+CoreDataProperties.swift
+│   ├── Combo+CoreDataClass.swift
+│   ├── Combo+CoreDataProperties.swift
+│   ├── ComboMove+CoreDataClass.swift
+│   ├── ComboMove+CoreDataProperties.swift
+│   ├── Review+CoreDataClass.swift
+│   └── Review+CoreDataProperties.swift
+│
+└── Tests/
+    └── breakdexUITests/        # UI tests
 ```
 
----
+## Key Technologies
 
-## 🎨 Design Philosophy
+- **SwiftUI** - Declarative UI framework
+- **CoreData** - Local persistence for moves, combos, reviews
+- **AVFoundation** - Video playback and processing
+- **PhotoKit** - Photo library integration
+- **SM-2 Algorithm** - Spaced repetition scheduling
 
-Following **CW&T** principles:
+## Recent Changes
 
-| Principle | Implementation |
-|-----------|----------------|
-| **Legibility** | User always knows what's happening |
-| **Transparency** | Show progress %, what failed, why |
-| **Longevity** | Guard every async boundary |
-| **Thoughtful Subtraction** | Remove anything that doesn't serve the athlete |
+### January 2026
+- Added **Flashcard Review System** with SM-2 spaced repetition
+- Added **Camera Capture** for recording moves directly
+- Added **Settings View** for accessibility preferences
+- Implemented **ThermalGuard** for device temperature monitoring
+- Added **AccessibilityManager** for VoiceOver and Dynamic Type support
+- New **LiquidScrubber** for precise video scrubbing
 
-### Visual Language
-- **Colors**: Pure B&W + Apple Blue (#007AFF) accent only
-- **Typography**: IBM Plex Mono — monospace = precision
-- **Spacing**: 8pt grid, no decorative negative space
-- **Feedback**: Every action has visible confirmation (toast)
+## Related Documentation
 
----
+- [DOCUMENTATION.md](./DOCUMENTATION.md) - Detailed architecture and component reference
+- [PROGRESS.md](./PROGRESS.md) - Version history and roadmap
 
-## 🛠️ Development
+## Requirements
 
-### Build
-```bash
-xcodebuild -project breakdex.xcodeproj -scheme breakdex \
-  -destination 'platform=iOS Simulator,name=iPhone 16' build
-```
-
-### Requirements
-- Xcode 16.0+
-- iOS 18.0 SDK
-- macOS 14.0+
-
----
-
-## 📖 More Documentation
-
-- [DOCUMENTATION.md](./DOCUMENTATION.md) — Detailed architecture, services, state management
-- [extra/markdown/CLAUDE.md](../extra/markdown/CLAUDE.md) — AI development guidelines
-
----
-
-## 📋 Recent Changes (January 2026)
-
-### Crash Prevention
-- 30-second timeout guards on video loading
-- Simplified async callbacks in Photos requests
-
-### CRUD Feedback
-- `FeedbackToast` component for success/error/info
-- Delete with undo (4.5s grace period)
-- Toast on move save
-
-### Video Editor
-- Rotation fills viewport (no black bars)
-- Speed control: 1.0x, 1.25x, 1.5x, 2.0x
-- Aspect ratio: Original, 1:1, 9:16, 16:9, 4:3
-- Technical timeline handles (vertical bars)
-
-### Core Data
-- Added `playbackSpeed` and `aspectRatioMode` to Move entity
-
----
-
-## 🤝 Who Made This?
-
-A solo project for personal breakdance training. Built to never forget moves and progressions.
-
----
-
-**Build Status**: ✅ BUILD SUCCEEDED
+- iOS 17.0+
+- Xcode 15.0+
+- Swift 5.9+
