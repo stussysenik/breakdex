@@ -77,9 +77,9 @@ struct ComboDetailView: View {
                                         }
 
                                         Text(move.name ?? "Move")
-                                            .font(.caption)
+                                            .font(.ibmPlexMono(size: 12))
                                             .foregroundColor(.textPrimary)
-                                            .frame(width: 60)
+                                            .frame(width: 70)
                                             .lineLimit(1)
                                             .truncationMode(.tail)
                                     }
@@ -117,7 +117,7 @@ struct ComboDetailView: View {
 }
 
 #Preview {
-    let context = PersistenceController.shared.container.viewContext
+    let context = PersistenceController.preview.container.viewContext
     let combo = Combo(context: context)
     combo.id = UUID()
     combo.name = "Sample Combo"

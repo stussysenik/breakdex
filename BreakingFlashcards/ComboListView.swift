@@ -33,6 +33,11 @@ struct ComboListView: View {
         animation: .default)
     private var combos: FetchedResults<Combo>
 
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ComboMove.sequenceIndex, ascending: true)],
+        animation: .default)
+    private var comboMoves: FetchedResults<ComboMove>
+
     @State private var searchText = ""
 
     var searchResults: [Combo] {
@@ -43,42 +48,21 @@ struct ComboListView: View {
         }
     }
 
-    private func getMoveCount(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
-        fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
+    private var statsByComboID: [NSManagedObjectID: ComboStats] {
+        ComboStatsBuilder.build(from: comboMoves)
+    }
 
-        do {
-            let count = try viewContext.count(for: fetchRequest)
-            return "\(count) moves"
-        } catch {
-            return "0 moves"
-        }
+    private func stats(for combo: Combo) -> ComboStats {
+        statsByComboID[combo.objectID] ?? ComboStats()
+    }
+
+    private func getMoveCount(for combo: Combo) -> String {
+        let count = stats(for: combo).count
+        return "\(count) moves"
     }
 
     private func getComboLearningState(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
-        fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
-
-        do {
-            let comboMoves = try viewContext.fetch(fetchRequest)
-            let moveStates = comboMoves.compactMap { $0.move?.learningState }
-
-            if moveStates.isEmpty {
-                return "NEW"
-            }
-
-            if moveStates.allSatisfy({ $0 == "MASTERY" }) {
-                return "MASTERY"
-            } else if moveStates.contains(where: { $0 == "NEW" }) {
-                return "NEW"
-            } else if moveStates.contains(where: { $0 == "LEARNING" }) {
-                return "LEARNING"
-            } else {
-                return "NEW"
-            }
-        } catch {
-            return "NEW"
-        }
+        stats(for: combo).learningState.displayText
     }
 
     private func deleteCombo(_ combo: Combo) {
@@ -108,7 +92,7 @@ struct ComboListView: View {
                                         .foregroundColor(.textPrimary)
 
                                     Text(getMoveCount(for: combo))
-                                        .font(.ibmPlexMono(size: 12))
+                                        .font(.ibmPlexMono(size: 13))
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
@@ -155,10 +139,11 @@ struct ComboListView: View {
                 }
             }
         }
+        .appMotion(combos.count)
     }
 }
 
 #Preview {
     ComboListView()
-        .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

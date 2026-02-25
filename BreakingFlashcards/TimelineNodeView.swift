@@ -20,12 +20,7 @@ struct TimelineNodeView: View {
         if isActive {
             return .accent
         } else if let move = move {
-            switch move.learningState {
-            case "NEW": return .stateNew
-            case "LEARNING": return .stateLearning
-            case "MASTERY": return .stateMastery
-            default: return .gray
-            }
+            return LearningState.resolve(from: move.learningState).color
         } else {
             return .gray
         }

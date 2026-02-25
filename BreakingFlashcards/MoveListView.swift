@@ -71,7 +71,7 @@ struct MoveListView: View {
                                         .multilineTextAlignment(.leading)
 
                                     Text("Added: \(move.createdAt ?? Date(), format: .dateTime.month().day().year().hour().minute())")
-                                        .font(.ibmPlexMono(size: 11))
+                                        .font(.ibmPlexMono(size: 12))
                                         .foregroundColor(.secondary)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -101,10 +101,11 @@ struct MoveListView: View {
             .navigationTitle("Move Arsenal")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .appMotion(moves.count)
     }
 }
 
 #Preview {
     MoveListView()
-        .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

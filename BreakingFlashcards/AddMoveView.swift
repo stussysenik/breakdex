@@ -30,114 +30,133 @@ class MediaManager: ObservableObject {
     }
 
     func loadVideo(from url: URL) {
-        print("DEBUG: MediaManager.loadVideo called with URL: \(url)")
-        print("DEBUG: File exists: \(FileManager.default.fileExists(atPath: url.path))")
-        
-        // IMMEDIATELY update to loading state - no delay!
-        self.status = .loading(progress: 0.1, status: "Preparing video...", eta: nil)
-        print("DEBUG: MediaManager status IMMEDIATELY set to loading")
-        
+        // Gate: file must exist
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            self.status = .failed(error: NSError(domain: "MediaManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Video file not found"]))
+            return
+        }
+
+        let assetKey = url.absoluteString as NSString
+
+        // Always show the pipeline — every stage visible
+        self.status = .loading(progress: 0.0, status: "Creating asset...", eta: nil)
         loadingStartTime = Date()
-        
-        // Start progress simulation timer
-        startProgressTimer()
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Verify file exists first
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                print("DEBUG: File does not exist at path: \(url.path)")
-                DispatchQueue.main.async {
-                    self.stopProgressTimer()
-                    self.status = .failed(error: NSError(domain: "MediaManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Video file not found at: \(url.path)"]))
-                }
-                return
-            }
-            
-            let asset = AVAsset(url: url)
-            let assetKey = url.absoluteString as NSString
+        let asset = AVURLAsset(url: url)
 
-            // Check cache first
-            if let cachedAsset = self.assetCache.object(forKey: assetKey) {
-                DispatchQueue.main.async {
-                    self.stopProgressTimer()
-                    self.status = .loaded(asset: cachedAsset, url: url)
-                }
-                return
+        // Cache hit — still show pipeline, just faster
+        if let cachedAsset = self.assetCache.object(forKey: assetKey) {
+            self.status = .loading(progress: 0.3, status: "Loading from cache...", eta: nil)
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                self.status = .loading(progress: 0.7, status: "Restoring asset...", eta: nil)
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                self.status = .loading(progress: 1.0, status: "Ready", eta: nil)
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                self.status = .loaded(asset: cachedAsset, url: url)
             }
-            
-            // Update progress for asset initialization
-            DispatchQueue.main.async {
-                self.status = .loading(progress: 0.3, status: "Loading video properties...", eta: self.calculateETA(currentProgress: 0.3))
-            }
-            
-            // Load asset properties asynchronously
-            asset.loadValuesAsynchronously(forKeys: ["playable", "duration", "tracks"]) {
-                var error: NSError?
-                let playableStatus = asset.statusOfValue(forKey: "playable", error: &error)
-                let durationStatus = asset.statusOfValue(forKey: "duration", error: &error)
-                let tracksStatus = asset.statusOfValue(forKey: "tracks", error: &error)
-                
-                DispatchQueue.main.async {
-                    if playableStatus == .loaded && durationStatus == .loaded && tracksStatus == .loaded {
-                        self.status = .loading(progress: 0.8, status: "Finalizing...", eta: self.calculateETA(currentProgress: 0.8))
-                        
-                        // Cache the asset
-                        self.assetCache.setObject(asset, forKey: assetKey)
-                        
-                        // Complete loading
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            self.stopProgressTimer()
-                            print("DEBUG: 🎬 MediaManager setting status to .loaded with URL: \(url)")
-                            self.status = .loaded(asset: asset, url: url)
-                            print("DEBUG: 🎬 MediaManager status set to: \(self.status)")
-                        }
-                    } else {
-                        self.stopProgressTimer()
-                        let failureError = error ?? NSError(domain: "MediaManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load video properties"])
-                        self.status = .failed(error: failureError)
+            return
+        }
+
+        // Full pipeline with 90s timeout for edge/cellular resilience
+        Task {
+            do {
+                try await withThrowingTaskGroup(of: Void.self) { group in
+                    group.addTask {
+                        try await self.loadPipeline(asset: asset, url: url, cacheKey: assetKey)
                     }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: 90_000_000_000)
+                        throw NSError(domain: "MediaManager", code: -10,
+                            userInfo: [NSLocalizedDescriptionKey: "Video took too long to load. The file may be corrupt or too large to process."])
+                    }
+                    // First to finish wins — if timeout fires first, pipeline is cancelled
+                    try await group.next()
+                    group.cancelAll()
+                }
+            } catch is CancellationError {
+                // Task was cancelled (e.g. view disappeared) — don't show an error
+            } catch {
+                await MainActor.run {
+                    self.status = .failed(error: error)
                 }
             }
         }
     }
     
-    private func startProgressTimer() {
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            if case .loading(let currentProgress, let status, _) = self.status {
-                // More aggressive progress for better UX
-                let increment = Double.random(in: 0.01...0.03) // Faster progress
-                let newProgress = min(currentProgress + increment, 0.90) // Cap at 90% until actual completion
-                
-                DispatchQueue.main.async {
-                    let eta = self.calculateETA(currentProgress: newProgress)
-                    self.status = .loading(progress: newProgress, status: status, eta: eta)
-                    print("DEBUG: ⏱️ Progress updated: \(Int(newProgress * 100))%, ETA: \(eta ?? "nil")")
-                }
+    private func loadPipeline(asset: AVURLAsset, url: URL, cacheKey: NSString) async throws {
+        // Stage 1: Load playable
+        try Task.checkCancellation()
+        await MainActor.run {
+            self.status = .loading(progress: 0.15, status: "Reading file header...", eta: nil)
+        }
+        let isPlayable = try await asset.load(.isPlayable)
+        guard isPlayable else {
+            await MainActor.run {
+                self.status = .failed(error: NSError(domain: "MediaManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "File is not playable"]))
             }
+            return
+        }
+
+        // Stage 2: Load duration
+        try Task.checkCancellation()
+        await MainActor.run {
+            self.status = .loading(progress: 0.35, status: "Loading duration...", eta: nil)
+        }
+        let duration = try await asset.load(.duration)
+
+        // Stage 3: Load tracks
+        try Task.checkCancellation()
+        await MainActor.run {
+            self.status = .loading(progress: 0.55, status: "Loading video tracks...", eta: nil)
+        }
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        guard !tracks.isEmpty else {
+            await MainActor.run {
+                self.status = .failed(error: NSError(domain: "MediaManager", code: -3, userInfo: [NSLocalizedDescriptionKey: "No video tracks found"]))
+            }
+            return
+        }
+
+        // Stage 4: Load track properties (natural size, frame rate)
+        try Task.checkCancellation()
+        await MainActor.run {
+            self.status = .loading(progress: 0.70, status: "Reading track metadata...", eta: nil)
+        }
+        let naturalSize = try await tracks[0].load(.naturalSize)
+        let _ = try await tracks[0].load(.nominalFrameRate)
+
+        // Stage 5: Load audio tracks
+        try Task.checkCancellation()
+        await MainActor.run {
+            self.status = .loading(progress: 0.85, status: "Loading audio tracks...", eta: nil)
+        }
+        let _ = try? await asset.loadTracks(withMediaType: .audio)
+
+        // Stage 6: Cache and finish
+        try Task.checkCancellation()
+        await MainActor.run {
+            self.status = .loading(progress: 0.95, status: "Caching asset...", eta: nil)
+        }
+        self.assetCache.setObject(asset, forKey: cacheKey)
+
+        try Task.checkCancellation()
+        await MainActor.run {
+            let durationText = String(format: "%.1fs", duration.seconds)
+            self.status = .loading(progress: 1.0, status: "Ready — \(durationText) • \(Int(naturalSize.width))x\(Int(naturalSize.height))", eta: nil)
+        }
+
+        // Brief hold at 100% so the user sees the final stats — use try (not try?) so cancellation propagates
+        try await Task.sleep(nanoseconds: 300_000_000)
+
+        await MainActor.run {
+            self.status = .loaded(asset: asset, url: url)
         }
     }
-    
+
     private func stopProgressTimer() {
         progressTimer?.invalidate()
         progressTimer = nil
-    }
-    
-    private func calculateETA(currentProgress: Double) -> String? {
-        guard let startTime = loadingStartTime, currentProgress > 0.1 else { return nil }
-        
-        let elapsed = Date().timeIntervalSince(startTime)
-        let estimatedTotal = elapsed / currentProgress
-        let remaining = estimatedTotal - elapsed
-        
-        if remaining < 1 {
-            return "< 1s"
-        } else if remaining < 60 {
-            return "\(Int(remaining))s"
-        } else {
-            let minutes = Int(remaining) / 60
-            let seconds = Int(remaining) % 60
-            return "\(minutes)m \(seconds)s"
-        }
     }
 }
 
@@ -247,51 +266,27 @@ struct AddMoveView: View {
     }
 
     var body: some View {
-        VStack {
-            // Add accessibility identifiers for testing
-            switch currentState {
+        ZStack {
+            Color.backgroundPrimary.ignoresSafeArea()
+            
+            VStack {
+                switch currentState {
             case .ready:
                 VStack(spacing: 12) {
                     Button("Select a Clip") {
                         isPickerPresented = true
                     }
+                    .font(.ibmPlexMono(size: 20, weight: .semibold))
+                    .textCase(.uppercase)
                     .buttonStyle(.borderedProminent)
                     .accessibilityIdentifier("SelectClipButton")
-                    
+
                     Text("Supports .mp4, .mov files")
-                        .font(.ibmPlexMono(size: 12))
+                        .font(.ibmPlexMono(size: 20))
                         .foregroundColor(.secondary)
                         .accessibilityIdentifier("SupportText")
-                    
-                    // Debug buttons for testing
-                    // #if DEBUG
-                    // VStack(spacing: 8) {
-                    //     Button("🔍 Test Loading State") {
-                    //         mediaManager.status = .loading(progress: 0.5, status: "Testing...", eta: "2s")
-                    //     }
-                    //     .buttonStyle(.bordered)
-                    //     .font(.caption)
-                        
-                    //     Button("🔍 Test Preview State") {
-                    //         // Create a dummy URL for testing
-                    //         let testURL = URL(fileURLWithPath: "/tmp/test.mp4")
-                    //         let testAsset = AVAsset(url: testURL)
-                    //         mediaManager.status = .loaded(asset: testAsset, url: testURL)
-                    //     }
-                    //     .buttonStyle(.bordered)
-                    //     .font(.caption)
-                    // }
-                    // .accessibilityIdentifier("DebugButtons")
-                    // #endif
-                    
-                    // Debug info for testing
-                    // #if DEBUG
-                    // Text("State: Ready | Manager: \(mediaManagerStatusText)")
-                    //     .font(.caption)
-                    //     .foregroundColor(.gray)
-                    //     .accessibilityIdentifier("DebugStateText")
-                    // #endif
                 }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 .accessibilityIdentifier("ReadyState")
 
             case .downloadingFromiCloud(let status, let startTime, let estimatedSize, let progress):
@@ -319,7 +314,7 @@ struct AddMoveView: View {
 
                                 VStack {
                                     Text("\(Int(progress * 100))%")
-                                        .font(.ibmPlexMono(size: 16, weight: .bold))
+                                        .font(.ibmPlexMono(size: 20, weight: .bold))
                                         .foregroundColor(.textPrimary)
                                 }
                             }
@@ -333,16 +328,16 @@ struct AddMoveView: View {
                     
                     VStack(spacing: 8) {
                         Text("Downloading from iCloud")
-                            .font(.ibmPlexMono(size: 18, weight: .bold))
+                            .font(.ibmPlexMono(size: 23, weight: .bold))
                             .foregroundColor(.textPrimary)
                         
                         Text(status)
-                            .font(.ibmPlexMono(size: 14))
+                            .font(.ibmPlexMono(size: 18))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
                         Text(getETAText(startTime: startTime, estimatedSize: estimatedSize))
-                            .font(.ibmPlexMono(size: 12))
+                            .font(.ibmPlexMono(size: 20))
                             .foregroundColor(.accent)
                             .padding(.top, 4)
                         
@@ -356,6 +351,8 @@ struct AddMoveView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
                 .accessibilityIdentifier("iCloudDownloadState")
                 .onAppear {
                     // Start timer to update ETA and progress every 0.5 seconds
@@ -377,66 +374,45 @@ struct AddMoveView: View {
                 VStack(spacing: 20) {
                     ZStack {
                         Circle()
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 8)
-                            .frame(width: 80, height: 80)
+                            .stroke(Color.gray.opacity(0.2), lineWidth: 6)
+                            .frame(width: 64, height: 64)
 
                         Circle()
                             .trim(from: 0, to: progress)
-                            .stroke(Color.accent, lineWidth: 8)
-                            .frame(width: 80, height: 80)
+                            .stroke(Color.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                            .frame(width: 64, height: 64)
                             .rotationEffect(.degrees(-90))
-                            .animation(.easeInOut(duration: 0.3), value: progress)
+                            .animation(AppMotion.springQuick, value: progress)
 
-                        VStack {
-                            Text("\(Int(progress * 100))%")
-                                .font(.ibmPlexMono(size: 16, weight: .bold))
-                                .foregroundColor(.textPrimary)
-                                .accessibilityIdentifier("ProgressPercentage")
-                        }
+                        Text("\(Int(progress * 100))%")
+                            .font(.ibmPlexMono(size: 23, weight: .bold))
+                            .foregroundColor(.textPrimary)
+                            .accessibilityIdentifier("ProgressPercentage")
                     }
 
-                    VStack(spacing: 8) {
-                        Text("Loading Video")
-                            .font(.ibmPlexMono(size: 18, weight: .bold))
-                            .foregroundColor(.textPrimary)
-                            .accessibilityIdentifier("LoadingTitle")
-
+                    VStack(spacing: 6) {
                         Text(status)
-                            .font(.ibmPlexMono(size: 14))
+                            .font(.ibmPlexMono(size: 18))
                             .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
                             .accessibilityIdentifier("LoadingStatus")
-                        
+
                         if let eta = eta {
-                            Text("ETA: \(eta)")
-                                .font(.ibmPlexMono(size: 12))
+                            Text(eta)
+                                .font(.ibmPlexMono(size: 15))
                                 .foregroundColor(.accent)
-                                .padding(.top, 4)
                                 .accessibilityIdentifier("LoadingETA")
-                        } else {
-                            // Always show some ETA, even if estimated
-                            Text("ETA: Calculating...")
-                                .font(.ibmPlexMono(size: 12))
-                                .foregroundColor(.accent)
-                                .padding(.top, 4)
                         }
-                        
-                        // Debug info for testing
-                        #if DEBUG
-                        Text("State: Loading (\(Int(progress * 100))%)")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .accessibilityIdentifier("DebugStateText")
-                        #endif
                     }
                 }
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
                 .accessibilityIdentifier("LoadingState")
 
             case .previewing(let asset, let url):
                 VStack(spacing: 16) {
                     Text("Selected File: \(url.lastPathComponent)")
-                        .font(.ibmPlexMono(size: 14, weight: .bold))
+                        .font(.ibmPlexMono(size: 23, weight: .bold))
                         .foregroundColor(.textPrimary)
                     
                     CustomVideoPlayerView(player: AVPlayer(playerItem: AVPlayerItem(asset: asset)))
@@ -444,55 +420,34 @@ struct AddMoveView: View {
                         .frame(height: 300)
 
                     HStack(spacing: 16) {
-                        Button("Change Video") { 
-                            isPickerPresented = true 
+                        Button("Change Video") {
+                            isPickerPresented = true
                         }
+                        .font(.ibmPlexMono(size: 18))
                         .buttonStyle(.bordered)
-                        
-                        Button("Trim") { 
+
+                        Button("Edit Video") {
                             currentState = .trimming(asset: asset, url: url)
                         }
+                        .font(.ibmPlexMono(size: 18))
                         .buttonStyle(.bordered)
-                        
+
                         Button("Use Original") {
                             currentState = .naming(finalURL: url, name: "", originalAsset: asset, originalURL: url)
                         }
+                        .font(.ibmPlexMono(size: 20, weight: .semibold))
+                        .textCase(.uppercase)
                         .buttonStyle(.borderedProminent)
                     }
                 }
-                
+                .transition(.opacity.combined(with: .scale(scale: 0.97)))
+
             case .trimming(let asset, let url):
-                VStack(spacing: 16) {
-                    HStack {
-                        Button("← Back") {
-                            currentState = .previewing(asset: asset, url: url)
-                        }
-                        .buttonStyle(.bordered)
-                        
-                        Spacer()
-                        
-                        Text("Trim Video")
-                            .font(.ibmPlexMono(size: 18, weight: .bold))
-                            .foregroundColor(.textPrimary)
-                        
-                        Spacer()
-                        
-                        // Placeholder for symmetry
-                        Button("← Back") {
-                            currentState = .previewing(asset: asset, url: url)
-                        }
-                        .buttonStyle(.bordered)
-                        .opacity(0)
-                    }
-                    .padding(.horizontal)
-                    
-                    VideoTrimmerView(asset: asset) { trimmedURL in
-                        if let finalURL = trimmedURL {
-                            currentState = .naming(finalURL: finalURL, name: "", originalAsset: asset, originalURL: url)
-                        } else {
-                            // If trimming is cancelled, go back to preview
-                            currentState = .previewing(asset: asset, url: url)
-                        }
+                VideoEditorView(asset: asset) { editedURL in
+                    if let finalURL = editedURL {
+                        currentState = .naming(finalURL: finalURL, name: "", originalAsset: asset, originalURL: url)
+                    } else {
+                        currentState = .previewing(asset: asset, url: url)
                     }
                 }
 
@@ -503,15 +458,16 @@ struct AddMoveView: View {
                             if let asset = originalAsset, let url = originalURL {
                                 currentState = .previewing(asset: asset, url: url)
                             } else {
-                                currentState = .ready
+                                isPickerPresented = true
                             }
                         }
+                        .font(.ibmPlexMono(size: 18))
                         .buttonStyle(.bordered)
                         
                         Spacer()
                         
                         Text("Name Your Move")
-                            .font(.ibmPlexMono(size: 18, weight: .bold))
+                            .font(.ibmPlexMono(size: 23, weight: .bold))
                             .foregroundColor(.textPrimary)
                         
                         Spacer()
@@ -522,6 +478,7 @@ struct AddMoveView: View {
                                 currentState = .trimming(asset: asset, url: url)
                             }
                         }
+                        .font(.ibmPlexMono(size: 18))
                         .buttonStyle(.bordered)
                         .disabled(originalAsset == nil)
                     }
@@ -536,11 +493,13 @@ struct AddMoveView: View {
                             .padding(12)
                             .background(Color.gray.opacity(0.2))
                             .cornerRadius(8)
-                            .font(.ibmPlexMono(size: 16))
+                            .font(.ibmPlexMono(size: 20))
 
-                        Button("Save Move") { 
-                            saveMove(videoURL: finalURL, name: moveName) 
+                        Button("Save Move") {
+                            saveMove(videoURL: finalURL, name: moveName)
                         }
+                        .font(.ibmPlexMono(size: 20, weight: .semibold))
+                        .textCase(.uppercase)
                         .buttonStyle(.borderedProminent)
                         .disabled(moveName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
@@ -555,14 +514,15 @@ struct AddMoveView: View {
                     
                     VStack(spacing: 8) {
                         Text("Saving Move...")
-                            .font(.ibmPlexMono(size: 18, weight: .bold))
+                            .font(.ibmPlexMono(size: 23, weight: .bold))
                             .foregroundColor(.textPrimary)
                         
                         Text("Adding to your arsenal...")
-                            .font(.ibmPlexMono(size: 14))
+                            .font(.ibmPlexMono(size: 18))
                             .foregroundColor(.secondary)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             case .success(let message):
                 VStack(spacing: 20) {
@@ -570,12 +530,16 @@ struct AddMoveView: View {
                         .font(.system(size: 64))
                         .foregroundColor(.green)
                     Text(message)
-                        .font(.ibmPlexMono(size: 18, weight: .bold))
+                        .font(.ibmPlexMono(size: 23, weight: .bold))
                     Button("Add Another Move") {
                         currentState = .ready
                         moveName = ""
                     }
+                    .font(.ibmPlexMono(size: 20, weight: .semibold))
+                    .textCase(.uppercase)
+                    .buttonStyle(.borderedProminent)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             case .error(let message):
                 VStack(spacing: 20) {
@@ -585,11 +549,11 @@ struct AddMoveView: View {
                     
                     VStack(spacing: 8) {
                         Text("Something went wrong")
-                            .font(.ibmPlexMono(size: 18, weight: .bold))
+                            .font(.ibmPlexMono(size: 23, weight: .bold))
                             .foregroundColor(.textPrimary)
                         
                         Text(message)
-                            .font(.ibmPlexMono(size: 14))
+                            .font(.ibmPlexMono(size: 18))
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -600,41 +564,35 @@ struct AddMoveView: View {
                             moveName = ""
                             currentState = .ready
                         }
+                        .font(.ibmPlexMono(size: 20, weight: .semibold))
+                        .textCase(.uppercase)
                         .buttonStyle(.borderedProminent)
-                        
+
                         Button("Change Video") {
                             moveName = ""
+                            currentState = .ready
                             isPickerPresented = true
                         }
+                        .font(.ibmPlexMono(size: 18))
                         .buttonStyle(.bordered)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: currentState)
+        }
+        .animation(AppMotion.easeState, value: currentState)
         .onReceive(mediaManager.$status) { status in
-            print("DEBUG: 📺 MediaManager status changed to: \(status)")
-            print("DEBUG: 📺 Current local state: \(currentState)")
-            
             switch status {
             case .idle:
-                print("DEBUG: 📺 Received .idle - ignoring to prevent state conflicts")
-                // DO NOT change state on idle - let manual state management handle this
-                
-            case .loading(let progress, let status, let eta):
-                print("DEBUG: 📺 MediaManager loading - updating UI")
-                currentState = .loadingVideo(progress: progress, status: status, eta: eta)
-                
+                break // Don't reset — let manual state management handle this
+            case .loading(let progress, let statusText, let eta):
+                currentState = .loadingVideo(progress: progress, status: statusText, eta: eta)
             case .loaded(let asset, let url):
-                print("DEBUG: 📺 MediaManager loaded - going to preview")
                 currentState = .previewing(asset: asset, url: url)
-                
             case .failed(let error):
-                print("DEBUG: 📺 MediaManager failed - showing error")
                 currentState = .error(message: error.localizedDescription)
             }
-            
-            print("DEBUG: 📺 Final state: \(currentState)")
         }
         .sheet(isPresented: $isPickerPresented) {
             VideoPickerSheet(selectedURL: $selectedVideoURL, downloadProgress: $pickerDownloadProgress, downloadStatus: $pickerDownloadStatus, downloadStart: $pickerDownloadStart)
@@ -655,12 +613,8 @@ struct AddMoveView: View {
         }
         .onChange(of: selectedVideoURL) { newURL in
             guard let url = newURL else { return }
-            
-            print("DEBUG: ✅ Video selected via onChange. URL: \(url)")
             isPickerPresented = false
-            
-            // Start the loading process for local processing phase
-            currentState = .loadingVideo(progress: max(pickerDownloadProgress, 0.05), status: "Preparing video...", eta: "Calculating...")
+            // Let MediaManager drive state via .onReceive — no manual state set here
             mediaManager.loadVideo(from: url)
         }
     }
@@ -702,10 +656,11 @@ struct AddMoveView: View {
                         newMove.id = UUID()
                         newMove.name = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Untitled Move" : name.trimmingCharacters(in: .whitespacesAndNewlines)
                         newMove.createdAt = Date()
-                        newMove.learningState = "NEW"
+                        newMove.learningState = LearningState.newState.rawValue
                         
-                        // Store the file path instead of the full video data for better performance
-                        newMove.videoReference = finalVideoURL.path.data(using: .utf8)
+                        // Store relative path so it survives container UUID rotation
+                        let relativePath = "Moves/\(fileName)"
+                        newMove.videoReference = relativePath.data(using: .utf8)
                         
                         do {
                             try self.viewContext.save()

@@ -10,40 +10,27 @@ import SwiftUI
 struct StatePillView: View {
     let learningState: String?
 
-    private var stateColor: Color {
-        switch learningState {
-        case "NEW":
-            return .stateNew
-        case "LEARNING":
-            return .stateLearning
-        case "MASTERY":
-            return .stateMastery
-        default:
-            return .stateNew
-        }
-    }
-
-    private var stateText: String {
-        learningState ?? "NEW"
+    private var resolvedState: LearningState {
+        LearningState.resolve(from: learningState)
     }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Circle()
-                .fill(stateColor)
-                .frame(width: 8, height: 8)
+                .fill(resolvedState.color)
+                .frame(width: 9, height: 9)
                 .scaleEffect(1.0)
-                .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0).delay(0.1), value: stateColor)
-            Text(stateText)
-                .font(.ibmPlexMono(size: 10, weight: .bold))
+                .animation(.spring(response: 0.5, dampingFraction: 0.7, blendDuration: 0).delay(0.1), value: resolvedState)
+            Text(resolvedState.displayText)
+                .font(.ibmPlexMono(size: 12, weight: .bold))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
-        .background(stateColor.opacity(0.2))
-        .foregroundColor(stateColor)
+        .background(resolvedState.color.opacity(0.2))
+        .foregroundColor(resolvedState.color)
         .clipShape(Capsule())
         .scaleEffect(1.0)
-        .animation(.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0), value: stateColor)
+        .animation(.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0), value: resolvedState)
     }
 }
 

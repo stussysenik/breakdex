@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVKit
+import AVFoundation
 import CoreData
 
 struct CustomVideoPlayerView: View {
@@ -41,8 +42,9 @@ struct CustomVideoPlayerView: View {
                         isPlaying = true
                     }
                     .onDisappear {
-                        // Pause when view disappears
+                        // Pause and release audio session when view disappears
                         player.pause()
+                        player.replaceCurrentItem(with: nil)
                         isPlaying = false
                     }
                     .onChange(of: isMuted) { _, newValue in
@@ -140,7 +142,15 @@ struct CustomVideoPlayerView: View {
             }
         }
         .onAppear {
+            configureAmbientAudio()
             setupPlayer()
+        }
+        .onChange(of: isFullscreen) { _, fullscreen in
+            if fullscreen {
+                activatePlaybackAudio()
+            } else {
+                configureAmbientAudio()
+            }
         }
         .onChange(of: move) {
             setupPlayer()
@@ -195,12 +205,26 @@ struct CustomVideoPlayerView: View {
 
     private func getVideoURL(for move: Move) -> URL? {
         guard let videoData = move.videoReference,
-              let path = String(data: videoData, encoding: .utf8) else {
+              let storedPath = String(data: videoData, encoding: .utf8) else {
             return nil
         }
 
-        let url = URL(fileURLWithPath: path)
-        return FileManager.default.fileExists(atPath: path) ? url : nil
+        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+
+        if storedPath.hasPrefix("/") {
+            // Legacy absolute path — try as-is first
+            if FileManager.default.fileExists(atPath: storedPath) {
+                return URL(fileURLWithPath: storedPath)
+            }
+            // Container UUID changed — extract filename, rebuild path
+            let filename = (storedPath as NSString).lastPathComponent
+            let rebuilt = documentsDir.appendingPathComponent("Moves/\(filename)")
+            return FileManager.default.fileExists(atPath: rebuilt.path) ? rebuilt : nil
+        }
+
+        // New relative path format
+        let resolved = documentsDir.appendingPathComponent(storedPath)
+        return FileManager.default.fileExists(atPath: resolved.path) ? resolved : nil
     }
 
     private func getFirstMoveFromCombo(_ combo: Combo) -> Move? {
@@ -216,11 +240,39 @@ struct CustomVideoPlayerView: View {
             return nil
         }
     }
+
+    // MARK: - Audio Session
+
+    /// Ambient: mixes with other audio — user's music keeps playing
+    private func configureAmbientAudio() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        try? session.setCategory(.ambient)
+        try? session.setActive(true)
+    }
+
+    /// Playback: takes exclusive audio — pauses user's music
+    private func activatePlaybackAudio() {
+        try? AVAudioSession.sharedInstance().setCategory(.playback)
+        try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
+    // MARK: - Playback Control API
+
+    /// Seek to exact frame with zero tolerance
+    func seekToFrame(at time: CMTime) {
+        internalPlayer?.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+
+    /// Set playback rate (supports negative for reverse)
+    func setRate(_ rate: Float) {
+        internalPlayer?.rate = rate
+    }
 }
 
 #Preview {
     // Preview with mock data
-    let context = PersistenceController.shared.container.viewContext
+    let context = PersistenceController.preview.container.viewContext
     let move = Move(context: context)
     move.id = UUID()
     move.name = "Sample Move"

@@ -21,56 +21,47 @@ struct ReviewView: View {
         animation: .default)
     private var combos: FetchedResults<Combo>
 
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ComboMove.sequenceIndex, ascending: true)],
+        animation: .default)
+    private var comboMoves: FetchedResults<ComboMove>
+
+    private var comboStatsByID: [NSManagedObjectID: ComboStats] {
+        ComboStatsBuilder.build(from: comboMoves)
+    }
+
+    private var comboStates: [LearningState] {
+        combos.map { comboStatsByID[$0.objectID]?.learningState ?? .newState }
+    }
+
     // Count moves by learning state
     private var newMovesCount: Int {
-        moves.filter { $0.learningState == "NEW" }.count
+        moves.filter { LearningState.resolve(from: $0.learningState) == .newState }.count
     }
 
     private var learningMovesCount: Int {
-        moves.filter { $0.learningState == "LEARNING" }.count
+        moves.filter { LearningState.resolve(from: $0.learningState) == .learning }.count
     }
 
     private var masteryMovesCount: Int {
-        moves.filter { $0.learningState == "MASTERY" }.count
+        moves.filter { LearningState.resolve(from: $0.learningState) == .mastery }.count
     }
 
     // Count combos by learning state
     private var newCombosCount: Int {
-        combos.filter { getComboLearningState(for: $0) == "NEW" }.count
+        comboStates.filter { $0 == .newState }.count
     }
 
     private var learningCombosCount: Int {
-        combos.filter { getComboLearningState(for: $0) == "LEARNING" }.count
+        comboStates.filter { $0 == .learning }.count
     }
 
     private var masteryCombosCount: Int {
-        combos.filter { getComboLearningState(for: $0) == "MASTERY" }.count
+        comboStates.filter { $0 == .mastery }.count
     }
 
-    private func getComboLearningState(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
-        fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
-
-        do {
-            let comboMoves = try viewContext.fetch(fetchRequest)
-            let moveStates = comboMoves.compactMap { $0.move?.learningState }
-
-            if moveStates.isEmpty {
-                return "NEW"
-            }
-
-            if moveStates.allSatisfy({ $0 == "MASTERY" }) {
-                return "MASTERY"
-            } else if moveStates.contains(where: { $0 == "NEW" }) {
-                return "NEW"
-            } else if moveStates.contains(where: { $0 == "LEARNING" }) {
-                return "LEARNING"
-            } else {
-                return "NEW"
-            }
-        } catch {
-            return "NEW"
-        }
+    private func getComboLearningState(for combo: Combo) -> LearningState {
+        comboStatsByID[combo.objectID]?.learningState ?? .newState
     }
 
     var body: some View {
@@ -191,5 +182,6 @@ struct ReviewView: View {
             .navigationTitle("REVIEW")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .appMotion(newMovesCount + newCombosCount + learningMovesCount + learningCombosCount + masteryMovesCount + masteryCombosCount)
     }
 }

@@ -21,23 +21,16 @@ struct AvailableMoveRowView: View {
 
     // This helper computes the correct color based on the move's state.
     private var learningStateColor: Color {
-        switch move.learningState {
-        case "LEARNING":
-            return .stateLearning
-        case "MASTERY":
-            return .stateMastery
-        default: // Includes "NEW"
-            return .stateNew
-        }
+        LearningState.resolve(from: move.learningState).color
     }
 }
 
 #Preview {
     // Create a mock Move for preview
-    let mockMove = Move(context: PersistenceController.shared.container.viewContext)
+    let mockMove = Move(context: PersistenceController.preview.container.viewContext)
     mockMove.name = "Sample Move"
     mockMove.learningState = "NEW"
 
     return AvailableMoveRowView(move: mockMove)
-        .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

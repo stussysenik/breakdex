@@ -36,6 +36,7 @@ struct FlashcardReviewView: View {
     // Fetch moves matching the specified learning state.
     @FetchRequest private var moves: FetchedResults<Move>
     @FetchRequest private var combos: FetchedResults<Combo>
+    @FetchRequest private var comboMoves: FetchedResults<ComboMove>
 
     @Environment(\.managedObjectContext) private var viewContext
     @State private var currentIndex = 0
@@ -54,36 +55,27 @@ struct FlashcardReviewView: View {
             sortDescriptors: [NSSortDescriptor(keyPath: \Combo.name, ascending: true)],
             predicate: NSPredicate(value: true)
         )
+
+        self._comboMoves = FetchRequest<ComboMove>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \ComboMove.sequenceIndex, ascending: true)],
+            predicate: NSPredicate(value: true)
+        )
     }
 
-    private func getComboLearningState(for combo: Combo) -> String {
-        let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
-        fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
+    private var resolvedLearningState: LearningState {
+        LearningState.resolve(from: learningState)
+    }
 
-        do {
-            let comboMoves = try viewContext.fetch(fetchRequest)
-            let moveStates = comboMoves.compactMap { $0.move?.learningState }
+    private var comboStatsByID: [NSManagedObjectID: ComboStats] {
+        ComboStatsBuilder.build(from: comboMoves)
+    }
 
-            if moveStates.isEmpty {
-                return "NEW"
-            }
-
-            if moveStates.allSatisfy({ $0 == "MASTERY" }) {
-                return "MASTERY"
-            } else if moveStates.contains(where: { $0 == "NEW" }) {
-                return "NEW"
-            } else if moveStates.contains(where: { $0 == "LEARNING" }) {
-                return "LEARNING"
-            } else {
-                return "NEW"
-            }
-        } catch {
-            return "NEW"
-        }
+    private func getComboLearningState(for combo: Combo) -> LearningState {
+        comboStatsByID[combo.objectID]?.learningState ?? .newState
     }
 
     private var filteredCombos: [Combo] {
-        combos.filter { getComboLearningState(for: $0) == learningState }
+        combos.filter { getComboLearningState(for: $0) == resolvedLearningState }
     }
 
     var body: some View {
@@ -128,7 +120,7 @@ struct FlashcardReviewView: View {
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: currentIndex)
+        .appMotion(currentIndex)
     }
     
     private func moveToNext() {
@@ -173,7 +165,7 @@ struct MoveReviewView: View {
                 .padding(.horizontal, 20)
                 
                 Text(move.createdAt ?? Date(), style: .date)
-                    .font(.ibmPlexMono(size: 12))
+                    .font(.ibmPlexMono(size: 13))
                     .foregroundColor(.secondary)
             }
             .padding(.top, 8)
@@ -220,7 +212,7 @@ struct ComboReviewView: View {
                     .lineLimit(2)
                 
                 Text("\(comboMoves.count) moves")
-                    .font(.ibmPlexMono(size: 12))
+                    .font(.ibmPlexMono(size: 13))
                     .foregroundColor(.secondary)
             }
             .padding(.top, 8)
@@ -260,9 +252,9 @@ struct ComboReviewView: View {
                                     }
 
                                     Text(move.name ?? "Move")
-                                        .font(.ibmPlexMono(size: 10))
+                                        .font(.ibmPlexMono(size: 12))
                                         .foregroundColor(.textPrimary)
-                                        .frame(width: 50)
+                                        .frame(width: 60)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                 }
@@ -497,5 +489,5 @@ struct ReviewButtons: View {
 
 #Preview {
     FlashcardReviewView(learningState: "NEW", reviewType: .moves)
-        .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

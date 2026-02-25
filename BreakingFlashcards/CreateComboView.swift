@@ -62,6 +62,7 @@ struct CreateComboView: View {
             .padding(.top, 16)
             .padding(.bottom, 24)
         }
+        .appMotion(comboMoves.count)
         .sheet(isPresented: $isMovePickerPresented) {
             MovePickerSheet(allMoves: allMoves, selectedMoves: $comboMoves)
         }
@@ -144,5 +145,5 @@ struct CreateComboView: View {
 
 #Preview {
     CreateComboView()
-        .environment(\.managedObjectContext, PersistenceController.shared.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

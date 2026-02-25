@@ -237,7 +237,7 @@ struct VideoTrimmerView: View {
     }
 
     private func export() {
-        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPreset1920x1080) else {
             exportError = "Could not create export session"
             return
         }

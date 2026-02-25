@@ -49,6 +49,7 @@ struct ComboTimelineView: View {
                 }
             }
         }
+        .appMotion(activeIndex ?? -1)
     }
 }
 
