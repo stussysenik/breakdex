@@ -19,65 +19,48 @@ struct CreateComboView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Add Move button at top
-            Button(action: { isMovePickerPresented = true }) {
-                HStack(spacing: Spacing.sm) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
-                    Text("ADD MOVE TO COMBO")
-                        .font(.ibmPlexMono(size: 14, weight: .bold))
-                }
-                .foregroundColor(.accent)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(Color.accent.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+            // Top Section: Add Move Button
+            Button("+ Add Move to Combo") {
+                isMovePickerPresented = true
             }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.top, Spacing.md)
+            .font(.ibmPlexMono(size: 16, weight: .bold))
+            .padding(.vertical, 16)
+            .padding(.horizontal, 20)
 
-            // Video Player or Empty State
+            // Middle Section: Video Player or Empty State
             if let activeMove = activeMove {
                 CustomVideoPlayerView(move: activeMove)
-                    .aspectRatio(16/9, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.top, Spacing.md)
+                    .frame(height: 300)
             } else {
                 ContentUnavailableView("Select a move to see a preview", systemImage: "video.slash")
-                    .frame(height: 220)
-                    .padding(.top, Spacing.md)
+                    .frame(height: 300)
             }
 
-            // Timeline Group
-            VStack(spacing: Spacing.md) {
-                // Section label
-                Text("SEQUENCE")
-                    .font(.caption)
-                    .tracking(2)
-                    .foregroundColor(.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Spacing.lg)
+            // Bottom Section: Timeline Group (moved closer to video)
+            VStack(spacing: 16) {
+                Text("Your Combo")
+                    .font(.ibmPlexMono(size: 18, weight: .bold))
+                    .foregroundColor(.textPrimary)
 
                 ComboTimelineView(moves: $comboMoves, activeIndex: $activeNodeIndex)
                     .frame(height: 120)
 
-                // Save Button — full-width styled
-                Button(action: { isNamingAlertPresented = true }) {
-                    Text("SAVE COMBO")
-                        .font(.ibmPlexMono(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(comboMoves.isEmpty ? Color.neutralFill : Color.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+                // Final Action: Save Button - moved closer to timeline
+                Button("Save Combo") {
+                    isNamingAlertPresented = true
                 }
+                .font(.ibmPlexMono(size: 16, weight: .bold))
+                .buttonStyle(.borderedProminent)
+                .tint(.accent)
+                .controlSize(.large)
                 .disabled(comboMoves.isEmpty)
-                .padding(.horizontal, Spacing.lg)
-
-                Spacer(minLength: Spacing.lg)
+                .padding(.horizontal, 40)
+                .padding(.top, 20)
+                
+                Spacer(minLength: 20)
             }
-            .padding(.top, Spacing.md)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
         }
         .appMotion(comboMoves.count)
         .sheet(isPresented: $isMovePickerPresented) {
@@ -115,6 +98,7 @@ struct CreateComboView: View {
     }
 
     private func videoURL(for move: Move) -> URL {
+        // This assumes videoReference stores a string path. Adapt if it stores raw bookmark data.
         let path = String(data: move.videoReference ?? Data(), encoding: .utf8) ?? ""
         return URL(filePath: path)
     }
@@ -134,10 +118,15 @@ struct CreateComboView: View {
 
         do {
             try viewContext.save()
+            // Show success message
             successMessage = "Combo '\(name)' created successfully!"
             showSuccessMessage = true
+            
+            // Reset the combo after saving
             comboMoves.removeAll()
             activeNodeIndex = nil
+            
+            // Auto-hide success message after 3 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 showSuccessMessage = false
             }
@@ -145,6 +134,8 @@ struct CreateComboView: View {
             print("Error saving combo: \(error)")
             errorMessage = "Failed to save combo. Please try again."
             showErrorMessage = true
+            
+            // Auto-hide error message after 3 seconds
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 showErrorMessage = false
             }

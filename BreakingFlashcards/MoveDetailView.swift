@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MoveDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    // This view receives a single 'Move' object to display.
     let move: Move
 
     @State private var isEditingName = false
@@ -11,28 +12,29 @@ struct MoveDetailView: View {
         ZStack {
             Color.backgroundPrimary.ignoresSafeArea()
 
-            VStack(spacing: Spacing.lg) {
+            VStack(spacing: 24) {
+                // Use the CustomVideoPlayerView with constrained sizing
                 CustomVideoPlayerView(move: move)
-                    .aspectRatio(16/9, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
-                    .padding(.horizontal, Spacing.lg)
+                    .frame(height: 300)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
 
-                VStack(alignment: .leading, spacing: Spacing.md) {
-                    HStack(alignment: .top, spacing: Spacing.md) {
-                        VStack(alignment: .leading, spacing: Spacing.sm) {
+                // Display the move's details below the video.
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
                             if isEditingName {
                                 TextField("Move Name", text: $editedName, onCommit: {
                                     saveName()
                                 })
-                                .font(.titleSmall)
+                                .font(.ibmPlexMono(size: 20, weight: .bold))
                                 .foregroundColor(.textPrimary)
                                 .textFieldStyle(.plain)
-                                .padding(Spacing.sm)
+                                .padding(8)
                                 .background(Color.white.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+                                .cornerRadius(8)
                             } else {
                                 Text(move.name ?? "Untitled Move")
-                                    .font(.titleSmall)
+                                    .font(.ibmPlexMono(size: 20, weight: .bold))
                                     .foregroundColor(.textPrimary)
                                     .lineLimit(3)
                                     .multilineTextAlignment(.leading)
@@ -41,22 +43,27 @@ struct MoveDetailView: View {
                                         isEditingName = true
                                     }
                             }
-
-                            Text("Added: \(move.createdAt ?? Date(), format: .dateTime.month().day().year())")
-                                .font(.caption)
-                                .foregroundColor(.textSecondary)
+                            
+                            Text("ID: \(move.id?.uuidString ?? "Unknown")")
+                                .font(.ibmPlexMono(size: 11))
+                                .foregroundColor(.secondary)
+                                .textSelection(.enabled)
+                            
+                            Text("Added: \(move.createdAt ?? Date(), format: .dateTime.month().day().year().hour().minute())")
+                                .font(.ibmPlexMono(size: 13))
+                                .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-
+                        
                         StatePillView(learningState: move.learningState)
                             .fixedSize()
                     }
-
+                    
                     Spacer()
                 }
-                .padding(.horizontal, Spacing.lg)
+                .padding(.horizontal, 20)
             }
-            .padding(.top, Spacing.lg)
+            .padding(.top, 20)
         }
         .navigationTitle(move.name ?? "Move Details")
         .navigationBarTitleDisplayMode(.inline)
@@ -78,11 +85,13 @@ struct MoveDetailView: View {
 }
 
 #Preview {
+    // Create a mock Move for preview
     let mockMove = Move(context: PersistenceController.preview.container.viewContext)
     mockMove.id = UUID()
     mockMove.name = "Sample Move"
     mockMove.learningState = "NEW"
     mockMove.createdAt = Date()
+    // Note: videoReference would need actual video data for full preview
 
     return MoveDetailView(move: mockMove)
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)

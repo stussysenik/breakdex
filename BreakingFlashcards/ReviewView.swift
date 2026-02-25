@@ -34,6 +34,7 @@ struct ReviewView: View {
         combos.map { comboStatsByID[$0.objectID]?.learningState ?? .newState }
     }
 
+    // Count moves by learning state
     private var newMovesCount: Int {
         moves.filter { LearningState.resolve(from: $0.learningState) == .newState }.count
     }
@@ -46,6 +47,7 @@ struct ReviewView: View {
         moves.filter { LearningState.resolve(from: $0.learningState) == .mastery }.count
     }
 
+    // Count combos by learning state
     private var newCombosCount: Int {
         comboStates.filter { $0 == .newState }.count
     }
@@ -58,94 +60,128 @@ struct ReviewView: View {
         comboStates.filter { $0 == .mastery }.count
     }
 
+    private func getComboLearningState(for combo: Combo) -> LearningState {
+        comboStatsByID[combo.objectID]?.learningState ?? .newState
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: Spacing.xl) {
-                    // MOVES section
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        Text("MOVES")
-                            .font(.caption)
-                            .tracking(2)
-                            .foregroundColor(.textSecondary)
-                            .padding(.horizontal, Spacing.lg)
+            VStack(spacing: 24) {
+                Text("MOVES")
+                    .font(.ibmPlexMono(size: 18, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
 
-                        VStack(spacing: 0) {
-                            reviewRow(label: "New", color: .stateNew, count: newMovesCount,
-                                      destination: FlashcardReviewView(learningState: "NEW", reviewType: .moves))
-                            rowDivider()
-                            reviewRow(label: "Learning", color: .stateLearning, count: learningMovesCount,
-                                      destination: FlashcardReviewView(learningState: "LEARNING", reviewType: .moves))
-                            rowDivider()
-                            reviewRow(label: "Mastery", color: .stateMastery, count: masteryMovesCount,
-                                      destination: FlashcardReviewView(learningState: "MASTERY", reviewType: .moves))
-                        }
-                        .background(Color.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                        .elevation(Elevation.low)
-                        .padding(.horizontal, Spacing.lg)
+                // NEW moves row
+                NavigationLink(destination: FlashcardReviewView(learningState: "NEW", reviewType: .moves)) {
+                    HStack {
+                        Text("NEW")
+                            .font(.ibmPlexMono(size: 20))
+
+                        Spacer()
+
+                        Text("(\(newMovesCount))")
+                            .font(.ibmPlexMono(size: 20))
+                            .foregroundColor(.secondary)
                     }
-
-                    // COMBOS section
-                    VStack(alignment: .leading, spacing: Spacing.sm) {
-                        Text("COMBOS")
-                            .font(.caption)
-                            .tracking(2)
-                            .foregroundColor(.textSecondary)
-                            .padding(.horizontal, Spacing.lg)
-
-                        VStack(spacing: 0) {
-                            reviewRow(label: "New", color: .stateNew, count: newCombosCount,
-                                      destination: FlashcardReviewView(learningState: "NEW", reviewType: .combos))
-                            rowDivider()
-                            reviewRow(label: "Learning", color: .stateLearning, count: learningCombosCount,
-                                      destination: FlashcardReviewView(learningState: "LEARNING", reviewType: .combos))
-                            rowDivider()
-                            reviewRow(label: "Mastery", color: .stateMastery, count: masteryCombosCount,
-                                      destination: FlashcardReviewView(learningState: "MASTERY", reviewType: .combos))
-                        }
-                        .background(Color.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.md))
-                        .elevation(Elevation.low)
-                        .padding(.horizontal, Spacing.lg)
-                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
                 }
-                .padding(.vertical, Spacing.lg)
+
+                // LEARNING moves row
+                NavigationLink(destination: FlashcardReviewView(learningState: "LEARNING", reviewType: .moves)) {
+                    HStack {
+                        Text("LEARNING")
+                            .font(.ibmPlexMono(size: 20))
+
+                        Spacer()
+
+                        Text("(\(learningMovesCount))")
+                            .font(.ibmPlexMono(size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                }
+
+                // MASTERY moves row
+                NavigationLink(destination: FlashcardReviewView(learningState: "MASTERY", reviewType: .moves)) {
+                    HStack {
+                        Text("MASTERY")
+                            .font(.ibmPlexMono(size: 20))
+
+                        Spacer()
+
+                        Text("(\(masteryMovesCount))")
+                            .font(.ibmPlexMono(size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                }
+
+                Divider()
+                    .padding(.horizontal, 20)
+
+                Text("COMBOS")
+                    .font(.ibmPlexMono(size: 18, weight: .bold))
+                    .foregroundColor(.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+
+                // NEW combos row
+                NavigationLink(destination: FlashcardReviewView(learningState: "NEW", reviewType: .combos)) {
+                    HStack {
+                        Text("NEW")
+                            .font(.ibmPlexMono(size: 20))
+
+                        Spacer()
+
+                        Text("(\(newCombosCount))")
+                            .font(.ibmPlexMono(size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                }
+
+                // LEARNING combos row
+                NavigationLink(destination: FlashcardReviewView(learningState: "LEARNING", reviewType: .combos)) {
+                    HStack {
+                        Text("LEARNING")
+                            .font(.ibmPlexMono(size: 20))
+
+                        Spacer()
+
+                        Text("(\(learningCombosCount))")
+                            .font(.ibmPlexMono(size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                }
+
+                // MASTERY combos row
+                NavigationLink(destination: FlashcardReviewView(learningState: "MASTERY", reviewType: .combos)) {
+                    HStack {
+                        Text("MASTERY")
+                            .font(.ibmPlexMono(size: 20))
+
+                        Spacer()
+
+                        Text("(\(masteryCombosCount))")
+                            .font(.ibmPlexMono(size: 20))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                }
             }
-            .background(Color.backgroundPrimary.ignoresSafeArea())
+            .padding(.vertical, 24)
             .navigationTitle("REVIEW")
             .navigationBarTitleDisplayMode(.inline)
         }
         .appMotion(newMovesCount + newCombosCount + learningMovesCount + learningCombosCount + masteryMovesCount + masteryCombosCount)
-    }
-
-    private func reviewRow<D: View>(label: String, color: Color, count: Int, destination: D) -> some View {
-        NavigationLink(destination: destination) {
-            HStack(spacing: Spacing.md) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 10, height: 10)
-
-                Text(label)
-                    .font(.bodyMedium)
-                    .foregroundColor(.textPrimary)
-
-                Spacer()
-
-                Text("\(count)")
-                    .font(.ibmPlexMono(size: 14, weight: .semibold))
-                    .foregroundColor(.textSecondary)
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-            }
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.sm + 4)
-        }
-    }
-
-    private func rowDivider() -> some View {
-        Divider().padding(.leading, Spacing.md + 10 + Spacing.md)
     }
 }

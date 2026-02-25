@@ -4,26 +4,29 @@ struct AvailableMoveRowView: View {
     let move: Move
 
     var body: some View {
-        HStack(spacing: Spacing.sm) {
+        HStack {
+            // This capsule's color indicates the move's learning state.
             Capsule()
                 .fill(learningStateColor)
                 .frame(width: 5, height: 30)
 
             Text(move.name ?? "Untitled Move")
-                .font(.bodyMedium)
-                .padding(.leading, Spacing.sm)
+                .font(.headline)
+                .padding(.leading, 8)
 
             Spacer()
         }
-        .padding(.vertical, Spacing.xs)
+        .padding(.vertical, 4)
     }
 
+    // This helper computes the correct color based on the move's state.
     private var learningStateColor: Color {
         LearningState.resolve(from: move.learningState).color
     }
 }
 
 #Preview {
+    // Create a mock Move for preview
     let mockMove = Move(context: PersistenceController.preview.container.viewContext)
     mockMove.name = "Sample Move"
     mockMove.learningState = "NEW"

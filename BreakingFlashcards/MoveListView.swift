@@ -14,13 +14,18 @@ struct SpringButtonStyle: ButtonStyle {
 struct MoveListView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
+    // 1. FETCH THE DATA
+    // This fetches all 'Move' objects from Core Data.
+    // They are sorted by 'createdAt' in descending order (newest first).
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Move.createdAt, ascending: false)],
         animation: .default)
     private var moves: FetchedResults<Move>
 
+    // New state for the search text.
     @State private var searchText = ""
 
+    // Filtered results based on search text.
     var searchResults: [Move] {
         if searchText.isEmpty {
             return Array(moves)
@@ -29,6 +34,7 @@ struct MoveListView: View {
         }
     }
 
+    // Function to delete a move from Core Data
     private func deleteMove(_ move: Move) {
         viewContext.delete(move)
         do {
@@ -40,44 +46,42 @@ struct MoveListView: View {
 
     var body: some View {
         NavigationStack {
+            // Use a ZStack to set a background color.
             ZStack {
                 Color.backgroundPrimary.ignoresSafeArea()
 
+                // 2. HANDLE EMPTY STATE
+                // If there are no moves, show a message.
                 if moves.isEmpty {
-                    VStack(spacing: Spacing.md) {
-                        Image(systemName: "figure.dance")
-                            .font(.system(size: 48))
-                            .foregroundColor(.textSecondary)
-                        Text("No Moves Yet")
-                            .font(.titleSmall)
-                            .foregroundColor(.textPrimary)
-                        Text("Tap the Add tab to start building your arsenal")
-                            .font(.bodySmall)
-                            .foregroundColor(.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, Spacing.lg)
+                    Text("No moves added yet.\nTap the 'Add' tab to start!")
+                        .font(.ibmPlexMono(size: 18, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 } else {
+                    // 3. DISPLAY THE LIST
+                    // If there are moves, display them in a List.
                     List(searchResults) { move in
                         NavigationLink(destination: MoveDetailView(move: move)) {
-                            HStack(alignment: .top, spacing: Spacing.md) {
-                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(move.name ?? "Untitled Move")
-                                        .font(.bodyMedium)
+                                        .font(.ibmPlexMono(size: 16, weight: .bold))
                                         .foregroundColor(.textPrimary)
                                         .lineLimit(2)
                                         .multilineTextAlignment(.leading)
 
-                                    Text(move.createdAt ?? Date(), format: .dateTime.month().day().year())
-                                        .font(.caption)
-                                        .foregroundColor(.textSecondary)
+                                    Text("Added: \(move.createdAt ?? Date(), format: .dateTime.month().day().year().hour().minute())")
+                                        .font(.ibmPlexMono(size: 12))
+                                        .foregroundColor(.secondary)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
-
+                                
                                 StatePillView(learningState: move.learningState)
                                     .fixedSize()
                             }
-                            .padding(.vertical, Spacing.sm)
+                            .padding(.vertical, 4)
+                            .scaleEffect(1.0)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0), value: UUID())
                         }
                         .buttonStyle(SpringButtonStyle())
                         .listRowBackground(Color.backgroundPrimary)
@@ -89,11 +93,12 @@ struct MoveListView: View {
                             }
                         }
                     }
-                    .listStyle(.plain)
+                    .listStyle(.plain) // Use plain style for a cleaner look.
+                    // Add the searchable modifier here.
                     .searchable(text: $searchText, prompt: "Search Moves...")
                 }
             }
-            .navigationTitle("MOVES")
+            .navigationTitle("Move Arsenal")
             .navigationBarTitleDisplayMode(.inline)
         }
         .appMotion(moves.count)
