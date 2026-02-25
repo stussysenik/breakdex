@@ -33,7 +33,6 @@ struct FlashcardReviewView: View {
     let learningState: String
     let reviewType: ReviewType
 
-    // Fetch moves matching the specified learning state.
     @FetchRequest private var moves: FetchedResults<Move>
     @FetchRequest private var combos: FetchedResults<Combo>
     @FetchRequest private var comboMoves: FetchedResults<ComboMove>
@@ -45,12 +44,12 @@ struct FlashcardReviewView: View {
     init(learningState: String, reviewType: ReviewType = .moves) {
         self.learningState = learningState
         self.reviewType = reviewType
-        
+
         self._moves = FetchRequest<Move>(
             sortDescriptors: [NSSortDescriptor(keyPath: \Move.createdAt, ascending: true)],
             predicate: NSPredicate(format: "learningState == %@", learningState)
         )
-        
+
         self._combos = FetchRequest<Combo>(
             sortDescriptors: [NSSortDescriptor(keyPath: \Combo.name, ascending: true)],
             predicate: NSPredicate(value: true)
@@ -92,7 +91,7 @@ struct FlashcardReviewView: View {
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
-                    .id("move-\(currentIndex)") // Force SwiftUI to recreate view for animation
+                    .id("move-\(currentIndex)")
                 }
                 else if moves.isEmpty {
                     EmptyReviewView(type: "moves", learningState: learningState)
@@ -111,7 +110,7 @@ struct FlashcardReviewView: View {
                         insertion: .move(edge: .trailing).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
-                    .id("combo-\(currentIndex)") // Force SwiftUI to recreate view for animation
+                    .id("combo-\(currentIndex)")
                 }
                 else if filteredCombos.isEmpty {
                     EmptyReviewView(type: "combos", learningState: learningState)
@@ -122,21 +121,17 @@ struct FlashcardReviewView: View {
         }
         .appMotion(currentIndex)
     }
-    
+
     private func moveToNext() {
-        // Mark current item as reviewed
         reviewedIndices.insert(currentIndex)
-        
+
         let totalItems = reviewType == .moves ? moves.count : filteredCombos.count
         if currentIndex < totalItems - 1 {
             currentIndex += 1
         } else {
-            // Only show completion if all items have been reviewed at least once
-            // This ensures users see the deck completion message only after reviewing all cards
             if reviewedIndices.count >= totalItems {
-                currentIndex = totalItems // Show CompletedReviewView
+                currentIndex = totalItems
             } else {
-                // Continue cycling through unreviewed items
                 currentIndex = 0
             }
         }
@@ -149,44 +144,42 @@ struct MoveReviewView: View {
     let onReviewComplete: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Display the move's name and date with state
-            VStack(spacing: 8) {
-                HStack {
-                    Text(move.name ?? "Unknown Move")
-                        .font(.ibmPlexMono(size: 18, weight: .bold))
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    StatePillView(learningState: move.learningState)
-                        .fixedSize()
-                }
-                .padding(.horizontal, 20)
-                
+        VStack(spacing: Spacing.md) {
+            // Header
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                StatePillView(learningState: move.learningState)
+
+                Text(move.name ?? "Unknown Move")
+                    .font(.titleSmall)
+                    .foregroundColor(.textPrimary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                 Text(move.createdAt ?? Date(), style: .date)
-                    .font(.ibmPlexMono(size: 13))
-                    .foregroundColor(.secondary)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
             }
-            .padding(.top, 8)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.sm)
 
-            // Video player with proper audio lifecycle management
+            // Video
             CustomVideoPlayerView(move: move)
-                .frame(height: 350)
-                .cornerRadius(16)
-                .padding(.horizontal, 20)
+                .aspectRatio(16/9, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+                .padding(.horizontal, Spacing.lg)
 
-            Spacer(minLength: 40)
+            Spacer(minLength: Spacing.lg)
 
-            // Review action buttons
+            // Quiz-style buttons
             ReviewButtons(
-                learningState: learningState, 
-                move: move, 
+                learningState: learningState,
+                move: move,
                 reviewType: .moves,
                 onReviewComplete: onReviewComplete
             )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 100) // Extra space to avoid bottom navigation
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.xxl)
         }
         .navigationTitle(learningState)
     }
@@ -194,56 +187,60 @@ struct MoveReviewView: View {
 
 struct ComboReviewView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     let combo: Combo
     let learningState: String
     let onReviewComplete: () -> Void
-    
+
     @State private var activeMoveIndex: Int? = 0
     @State private var comboMoves: [Move] = []
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Display the combo's name
-            VStack(spacing: 8) {
+        VStack(spacing: Spacing.md) {
+            // Header
+            VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(combo.name ?? "Unknown Combo")
-                    .font(.ibmPlexMono(size: 20, weight: .bold))
-                    .multilineTextAlignment(.center)
+                    .font(.titleSmall)
+                    .foregroundColor(.textPrimary)
+                    .multilineTextAlignment(.leading)
                     .lineLimit(2)
-                
-                Text("\(comboMoves.count) moves")
-                    .font(.ibmPlexMono(size: 13))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Video Player Section
+                Text("\(comboMoves.count) moves")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.sm)
+
+            // Video Player
             if let activeMove = activeMove {
                 CustomVideoPlayerView(move: activeMove)
-                    .frame(height: 320)
-                    .cornerRadius(16)
-                    .padding(.horizontal, 20)
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+                    .padding(.horizontal, Spacing.lg)
             } else {
                 ContentUnavailableView("Select a move to see a preview", systemImage: "video.slash")
-                    .frame(height: 320)
-                    .padding(.horizontal, 20)
+                    .frame(height: 200)
+                    .padding(.horizontal, Spacing.lg)
             }
 
-            // Timeline Section
+            // Timeline
             if !comboMoves.isEmpty {
-                VStack(spacing: 12) {
-                    Text("Combo Sequence")
-                        .font(.ibmPlexMono(size: 14, weight: .bold))
-                        .foregroundColor(.textPrimary)
+                VStack(spacing: Spacing.sm) {
+                    Text("SEQUENCE")
+                        .font(.caption)
+                        .tracking(2)
+                        .foregroundColor(.textSecondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 0) {
                             ForEach(Array(comboMoves.enumerated()), id: \.element.id) { index, move in
-                                VStack(spacing: 6) {
+                                VStack(spacing: Spacing.sm) {
                                     TimelineNodeView(
                                         sequenceNumber: index + 1,
                                         isActive: activeMoveIndex == index,
-                                        onDelete: {}, // No delete functionality in review
+                                        onDelete: {},
                                         move: move,
                                         showDelete: false
                                     )
@@ -252,7 +249,7 @@ struct ComboReviewView: View {
                                     }
 
                                     Text(move.name ?? "Move")
-                                        .font(.ibmPlexMono(size: 12))
+                                        .font(.caption)
                                         .foregroundColor(.textPrimary)
                                         .frame(width: 60)
                                         .lineLimit(1)
@@ -266,23 +263,23 @@ struct ComboReviewView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, Spacing.lg)
                     }
                     .frame(height: 80)
                 }
             }
 
-            Spacer(minLength: 40)
+            Spacer(minLength: Spacing.lg)
 
-            // Review action buttons for combo
+            // Quiz-style buttons
             ReviewButtons(
-                learningState: learningState, 
-                combo: combo, 
+                learningState: learningState,
+                combo: combo,
                 reviewType: .combos,
                 onReviewComplete: onReviewComplete
             )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 100) // Extra space to avoid bottom navigation
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.xxl)
         }
         .navigationTitle(learningState)
         .onAppear {
@@ -317,12 +314,19 @@ struct EmptyReviewView: View {
     let learningState: String
 
     var body: some View {
-        VStack {
-            Text("No \(type) to review in this category.")
-                .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.secondary)
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "tray")
+                .font(.system(size: 48))
+                .foregroundColor(.textSecondary)
+            Text("No \(type) to review")
+                .font(.titleSmall)
+                .foregroundColor(.textPrimary)
+            Text("Nothing in the \(learningState) category yet")
+                .font(.bodySmall)
+                .foregroundColor(.textSecondary)
             Spacer()
         }
+        .padding(.top, Spacing.xxl)
         .navigationTitle(learningState)
     }
 }
@@ -332,23 +336,23 @@ struct CompletedReviewView: View {
     let learningState: String
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: Spacing.lg) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundColor(.green)
-            
+                .foregroundColor(.stateMastery)
+
             Text("Great work!")
-                .font(.ibmPlexMono(size: 24, weight: .bold))
+                .font(.titleSmall)
                 .foregroundColor(.textPrimary)
-            
+
             Text("You've completed all \(type) in the \(learningState) category.")
-                .font(.ibmPlexMono(size: 16))
-                .foregroundColor(.secondary)
+                .font(.bodySmall)
+                .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
-            
+
             Spacer()
         }
-        .padding()
+        .padding(Spacing.lg)
         .navigationTitle(learningState)
     }
 }
@@ -381,7 +385,6 @@ struct ReviewButtons: View {
     func handleMoveReview(difficulty: String) {
         guard let move = move else { return }
 
-        // Update the learning state based on difficulty
         switch difficulty {
         case "AGAIN":
             move.learningState = "NEW"
@@ -397,10 +400,9 @@ struct ReviewButtons: View {
             break
         }
 
-        // Save the changes
         do {
             try viewContext.save()
-            onReviewComplete() // Move to next item
+            onReviewComplete()
         } catch {
             print("Error updating move: \(error)")
         }
@@ -409,17 +411,15 @@ struct ReviewButtons: View {
     func handleComboReview(difficulty: String) {
         guard let combo = combo else { return }
 
-        // Get all moves in the combo
         let fetchRequest = NSFetchRequest<ComboMove>(entityName: "ComboMove")
         fetchRequest.predicate = NSPredicate(format: "combo == %@", combo)
 
         do {
             let comboMoves = try viewContext.fetch(fetchRequest)
-            
-            // Update all moves in the combo based on difficulty
+
             for comboMove in comboMoves {
                 guard let move = comboMove.move else { continue }
-                
+
                 switch difficulty {
                 case "AGAIN":
                     move.learningState = "NEW"
@@ -437,53 +437,59 @@ struct ReviewButtons: View {
             }
 
             try viewContext.save()
-            onReviewComplete() // Move to next item
+            onReviewComplete()
         } catch {
             print("Error updating combo moves: \(error)")
         }
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Button(action: {
-                handleReview(difficulty: "AGAIN")
-            }) {
-                Text("AGAIN")
-                    .font(.ibmPlexMono(size: 16, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-            }
-            .background(Color.buttonAgain)
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .buttonStyle(ReviewButtonStyle())
-
-            Button(action: {
-                handleReview(difficulty: "HARD")
-            }) {
-                Text("HARD")
-                    .font(.ibmPlexMono(size: 16, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-            }
-            .background(Color.buttonHard)
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .buttonStyle(ReviewButtonStyle())
-
-            Button(action: {
-                handleReview(difficulty: "GOOD")
-            }) {
-                Text("GOOD")
-                    .font(.ibmPlexMono(size: 16, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-            }
-            .background(Color.buttonGood)
-            .foregroundColor(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .buttonStyle(ReviewButtonStyle())
+        VStack(spacing: Spacing.md) {
+            quizCard(
+                label: "AGAIN",
+                subtitle: "Reset",
+                color: .buttonAgain,
+                action: { handleReview(difficulty: "AGAIN") }
+            )
+            quizCard(
+                label: "HARD",
+                subtitle: "Keep drilling",
+                color: .buttonHard,
+                action: { handleReview(difficulty: "HARD") }
+            )
+            quizCard(
+                label: "GOOD",
+                subtitle: "Got it",
+                color: .buttonGood,
+                action: { handleReview(difficulty: "GOOD") }
+            )
         }
+    }
+
+    private func quizCard(label: String, subtitle: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .font(.ibmPlexMono(size: 14, weight: .bold))
+                    Text(subtitle)
+                        .font(.caption)
+                        .opacity(0.7)
+                }
+                Spacer()
+            }
+            .foregroundColor(color)
+            .padding(.horizontal, Spacing.md)
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
+            .background(color.opacity(0.15))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.md)
+                    .stroke(color, lineWidth: 2)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: Radius.md))
+        }
+        .buttonStyle(ReviewButtonStyle())
     }
 }
 

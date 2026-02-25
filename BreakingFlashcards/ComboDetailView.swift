@@ -29,74 +29,75 @@ struct ComboDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: Spacing.lg) {
                 // Combo Header
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text(combo.name ?? "Untitled Combo")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.titleSmall)
                         .foregroundColor(.textPrimary)
 
                     if !comboMoves.isEmpty {
                         Text("\(comboMoves.count) moves")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+                .padding(.horizontal, Spacing.lg)
 
-                // Video Player Section
+                // Video Player
                 CustomVideoPlayerView(move: activeMove?.move)
-                    .frame(height: 300)
-                    .cornerRadius(10)
-                    .padding(.horizontal)
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.lg))
+                    .padding(.horizontal, Spacing.lg)
 
                 // Timeline Section
                 if !comboMoves.isEmpty {
-                    Text("Combo Sequence")
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
+                    VStack(alignment: .leading, spacing: Spacing.md) {
+                        Text("SEQUENCE")
+                            .font(.caption)
+                            .tracking(2)
+                            .foregroundColor(.textSecondary)
+                            .padding(.horizontal, Spacing.lg)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 0) {
-                            ForEach(Array(comboMoves.enumerated()), id: \.element.id) { index, comboMove in
-                                if let move = comboMove.move {
-                                    VStack(spacing: 8) {
-                                        TimelineNodeView(
-                                            sequenceNumber: index + 1,
-                                            isActive: activeMoveIndex == index,
-                                            onDelete: {}, // No delete functionality in detail view
-                                            move: move,
-                                            showDelete: false
-                                        )
-                                        .onTapGesture {
-                                            activeMoveIndex = index
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 0) {
+                                ForEach(Array(comboMoves.enumerated()), id: \.element.id) { index, comboMove in
+                                    if let move = comboMove.move {
+                                        VStack(spacing: Spacing.sm) {
+                                            TimelineNodeView(
+                                                sequenceNumber: index + 1,
+                                                isActive: activeMoveIndex == index,
+                                                onDelete: {},
+                                                move: move,
+                                                showDelete: false
+                                            )
+                                            .onTapGesture {
+                                                activeMoveIndex = index
+                                            }
+
+                                            Text(move.name ?? "Move")
+                                                .font(.caption)
+                                                .foregroundColor(.textPrimary)
+                                                .frame(width: 70)
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
                                         }
+                                    }
 
-                                        Text(move.name ?? "Move")
-                                            .font(.ibmPlexMono(size: 12))
-                                            .foregroundColor(.textPrimary)
-                                            .frame(width: 70)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
+                                    if index < comboMoves.count - 1 {
+                                        Rectangle()
+                                            .frame(width: 30, height: 2)
+                                            .foregroundColor(.gray)
                                     }
                                 }
-
-                                if index < comboMoves.count - 1 {
-                                    Rectangle()
-                                        .frame(width: 30, height: 2)
-                                        .foregroundColor(.gray)
-                                }
                             }
+                            .padding(.horizontal, Spacing.lg)
                         }
-                        .padding(.horizontal)
                     }
                 }
             }
-            .padding(.vertical)
+            .padding(.vertical, Spacing.lg)
         }
         .background(Color.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Combo Detail")

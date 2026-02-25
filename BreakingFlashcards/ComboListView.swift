@@ -12,7 +12,7 @@ import CoreData
 struct FadeInModifier: ViewModifier {
     @State private var opacity: Double = 0
     let delay: Double
-    
+
     func body(content: Content) -> some View {
         content
             .opacity(opacity)
@@ -80,25 +80,34 @@ struct ComboListView: View {
                 Color.backgroundPrimary.ignoresSafeArea()
 
                 if combos.isEmpty {
-                    ContentUnavailableView("No combos created yet", systemImage: "square.stack.3d.up.slash")
-                        .frame(maxHeight: .infinity)
+                    VStack(spacing: Spacing.md) {
+                        Image(systemName: "square.stack.3d.up.slash")
+                            .font(.system(size: 48))
+                            .foregroundColor(.textSecondary)
+                        Text("No Combos Yet")
+                            .font(.titleSmall)
+                            .foregroundColor(.textPrimary)
+                        Text("Create combos from your moves")
+                            .font(.bodySmall)
+                            .foregroundColor(.textSecondary)
+                    }
                 } else {
                     List(searchResults) { combo in
                         NavigationLink(destination: ComboDetailView(combo: combo)) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
                                     Text(combo.name ?? "Untitled Combo")
-                                        .font(.ibmPlexMono(size: 18, weight: .bold))
+                                        .font(.bodyMedium)
                                         .foregroundColor(.textPrimary)
 
                                     Text(getMoveCount(for: combo))
-                                        .font(.ibmPlexMono(size: 13))
-                                        .foregroundColor(.secondary)
+                                        .font(.caption)
+                                        .foregroundColor(.textSecondary)
                                 }
                                 Spacer()
                                 StatePillView(learningState: getComboLearningState(for: combo))
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Spacing.sm)
                         }
                         .buttonStyle(SpringButtonStyle())
                         .listRowBackground(Color.backgroundPrimary)
@@ -114,7 +123,7 @@ struct ComboListView: View {
                     .searchable(text: $searchText, prompt: "Search Combos...")
                 }
             }
-            .navigationTitle("Combo Arsenal")
+            .navigationTitle("COMBOS")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
