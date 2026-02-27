@@ -1,59 +1,45 @@
+// ComboListView.swift — Main combo browsing screen for the Breakdex app
 //
-//  ComboListView.swift
-//  BreakingFlashcards
-//
-//  Created by s3nik // m1LL on 8/26/25.
-//
+// Searchable list of all breakdancing combos. Each row shows the combo name,
+// move count, and composite learning state as plain text.
+// Tapping navigates to ComboDetailView. Swipe-left to delete.
+// 3 visual anchors: nav title, search bar, text list rows.
 
 import SwiftUI
-import CoreData
-
-// Motion-library inspired animations for list items
-struct FadeInModifier: ViewModifier {
-    @State private var opacity: Double = 0
-    let delay: Double
-    
-    func body(content: Content) -> some View {
-        content
-            .opacity(opacity)
-            .onAppear {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8, blendDuration: 0).delay(delay)) {
-                    opacity = 1
-                }
-            }
-    }
-}
-
+import SwiftData
 
 struct ComboListView: View {
-    @Environment(\.managedObjectContext) private var viewContext
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Combo.name, ascending: true)],
-        animation: .default)
-    private var combos: FetchedResults<Combo>
+    // MARK: - Environment & Data
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \ComboMove.sequenceIndex, ascending: true)],
-        animation: .default)
-    private var comboMoves: FetchedResults<ComboMove>
+    @Environment(\.modelContext) private var modelContext
+
+    @Query(sort: \Combo.name)
+    private var combos: [Combo]
+
+    @Query(sort: \ComboMove.sequenceIndex)
+    private var comboMoves: [ComboMove]
+
+    // MARK: - Local State
 
     @State private var searchText = ""
 
+    // MARK: - Computed Properties
+
     var searchResults: [Combo] {
         if searchText.isEmpty {
-            return Array(combos)
+            return combos
         } else {
             return combos.filter { $0.name?.localizedCaseInsensitiveContains(searchText) ?? false }
         }
     }
 
-    private var statsByComboID: [NSManagedObjectID: ComboStats] {
+    private var statsByComboID: [PersistentIdentifier: ComboStats] {
         ComboStatsBuilder.build(from: comboMoves)
     }
 
     private func stats(for combo: Combo) -> ComboStats {
-        statsByComboID[combo.objectID] ?? ComboStats()
+        statsByComboID[combo.persistentModelID] ?? ComboStats()
     }
 
     private func getMoveCount(for combo: Combo) -> String {
@@ -61,18 +47,22 @@ struct ComboListView: View {
         return "\(count) moves"
     }
 
-    private func getComboLearningState(for combo: Combo) -> String {
-        stats(for: combo).learningState.displayText
+    private func getComboLearningState(for combo: Combo) -> LearningState {
+        stats(for: combo).learningState
     }
 
+    // MARK: - Actions
+
     private func deleteCombo(_ combo: Combo) {
-        viewContext.delete(combo)
+        modelContext.delete(combo)
         do {
-            try viewContext.save()
+            try modelContext.save()
         } catch {
             print("Error deleting combo: \(error)")
         }
     }
+
+    // MARK: - Body
 
     var body: some View {
         NavigationStack {
@@ -86,21 +76,32 @@ struct ComboListView: View {
                     List(searchResults) { combo in
                         NavigationLink(destination: ComboDetailView(combo: combo)) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    // Level 1: Combo name — darkest
                                     Text(combo.name ?? "Untitled Combo")
-                                        .font(.ibmPlexMono(size: 18, weight: .bold))
+                                        .font(.ibmPlexMono(size: 16, weight: .bold))
                                         .foregroundColor(.textPrimary)
+                                        .lineLimit(2)
 
-                                    Text(getMoveCount(for: combo))
-                                        .font(.ibmPlexMono(size: 13))
-                                        .foregroundColor(.secondary)
+                                    HStack(spacing: Spacing.sm) {
+                                        // Level 2: State — colored
+                                        let state = getComboLearningState(for: combo)
+                                        Text(state.actionLabel)
+                                            .font(.ibmPlexMono(size: 12, weight: .medium))
+                                            .foregroundColor(state.color)
+
+                                        // Level 3: Move count — lightest
+                                        Text(getMoveCount(for: combo))
+                                            .font(.ibmPlexMono(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
+
                                 Spacer()
-                                StatePillView(learningState: getComboLearningState(for: combo))
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, Spacing.xs)
                         }
-                        .buttonStyle(SpringButtonStyle())
+                        .buttonStyle(.plain)
                         .listRowBackground(Color.backgroundPrimary)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
@@ -114,36 +115,22 @@ struct ComboListView: View {
                     .searchable(text: $searchText, prompt: "Search Combos...")
                 }
             }
-            .navigationTitle("Combo Arsenal")
+            .navigationTitle("Combos")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Text("Learning States")
-                        Divider()
-                        HStack {
-                            StatePillView(learningState: "NEW")
-                            Text("New - Just added")
-                        }
-                        HStack {
-                            StatePillView(learningState: "LEARNING")
-                            Text("Learning - In progress")
-                        }
-                        HStack {
-                            StatePillView(learningState: "MASTERY")
-                            Text("Mastered - Complete")
-                        }
-                    } label: {
-                        Image(systemName: "info.circle")
-                    }
-                }
-            }
         }
         .appMotion(combos.count)
     }
 }
 
-#Preview {
+// MARK: - Preview
+
+#Preview("ComboList - Light") {
     ComboListView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .modelContainer(.preview)
+}
+
+#Preview("ComboList - Dark") {
+    ComboListView()
+        .modelContainer(.preview)
+        .preferredColorScheme(.dark)
 }

@@ -5,8 +5,14 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>IBMPlexMono-Bold.ttf</string>
+		<string>IBMPlexMono-Medium.ttf</string>
 		<string>IBMPlexMono-Regular.ttf</string>
+		<string>IBMPlexMono-SemiBold.ttf</string>
 		<string>IBMPlexMono-Thin.ttf</string>
+		<string>Rubik-Bold.ttf</string>
+		<string>Rubik-Medium.ttf</string>
+		<string>Rubik-Regular.ttf</string>
+		<string>Rubik-SemiBold.ttf</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to record breaking moves for your training arsenal.</string>

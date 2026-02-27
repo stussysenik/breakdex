@@ -1,7 +1,17 @@
-import SwiftUI
-import CoreData
+// MoveListView.swift — Main move browsing screen for the Breakdex app
+//
+// Searchable, scrollable list of all recorded breakdancing moves.
+// Each row shows the move name, creation date, and learning state as plain text.
+// Tapping navigates to MoveDetailView. Swipe-left to delete.
+// 3 visual anchors: nav title, search bar, text list rows.
 
-// Motion-library inspired button style with spring animations
+import SwiftUI
+import SwiftData
+
+// MARK: - SpringButtonStyle
+
+/// Reusable spring-animated press feedback style.
+/// Applied to action buttons (not list rows — high-frequency taps become friction).
 struct SpringButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -11,79 +21,93 @@ struct SpringButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - MoveListView
+
 struct MoveListView: View {
-    @Environment(\.managedObjectContext) private var viewContext
 
-    // 1. FETCH THE DATA
-    // This fetches all 'Move' objects from Core Data.
-    // They are sorted by 'createdAt' in descending order (newest first).
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Move.createdAt, ascending: false)],
-        animation: .default)
-    private var moves: FetchedResults<Move>
+    // MARK: - Environment & Data
 
-    // New state for the search text.
+    @Environment(\.modelContext) private var modelContext
+
+    @Query(sort: \Move.createdAt, order: .reverse)
+    private var moves: [Move]
+
+    // MARK: - Local State
+
     @State private var searchText = ""
 
-    // Filtered results based on search text.
+    // MARK: - Computed Properties
+
     var searchResults: [Move] {
         if searchText.isEmpty {
-            return Array(moves)
+            return moves
         } else {
             return moves.filter { $0.name?.localizedCaseInsensitiveContains(searchText) ?? false }
         }
     }
 
-    // Function to delete a move from Core Data
+    // MARK: - Actions
+
     private func deleteMove(_ move: Move) {
-        viewContext.delete(move)
+        if let videoURL = move.resolveVideoURL() {
+            do {
+                try FileManager.default.removeItem(at: videoURL)
+            } catch {
+                print("[MoveList] Failed to remove video file at \(videoURL.path): \(error.localizedDescription)")
+            }
+        }
+
+        modelContext.delete(move)
         do {
-            try viewContext.save()
+            try modelContext.save()
         } catch {
             print("Error deleting move: \(error)")
         }
     }
 
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
-            // Use a ZStack to set a background color.
             ZStack {
                 Color.backgroundPrimary.ignoresSafeArea()
 
-                // 2. HANDLE EMPTY STATE
-                // If there are no moves, show a message.
                 if moves.isEmpty {
-                    Text("No moves added yet.\nTap the 'Add' tab to start!")
-                        .font(.ibmPlexMono(size: 18, weight: .bold))
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                    ContentUnavailableView(
+                        "No Moves Yet",
+                        systemImage: "figure.dance",
+                        description: Text("Tap the Add tab to record your first move.")
+                    )
                 } else {
-                    // 3. DISPLAY THE LIST
-                    // If there are moves, display them in a List.
                     List(searchResults) { move in
                         NavigationLink(destination: MoveDetailView(move: move)) {
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: Spacing.xs) {
+                                    // Level 1: Move name — darkest, most prominent
                                     Text(move.name ?? "Untitled Move")
                                         .font(.ibmPlexMono(size: 16, weight: .bold))
                                         .foregroundColor(.textPrimary)
                                         .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
 
-                                    Text("Added: \(move.createdAt ?? Date(), format: .dateTime.month().day().year().hour().minute())")
-                                        .font(.ibmPlexMono(size: 12))
-                                        .foregroundColor(.secondary)
+                                    HStack(spacing: Spacing.sm) {
+                                        // Level 2: State — colored for scanning
+                                        let resolved = LearningState.resolve(from: move.learningState)
+                                        Text(resolved.actionLabel)
+                                            .font(.ibmPlexMono(size: 12, weight: .medium))
+                                            .foregroundColor(resolved.color)
+
+                                        // Level 3: Date — lightest
+                                        Text(move.createdAt ?? Date(), format: .dateTime.month().day().year())
+                                            .font(.ibmPlexMono(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                
-                                StatePillView(learningState: move.learningState)
-                                    .fixedSize()
+
+                                Spacer()
                             }
-                            .padding(.vertical, 4)
-                            .scaleEffect(1.0)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0), value: UUID())
+                            .padding(.vertical, Spacing.xs)
                         }
-                        .buttonStyle(SpringButtonStyle())
+                        .buttonStyle(.plain)
                         .listRowBackground(Color.backgroundPrimary)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) {
@@ -93,19 +117,26 @@ struct MoveListView: View {
                             }
                         }
                     }
-                    .listStyle(.plain) // Use plain style for a cleaner look.
-                    // Add the searchable modifier here.
+                    .listStyle(.plain)
                     .searchable(text: $searchText, prompt: "Search Moves...")
                 }
             }
-            .navigationTitle("Move Arsenal")
+            .navigationTitle("Moves")
             .navigationBarTitleDisplayMode(.inline)
         }
         .appMotion(moves.count)
     }
 }
 
-#Preview {
+// MARK: - Preview
+
+#Preview("MoveList - Light") {
     MoveListView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .modelContainer(.preview)
+}
+
+#Preview("MoveList - Dark") {
+    MoveListView()
+        .modelContainer(.preview)
+        .preferredColorScheme(.dark)
 }
