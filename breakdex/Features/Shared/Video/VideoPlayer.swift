@@ -1575,17 +1575,36 @@ struct VideoPlayerView: View {
 
     var body: some View {
         ZStack {
+            // Background gradient for loading state (prevents white screen)
+            LinearGradient(
+                colors: [
+                    Color.backgroundPrimary,
+                    Color.backgroundSecondary.opacity(0.8)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
             // Video player using AVPlayerViewController
             if let avPlayer = getPlayerInstance(), player.isReady {
                 VideoPlayerController(player: avPlayer, showControls: showControls)
+                    .transition(.opacity.animation(.easeInOut(duration: 0.2)))
                     .onAppear {
                         logger.info("🎬 VideoPlayerController appeared - video should be visible")
                     }
             } else {
                 // Enhanced loading state with detailed feedback
                 VStack(spacing: 16) {
+                    // Progress bar (200pt width × 4pt height)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.accent)
+                        .frame(width: 200, height: 4)
+                        .opacity(0.8)
+
                     ProgressView()
                         .scaleEffect(1.5)
+                        .tint(.accent)
 
                     Text(getLoadingMessage())
                         .font(.ibmPlexMono(size: 14, weight: .medium))
@@ -1617,6 +1636,7 @@ struct VideoPlayerView: View {
                     }
                     #endif
                 }
+                .transition(.opacity.animation(.easeInOut(duration: 0.2)))
                 .onAppear {
                     logger.info("🔄 VideoPlayerView in loading state - state: \(player.state), isReady: \(player.isReady)")
 
@@ -1806,4 +1826,20 @@ public extension SharedVideoPlayer {
         let seconds = Int(time) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
+}
+
+#Preview("Video Player View") {
+    struct PreviewWrapper: View {
+        @StateObject private var player = SharedVideoPlayer(mode: .preview)
+
+        var body: some View {
+            VideoPlayerView(player: player, showControls: true)
+                .frame(height: 280)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding()
+                .background(Color.backgroundPrimary)
+        }
+    }
+
+    return PreviewWrapper()
 }

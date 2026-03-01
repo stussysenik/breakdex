@@ -2210,6 +2210,8 @@
 		218CF3862EA0F196002F59FD /* breakdex.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = breakdex.xcodeproj; sourceTree = "<group>"; };
 		21A392962EAB8F8D008AB59F /* breakdex.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = breakdex.xcodeproj; sourceTree = "<group>"; };
 		21A3A5CA2EAD4B0E008AB59F /* breakdex.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = breakdex.xcodeproj; sourceTree = "<group>"; };
+		21B0D4952F54CE8A004E58D0 /* DOCS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DOCS.md; sourceTree = "<group>"; };
+		21B0D4962F54CE8A004E58D0 /* PROGRESS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PROGRESS.md; sourceTree = "<group>"; };
 		21B1A4F12E9D3F6000FD524C /* breakdex.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = breakdex.xcodeproj; sourceTree = "<group>"; };
 		21B1B02E2E9D423900FD524C /* breakdex.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = breakdex.xcodeproj; sourceTree = "<group>"; };
 		21B1C1762E9F92A200FD524C /* breakdex.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = breakdex.xcodeproj; sourceTree = "<group>"; };
@@ -2257,8 +2259,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		21F9BCCA2F1FDAA8004FD3EE /* breakdexUITests-01-20-26 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = "breakdexUITests-01-20-26";
 			sourceTree = "<group>";
 		};
@@ -2348,6 +2348,8 @@
 			children = (
 				21195FC92F0D626C0045330B /* DOCUMENTATION.md */,
 				21195FCA2F0D626C0045330B /* README.md */,
+				21B0D4952F54CE8A004E58D0 /* DOCS.md */,
+				21B0D4962F54CE8A004E58D0 /* PROGRESS.md */,
 			);
 			name = Docs;
 			path = breakdex/Docs;

@@ -111,6 +111,16 @@ xcodebuild test -project breakdex.xcodeproj -scheme breakdex -destination 'platf
 
 ## 🔄 Version History
 
+### March 2026 (Preview & Verification)
+- Added missing SwiftUI preview coverage for frontend-facing files:
+  - `BreakingArsenalView`
+  - `SharedButton`
+  - `ThermalStatusView` / `ThermalWarningBanner` (in `ThermalGuard.swift`)
+  - `AVPlayerViewRepresentable`
+  - `VideoPlayerView`
+- Purpose: faster Xcode Canvas startup and visual theme verification across UI surfaces.
+- Validation: project build completed successfully after preview additions.
+
 ### January 2026 (Refinement Phase)
 - **Crash Prevention**: Added timeout guards to `RobustVideoLoader`.
 - **UX Polish**: Added `FeedbackToast` system, delete-with-undo, and loading progress.

@@ -130,7 +130,7 @@ xcodebuild -project breakdex.xcodeproj -scheme breakdex \
 
 ---
 
-## 📋 Recent Changes (January 2026)
+## 📋 Recent Changes (January-March 2026)
 
 ### Crash Prevention
 - 30-second timeout guards on video loading
@@ -149,6 +149,15 @@ xcodebuild -project breakdex.xcodeproj -scheme breakdex \
 
 ### Core Data
 - Added `playbackSpeed` and `aspectRatioMode` to Move entity
+
+### SwiftUI Preview Coverage (March 1, 2026)
+- Added missing SwiftUI previews to frontend files so Canvas can be opened quickly during theme checks:
+  - `Features/Arsenal/Views/BreakingArsenalView.swift`
+  - `Features/Shared/UI/Components/SharedButton.swift`
+  - `Features/Shared/Services/ThermalGuard.swift`
+  - `Features/Shared/Video/AVPlayerViewRepresentable.swift`
+  - `Features/Shared/Video/VideoPlayer.swift`
+- Verified project build after preview additions.
 
 ---
 

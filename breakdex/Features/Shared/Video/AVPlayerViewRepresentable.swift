@@ -65,3 +65,9 @@ struct AVPlayerViewRepresentable: UIViewControllerRepresentable {
         }
     }
 }
+
+#Preview("AVPlayer Representable") {
+    AVPlayerViewRepresentable(player: AVPlayer())
+        .frame(height: 240)
+        .background(Color.black)
+}

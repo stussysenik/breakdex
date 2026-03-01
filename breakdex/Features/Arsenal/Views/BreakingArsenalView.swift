@@ -188,3 +188,16 @@ struct BreakingArsenalView: View {
         }
     }
 }
+
+#Preview("Breaking Arsenal") {
+    struct PreviewWrapper: View {
+        @State private var selectedTab = 0
+
+        var body: some View {
+            BreakingArsenalView(selectedTab: $selectedTab)
+        }
+    }
+
+    return PreviewWrapper()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+}

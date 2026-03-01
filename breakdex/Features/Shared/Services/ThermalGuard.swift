@@ -317,3 +317,16 @@ struct ThermalWarningBanner: View {
 }
 
 import SwiftUI
+
+#Preview("Thermal UI") {
+    VStack(spacing: 16) {
+        ThermalStatusView()
+        ThermalWarningBanner()
+        Text("Thermal warning appears automatically on elevated thermal state.")
+            .font(.ibmPlexMono(size: 12))
+            .foregroundColor(.textSecondary)
+            .multilineTextAlignment(.center)
+    }
+    .padding()
+    .background(Color.backgroundPrimary)
+}

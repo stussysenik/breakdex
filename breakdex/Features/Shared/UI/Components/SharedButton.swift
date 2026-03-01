@@ -83,3 +83,11 @@ extension SharedButton {
 }
 
 
+#Preview("Shared Buttons") {
+    VStack(spacing: 16) {
+        SharedButton.primary("Primary Action") {}
+        SharedButton.secondary("Secondary Action") {}
+    }
+    .padding(24)
+    .background(Color.backgroundPrimary)
+}
