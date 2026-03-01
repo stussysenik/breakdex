@@ -262,3 +262,20 @@ struct PoseOverlayView: View {
         }
     }
 }
+
+#Preview("Pose Overlay") {
+    ZStack {
+        Color.black.opacity(0.9)
+        VStack(spacing: Spacing.sm) {
+            Image(systemName: "figure.mixed.cardio")
+                .font(.system(size: 28))
+                .foregroundStyle(.white)
+            Text("PoseOverlayView requires a live VNHumanBodyPoseObservation")
+                .font(.ibmPlexMono(size: 12))
+                .foregroundStyle(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Spacing.md)
+        }
+    }
+    .frame(width: 320, height: 200)
+}

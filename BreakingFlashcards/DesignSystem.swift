@@ -375,3 +375,32 @@ enum CategoryPalette {
         "#24a148", "#da1e28", "#f1c21b", "#ff832b"
     ]
 }
+
+private struct DesignSystemPreview: View {
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            Text("Design System")
+                .font(.titleMedium)
+                .foregroundColor(.textPrimary)
+
+            VStack(spacing: Spacing.sm) {
+                Button("Primary Action") {}
+                    .primaryAction()
+                Button("Secondary Action") {}
+                    .secondaryAction()
+            }
+
+            HStack(spacing: Spacing.sm) {
+                Circle().fill(Color.stateNew).frame(width: 24, height: 24)
+                Circle().fill(Color.stateLearning).frame(width: 24, height: 24)
+                Circle().fill(Color.stateMastery).frame(width: 24, height: 24)
+            }
+        }
+        .padding(Spacing.md)
+        .background(Color.backgroundPrimary)
+    }
+}
+
+#Preview("Design Tokens") {
+    DesignSystemPreview()
+}
