@@ -477,3 +477,33 @@ struct TrimmerTimelineView: View {
         onScrub(time)
     }
 }
+
+private struct TrimmerTimelinePreviewHost: View {
+    @State private var startFraction: CGFloat = 0.2
+    @State private var endFraction: CGFloat = 0.8
+
+    private let metrics = LayoutMetrics(width: 390, height: 844)
+    private let thumbnailGenerator: AdaptiveThumbnailGenerator = {
+        let asset = AVURLAsset(url: URL(filePath: "/dev/null"))
+        let generator = AdaptiveThumbnailGenerator(asset: asset)
+        generator.configure(duration: 30, count: 12)
+        return generator
+    }()
+
+    var body: some View {
+        TrimmerTimelineView(
+            metrics: metrics,
+            thumbnailGenerator: thumbnailGenerator,
+            duration: 30,
+            startFraction: $startFraction,
+            endFraction: $endFraction,
+            onScrub: { _ in }
+        )
+        .padding(Spacing.md)
+        .background(Color.backgroundPrimary)
+    }
+}
+
+#Preview("Trimmer Timeline") {
+    TrimmerTimelinePreviewHost()
+}

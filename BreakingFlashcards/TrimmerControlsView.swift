@@ -308,3 +308,17 @@ struct TrimmerControlsView: View {
         return String(format: "%.1fx", speed).replacingOccurrences(of: ".0x", with: "x")
     }
 }
+
+private struct TrimmerControlsPreviewHost: View {
+    @State private var params = VideoEditParameters()
+
+    var body: some View {
+        TrimmerControlsView(params: $params)
+            .padding(.vertical, Spacing.md)
+            .background(Color.backgroundPrimary)
+    }
+}
+
+#Preview("Trimmer Controls") {
+    TrimmerControlsPreviewHost()
+}

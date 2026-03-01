@@ -219,3 +219,34 @@ struct TrimmerPlayheadView: View {
         )
     }
 }
+
+private struct TrimmerPlayheadPreviewHost: View {
+    @State private var currentFraction: CGFloat = 0.45
+    private let metrics = LayoutMetrics(width: 390, height: 844)
+
+    var body: some View {
+        VStack(spacing: Spacing.md) {
+            TrimmerPlayheadView(
+                metrics: metrics,
+                duration: 30,
+                startFraction: 0.15,
+                endFraction: 0.85,
+                currentFraction: $currentFraction,
+                onScrub: { _ in }
+            )
+            .frame(width: metrics.timelineWidth, height: metrics.timelineHeight)
+            .background(Color.neutralFill)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.sm))
+
+            Text("Position: \(Int(currentFraction * 100))%")
+                .font(.ibmPlexMono(size: 12))
+                .foregroundColor(.textSecondary)
+        }
+        .padding(Spacing.md)
+        .background(Color.backgroundPrimary)
+    }
+}
+
+#Preview("Trimmer Playhead") {
+    TrimmerPlayheadPreviewHost()
+}
