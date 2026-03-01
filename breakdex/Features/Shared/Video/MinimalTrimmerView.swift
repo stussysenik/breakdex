@@ -152,6 +152,9 @@ struct MinimalTrimmerView: View {
     @State private var performanceManager: iOS18PerformanceManager?
     @State private var currentSeekOperationId: UUID?
 
+    // MARK: - Haptic Feedback State
+    @State private var lastHapticFrame: Int = -1
+
     // MARK: - OPENSPEC FIX: Timing Guard State (Removed - simplified initialization)
     // Complex timing guards removed to prevent view rendering blocking
 
@@ -319,8 +322,8 @@ struct MinimalTrimmerView: View {
         VStack(spacing: 8) {
             // Timeline Bar with Trim Handles - Technical end-cap design
             GeometryReader { timelineGeometry in
-                let trackHeight: CGFloat = 40
-                let handleWidth: CGFloat = 8  // Narrow vertical bar
+                let trackHeight: CGFloat = 48  // Increased for better touch targets
+                let handleWidth: CGFloat = 12  // Enhanced handle width for precision
                 let handlePadding: CGFloat = 16  // Match horizontal padding
                 let usableWidth = timelineGeometry.size.width - (handlePadding * 2)
                 
@@ -350,18 +353,23 @@ struct MinimalTrimmerView: View {
                                 .onChanged { value in
                                     if !isDraggingLeftHandle {
                                         provideSelectionFeedback()
+                                        lastHapticFrame = -1 // Reset frame tracking for new drag
                                     }
                                     isDraggingLeftHandle = true
                                     // Convert position to time
                                     let relativeX = value.location.x - handlePadding
                                     let newTime = Double(relativeX / usableWidth) * videoDuration
                                     startTime = max(0, min(newTime, endTime - 0.5))
+
+                                    // Provide haptic feedback at frame boundaries
+                                    provideFrameBoundaryFeedback(for: startTime)
                                 }
                                 .onEnded { _ in
                                     isDraggingLeftHandle = false
                                     provideNotificationFeedback(.success)
                                     snapToNearestFrame(&startTime)
                                     validateTrimRange()
+                                    lastHapticFrame = -1 // Reset for next drag
                                 }
                         )
 
@@ -374,18 +382,23 @@ struct MinimalTrimmerView: View {
                                 .onChanged { value in
                                     if !isDraggingRightHandle {
                                         provideSelectionFeedback()
+                                        lastHapticFrame = -1 // Reset frame tracking for new drag
                                     }
                                     isDraggingRightHandle = true
                                     // Convert position to time
                                     let relativeX = value.location.x - handlePadding
                                     let newTime = Double(relativeX / usableWidth) * videoDuration
                                     endTime = max(startTime + 0.5, min(newTime, videoDuration))
+
+                                    // Provide haptic feedback at frame boundaries
+                                    provideFrameBoundaryFeedback(for: endTime)
                                 }
                                 .onEnded { _ in
                                     isDraggingRightHandle = false
                                     provideNotificationFeedback(.success)
                                     snapToNearestFrame(&endTime)
                                     validateTrimRange()
+                                    lastHapticFrame = -1 // Reset for next drag
                                 }
                         )
 
@@ -393,8 +406,9 @@ struct MinimalTrimmerView: View {
                     let playheadPosition = handlePadding + (usableWidth * CGFloat(viewModel.videoPlayer.progress))
                     Circle()
                         .fill(Color.accent)
-                        .frame(width: 12, height: 12)
-                        .offset(x: playheadPosition - 6, y: 0)
+                        .frame(width: 16, height: 16)
+                        .shadow(color: Color.accent.opacity(0.4), radius: 8, x: 0, y: 0)
+                        .offset(x: playheadPosition - 8, y: 0)
                 }
             }
             .frame(height: 48) // Slightly taller to accommodate handles
@@ -897,6 +911,21 @@ struct MinimalTrimmerView: View {
     private func provideNotificationFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
         let notificationFeedback = UINotificationFeedbackGenerator()
         notificationFeedback.notificationOccurred(type)
+    }
+
+    /// Provides haptic feedback when crossing frame boundaries during drag
+    private func provideFrameBoundaryFeedback(for time: TimeInterval) {
+        guard frameRate > 0 else { return }
+
+        let currentFrame = Int(time * frameRate)
+
+        // Only trigger haptic if we've crossed to a new frame
+        if currentFrame != lastHapticFrame {
+            let impactFeedback = UIImpactFeedbackGenerator(style: .rigid)
+            impactFeedback.prepare()
+            impactFeedback.impactOccurred(intensity: 0.6)
+            lastHapticFrame = currentFrame
+        }
     }
 
     /// Provides haptic and visual feedback when attempting to trim below minimum duration
@@ -1474,24 +1503,36 @@ class RotatableVideoPlayerUIView: UIView {
 }
 
 // MARK: - Trim Handle Component
-/// Technical vertical bar handle for timeline trimming
+/// Enhanced trim handle with gradient, grip lines, and visual feedback
 struct TrimHandle: View {
     let isDragging: Bool
-    
+
     var body: some View {
         RoundedRectangle(cornerRadius: 2)
-            .fill(Color.accent)
+            .fill(
+                LinearGradient(
+                    gradient: Gradient(colors: [Color.accent, Color.accent.opacity(0.8)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
             .overlay(
-                // Add grip lines for visual feedback
-                VStack(spacing: 3) {
+                // Enhanced grip lines (8pt × 1.5pt, 4pt spacing)
+                VStack(spacing: 4) {
                     ForEach(0..<3, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 0.5)
-                            .fill(Color.white.opacity(0.6))
-                            .frame(width: 4, height: 1)
+                        RoundedRectangle(cornerRadius: 0.75)
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 8, height: 1.5)
                     }
                 }
             )
-            .scaleEffect(isDragging ? 1.1 : 1.0)
+            .overlay(
+                // White border overlay (1pt stroke)
+                RoundedRectangle(cornerRadius: 2)
+                    .strokeBorder(Color.white, lineWidth: 1)
+            )
+            .scaleEffect(isDragging ? 1.15 : 1.0)
+            .shadow(color: isDragging ? Color.accent.opacity(0.6) : Color.clear, radius: isDragging ? 8 : 0, x: 0, y: 0)
             .animation(.easeInOut(duration: 0.15), value: isDragging)
     }
 }

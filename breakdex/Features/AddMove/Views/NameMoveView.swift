@@ -497,12 +497,12 @@ struct NameMoveView: View {
 // MARK: - Preview
 #Preview {
     struct PreviewWrapper: View {
-        private var viewModel: AddMoveViewModel {
+        @StateObject private var viewModel: AddMoveViewModel = {
             let vm = AddMoveViewModel()
             // Simulate a loaded video for preview by setting some state
             vm.moveName = "Sample Move"
             return vm
-        }
+        }()
 
         var body: some View {
             NameMoveView(viewModel: viewModel)

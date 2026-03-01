@@ -239,15 +239,7 @@ struct ReviewView: View {
         let progress = total > 0 ? Double(count) / Double(total) : 0.0
 
         return NavigationLink {
-            // TODO: Implement FlashcardReviewView
-            // FlashcardReviewView(learningState: learningState, reviewType: type)
-            VStack {
-                Text("Review: \(title)")
-                    .font(.largeTitle)
-                Text("Learning State: \(learningState)")
-                Text("Type: \(String(describing: type))")
-                Text("FlashcardReviewView - To be implemented")
-            }
+            FlashcardReviewView(learningState: learningState, reviewType: type)
         } label: {
             HStack(spacing: Spacing.md) {
                 // Color indicator and title
